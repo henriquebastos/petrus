@@ -1,0 +1,12 @@
+id: dispatch-is-activity-only
+language: python
+severity: error
+message: Dispatch may import only activity (and telemetry if operational instrumentation needs it), never Petri, history, binding, storage, private coordination, Fabric, or lifecycle.
+files:
+  - src/petrus/motus/dispatch/__init__.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(petrinet|firing|history|instance|binding|history_store|_coordination|fabric|processes|absurd|worker)'
+    - kind: import_from_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(petrinet|firing|history|instance|binding|history_store|_coordination|fabric|processes|absurd|worker)'

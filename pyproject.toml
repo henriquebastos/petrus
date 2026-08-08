@@ -1,0 +1,117 @@
+[project]
+name = "petrus"
+version = "0.0.0"
+description = "Petrus — an agentic Petri net runtime."
+readme = "README.md"
+requires-python = ">=3.14"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Henrique Bastos", email = "henrique@bastos.net" },
+]
+dependencies = [
+    "cel-python>=0.1",
+    "pydantic>=2.12,<3",
+]
+
+[project.optional-dependencies]
+postgres = [
+    "psycopg[binary]>=3.2,<4",
+]
+absurd = [
+    # The D11 posture: Absurd 0.4.0 exact-pinned, never forked — a re-pin is
+    # a deliberate act that re-verifies the vendored schema hash
+    # (src/petrus/motus/dispatch/absurd_schema) and reruns the ES-009 matrix.
+    "absurd-sdk==0.4.0",
+    "petrus[postgres]",
+]
+zeromq = [
+    "pyzmq>=27,<28",
+]
+github-app = [
+    # PEM validation and RS256 signing stay with a maintained crypto backend;
+    # bootstrap code does not hand-roll ASN.1 or RSA padding.
+    "cryptography>=49,<50",
+]
+agenticus-amp = [
+    # Amp A1 is qualified only against this exact Neo SDK build; its probe also
+    # requires the exact CLI pin recorded by petrus.agenticus.runtime.amp.
+    "amp-sdk==0.1.20260729121202",
+]
+agenticus-claude = [
+    # Claude A2 is qualified only against this exact Agent SDK build; its
+    # runtime probe separately enforces the bundled Claude Code client pin.
+    "claude-agent-sdk==0.2.128",
+]
+
+[dependency-groups]
+dev = [
+    "ast-grep-cli>=0.44.0",
+    "build>=1.5,<2",
+    "hatchling==1.31.0",
+    "hypothesis==6.164.0",
+    # The self-extras pull the `postgres`, `absurd`, and GitHub App extras into the dev
+    # sync, so the full profile's plain pytest run exercises the DS3 backend
+    # and DS4 adapter suites while the extras stay each constraint's ONE
+    # authority.
+    "petrus[postgres]",
+    "petrus[absurd]",
+    "petrus[zeromq]",
+    "petrus[github-app]",
+    "mutmut==3.6.0",
+    "pytest >=8.3",
+    "pytest-randomly>=4,<5",
+    "pytest-timeout>=2.4,<3",
+    "ruff >=0.8",
+    "twine>=6.2,<7",
+    "ty==0.0.63",
+    "pytest-xdist>=3.8,<4",
+]
+
+[build-system]
+requires = ["hatchling==1.31.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.sdist]
+only-include = ["src/petrus"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/petrus"]
+
+[tool.pytest.ini_options]
+addopts = "--randomly-seed=1729"
+testpaths = ["tests"]
+python_files = "test_*.py"
+timeout = 180
+markers = [
+    "real_provider_acceptance: opt-in tests that may invoke authenticated external provider clients",
+    "real_gondolin_acceptance: opt-in tests that invoke a locally installed Gondolin VM",
+    "qualification_installation: opt-in credential-free probes against exact externally installed toolchains",
+]
+
+[tool.mutmut]
+source_paths = ["src/petrus"]
+only_mutate = [
+    "src/petrus/impetus/petrinet/marking.py",
+    "src/petrus/impetus/selection/__init__.py",
+]
+pytest_add_cli_args = ["-o", "addopts=", "-q"]
+pytest_add_cli_args_test_selection = [
+    "tests/petrus/impetus/selection/test_selection.py",
+    "tests/petrus/impetus/petrinet/test_token_queue.py",
+]
+timeout_multiplier = 5
+timeout_constant = 0.2
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+extend-select = ["C901"]
+
+[tool.ruff.lint.per-file-ignores]
+"!src/petrus/**.py" = ["C901"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10

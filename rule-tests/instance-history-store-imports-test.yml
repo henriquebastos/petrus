@@ -1,0 +1,8 @@
+id: instance-history-store-imports
+valid:
+  - from petrus.impetus.history_store import HistoryStore
+invalid:
+  - from petrus.impetus.history_store.memory import InMemoryHistoryStore
+  - from petrus.impetus.history_store.sqlite import SqliteHistoryStore
+  - from ..history_store.sqlite import SqliteHistoryStore
+  - import petrus.impetus.history_store.future_provider

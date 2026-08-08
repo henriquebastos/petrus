@@ -1,0 +1,12 @@
+id: dispatch-transport-boundary
+language: python
+severity: error
+message: Motus Transport may depend only on Motus Activity and Dispatch, telemetry, and the qualified Local server provider; never Impetus, Engine, Fabric, processes, or Worker runtime.
+files:
+  - src/petrus/motus/transport/**/*.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus\.(impetus|engine|fabric|processes|motus\.worker)'
+    - kind: import_from_statement
+      regex: 'petrus\.(impetus|engine|fabric|processes|motus\.worker)'

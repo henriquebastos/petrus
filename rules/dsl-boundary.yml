@@ -1,0 +1,12 @@
+id: dsl-boundary
+language: python
+severity: error
+message: Impetus DSL may import Impetus Petrinet and Binding plus Motus Activity only.
+files:
+  - src/petrus/impetus/dsl.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus\.(engine|fabric|processes|impetus\.(history|history_store|instance|selection)|motus\.(dispatch|transport|worker))'
+    - kind: import_from_statement
+      regex: 'petrus\.(engine|fabric|processes|impetus\.(history|history_store|instance|selection)|motus\.(dispatch|transport|worker))'

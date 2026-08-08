@@ -1,0 +1,9 @@
+id: worker-cli-boundary
+valid:
+  - from petrus.motus.worker import Worker
+  - from petrus.motus.dispatch.local import LocalWorkerDispatch
+  - from petrus.motus.transport.zeromq import ZeroMQWorkerDispatch
+invalid:
+  - from petrus.engine import Engine
+  - from petrus.impetus.history_store.sqlite import SqliteHistoryStore
+  - from petrus.impetus.petrinet import Net

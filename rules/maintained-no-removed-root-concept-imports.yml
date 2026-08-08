@@ -1,0 +1,11 @@
+id: maintained-no-removed-root-concept-imports
+language: python
+severity: error
+message: Maintained consumers must import from defining modules, never the empty Petrus project namespace.
+files:
+  - tests/**/*.py
+  - scripts/**/*.py
+rule:
+  any:
+    - kind: import_from_statement
+      regex: '^from petrus import '

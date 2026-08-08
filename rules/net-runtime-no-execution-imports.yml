@@ -1,0 +1,23 @@
+id: net-runtime-no-execution-imports
+language: python
+severity: error
+message: >-
+  the Instance/runtime layer (instance/history/cel) must not import the
+  driving runtime (dispatch/private coordination) or the adapter modules above it (absurd/worker). Engine, Clock, and Dispatch drive the
+  net from above through the firing-occurrence seam; the net semantics below must
+  stay drivable by any substrate.
+files:
+  - src/petrus/impetus/history/**/*.py
+  - src/petrus/impetus/instance/**/*.py
+  - src/petrus/impetus/binding/cel.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(dispatch|_coordination|execution|absurd|worker)'
+    - kind: import_from_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(dispatch|_coordination|execution|absurd|worker)'
+    - pattern: from petrus import dispatch
+    - pattern: from petrus import _coordination
+    - pattern: from petrus import execution
+    - pattern: from petrus import absurd
+    - pattern: from petrus import worker

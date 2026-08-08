@@ -1,0 +1,18 @@
+id: processes-lower-layer-boundary
+language: python
+severity: error
+message: Fabric, Engine private coordination, Dispatch, Instance, History, and History Store must not import petrus.processes.
+files:
+  - src/petrus/fabric/**/*.py
+  - src/petrus/engine/_coordination.py
+  - src/petrus/motus/dispatch/__init__.py
+  - src/petrus/impetus/instance/**/*.py
+  - src/petrus/impetus/history/**/*.py
+  - src/petrus/impetus/history_store/**/*.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus\.processes'
+    - kind: import_from_statement
+      regex: 'petrus\.processes'
+    - pattern: from petrus import processes

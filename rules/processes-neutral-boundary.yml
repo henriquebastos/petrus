@@ -1,0 +1,28 @@
+id: processes-neutral-boundary
+language: python
+severity: error
+message: Neutral process values and call protocol must not import runtime, PostgreSQL, or adapter layers.
+files:
+  - src/petrus/processes/__init__.py
+  - src/petrus/processes/model.py
+  - src/petrus/processes/call.py
+rule:
+  any:
+    - kind: import_statement
+      regex: '(psycopg|petrus\.(engine|impetus|motus))'
+    - kind: import_from_statement
+      regex: '(psycopg|petrus\.(engine|impetus|motus))'
+    - pattern: from petrus import schema
+    - pattern: from petrus import marking
+    - pattern: from petrus import enabledness
+    - pattern: from petrus import firing
+    - pattern: from petrus import history
+    - pattern: from petrus import instance
+    - pattern: from petrus import execution
+    - pattern: from petrus import history_store
+    - pattern: from petrus import _coordination
+    - pattern: from petrus import absurd
+    - pattern: from petrus import worker
+    - pattern: from petrus import adapters
+    - pattern: from petrus import providers
+    - pattern: from petrus import applications

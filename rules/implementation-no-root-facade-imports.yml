@@ -1,0 +1,29 @@
+id: implementation-no-root-facade-imports
+language: python
+severity: error
+message: Canonical implementation packages must import defining modules directly, not the empty project namespace.
+files:
+  - src/petrus/simulation.py
+  - src/petrus/simulation_http.py
+  - src/petrus/impetus/dsl.py
+  - src/petrus/impetus/observation.py
+  - src/petrus/engine/observation_http.py
+  - src/petrus/engine/_coordination.py
+  - src/petrus/motus/activity/**/*.py
+  - src/petrus/motus/_execution/**/*.py
+  - src/petrus/impetus/binding/**/*.py
+  - src/petrus/motus/dispatch/**/*.py
+  - src/petrus/impetus/history/**/*.py
+  - src/petrus/impetus/history_store/**/*.py
+  - src/petrus/impetus/instance/**/*.py
+  - src/petrus/impetus/petrinet/**/*.py
+  - src/petrus/impetus/selection/**/*.py
+  - src/petrus/motus/worker/**/*.py
+rule:
+  any:
+    - all:
+        - kind: import_from_statement
+        - regex: '^from petrus import '
+    - all:
+        - kind: import_statement
+        - regex: '(^import\s+|,\s*)petrus(\s+as\s+[A-Za-z_][A-Za-z0-9_]*)?(\s*,|$)'

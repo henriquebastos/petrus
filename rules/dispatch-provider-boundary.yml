@@ -1,0 +1,13 @@
+id: dispatch-provider-boundary
+language: python
+severity: error
+message: Concrete Motus Dispatch providers may import only Motus Activity and Dispatch, telemetry, and their exact external driver.
+files:
+  - src/petrus/motus/dispatch/local.py
+  - src/petrus/motus/dispatch/absurd.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus\.(engine|fabric|processes|impetus|motus\.(transport|worker))'
+    - kind: import_from_statement
+      regex: 'petrus\.(engine|fabric|processes|impetus|motus\.(transport|worker))'

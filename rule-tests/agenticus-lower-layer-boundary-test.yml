@@ -1,0 +1,8 @@
+id: agenticus-lower-layer-boundary
+valid:
+  - from petrus.impetus.petrinet import Net
+  - from petrus.motus.activity import ActivityInvocation
+invalid:
+  - from petrus.agenticus.thread.model import Thread
+  - from petrus import agenticus
+  - import petrus.agenticus

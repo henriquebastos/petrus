@@ -1,0 +1,14 @@
+id: engine-boundary
+valid:
+  - from petrus.impetus.history import Record
+  - from petrus.impetus.history_store import HistoryStore
+  - from petrus.motus.dispatch import Dispatch
+  - from petrus.engine._coordination import Coordinator
+  - from petrus.impetus.instance import Status
+  - from petrus.impetus.petrinet import Marking
+invalid:
+  - from petrus import Status
+  - import psycopg
+  - from psycopg import Connection
+  - from petrus.motus.dispatch.absurd import create_engine
+  - import petrus.motus.dispatch.absurd

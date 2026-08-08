@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+mutants/
+.env
+.env.*
+!.env.example
+.claude/worktrees/
+.amp/portals/
+.ariad-authority/

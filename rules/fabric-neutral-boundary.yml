@@ -1,0 +1,24 @@
+id: fabric-neutral-boundary
+language: python
+severity: error
+message: Fabric neutral modules must not import psycopg or infrastructure/kernel layers.
+files:
+  - src/petrus/fabric/model.py
+  - src/petrus/fabric/__init__.py
+rule:
+  any:
+    - kind: import_statement
+      regex: '(psycopg|petrus(?:.impetus|.motus)?\.(firing|petrinet|instance|execution|history_store|_coordination|absurd|worker|adapters|providers|processes))'
+    - kind: import_from_statement
+      regex: '(psycopg|petrus(?:.impetus|.motus)?\.(firing|petrinet|instance|execution|history_store|_coordination|absurd|worker|adapters|providers|processes))'
+    - pattern: from petrus import firing
+    - pattern: from petrus import marking
+    - pattern: from petrus import instance
+    - pattern: from petrus import execution
+    - pattern: from petrus import history_store
+    - pattern: from petrus import _coordination
+    - pattern: from petrus import absurd
+    - pattern: from petrus import worker
+    - pattern: from petrus import adapters
+    - pattern: from petrus import providers
+    - pattern: from petrus import processes

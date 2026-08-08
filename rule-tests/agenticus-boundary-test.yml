@@ -1,0 +1,14 @@
+id: agenticus-boundary
+valid:
+  - from petrus.agenticus.catalog.descriptor import DescriptorIdentity
+  - from petrus.motus.execution import EnvironmentSpec
+  - import petrus.agenticus.catalog.descriptor
+invalid:
+  - from petrus.agenticus import DescriptorIdentity
+  - from petrus import agenticus
+  - import petrus.agenticus
+  - import petrus.agenticus as agenticus
+  - from petrus.motus._execution.model import EnvironmentSpec
+  - from petrus.motus import _execution
+  - from petrus.motus import _execution as execution
+  - import petrus.motus._execution

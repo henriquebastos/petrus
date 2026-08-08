@@ -1,0 +1,19 @@
+id: processes-spawn-boundary
+language: python
+severity: error
+message: Process spawn glue may depend on neutral contracts and the public activity value, not concrete stores or adapters.
+files:
+  - src/petrus/processes/spawn.py
+rule:
+  any:
+    - kind: import_statement
+      regex: '(psycopg|petrus\.(engine|impetus|motus\.(dispatch|transport|worker)|processes\.postgres))'
+    - kind: import_from_statement
+      regex: '(psycopg|petrus\.(engine|impetus|motus\.(dispatch|transport|worker)|processes\.postgres))'
+    - pattern: from petrus import history_store
+    - pattern: from petrus import _coordination
+    - pattern: from petrus import absurd
+    - pattern: from petrus import worker
+    - pattern: from petrus import adapters
+    - pattern: from petrus import providers
+    - pattern: from petrus import applications

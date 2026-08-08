@@ -1,0 +1,41 @@
+{
+  "format": "petrus.agenticus.conformance",
+  "version": 1,
+  "contract": "catalog.descriptor",
+  "cases": [
+    {
+      "name": "application-owned-runtime",
+      "descriptor": {
+        "schema_version": 1,
+        "identity": {
+          "kind": "runtime",
+          "name": "pi.application-owned",
+          "contract_version": 1
+        },
+        "offers": [
+          "continuation.opaque",
+          "program.harness-owned"
+        ],
+        "requires": [
+          {
+            "kind": "connection",
+            "name": null,
+            "contract_version": 1,
+            "capabilities": [
+              "authority.materialize"
+            ]
+          },
+          {
+            "kind": "hands",
+            "name": null,
+            "contract_version": 1,
+            "capabilities": [
+              "workspace.read",
+              "workspace.write"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Orb setup: runs once when a fresh Amp orb is created, before Amp starts working.
+# Installs everything needed to run the repository feedback profiles in scripts/check.
+set -euo pipefail
+
+echo "==> Installing Docker (the test suite provisions an ephemeral PostgreSQL container)"
+if ! command -v docker >/dev/null 2>&1; then
+    sudo apt-get update -qq
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io
+fi
+sudo usermod -aG docker "$USER"
+# Group membership only applies to new logins; open the socket for this
+# single-user sandbox so the current session works too (re-applied on resume).
+sudo mkdir -p /etc/systemd/system/docker.socket.d
+sudo tee /etc/systemd/system/docker.socket.d/orb.conf >/dev/null <<'EOF'
+[Socket]
+SocketMode=0666
+EOF
+sudo systemctl daemon-reload
+sudo systemctl enable --now docker.socket docker.service
+[ -S /var/run/docker.sock ] && sudo chmod 666 /var/run/docker.sock
+
+echo "==> Installing Graphviz (DOT/SVG/PNG net rendering)"
+if ! command -v dot >/dev/null 2>&1; then
+    sudo apt-get update -qq
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq graphviz
+fi
+
+echo "==> Installing uv"
+if ! command -v uv >/dev/null 2>&1; then
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+export PATH="$HOME/.local/bin:$PATH"
+
+echo "==> Exporting UV_FROZEN=1 in the shell profile (routine commands must never rewrite uv.lock)"
+for profile in "$HOME/.bashrc" "$HOME/.profile"; do
+    grep -q 'UV_FROZEN' "$profile" 2>/dev/null || echo 'export UV_FROZEN=1' >> "$profile"
+done
+
+echo "==> Syncing Python environment (uv manages Python >=3.12 itself)"
+UV_FROZEN=1 uv sync
+
+echo "==> Pre-pulling the digest-pinned PostgreSQL test image (see conftest.py)"
+POSTGRES_IMAGE="$(grep -oP 'POSTGRES_IMAGE = "\K[^"]+' conftest.py)"
+docker pull "$POSTGRES_IMAGE"
+
+echo "==> Setup complete"

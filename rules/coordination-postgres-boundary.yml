@@ -1,0 +1,27 @@
+id: coordination-postgres-boundary
+language: python
+severity: error
+message: Private PostgreSQL coordination fencing must not import kernel, Fabric, execution adapter, worker, provider, or application layers.
+files:
+  - src/petrus/engine/_postgres.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus\.(fabric|processes|impetus|motus)'
+    - kind: import_from_statement
+      regex: 'petrus\.(fabric|processes|impetus|motus)'
+    - pattern: from petrus import schema
+    - pattern: from petrus import marking
+    - pattern: from petrus import enabledness
+    - pattern: from petrus import firing
+    - pattern: from petrus import history
+    - pattern: from petrus import instance
+    - pattern: from petrus import execution
+    - pattern: from petrus import fabric
+    - pattern: from petrus import history_store
+    - pattern: from petrus import absurd
+    - pattern: from petrus import worker
+    - pattern: from petrus import adapters
+    - pattern: from petrus import providers
+    - pattern: from petrus import applications
+    - pattern: from petrus import processes

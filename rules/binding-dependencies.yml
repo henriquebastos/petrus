@@ -1,0 +1,12 @@
+id: binding-dependencies
+language: python
+severity: error
+message: Binding may import only Petrinet, activity, celpy, and the standard library.
+files:
+  - src/petrus/impetus/binding/**/*.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(history|history_store|instance|dispatch|execution|firing|_coordination|fabric|processes|absurd|worker)'
+    - kind: import_from_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(history|history_store|instance|dispatch|execution|firing|_coordination|fabric|processes|absurd|worker)'

@@ -1,0 +1,12 @@
+id: history-store-sqlite-boundary
+language: python
+severity: error
+message: SQLite History Store may import Impetus History, telemetry, sqlite, and the standard library only.
+files:
+  - src/petrus/impetus/history_store/sqlite.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus\.(engine|fabric|processes|impetus\.(binding|dsl|instance|petrinet|selection)|motus\.(activity|dispatch|transport|worker))'
+    - kind: import_from_statement
+      regex: 'petrus\.(engine|fabric|processes|impetus\.(binding|dsl|instance|petrinet|selection)|motus\.(activity|dispatch|transport|worker))'

@@ -1,0 +1,20 @@
+id: agenticus-boundary
+language: python
+severity: error
+message: Agenticus must use defining modules and supported Motus contracts, never its root facade or private Motus execution.
+files:
+  - src/petrus/agenticus/**/*.py
+rule:
+  any:
+    - kind: import_from_statement
+      regex: '^from petrus\.agenticus import '
+    - kind: import_from_statement
+      regex: '(?s)^from petrus import .*\bagenticus\b'
+    - kind: import_statement
+      regex: '(^import\s+|,\s*)petrus\.agenticus(\s+as\s+[A-Za-z_][A-Za-z0-9_]*)?(\s*,|$)'
+    - kind: import_statement
+      regex: 'petrus\.motus\._execution'
+    - kind: import_from_statement
+      regex: 'petrus\.motus\._execution'
+    - kind: import_from_statement
+      regex: '(?s)^from petrus\.motus import .*\b_execution\b'

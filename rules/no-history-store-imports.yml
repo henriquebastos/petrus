@@ -1,0 +1,28 @@
+id: no-history-store-imports
+language: python
+severity: error
+message: >-
+  lower concepts must not import history_store nor the adapter modules built over it
+  (absurd/worker). A durable history backend plugs in from
+  above — injected at Instance construction — and the kernel stays
+  backend-agnostic: nothing below history_store may know which backend, or that
+  one exists.
+files:
+  - src/petrus/impetus/petrinet/schema.py
+  - src/petrus/impetus/petrinet/marking.py
+  - src/petrus/impetus/petrinet/enabledness.py
+  - src/petrus/impetus/history/**/*.py
+  - src/petrus/impetus/binding/cel.py
+  - src/petrus/motus/dispatch/__init__.py
+  - src/petrus/engine/_coordination.py
+rule:
+  any:
+    # dotted forms: `import petrus.impetus.history_store`, `from petrus.impetus.history_store.postgres import x`
+    - kind: import_statement
+      regex: 'petrus\.(impetus\.history_store|motus\.(dispatch\.absurd|worker))'
+    - kind: import_from_statement
+      regex: 'petrus\.(impetus\.history_store|motus\.(dispatch\.absurd|worker))'
+    # alias form: `from petrus import history_store`
+    - pattern: from petrus import history_store
+    - pattern: from petrus import absurd
+    - pattern: from petrus import worker

@@ -1,0 +1,27 @@
+id: fabric-postgres-boundary
+language: python
+severity: error
+message: Fabric PostgreSQL may depend on its neutral model and telemetry, not kernel/runtime/adapter layers.
+files:
+  - src/petrus/fabric/postgres.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(petrinet|firing|history|instance|execution|_coordination|history_store|absurd|worker|adapters|providers|applications|processes)'
+    - kind: import_from_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(petrinet|firing|history|instance|execution|_coordination|history_store|absurd|worker|adapters|providers|applications|processes)'
+    - pattern: from petrus import schema
+    - pattern: from petrus import marking
+    - pattern: from petrus import enabledness
+    - pattern: from petrus import firing
+    - pattern: from petrus import history
+    - pattern: from petrus import instance
+    - pattern: from petrus import execution
+    - pattern: from petrus import _coordination
+    - pattern: from petrus import history_store
+    - pattern: from petrus import absurd
+    - pattern: from petrus import worker
+    - pattern: from petrus import adapters
+    - pattern: from petrus import providers
+    - pattern: from petrus import applications
+    - pattern: from petrus import processes

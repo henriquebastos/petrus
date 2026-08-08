@@ -1,0 +1,56 @@
+{
+  "format": "petrus.agenticus.conformance",
+  "version": 1,
+  "contract": "catalog.result",
+  "cases": [
+    {
+      "name": "compatible-candidate",
+      "compatible": true,
+      "result": {
+        "schema_version": 1,
+        "candidate": {
+          "kind": "runtime",
+          "name": "pi.application-owned",
+          "contract_version": 1
+        },
+        "issues": []
+      }
+    },
+    {
+      "name": "blocked-candidate",
+      "compatible": false,
+      "result": {
+        "schema_version": 1,
+        "candidate": {
+          "kind": "runtime",
+          "name": "pi.application-owned",
+          "contract_version": 1
+        },
+        "issues": [
+          {
+            "code": "missing-capability",
+            "subject": "workspace.write"
+          },
+          {
+            "code": "version-mismatch",
+            "subject": "hands"
+          }
+        ]
+      }
+    },
+    {
+      "name": "no-candidate",
+      "compatible": false,
+      "result": {
+        "schema_version": 1,
+        "candidate": null,
+        "issues": [
+          {
+            "code": "no-candidate",
+            "subject": "runtime"
+          }
+        ]
+      }
+    }
+  ]
+}

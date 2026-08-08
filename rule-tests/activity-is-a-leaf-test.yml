@@ -1,0 +1,7 @@
+id: activity-is-a-leaf
+valid:
+  - from dataclasses import dataclass
+  - from collections.abc import Mapping
+invalid:
+  - from petrus.motus.dispatch import InlineDispatch
+  - import petrus.impetus.history_store

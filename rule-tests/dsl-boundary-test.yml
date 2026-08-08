@@ -1,0 +1,11 @@
+id: dsl-boundary
+valid:
+  - from petrus.impetus.petrinet import Net
+  - from petrus.impetus.binding import ActivityHandler
+  - from petrus.motus.activity import ActivityDeclaration
+invalid:
+  - from petrus.engine import Engine
+  - from petrus.impetus.history import Record
+  - from petrus.motus.dispatch import Dispatch
+  - from petrus.fabric import Envelope
+  - from petrus.processes import SpawnSpec

@@ -1,0 +1,12 @@
+id: instance-history-store-imports
+language: python
+severity: error
+message: Instance may import History Store only through the public petrus.impetus.history_store facade.
+files:
+  - src/petrus/impetus/instance/**/*.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus\.impetus\.history_store\.'
+    - kind: import_from_statement
+      regex: '(?:petrus\.impetus\.|\.+)history_store\.'

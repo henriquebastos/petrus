@@ -1,0 +1,7 @@
+# ast-grep project config. Structural code-convention rules live in rules/.
+# Run with: uv run ast-grep scan   (enforced via tests/project/test_conventions.py)
+# Add a convention = add a YAML rule file under rules/.
+ruleDirs:
+  - rules
+testConfigs:
+  - testDir: rule-tests

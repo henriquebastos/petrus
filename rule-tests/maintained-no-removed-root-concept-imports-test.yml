@@ -1,0 +1,17 @@
+id: maintained-no-removed-root-concept-imports
+valid:
+  - from petrus.impetus.instance import Instance
+  - import petrus.telemetry as telemetry
+invalid:
+  - from petrus import telemetry
+  - from petrus import Net
+  - from petrus import NetInstance
+  - from petrus import Coordinator, Instance
+  - from petrus import telemetry as t
+  - from petrus import telemetry, Coordinator
+  - |
+      from petrus import (
+          Coordinator,
+          Marking,
+          Runner,
+      )

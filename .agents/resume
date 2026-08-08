@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Orb resume: runs every time an existing orb wakes from pause.
+# Fast, idempotent repair only — no installs here.
+set -euo pipefail
+
+# The test suite needs the Docker daemon (ephemeral PostgreSQL container).
+if ! docker info >/dev/null 2>&1; then
+    sudo systemctl start docker.service || true
+    [ -S /var/run/docker.sock ] && sudo chmod 666 /var/run/docker.sock
+fi
+
+exit 0

@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# One deterministic feedback interface for agents and humans.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+export UV_FROZEN=1
+ROUTINE_TESTS="not real_provider_acceptance and not real_gondolin_acceptance and not qualification_installation"
+
+usage() {
+    cat <<'EOF'
+usage: scripts/check quick [PATH ...]
+       scripts/check full
+       scripts/check release
+       scripts/check mutation
+
+quick    lint and format-check Python PATHs, type-check production source, and scan (default: the repository)
+full     quick checks plus the deterministic seed-1729 full suite on four workers
+release  full checks plus one additional fixed-order full-suite run
+mutation periodically report curated pure-semantic mutants; not a release gate or score threshold
+EOF
+}
+
+quick() {
+    local paths=("$@")
+    if ((${#paths[@]} == 0)); then
+        paths=(.)
+    fi
+    uv run ruff check "${paths[@]}"
+    uv run ruff format --check "${paths[@]}"
+    uv run ty check src/petrus
+    uv run ast-grep scan
+}
+
+full() {
+    if (($# != 0)); then
+        printf 'scripts/check full does not accept paths\n' >&2
+        return 2
+    fi
+    # Refuse concurrent full suites instead of letting one run remove another
+    # session's labeled PostgreSQL containers or shared pytest base directory.
+    exec 9>"/tmp/petrus-check-full.lock"
+    if ! flock --nonblock 9; then
+        printf 'another Petrus full/release check already owns the PostgreSQL harness\n' >&2
+        return 1
+    fi
+    (
+        # The parent retains the lock while test and application subprocesses
+        # cannot inherit it and orphan ownership after a hard failure.
+        exec 9>&-
+        quick
+        uv run pytest -q -n 4 --dist loadscope --basetemp=/tmp/petrus-check --durations=20 --durations-min=0.5 \
+            --forbid-skips -m "$ROUTINE_TESTS"
+    )
+}
+
+mutation() {
+    if (($# != 0)); then
+        printf 'scripts/check mutation does not accept paths\n' >&2
+        return 2
+    fi
+    uv run mutmut run \
+        'petrus.impetus.selection.x_fold_history*' \
+        'petrus.impetus.selection.x__cursor*' \
+        'petrus.impetus.petrinet.marking.xǁTokenQueueǁ*' \
+        --max-children 1
+}
+
+case "${1:-}" in
+    quick)
+        shift
+        quick "$@"
+        ;;
+    full)
+        shift
+        full "$@"
+        ;;
+    release)
+        shift
+        if (($# != 0)); then
+            printf 'scripts/check release does not accept paths\n' >&2
+            exit 2
+        fi
+        full
+        (
+            exec 9>&-
+            uv run pytest -q --basetemp=/tmp/petrus-check --durations=20 --durations-min=0.5 \
+                --randomly-seed=20260724 --forbid-skips -m "$ROUTINE_TESTS"
+        )
+        ;;
+    mutation)
+        shift
+        mutation "$@"
+        ;;
+    -h|--help)
+        usage
+        ;;
+    *)
+        usage >&2
+        exit 2
+        ;;
+esac

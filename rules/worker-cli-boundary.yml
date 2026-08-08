@@ -1,0 +1,13 @@
+id: worker-cli-boundary
+language: python
+severity: error
+message: Worker CLI may select Dispatch providers and transports but never import Petri, History, Engine, Instance, Binding, Fabric, or processes.
+files:
+  - src/petrus/motus/worker/_cli.py
+  - src/petrus/motus/worker/__main__.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(petrinet|history|engine|instance|binding|history_store|fabric|processes)'
+    - kind: import_from_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(petrinet|history|engine|instance|binding|history_store|fabric|processes)'

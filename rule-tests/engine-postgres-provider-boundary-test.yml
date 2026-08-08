@@ -1,0 +1,19 @@
+id: engine-postgres-provider-boundary
+valid:
+  - from petrus.engine import Engine
+  - from petrus.motus.dispatch import Dispatch
+  - from petrus.impetus.history_store.postgres import PostgresHistoryStore
+invalid:
+  - from petrus.motus.dispatch import LocalDispatch
+  - from petrus.motus.dispatch import AbsurdDispatch
+  - from petrus.motus.dispatch import LocalDispatch as DispatchProvider
+  - from petrus.motus.dispatch import Dispatch, AbsurdDispatch as DispatchProvider
+  - |
+    from petrus.motus.dispatch import (
+        Dispatch,
+        LocalDispatch,
+    )
+  - from petrus.motus.dispatch.absurd import AbsurdDispatch
+  - from petrus.motus.dispatch.local import LocalDispatch
+  - from petrus.impetus.history_store.sqlite import SqliteHistoryStore
+  - from petrus.motus.worker import Worker

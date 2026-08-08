@@ -1,0 +1,14 @@
+id: engine-postgres-provider-boundary
+language: python
+severity: error
+message: PostgreSQL Engine composition with caller Dispatch must not choose a Dispatch provider or unrelated upper layer.
+files:
+  - src/petrus/engine/postgres.py
+rule:
+  any:
+    - kind: import_from_statement
+      regex: '(?s)^from petrus\.motus\.dispatch import .*\b(LocalDispatch|AbsurdDispatch)\b'
+    - kind: import_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(worker|transport|fabric|processes|applications|dispatch\.|history_store\.sqlite)'
+    - kind: import_from_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(worker|transport|fabric|processes|applications|dispatch\.|history_store\.sqlite)'

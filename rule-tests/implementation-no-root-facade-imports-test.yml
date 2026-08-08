@@ -1,0 +1,18 @@
+id: implementation-no-root-facade-imports
+valid:
+  - import petrus.telemetry as telemetry
+  - from petrus.motus.activity import ActivityInvocation
+  - from petrus.engine._coordination import Coordinator
+  - import petrus.motus.activity
+  - import petrus.motus.activity as activity
+invalid:
+  - from petrus import telemetry
+  - from petrus import Coordinator
+  - from petrus import JsonlEventHistory
+  - from petrus import Dispatch
+  - import petrus
+  - import petrus as api
+  - import os, petrus
+  - from petrus import telemetry as t
+  - from petrus import telemetry, Coordinator
+  - from petrus import Coordinator, telemetry

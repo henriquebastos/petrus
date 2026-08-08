@@ -1,0 +1,23 @@
+id: engine-boundary
+language: python
+severity: error
+message: Neutral Engine core and private coordination may compose capability contracts but never providers, transport, Worker, Fabric, or processes.
+files:
+  - src/petrus/engine/__init__.py
+  - src/petrus/engine/_coordination.py
+rule:
+  any:
+    - kind: import_from_statement
+      regex: '^from petrus import'
+    - kind: import_statement
+      regex: 'psycopg'
+    - kind: import_from_statement
+      regex: '^from psycopg'
+    - kind: import_statement
+      regex: 'petrus\.(impetus\.history_store|motus\.dispatch)\.'
+    - kind: import_from_statement
+      regex: 'petrus\.(impetus\.history_store|motus\.dispatch)\.'
+    - kind: import_statement
+      regex: 'petrus\.(fabric|processes|motus\.(transport|worker))'
+    - kind: import_from_statement
+      regex: 'petrus\.(fabric|processes|motus\.(transport|worker))'

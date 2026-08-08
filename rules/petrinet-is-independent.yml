@@ -1,0 +1,12 @@
+id: petrinet-is-independent
+language: python
+severity: error
+message: "Petrinet Kernel firing must remain history-independent: do not import history, storage, Instance, dispatch, workers, private coordination, infrastructure, or higher layers."
+files:
+  - src/petrus/impetus/petrinet/**/*.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(history|history_store|instance|dispatch|execution|binding|_coordination|fabric|processes|absurd|worker)'
+    - kind: import_from_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(history|history_store|instance|dispatch|execution|binding|_coordination|fabric|processes|absurd|worker)'

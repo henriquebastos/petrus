@@ -1,0 +1,115 @@
+{
+  "after": 0,
+  "frontier": 7,
+  "instance": "canonical-instance",
+  "next": 7,
+  "protocol": 1,
+  "records": [
+    {
+      "position": 0,
+      "record": {
+        "instance": "canonical-instance",
+        "instant": 7,
+        "name": "canonical-observation",
+        "record": "InstanceCreated",
+        "schema": 4
+      }
+    },
+    {
+      "position": 1,
+      "record": {
+        "instant": 7,
+        "place": "a",
+        "record": "TokensInitialized",
+        "schema": 4,
+        "tokens": [
+          {
+            "color": "Input",
+            "data": {
+              "ordinal": 1
+            }
+          },
+          {
+            "color": "Input",
+            "data": {
+              "ordinal": 2
+            }
+          }
+        ]
+      }
+    },
+    {
+      "position": 2,
+      "record": {
+        "instant": 7,
+        "key": "default",
+        "occurrence": null,
+        "record": "DeliveryRegistrationOpened",
+        "schema": 4,
+        "source": "source"
+      }
+    },
+    {
+      "position": 3,
+      "record": {
+        "instant": 7,
+        "occurrence": 1,
+        "record": "CandidateSelected",
+        "schema": 4,
+        "transition": "work"
+      }
+    },
+    {
+      "position": 4,
+      "record": {
+        "instant": 7,
+        "occurrence": 1,
+        "record": "FiringBegun",
+        "schema": 4,
+        "transition": "work"
+      }
+    },
+    {
+      "position": 5,
+      "record": {
+        "instant": 7,
+        "occurrence": 1,
+        "place": "a",
+        "record": "TokensConsumed",
+        "schema": 4,
+        "tokens": [
+          {
+            "color": "Input",
+            "data": {
+              "ordinal": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "position": 6,
+      "record": {
+        "activity": "canonical.activity",
+        "correlation": "canonical-correlation",
+        "idempotency": "canonical-idempotency",
+        "input": {
+          "nested": [
+            {
+              "ordinal": 1
+            }
+          ]
+        },
+        "instant": 7,
+        "occurrence": 1,
+        "policy": {
+          "attempts": 1,
+          "heartbeat_timeout": 30
+        },
+        "record": "ActivityRequested",
+        "schema": 4,
+        "transition": "work"
+      }
+    }
+  ]
+}

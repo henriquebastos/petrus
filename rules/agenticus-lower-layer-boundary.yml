@@ -1,0 +1,15 @@
+id: agenticus-lower-layer-boundary
+language: python
+severity: error
+message: Impetus and Motus are lower layers and must not depend on Agenticus.
+files:
+  - src/petrus/impetus/**/*.py
+  - src/petrus/motus/**/*.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus\.agenticus'
+    - kind: import_from_statement
+      regex: 'petrus\.agenticus'
+    - kind: import_from_statement
+      regex: '(?s)^from petrus import .*\bagenticus\b'

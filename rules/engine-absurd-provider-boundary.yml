@@ -1,0 +1,14 @@
+id: engine-absurd-provider-boundary
+language: python
+severity: error
+message: Absurd Engine composition may use Absurd Dispatch and PostgreSQL History only, never Local, SQLite, transport, Worker, Fabric, or processes.
+files:
+  - src/petrus/engine/absurd.py
+rule:
+  any:
+    - kind: import_from_statement
+      regex: '(?s)^from petrus\.motus\.dispatch import .*\bLocalDispatch\b'
+    - kind: import_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(worker|transport|fabric|processes|applications|dispatch\.local|history_store\.sqlite)'
+    - kind: import_from_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(worker|transport|fabric|processes|applications|dispatch\.local|history_store\.sqlite)'

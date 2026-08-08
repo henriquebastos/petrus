@@ -1,0 +1,14 @@
+id: dispatch-provider-boundary
+valid:
+  - from petrus.motus.activity import ActivityInvocation
+  - from petrus.motus.dispatch import ActivityAttempt
+  - import petrus.telemetry as telemetry
+  - import sqlite3
+  - import absurd_sdk
+invalid:
+  - from petrus.impetus.petrinet import Net
+  - from petrus.engine import Engine
+  - from petrus.fabric import Envelope
+  - from petrus.processes import SpawnSpec
+  - from petrus.motus.transport import zeromq
+  - from petrus.motus.worker import Worker

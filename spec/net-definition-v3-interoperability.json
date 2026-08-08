@@ -1,0 +1,63 @@
+{
+  "format": "petrus-net-definition",
+  "version": 3,
+  "definition": {
+    "name": "scalar-order-and-integer-bounds",
+    "time_domain": "integer",
+    "places": [
+      {
+        "path": "place.",
+        "color": null
+      },
+      {
+        "path": "place.😀",
+        "color": null
+      }
+    ],
+    "transitions": [
+      {
+        "path": "transition.",
+        "handler": null,
+        "guards": [],
+        "timers": [
+          {
+            "kind": "delay",
+            "duration": -9007199254740991
+          }
+        ]
+      },
+      {
+        "path": "transition.😀",
+        "handler": null,
+        "guards": [],
+        "timers": [
+          {
+            "kind": "until",
+            "instant": 9007199254740991
+          }
+        ]
+      }
+    ],
+    "arcs": [
+      {
+        "position": 0,
+        "source": "place.",
+        "target": "transition.",
+        "mode": "consume",
+        "weight": 9007199254740991,
+        "color": null,
+        "filter": null
+      },
+      {
+        "position": 1,
+        "source": "place.😀",
+        "target": "transition.😀",
+        "mode": "consume",
+        "weight": 1,
+        "color": null,
+        "filter": null
+      }
+    ],
+    "completion": null
+  }
+}

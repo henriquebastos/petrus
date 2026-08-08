@@ -1,0 +1,26 @@
+id: core-no-runtime-imports
+language: python
+severity: error
+message: >-
+  core modules (schema/marking/enabledness) must not import the runtime layer
+  (instance/history/history_store/dispatch/private coordination, and the
+  adapter modules above them: absurd/worker). The core semantics are pure and reusable;
+  keep the library/runtime seam clean.
+files:
+  - src/petrus/impetus/petrinet/schema.py
+  - src/petrus/impetus/petrinet/marking.py
+  - src/petrus/impetus/petrinet/enabledness.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(history|history_store|instance|dispatch|_coordination|execution|absurd|worker)'
+    - kind: import_from_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(history|history_store|instance|dispatch|_coordination|execution|absurd|worker)'
+    - pattern: from petrus import history
+    - pattern: from petrus import instance
+    - pattern: from petrus import history_store
+    - pattern: from petrus import dispatch
+    - pattern: from petrus import _coordination
+    - pattern: from petrus import execution
+    - pattern: from petrus import absurd
+    - pattern: from petrus import worker

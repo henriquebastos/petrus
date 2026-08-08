@@ -1,0 +1,12 @@
+id: selection-boundary
+valid:
+  - from petrus.impetus.petrinet import Binding
+  - from petrus.impetus.history import CandidateSelected
+invalid:
+  - from petrus import telemetry
+  - from petrus.motus.activity import ActivityInvocation
+  - from petrus.impetus.binding import ActivityHandler
+  - from petrus.engine import Engine
+  - from petrus.impetus.instance import Instance
+  - from petrus.telemetry import Log
+  - from petrus.motus.dispatch import Dispatch

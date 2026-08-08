@@ -1,0 +1,26 @@
+id: processes-postgres-boundary
+language: python
+severity: error
+message: PostgreSQL process lifecycle may depend on Fabric storage and neutral process contracts, not semantic/runtime/adapter layers.
+files:
+  - src/petrus/processes/postgres.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus\.(engine|impetus|motus)'
+    - kind: import_from_statement
+      regex: 'petrus\.(engine|impetus|motus)'
+    - pattern: from petrus import schema
+    - pattern: from petrus import marking
+    - pattern: from petrus import enabledness
+    - pattern: from petrus import firing
+    - pattern: from petrus import history
+    - pattern: from petrus import instance
+    - pattern: from petrus import execution
+    - pattern: from petrus import _coordination
+    - pattern: from petrus import history_store
+    - pattern: from petrus import absurd
+    - pattern: from petrus import worker
+    - pattern: from petrus import adapters
+    - pattern: from petrus import providers
+    - pattern: from petrus import applications

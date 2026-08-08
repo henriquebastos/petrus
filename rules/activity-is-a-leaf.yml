@@ -1,0 +1,12 @@
+id: activity-is-a-leaf
+language: python
+severity: error
+message: Activity values are a leaf and must not import Petri, history, binding, runtime, storage, or infrastructure concepts.
+files:
+  - src/petrus/motus/activity/**/*.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(petrinet|binding|firing|history|instance|dispatch|execution|history_store|_coordination|fabric|processes|absurd|worker)'
+    - kind: import_from_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(petrinet|binding|firing|history|instance|dispatch|execution|history_store|_coordination|fabric|processes|absurd|worker)'

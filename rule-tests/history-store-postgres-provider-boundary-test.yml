@@ -1,0 +1,13 @@
+id: history-store-postgres-provider-boundary
+valid:
+  - from petrus.impetus.history import Record
+  - from petrus.impetus.history_store.memory import InMemoryHistoryStore
+invalid:
+  - from petrus.engine import Engine
+  - from petrus.motus.dispatch import Dispatch
+  - from petrus.motus.dispatch.absurd import AbsurdDispatch
+  - from petrus.engine._coordination import Coordinator
+  - from petrus.engine._coordination.runtime import Coordinator
+  - from petrus.fabric import Envelope
+  - from petrus.processes import SpawnSpec
+  - from petrus.motus.worker import Worker

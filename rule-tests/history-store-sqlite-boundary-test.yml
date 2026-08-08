@@ -1,0 +1,11 @@
+id: history-store-sqlite-boundary
+valid:
+  - import sqlite3
+  - from petrus.impetus.history import Record
+  - import petrus.telemetry as telemetry
+invalid:
+  - from petrus.engine import Engine
+  - from petrus.impetus.petrinet import Net
+  - from petrus.motus.dispatch import Dispatch
+  - from petrus.fabric import Envelope
+  - from petrus.processes import SpawnSpec

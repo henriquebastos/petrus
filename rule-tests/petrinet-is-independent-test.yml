@@ -1,0 +1,17 @@
+id: petrinet-is-independent
+valid:
+  - |
+      from petrus.impetus.petrinet.marking import Marking
+      from petrus.impetus.petrinet.enabledness import Binding
+      from petrus.impetus.petrinet.schema import Net, NetPath
+  - |
+      import petrus.impetus.petrinet.schema
+invalid:
+  - |
+      from petrus.impetus.history import FiringBegun
+  - |
+      from petrus.impetus.history_store import JsonlEventHistory
+  - |
+      import petrus.impetus.instance
+  - |
+      from petrus.impetus.binding import HandlerResult

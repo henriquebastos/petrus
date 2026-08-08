@@ -1,0 +1,20 @@
+id: instance-dependencies
+language: python
+severity: error
+message: Instance may depend on Petrinet, History, the History Store facade, Binding, Activity, firing lifecycle, and telemetry, never concrete storage implementations or higher runtime layers.
+files:
+  - src/petrus/impetus/instance/**/*.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(dispatch|execution|_coordination|absurd|worker|fabric|processes|lifecycle|providers|applications|infrastructure)'
+    - kind: import_from_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(dispatch|execution|_coordination|absurd|worker|fabric|processes|lifecycle|providers|applications|infrastructure)'
+    - pattern: from petrus import dispatch
+    - pattern: from petrus import execution
+    - pattern: from petrus import _coordination
+    - pattern: from petrus import absurd
+    - pattern: from petrus import worker
+    - pattern: from petrus import fabric
+    - pattern: from petrus import processes
+    - pattern: from petrus import lifecycle

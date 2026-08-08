@@ -1,0 +1,23 @@
+id: kernel-runtime-no-fabric-imports
+language: python
+severity: error
+message: >-
+  Impetus Kernel and driving-runtime modules must not import Process Fabric.
+  Fabric is an optional higher-level extension that enters through public
+  delivery and activity seams; keep the dependency direction fabric -> kernel.
+files:
+  - src/petrus/impetus/petrinet/schema.py
+  - src/petrus/impetus/petrinet/marking.py
+  - src/petrus/impetus/petrinet/enabledness.py
+  - src/petrus/impetus/history/**/*.py
+  - src/petrus/impetus/instance/**/*.py
+  - src/petrus/impetus/binding/cel.py
+  - src/petrus/motus/dispatch/__init__.py
+  - src/petrus/engine/_coordination.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus\.fabric'
+    - kind: import_from_statement
+      regex: 'petrus\.fabric'
+    - pattern: from petrus import fabric

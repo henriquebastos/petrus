@@ -1,0 +1,21 @@
+{
+  "format": "petrus-net-definition",
+  "version": 3,
+  "definition": {
+    "name": "invalid-utf16-order",
+    "time_domain": "integer",
+    "places": [
+      {
+        "path": "place.😀",
+        "color": null
+      },
+      {
+        "path": "place.",
+        "color": null
+      }
+    ],
+    "transitions": [],
+    "arcs": [],
+    "completion": null
+  }
+}

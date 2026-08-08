@@ -1,0 +1,19 @@
+id: engine-sqlite-provider-boundary
+valid:
+  - from petrus.engine import Engine
+  - from petrus.motus.dispatch import Dispatch
+  - from petrus.impetus.history_store.sqlite import SqliteHistoryStore
+invalid:
+  - from petrus.motus.dispatch import LocalDispatch
+  - from petrus.motus.dispatch import AbsurdDispatch
+  - from petrus.motus.dispatch import LocalDispatch as DispatchProvider
+  - from petrus.motus.dispatch import Dispatch, AbsurdDispatch as DispatchProvider
+  - |
+    from petrus.motus.dispatch import (
+        Dispatch,
+        LocalDispatch,
+    )
+  - from petrus.motus.worker import Worker
+  - from petrus.motus.dispatch.absurd import AbsurdDispatch
+  - from petrus.impetus.history_store.postgres import PostgresHistoryStore
+  - from petrus.motus.transport.zeromq import ZeroMQWorkerDispatch

@@ -1,0 +1,17 @@
+id: history-store-boundary
+language: python
+severity: error
+message: >-
+  history_store may import history and telemetry only (plus an optional driver
+  locally): importing any other Impetus concept would couple durable I/O to
+  semantics or a driver.
+files:
+  - src/petrus/impetus/history_store/__init__.py
+  - src/petrus/impetus/history_store/jsonl.py
+  - src/petrus/impetus/history_store/memory.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(activity|petrinet|firing|binding|instance|dispatch|execution|fabric|_coordination|processes|absurd|worker)'
+    - kind: import_from_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(activity|petrinet|firing|binding|instance|dispatch|execution|fabric|_coordination|processes|absurd|worker)'

@@ -1,0 +1,21 @@
+id: fabric-ingress-boundary
+language: python
+severity: error
+message: Fabric ingress may depend on the neutral model and kernel delivery types, not implementations above them.
+files:
+  - src/petrus/fabric/ingress.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(fabric\.postgres|_coordination|execution|history_store|absurd|worker|adapters|providers|applications|processes)'
+    - kind: import_from_statement
+      regex: 'petrus(?:.impetus|.motus)?\.(fabric\.postgres|_coordination|execution|history_store|absurd|worker|adapters|providers|applications|processes)'
+    - pattern: from petrus import _coordination
+    - pattern: from petrus import execution
+    - pattern: from petrus import history_store
+    - pattern: from petrus import absurd
+    - pattern: from petrus import worker
+    - pattern: from petrus import adapters
+    - pattern: from petrus import providers
+    - pattern: from petrus import applications
+    - pattern: from petrus import processes

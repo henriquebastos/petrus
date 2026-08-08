@@ -1,0 +1,13 @@
+id: selection-boundary
+language: python
+severity: error
+message: Candidate Selection may depend only on Petrinet bindings and canonical History facts.
+files:
+  - src/petrus/impetus/selection/**/*.py
+rule:
+  any:
+    - pattern: from petrus import telemetry
+    - kind: import_statement
+      regex: 'petrus\.(engine|fabric|processes|telemetry|impetus\.(binding|dsl|history_store|instance|selection)|motus\.(activity|dispatch|transport|worker))'
+    - kind: import_from_statement
+      regex: 'petrus\.(engine|fabric|processes|telemetry|impetus\.(binding|dsl|history_store|instance|selection)|motus\.(activity|dispatch|transport|worker))'

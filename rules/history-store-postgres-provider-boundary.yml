@@ -1,0 +1,12 @@
+id: history-store-postgres-provider-boundary
+language: python
+severity: error
+message: PostgreSQL History Store may import Impetus History, telemetry, psycopg, and the standard library only.
+files:
+  - src/petrus/impetus/history_store/postgres.py
+rule:
+  any:
+    - kind: import_statement
+      regex: 'petrus\.(engine|fabric|processes|impetus\.(binding|dsl|instance|petrinet|selection)|motus\.(activity|dispatch|transport|worker))'
+    - kind: import_from_statement
+      regex: 'petrus\.(engine|fabric|processes|impetus\.(binding|dsl|instance|petrinet|selection)|motus\.(activity|dispatch|transport|worker))'

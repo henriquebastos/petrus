@@ -1,0 +1,84 @@
+{
+  "bounds": {
+    "actions": 256,
+    "arcs": 512,
+    "connection_timeout_seconds": 5,
+    "cel_bytes": 4096,
+    "concurrent_simulations": 1,
+    "definition_bytes": 1000000,
+    "history_payload_bytes": 4194304,
+    "history_records": 50000,
+    "initial_payload_bytes": 1000000,
+    "initial_tokens": 512,
+    "places": 128,
+    "request_body_bytes": 1048576,
+    "reachable_input_scans": 10000,
+    "result_bytes": 4194304,
+    "retained_payload_bytes": 4194304,
+    "retained_tokens": 4096,
+    "transitions": 128
+  },
+  "definition": {
+    "arcs": [
+      {
+        "color": "SimulationItem",
+        "filter": {
+          "expression": "priority >= 1",
+          "kind": "cel"
+        },
+        "mode": "consume",
+        "position": 0,
+        "source": "pending",
+        "target": "finish",
+        "weight": 1
+      },
+      {
+        "color": "SimulationItem",
+        "filter": null,
+        "mode": "consume",
+        "position": 1,
+        "source": "finish",
+        "target": "done",
+        "weight": 1
+      }
+    ],
+    "completion": {
+      "expression": "size(done) > 0",
+      "kind": "cel"
+    },
+    "name": "bounded-simulation-demo",
+    "places": [
+      {
+        "color": "SimulationItem",
+        "path": "done"
+      },
+      {
+        "color": "SimulationItem",
+        "path": "pending"
+      }
+    ],
+    "time_domain": "integer",
+    "transitions": [
+      {
+        "guards": [
+          {
+            "expression": "size(pending) > 0",
+            "kind": "cel",
+            "uri": "transition:/finish#guard:$0"
+          }
+        ],
+        "handler": null,
+        "path": "finish",
+        "timers": [
+          {
+            "duration": 5,
+            "kind": "delay"
+          }
+        ]
+      }
+    ]
+  },
+  "format": "petrus-simulation-service-profile",
+  "profile": "implementation-free-v1",
+  "version": 1
+}
