@@ -14,6 +14,7 @@ The method has a small set of core pieces:
 - Refinement for caring for existing capability through Workbench, Change Requests, and Refinement Stories,
 - mandatory checkpoints that prevent silent drift during delivery and refinement,
 - living documentation that lets the repository remember itself,
+- [Memory Closure](memory-closure.md) that promotes durable meaning and releases short-term context,
 - a separation between Ariad's method contract, project contract, and configurable Navigator preferences,
 - explicit policies for recurring operational decisions such as coherent updates.
 

@@ -113,6 +113,15 @@ preserve the boundary: do not turn uncertainty into commitment silently, do not
 let delivery dissolve back into open-ended exploration, and do not inflate local
 care into roadmap structure without Navigator intent.
 
+## Memory across work areas
+
+[Memory Closure](memory-closure.md) applies across all three work areas. It runs
+when work or a session reaches a closure, pause, compaction, or handoff boundary.
+It promotes only durable meaning into the smallest project-owned surface, records
+history according to local policy, and lets the remaining conversational context
+disappear. Memory Closure does not change an item's lifecycle state or make
+unfinished work complete.
+
 ## Runtime language
 
 Ariad should prefer the method language:

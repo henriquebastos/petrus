@@ -11,4 +11,6 @@ For Petrus work, read only the local context relevant to the task:
 
 Reference captures and exploratory notebooks are intentionally absent from the public source tree, and the retained worklog currently has no entries. Do not create replacement surfaces merely to match packaged templates.
 
+Before ending, pausing, compacting, interrupting, or handing off context, follow the canonical `method/memory-closure` route. Fold it into Petrus's existing closure surfaces as appropriate; do not create transcript or session-summary files.
+
 If the installed skill cannot be read, use this safe kernel: read relevant local context before editing; plan non-trivial work; bound scope; test and execute the concrete validation route; update documentation when project truth changes; preserve Process, Project, and Product coherence; stop for Navigator judgment when needed; and follow Petrus's local commit and push policy.
