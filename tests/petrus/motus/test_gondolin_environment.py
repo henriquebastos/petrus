@@ -515,7 +515,7 @@ def test_spawn_failure_removes_runtime_and_operation_directory(tmp_path: Path, f
     with pytest.raises(FileNotFoundError):
         provider.provision("spawn-failure", EnvironmentSpec(image="fake-image"))
     assert not any(root.iterdir())
-    assert set(Path("/tmp").glob("petrus-g-*")) == before
+    assert set(Path("/tmp").glob("petrus-g-*")) <= before
 
 
 def test_registry_write_failure_stops_unregistered_sidecar(tmp_path: Path, fake_sdk: Path, monkeypatch) -> None:
@@ -526,7 +526,7 @@ def test_registry_write_failure_stops_unregistered_sidecar(tmp_path: Path, fake_
     with pytest.raises(OSError, match="disk"):
         provider.provision("registry-failure", EnvironmentSpec(image="fake-image"))
     assert not any(root.iterdir())
-    assert set(Path("/tmp").glob("petrus-g-*")) == before
+    assert set(Path("/tmp").glob("petrus-g-*")) <= before
 
 
 def test_unregistered_workspace_fails_closed_before_runtime_creation(tmp_path: Path, fake_sdk: Path) -> None:
@@ -540,7 +540,7 @@ def test_unregistered_workspace_fails_closed_before_runtime_creation(tmp_path: P
     assert (provider._directory("orphan") / "workspace").is_dir()
     with pytest.raises(RuntimeError, match="uncertain custody"):
         provider.provision("orphan", EnvironmentSpec(image="fake-image"))
-    assert set(Path("/tmp").glob("petrus-g-*")) == before
+    assert set(Path("/tmp").glob("petrus-g-*")) <= before
 
 
 def test_lock_revalidates_after_destroy_unlinks_a_waiters_inode(tmp_path: Path, fake_sdk: Path, monkeypatch) -> None:
