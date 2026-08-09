@@ -15,11 +15,13 @@ ZeroMQ transport; Python DSL authoring and Graphviz rendering; read-only
 observation and capture protocols; bounded simulation; and portable canonical
 Net definitions.
 
-There is no current working session. Completed runtime Values remain documented
-in the roadmap. CV10 retains blocked or planned technical work; a closed working
-session does not make those incomplete boundaries complete. CV16 is complete at
-one deliberately narrow support boundary: scripted Pi A2 Local host lifecycle,
-not authenticated Pi/model/provider execution.
+There is no current working session. CV10.DS1 qualified one
+Episode/operation-owned Gondolin territory lifecycle through hermetic Codex A3
+runtime-protocol evidence; it did not claim live Gondolin, authenticated
+model/provider, formal Motus Activity retry integration, or retained-territory
+support. CV16 remains complete at one deliberately narrow support boundary:
+scripted Pi A2 Local host lifecycle, not authenticated Pi/model/provider
+execution.
 
 ## Architecture premises
 

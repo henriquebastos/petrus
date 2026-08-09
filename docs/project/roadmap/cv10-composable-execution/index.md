@@ -2,12 +2,13 @@
 code: CV10
 level: Value
 status: Blocked
-status_reason: Retained execution seams are implemented, but independent environment lifecycle and Gondolin model-backed qualification remain blocked on provider capabilities and credentials; no working session is active
-updated: 2026-08-08
+status_reason: CV10.DS1 completed the Episode-owned hermetic Gondolin lifecycle; live provider support and retained custody remain blocked or unbounded
+updated: 2026-08-09
 related:
   - docs/project/decisions/records/2026-07-28T1052Z-local-dispatch-and-worker-provider-boundary.md
   - docs/project/decisions/records/2026-07-28T1907Z-async-worker-custody-stays-private.md
   - docs/project/decisions/records/2026-08-01T0736Z-cv10-execution-contracts-remain-private.md
+  - docs/project/decisions/records/2026-08-09T1400Z-episode-owns-independent-execution-territory.md
 ---
 
 # CV10 — Composable execution
@@ -34,12 +35,16 @@ results do not promote a generic public agent or environment API.
 
 ## Incomplete boundaries
 
-- Independent per-Activity environment lifecycle remains blocked where a
-  provider cannot supply lookup/create, readiness, attachment, cancellation,
-  destruction, recovery, and artifact export as a separately leased resource.
-- Model-backed territory qualification remains blocked until its required
-  provider capability and authority are available through a newly bounded
-  story.
+- An independently leased territory belongs to one bounded Episode or host
+  operation, not one Activity attempt. CV10.DS1 qualified that lifecycle with
+  the hermetic Gondolin Codex runtime-protocol lane while preserving
+  provider-neutral identity, export, and cleanup fences.
+- Live model-backed Gondolin support remains blocked until the exact provider,
+  image, model authority, and credentials are available through an authorized
+  acceptance route.
+- Durable retained-territory custody and autonomous orphan reconciliation need
+  newly bounded stories before retention can become a supported settlement
+  policy.
 - Any wider provider matrix requires a newly bounded story and fresh evidence.
 
 ## Invariants
@@ -54,5 +59,7 @@ results do not promote a generic public agent or environment API.
 
 ## Current state
 
-No CV10 working session is active. The incomplete boundaries above are blocked,
-not implicitly authorized by the completed private implementation.
+CV10.DS1 is Done at its bounded hermetic qualification. No CV10 working session
+is active. Live provider support, public execution contracts, retained
+territories, formal Motus Activity retry integration, and a wider profile
+matrix remain blocked or require newly bounded stories.

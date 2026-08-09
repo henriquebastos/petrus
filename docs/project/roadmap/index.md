@@ -1,9 +1,9 @@
 # Roadmap
 
 Roadmap items carry their own status and preserve durable technical direction.
-There is currently no active working session. This is distinct from incomplete
-work: CV10 retains blocked or planned boundaries that require a newly bounded
-story before work resumes.
+There is currently no active working session. CV10.DS1 completed one
+Episode-owned hermetic Gondolin territory lifecycle without claiming live
+provider support.
 
 ## Retained Values
 
@@ -11,8 +11,9 @@ story before work resumes.
   Ariad/runtime integration, Fabric, and first-version runtime convergence.
 - CV8: production local Activity execution, optional ZeroMQ transport, async
   Activities, and async-native Worker custody.
-- CV10: composable execution. Retained blocked and incomplete technical truth
-  is not a current authorization or working session.
+- CV10: composable execution. CV10.DS1 qualified one hermetic, Episode-owned
+  Gondolin lifecycle boundary; live-provider and retention work remains blocked
+  or unbounded.
 - CV11–CV15: semantic observation, durable captures, long-History navigation,
   canonical Net inspection, and bounded simulation.
 - CV16: Agenticus infrastructure and one supported scripted Pi A2 Local host

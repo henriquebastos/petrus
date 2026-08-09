@@ -117,6 +117,7 @@ def _runtime_descriptor(
     continuation: str,
     loop: str,
     topology: str,
+    additional_offers: frozenset[str] = frozenset(),
 ) -> CapabilityDescriptor:
     requirements = (
         _capability_requirement(DescriptorKind.CONNECTION, connection),
@@ -133,7 +134,7 @@ def _runtime_descriptor(
     )
     return CapabilityDescriptor(
         identity=DescriptorIdentity(DescriptorKind.RUNTIME, name, 1),
-        offers=frozenset({f"archetype.{archetype.value.lower()}", loop, topology}),
+        offers=frozenset({f"archetype.{archetype.value.lower()}", loop, topology, *additional_offers}),
         requires=requirements,
     )
 
@@ -174,6 +175,7 @@ CODEX_A3_GONDOLIN = _runtime_descriptor(
     continuation="continuation.codex-native",
     loop="loop.provider-owned",
     topology="topology.ephemeral-collocated",
+    additional_offers=frozenset({"topology.episode-collocated"}),
 )
 CLAUDE_A2_LOCAL = _runtime_descriptor(
     "claude.a2.local",

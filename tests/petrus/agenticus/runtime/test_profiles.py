@@ -63,7 +63,7 @@ PROFILE_OWNERSHIP = {
         "hands.collocated",
         "continuation.codex-native",
         "loop.provider-owned",
-        "topology.ephemeral-collocated",
+        "topology.episode-collocated",
     ),
     "claude.a2.local": (
         "connection.claude",
@@ -180,6 +180,11 @@ def test_profile_ownership_vocabulary_remains_explicit(profile) -> None:
     assert loop in profile.offers
     assert topology in profile.offers
     assert len({offer for offer in profile.offers if offer.startswith("archetype.")}) == 1
+
+
+def test_codex_gondolin_v1_adds_episode_ownership_without_removing_legacy_topology() -> None:
+    profile = next(profile for profile in RUNTIME_PROFILES if profile.identity.name == "codex.a3.gondolin")
+    assert {"topology.ephemeral-collocated", "topology.episode-collocated"} <= profile.offers
 
 
 @pytest.mark.parametrize("cell", RUNTIME_TERRITORY_PROFILES, ids=lambda cell: f"{cell.family}-{cell.territory}")

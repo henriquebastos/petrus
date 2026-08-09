@@ -1116,7 +1116,7 @@ class CodexRuntimeAdapter:
 
 
 class CodexGondolinRuntimeAdapter(CodexRuntimeAdapter):
-    """The exact stock Codex 0.146.0 lane inside a qualified Gondolin lease."""
+    """The exact stock Codex 0.146.0 lane inside one exact Episode-bound Gondolin lease."""
 
     descriptor = CODEX_A3_GONDOLIN
     territory = CODEX_GONDOLIN_TERRITORY

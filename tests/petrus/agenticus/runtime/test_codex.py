@@ -78,7 +78,7 @@ from petrus.motus.execution import (
     ExecutionAttachment,
     PrivateFileCleanupResult,
 )
-from petrus.motus.execution.archive import workspace_archive
+from petrus.motus.execution.archive import extract_workspace_archive, workspace_archive
 from petrus.motus.execution.gondolin import GondolinEnvironment
 from petrus.motus.execution.providers import LocalProcessEnvironment
 
@@ -570,6 +570,7 @@ def gondolin_invocation(
 ) -> tuple[CodexRuntimeInvocation, EpisodeAttachment]:
     source = tmp_path / f"gondolin-workspace-{operation_id}"
     source.mkdir()
+    (source / "public-input.txt").write_text("public-workspace-canary")
     binding = MotusAttachmentBinding.open(
         provider,
         f"territory-{operation_id}",
@@ -1275,11 +1276,12 @@ assert CodexRuntimeAdapter is not None
     subprocess.run([sys.executable, "-c", code], check=True)
 
 
-def test_gondolin_lane_probes_each_exact_lease_and_resumes_native_state(tmp_path: Path) -> None:
+def test_gondolin_lane_reuses_one_episode_territory_across_replacement_operation_and_resume(tmp_path: Path) -> None:
     assert CODEX_GONDOLIN_SDK_VERSION == "0.12.0"
     executable = fake_codex(tmp_path, CODEX_GONDOLIN_VERSION)
     sdk = fake_gondolin_sdk(tmp_path, executable)
-    provider = GondolinEnvironment(tmp_path / "gondolin", sdk_module=str(sdk), lease_ttl=30)
+    root = tmp_path / "gondolin"
+    provider = GondolinEnvironment(root, sdk_module=str(sdk), lease_ttl=30)
     continuations, turns, custody = Continuations(), Turns(), Custody()
     adapter = CodexGondolinRuntimeAdapter(
         CodexRuntimeConfig("host-1", credential_ttl=10, command_timeout=10, cancellation_grace=2),
@@ -1289,10 +1291,24 @@ def test_gondolin_lane_probes_each_exact_lease_and_resumes_native_state(tmp_path
     )
     assert adapter.probe().disposition is ProbeDisposition.UNAVAILABLE
 
-    first, first_attachment = gondolin_invocation(tmp_path, provider, custody, "operation-gondolin-one", "first")
+    failed, attachment = gondolin_invocation(
+        tmp_path,
+        provider,
+        custody,
+        "operation-gondolin-failed",
+        "provider-failure",
+    )
+    binding = attachment.binding
+    assert isinstance(binding, MotusAttachmentBinding)
+    territory = binding.lease_identity
+    recreated = GondolinEnvironment(root, sdk_module=str(sdk), lease_ttl=30)
+    observed = recreated.lookup(territory.operation_id)
+    assert observed is not None and observed.identity == territory
+    assert len(tuple(root.iterdir())) == 1
+
     with pytest.raises(RuntimeProtocolError, match="territory-not-qualified"):
-        adapter.start(first)
-    probe = adapter.probe(first_attachment)
+        adapter.start(failed)
+    probe = adapter.probe(attachment)
     assert probe.disposition is ProbeDisposition.READY
     assert probe.installation is not None
     assert probe.installation.runtime == CODEX_A3_GONDOLIN.identity
@@ -1303,37 +1319,62 @@ def test_gondolin_lane_probes_each_exact_lease_and_resumes_native_state(tmp_path
     assert CODEX_GONDOLIN_BUILD_ID in component.source_identity
     assert CODEX_GONDOLIN_OCI_DIGEST in component.source_identity
 
+    failed_operation = adapter.start(failed)
+    failed_result = failed_operation.wait(10)
+    assert failed_result.outcome is TurnOutcome.FAILED and failed_result.termination_code == "provider-failed"
+    assert failed_result.output_reference is None and failed_result.continuation_reference is not None
+    assert failed_operation.close().verified
+    failed_payload = continuations.load(failed_result.continuation_reference)
+    assert attachment.binding.lease_identity == territory
+
+    first = CodexRuntimeInvocation(
+        "operation-gondolin-replacement",
+        attachment.episode_id,
+        TurnId("turn-gondolin-replacement"),
+        "first",
+        custody.view(),
+        attachment,
+        continuation(failed_result.continuation_reference),
+    )
     first_operation = adapter.start(first)
     first_result = first_operation.wait(10)
     assert first_result.outcome is TurnOutcome.COMPLETED and first_result.accepted_appends == 1
     assert first_operation.close().verified
     first_payload = continuations.load(first_result.continuation_reference or "")
     assert turns.values[first_result.output_reference or ""] == (THREAD, "answer:first")
-    settled_first = first_attachment.settle(drain_timeout=2)
-    assert settled_first.settlement.verified
-    assert AUTH_CANARY not in settled_first.archive and first_payload.rollout not in settled_first.archive
+    assert first_payload.thread_id == failed_payload.thread_id
+    assert failed_payload.rollout in first_payload.rollout and b"first" in first_payload.rollout
+    assert attachment.binding.lease_identity == territory
 
-    second, second_attachment = gondolin_invocation(
-        tmp_path,
-        provider,
-        custody,
-        "operation-gondolin-two",
+    second = CodexRuntimeInvocation(
+        "operation-gondolin-phase-two",
+        attachment.episode_id,
+        TurnId("turn-gondolin-phase-two"),
         "second",
-        continuation_value=continuation(first_result.continuation_reference or ""),
+        custody.view(),
+        attachment,
+        continuation(first_result.continuation_reference or ""),
     )
-    with pytest.raises(RuntimeProtocolError, match="territory-not-qualified"):
-        adapter.start(second)
-    assert adapter.probe(second_attachment).disposition is ProbeDisposition.READY
     second_operation = adapter.start(second)
     second_result = second_operation.wait(10)
     assert second_result.outcome is TurnOutcome.COMPLETED and second_operation.close().verified
     second_payload = continuations.load(second_result.continuation_reference or "")
     assert second_payload.thread_id == first_payload.thread_id
+    assert first_payload.rollout in second_payload.rollout and b"second" in second_payload.rollout
     assert turns.values[second_result.output_reference or ""] == (THREAD, "resumed:first:second")
-    settled_second = second_attachment.settle(drain_timeout=2)
-    assert settled_second.settlement.verified
-    assert AUTH_CANARY not in settled_second.archive and second_payload.rollout not in settled_second.archive
-    assert not any((tmp_path / "gondolin").iterdir())
+    assert attachment.binding.lease_identity == territory
+
+    settled = attachment.settle(drain_timeout=2)
+    assert settled.settlement.verified
+    restored = tmp_path / "gondolin-settled-workspace"
+    extract_workspace_archive(settled.archive, restored)
+    assert (restored / "public-input.txt").read_text() == "public-workspace-canary"
+    assert AUTH_CANARY not in settled.archive
+    assert all(payload.rollout not in settled.archive for payload in (failed_payload, first_payload, second_payload))
+    assert binding.cleanup_result is not None
+    assert binding.cleanup_result.identity == territory
+    assert binding.cleanup_result.disposition is CleanupDisposition.CLEAN
+    assert recreated.lookup(territory.operation_id) is None and not any(root.iterdir())
 
 
 def test_gondolin_lane_rejects_guest_version_drift_before_materialization(tmp_path: Path) -> None:
