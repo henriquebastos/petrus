@@ -1,0 +1,586 @@
+{
+  "bindings": {},
+  "description": "Three equal-color values leave one place in FIFO order.",
+  "final": {
+    "marking": [
+      {
+        "place": "taken",
+        "tokens": [
+          {
+            "color": "Item",
+            "data": {
+              "seq": 1
+            }
+          },
+          {
+            "color": "Item",
+            "data": {
+              "seq": 2
+            }
+          },
+          {
+            "color": "Item",
+            "data": {
+              "seq": 3
+            }
+          }
+        ]
+      }
+    ],
+    "status": "terminated"
+  },
+  "format": "petrus-impetus-golden-trace",
+  "history": [
+    {
+      "instance": "golden-fifo-queue",
+      "instant": 0,
+      "name": "fifo-queue",
+      "record": "InstanceCreated",
+      "schema": 4
+    },
+    {
+      "instant": 0,
+      "place": "queue",
+      "record": "TokensInitialized",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "Item",
+          "data": {
+            "seq": 1
+          }
+        },
+        {
+          "color": "Item",
+          "data": {
+            "seq": 2
+          }
+        },
+        {
+          "color": "Item",
+          "data": {
+            "seq": 3
+          }
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "CandidateSelected",
+      "schema": 4,
+      "transition": "take"
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "FiringBegun",
+      "schema": 4,
+      "transition": "take"
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "place": "queue",
+      "record": "TokensConsumed",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "Item",
+          "data": {
+            "seq": 1
+          }
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "place": "taken",
+      "record": "TokensProduced",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "Item",
+          "data": {
+            "seq": 1
+          }
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "FiringCompleted",
+      "schema": 4,
+      "transition": "take"
+    },
+    {
+      "instant": 2,
+      "occurrence": 2,
+      "record": "CandidateSelected",
+      "schema": 4,
+      "transition": "take"
+    },
+    {
+      "instant": 2,
+      "occurrence": 2,
+      "record": "FiringBegun",
+      "schema": 4,
+      "transition": "take"
+    },
+    {
+      "instant": 2,
+      "occurrence": 2,
+      "place": "queue",
+      "record": "TokensConsumed",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "Item",
+          "data": {
+            "seq": 2
+          }
+        }
+      ]
+    },
+    {
+      "instant": 2,
+      "occurrence": 2,
+      "place": "taken",
+      "record": "TokensProduced",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "Item",
+          "data": {
+            "seq": 2
+          }
+        }
+      ]
+    },
+    {
+      "instant": 2,
+      "occurrence": 2,
+      "record": "FiringCompleted",
+      "schema": 4,
+      "transition": "take"
+    },
+    {
+      "instant": 3,
+      "occurrence": 3,
+      "record": "CandidateSelected",
+      "schema": 4,
+      "transition": "take"
+    },
+    {
+      "instant": 3,
+      "occurrence": 3,
+      "record": "FiringBegun",
+      "schema": 4,
+      "transition": "take"
+    },
+    {
+      "instant": 3,
+      "occurrence": 3,
+      "place": "queue",
+      "record": "TokensConsumed",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "Item",
+          "data": {
+            "seq": 3
+          }
+        }
+      ]
+    },
+    {
+      "instant": 3,
+      "occurrence": 3,
+      "place": "taken",
+      "record": "TokensProduced",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "Item",
+          "data": {
+            "seq": 3
+          }
+        }
+      ]
+    },
+    {
+      "instant": 3,
+      "occurrence": 3,
+      "record": "FiringCompleted",
+      "schema": 4,
+      "transition": "take"
+    }
+  ],
+  "initialMarking": [
+    {
+      "place": "queue",
+      "tokens": [
+        {
+          "color": "Item",
+          "data": {
+            "seq": 1
+          }
+        },
+        {
+          "color": "Item",
+          "data": {
+            "seq": 2
+          }
+        },
+        {
+          "color": "Item",
+          "data": {
+            "seq": 3
+          }
+        }
+      ]
+    }
+  ],
+  "name": "fifo_queue",
+  "net": {
+    "definition": {
+      "arcs": [
+        {
+          "color": "Item",
+          "filter": null,
+          "mode": "consume",
+          "position": 0,
+          "source": "queue",
+          "target": "take",
+          "weight": 1
+        },
+        {
+          "color": "Item",
+          "filter": null,
+          "mode": "consume",
+          "position": 1,
+          "source": "take",
+          "target": "taken",
+          "weight": 1
+        }
+      ],
+      "completion": null,
+      "name": "fifo-queue",
+      "places": [
+        {
+          "color": "Item",
+          "path": "queue"
+        },
+        {
+          "color": "Item",
+          "path": "taken"
+        }
+      ],
+      "time_domain": "integer",
+      "transitions": [
+        {
+          "guards": [],
+          "handler": null,
+          "path": "take",
+          "timers": []
+        }
+      ]
+    },
+    "format": "petrus-net-definition",
+    "version": 3
+  },
+  "version": 2,
+  "walk": [
+    {
+      "action": {
+        "at": 1,
+        "kind": "step"
+      },
+      "candidatesBefore": [
+        {
+          "consumed": [
+            {
+              "place": "queue",
+              "tokens": [
+                {
+                  "color": "Item",
+                  "data": {
+                    "seq": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "delivered": [],
+          "read": [],
+          "transition": "take"
+        },
+        {
+          "consumed": [
+            {
+              "place": "queue",
+              "tokens": [
+                {
+                  "color": "Item",
+                  "data": {
+                    "seq": 2
+                  }
+                }
+              ]
+            }
+          ],
+          "delivered": [],
+          "read": [],
+          "transition": "take"
+        },
+        {
+          "consumed": [
+            {
+              "place": "queue",
+              "tokens": [
+                {
+                  "color": "Item",
+                  "data": {
+                    "seq": 3
+                  }
+                }
+              ]
+            }
+          ],
+          "delivered": [],
+          "read": [],
+          "transition": "take"
+        }
+      ],
+      "markingAfter": [
+        {
+          "place": "queue",
+          "tokens": [
+            {
+              "color": "Item",
+              "data": {
+                "seq": 2
+              }
+            },
+            {
+              "color": "Item",
+              "data": {
+                "seq": 3
+              }
+            }
+          ]
+        },
+        {
+          "place": "taken",
+          "tokens": [
+            {
+              "color": "Item",
+              "data": {
+                "seq": 1
+              }
+            }
+          ]
+        }
+      ],
+      "outcome": {
+        "consumed": [
+          {
+            "color": "Item",
+            "data": {
+              "seq": 1
+            }
+          }
+        ],
+        "occurrence": 1,
+        "produced": [
+          {
+            "place": "taken",
+            "token": {
+              "color": "Item",
+              "data": {
+                "seq": 1
+              }
+            }
+          }
+        ],
+        "transition": "take"
+      },
+      "statusAfter": "running"
+    },
+    {
+      "action": {
+        "at": 2,
+        "kind": "step"
+      },
+      "candidatesBefore": [
+        {
+          "consumed": [
+            {
+              "place": "queue",
+              "tokens": [
+                {
+                  "color": "Item",
+                  "data": {
+                    "seq": 2
+                  }
+                }
+              ]
+            }
+          ],
+          "delivered": [],
+          "read": [],
+          "transition": "take"
+        },
+        {
+          "consumed": [
+            {
+              "place": "queue",
+              "tokens": [
+                {
+                  "color": "Item",
+                  "data": {
+                    "seq": 3
+                  }
+                }
+              ]
+            }
+          ],
+          "delivered": [],
+          "read": [],
+          "transition": "take"
+        }
+      ],
+      "markingAfter": [
+        {
+          "place": "queue",
+          "tokens": [
+            {
+              "color": "Item",
+              "data": {
+                "seq": 3
+              }
+            }
+          ]
+        },
+        {
+          "place": "taken",
+          "tokens": [
+            {
+              "color": "Item",
+              "data": {
+                "seq": 1
+              }
+            },
+            {
+              "color": "Item",
+              "data": {
+                "seq": 2
+              }
+            }
+          ]
+        }
+      ],
+      "outcome": {
+        "consumed": [
+          {
+            "color": "Item",
+            "data": {
+              "seq": 2
+            }
+          }
+        ],
+        "occurrence": 2,
+        "produced": [
+          {
+            "place": "taken",
+            "token": {
+              "color": "Item",
+              "data": {
+                "seq": 2
+              }
+            }
+          }
+        ],
+        "transition": "take"
+      },
+      "statusAfter": "running"
+    },
+    {
+      "action": {
+        "at": 3,
+        "kind": "step"
+      },
+      "candidatesBefore": [
+        {
+          "consumed": [
+            {
+              "place": "queue",
+              "tokens": [
+                {
+                  "color": "Item",
+                  "data": {
+                    "seq": 3
+                  }
+                }
+              ]
+            }
+          ],
+          "delivered": [],
+          "read": [],
+          "transition": "take"
+        }
+      ],
+      "markingAfter": [
+        {
+          "place": "taken",
+          "tokens": [
+            {
+              "color": "Item",
+              "data": {
+                "seq": 1
+              }
+            },
+            {
+              "color": "Item",
+              "data": {
+                "seq": 2
+              }
+            },
+            {
+              "color": "Item",
+              "data": {
+                "seq": 3
+              }
+            }
+          ]
+        }
+      ],
+      "outcome": {
+        "consumed": [
+          {
+            "color": "Item",
+            "data": {
+              "seq": 3
+            }
+          }
+        ],
+        "occurrence": 3,
+        "produced": [
+          {
+            "place": "taken",
+            "token": {
+              "color": "Item",
+              "data": {
+                "seq": 3
+              }
+            }
+          }
+        ],
+        "transition": "take"
+      },
+      "statusAfter": "terminated"
+    }
+  ]
+}

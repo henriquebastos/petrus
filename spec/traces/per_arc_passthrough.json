@@ -1,0 +1,452 @@
+{
+  "bindings": {},
+  "description": "A weight-two consume forwards each X independently through each admitting output arc; the read Config remains in place and contributes no output.",
+  "final": {
+    "marking": [
+      {
+        "place": "config",
+        "tokens": [
+          {
+            "color": "Config",
+            "data": {
+              "mode": "strict"
+            }
+          }
+        ]
+      },
+      {
+        "place": "left",
+        "tokens": [
+          {
+            "color": "X",
+            "data": {
+              "n": 1
+            }
+          },
+          {
+            "color": "X",
+            "data": {
+              "n": 2
+            }
+          }
+        ]
+      },
+      {
+        "place": "right",
+        "tokens": [
+          {
+            "color": "X",
+            "data": {
+              "n": 1
+            }
+          },
+          {
+            "color": "X",
+            "data": {
+              "n": 2
+            }
+          }
+        ]
+      }
+    ],
+    "status": "terminated"
+  },
+  "format": "petrus-impetus-golden-trace",
+  "history": [
+    {
+      "instance": "golden-per-arc-passthrough",
+      "instant": 0,
+      "name": "per-arc-passthrough",
+      "record": "InstanceCreated",
+      "schema": 4
+    },
+    {
+      "instant": 0,
+      "place": "config",
+      "record": "TokensInitialized",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "Config",
+          "data": {
+            "mode": "strict"
+          }
+        }
+      ]
+    },
+    {
+      "instant": 0,
+      "place": "input",
+      "record": "TokensInitialized",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "X",
+          "data": {
+            "n": 1
+          }
+        },
+        {
+          "color": "X",
+          "data": {
+            "n": 2
+          }
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "CandidateSelected",
+      "schema": 4,
+      "transition": "fanout"
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "FiringBegun",
+      "schema": 4,
+      "transition": "fanout"
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "place": "input",
+      "record": "TokensConsumed",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "X",
+          "data": {
+            "n": 1
+          }
+        },
+        {
+          "color": "X",
+          "data": {
+            "n": 2
+          }
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "place": "config",
+      "record": "TokensRead",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "Config",
+          "data": {
+            "mode": "strict"
+          }
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "place": "left",
+      "record": "TokensProduced",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "X",
+          "data": {
+            "n": 1
+          }
+        },
+        {
+          "color": "X",
+          "data": {
+            "n": 2
+          }
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "place": "right",
+      "record": "TokensProduced",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "X",
+          "data": {
+            "n": 1
+          }
+        },
+        {
+          "color": "X",
+          "data": {
+            "n": 2
+          }
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "FiringCompleted",
+      "schema": 4,
+      "transition": "fanout"
+    }
+  ],
+  "initialMarking": [
+    {
+      "place": "config",
+      "tokens": [
+        {
+          "color": "Config",
+          "data": {
+            "mode": "strict"
+          }
+        }
+      ]
+    },
+    {
+      "place": "input",
+      "tokens": [
+        {
+          "color": "X",
+          "data": {
+            "n": 1
+          }
+        },
+        {
+          "color": "X",
+          "data": {
+            "n": 2
+          }
+        }
+      ]
+    }
+  ],
+  "name": "per_arc_passthrough",
+  "net": {
+    "definition": {
+      "arcs": [
+        {
+          "color": "X",
+          "filter": null,
+          "mode": "consume",
+          "position": 0,
+          "source": "input",
+          "target": "fanout",
+          "weight": 2
+        },
+        {
+          "color": "Config",
+          "filter": null,
+          "mode": "read",
+          "position": 1,
+          "source": "config",
+          "target": "fanout",
+          "weight": 1
+        },
+        {
+          "color": "X",
+          "filter": null,
+          "mode": "consume",
+          "position": 2,
+          "source": "fanout",
+          "target": "left",
+          "weight": 1
+        },
+        {
+          "color": "X",
+          "filter": null,
+          "mode": "consume",
+          "position": 3,
+          "source": "fanout",
+          "target": "right",
+          "weight": 1
+        }
+      ],
+      "completion": null,
+      "name": "per-arc-passthrough",
+      "places": [
+        {
+          "color": "Config",
+          "path": "config"
+        },
+        {
+          "color": "X",
+          "path": "input"
+        },
+        {
+          "color": "X",
+          "path": "left"
+        },
+        {
+          "color": "X",
+          "path": "right"
+        }
+      ],
+      "time_domain": "integer",
+      "transitions": [
+        {
+          "guards": [],
+          "handler": null,
+          "path": "fanout",
+          "timers": []
+        }
+      ]
+    },
+    "format": "petrus-net-definition",
+    "version": 3
+  },
+  "version": 2,
+  "walk": [
+    {
+      "action": {
+        "at": 1,
+        "kind": "step"
+      },
+      "candidatesBefore": [
+        {
+          "consumed": [
+            {
+              "place": "input",
+              "tokens": [
+                {
+                  "color": "X",
+                  "data": {
+                    "n": 1
+                  }
+                },
+                {
+                  "color": "X",
+                  "data": {
+                    "n": 2
+                  }
+                }
+              ]
+            }
+          ],
+          "delivered": [],
+          "read": [
+            {
+              "place": "config",
+              "tokens": [
+                {
+                  "color": "Config",
+                  "data": {
+                    "mode": "strict"
+                  }
+                }
+              ]
+            }
+          ],
+          "transition": "fanout"
+        }
+      ],
+      "markingAfter": [
+        {
+          "place": "config",
+          "tokens": [
+            {
+              "color": "Config",
+              "data": {
+                "mode": "strict"
+              }
+            }
+          ]
+        },
+        {
+          "place": "left",
+          "tokens": [
+            {
+              "color": "X",
+              "data": {
+                "n": 1
+              }
+            },
+            {
+              "color": "X",
+              "data": {
+                "n": 2
+              }
+            }
+          ]
+        },
+        {
+          "place": "right",
+          "tokens": [
+            {
+              "color": "X",
+              "data": {
+                "n": 1
+              }
+            },
+            {
+              "color": "X",
+              "data": {
+                "n": 2
+              }
+            }
+          ]
+        }
+      ],
+      "outcome": {
+        "consumed": [
+          {
+            "color": "X",
+            "data": {
+              "n": 1
+            }
+          },
+          {
+            "color": "X",
+            "data": {
+              "n": 2
+            }
+          }
+        ],
+        "occurrence": 1,
+        "produced": [
+          {
+            "place": "left",
+            "token": {
+              "color": "X",
+              "data": {
+                "n": 1
+              }
+            }
+          },
+          {
+            "place": "left",
+            "token": {
+              "color": "X",
+              "data": {
+                "n": 2
+              }
+            }
+          },
+          {
+            "place": "right",
+            "token": {
+              "color": "X",
+              "data": {
+                "n": 1
+              }
+            }
+          },
+          {
+            "place": "right",
+            "token": {
+              "color": "X",
+              "data": {
+                "n": 2
+              }
+            }
+          }
+        ],
+        "transition": "fanout"
+      },
+      "statusAfter": "terminated"
+    }
+  ]
+}

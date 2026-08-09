@@ -120,8 +120,8 @@ declares no handler, output follows the passthrough rule below.
 This differs explicitly from the Petrus oracle, which deposits one merged token
 to ALL output places (`Token.merge`, last-wins per type) — flagged in the
 reference as an outlier versus per-arc output contracts [Petrus oracle]. Impetus
-adopts the per-arc contract; the `fork_join` and `awaiting_termination` golden
-fixtures pin oracle merged-token fan-out and must be regenerated under this model.
+adopts the per-arc contract; the normative `per_arc_passthrough` and
+`heterogeneous_fanout` golden fixtures record that model positively.
 
 ## Scheduling
 

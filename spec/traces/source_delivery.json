@@ -1,0 +1,207 @@
+{
+  "bindings": {},
+  "description": "An identified external delivery fires a scheduler-excluded source and is recorded before projection.",
+  "final": {
+    "marking": [
+      {
+        "place": "events",
+        "tokens": [
+          {
+            "color": "RawEvent",
+            "data": {
+              "event_id": "evt-7",
+              "status": "accepted"
+            }
+          }
+        ]
+      }
+    ],
+    "status": "terminated"
+  },
+  "format": "petrus-impetus-golden-trace",
+  "history": [
+    {
+      "instance": "golden-source-delivery",
+      "instant": 0,
+      "name": "source-delivery",
+      "record": "InstanceCreated",
+      "schema": 4
+    },
+    {
+      "instant": 0,
+      "key": "default",
+      "occurrence": null,
+      "record": "DeliveryRegistrationOpened",
+      "schema": 4,
+      "source": "webhook"
+    },
+    {
+      "identity": "provider-event-7",
+      "instant": 1,
+      "occurrence": 1,
+      "record": "ExternalEventDelivered",
+      "schema": 4,
+      "source": "webhook",
+      "tokens": [
+        {
+          "color": "RawEvent",
+          "data": {
+            "event_id": "evt-7",
+            "status": "accepted"
+          }
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "FiringBegun",
+      "schema": 4,
+      "transition": "webhook"
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "place": "events",
+      "record": "TokensProduced",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "RawEvent",
+          "data": {
+            "event_id": "evt-7",
+            "status": "accepted"
+          }
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "FiringCompleted",
+      "schema": 4,
+      "transition": "webhook"
+    },
+    {
+      "instant": 2,
+      "key": "default",
+      "occurrence": null,
+      "record": "DeliveryRegistrationClosed",
+      "schema": 4,
+      "source": "webhook"
+    }
+  ],
+  "initialMarking": [],
+  "name": "source_delivery",
+  "net": {
+    "definition": {
+      "arcs": [
+        {
+          "color": "RawEvent",
+          "filter": null,
+          "mode": "consume",
+          "position": 0,
+          "source": "webhook",
+          "target": "events",
+          "weight": 1
+        }
+      ],
+      "completion": null,
+      "name": "source-delivery",
+      "places": [
+        {
+          "color": "RawEvent",
+          "path": "events"
+        }
+      ],
+      "time_domain": "integer",
+      "transitions": [
+        {
+          "guards": [],
+          "handler": null,
+          "path": "webhook",
+          "timers": []
+        }
+      ]
+    },
+    "format": "petrus-net-definition",
+    "version": 3
+  },
+  "version": 2,
+  "walk": [
+    {
+      "action": {
+        "at": 1,
+        "identity": "provider-event-7",
+        "kind": "deliver",
+        "source": "webhook",
+        "tokens": [
+          {
+            "color": "RawEvent",
+            "data": {
+              "event_id": "evt-7",
+              "status": "accepted"
+            }
+          }
+        ]
+      },
+      "candidatesBefore": [],
+      "markingAfter": [
+        {
+          "place": "events",
+          "tokens": [
+            {
+              "color": "RawEvent",
+              "data": {
+                "event_id": "evt-7",
+                "status": "accepted"
+              }
+            }
+          ]
+        }
+      ],
+      "outcome": {
+        "consumed": [],
+        "occurrence": 1,
+        "produced": [
+          {
+            "place": "events",
+            "token": {
+              "color": "RawEvent",
+              "data": {
+                "event_id": "evt-7",
+                "status": "accepted"
+              }
+            }
+          }
+        ],
+        "transition": "webhook"
+      },
+      "statusAfter": "awaiting"
+    },
+    {
+      "action": {
+        "at": 2,
+        "kind": "seal",
+        "source": "webhook"
+      },
+      "candidatesBefore": [],
+      "markingAfter": [
+        {
+          "place": "events",
+          "tokens": [
+            {
+              "color": "RawEvent",
+              "data": {
+                "event_id": "evt-7",
+                "status": "accepted"
+              }
+            }
+          ]
+        }
+      ],
+      "outcome": null,
+      "statusAfter": "terminated"
+    }
+  ]
+}

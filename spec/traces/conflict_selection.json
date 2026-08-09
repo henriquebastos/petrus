@@ -1,0 +1,248 @@
+{
+  "bindings": {},
+  "description": "Two candidates conflict over one token; conservative selection chooses the first stable binding.",
+  "final": {
+    "marking": [
+      {
+        "place": "a_won",
+        "tokens": [
+          {
+            "color": null,
+            "data": null
+          }
+        ]
+      }
+    ],
+    "status": "terminated"
+  },
+  "format": "petrus-impetus-golden-trace",
+  "history": [
+    {
+      "instance": "golden-conflict-selection",
+      "instant": 0,
+      "name": "conflict-selection",
+      "record": "InstanceCreated",
+      "schema": 4
+    },
+    {
+      "instant": 0,
+      "place": "shared",
+      "record": "TokensInitialized",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": null,
+          "data": null
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "CandidateSelected",
+      "schema": 4,
+      "transition": "choose_a"
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "FiringBegun",
+      "schema": 4,
+      "transition": "choose_a"
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "place": "shared",
+      "record": "TokensConsumed",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": null,
+          "data": null
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "place": "a_won",
+      "record": "TokensProduced",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": null,
+          "data": null
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "FiringCompleted",
+      "schema": 4,
+      "transition": "choose_a"
+    }
+  ],
+  "initialMarking": [
+    {
+      "place": "shared",
+      "tokens": [
+        {
+          "color": null,
+          "data": null
+        }
+      ]
+    }
+  ],
+  "name": "conflict_selection",
+  "net": {
+    "definition": {
+      "arcs": [
+        {
+          "color": null,
+          "filter": null,
+          "mode": "consume",
+          "position": 0,
+          "source": "shared",
+          "target": "choose_a",
+          "weight": 1
+        },
+        {
+          "color": null,
+          "filter": null,
+          "mode": "consume",
+          "position": 1,
+          "source": "choose_a",
+          "target": "a_won",
+          "weight": 1
+        },
+        {
+          "color": null,
+          "filter": null,
+          "mode": "consume",
+          "position": 2,
+          "source": "shared",
+          "target": "choose_b",
+          "weight": 1
+        },
+        {
+          "color": null,
+          "filter": null,
+          "mode": "consume",
+          "position": 3,
+          "source": "choose_b",
+          "target": "b_won",
+          "weight": 1
+        }
+      ],
+      "completion": null,
+      "name": "conflict-selection",
+      "places": [
+        {
+          "color": null,
+          "path": "a_won"
+        },
+        {
+          "color": null,
+          "path": "b_won"
+        },
+        {
+          "color": null,
+          "path": "shared"
+        }
+      ],
+      "time_domain": "integer",
+      "transitions": [
+        {
+          "guards": [],
+          "handler": null,
+          "path": "choose_a",
+          "timers": []
+        },
+        {
+          "guards": [],
+          "handler": null,
+          "path": "choose_b",
+          "timers": []
+        }
+      ]
+    },
+    "format": "petrus-net-definition",
+    "version": 3
+  },
+  "version": 2,
+  "walk": [
+    {
+      "action": {
+        "at": 1,
+        "kind": "step"
+      },
+      "candidatesBefore": [
+        {
+          "consumed": [
+            {
+              "place": "shared",
+              "tokens": [
+                {
+                  "color": null,
+                  "data": null
+                }
+              ]
+            }
+          ],
+          "delivered": [],
+          "read": [],
+          "transition": "choose_a"
+        },
+        {
+          "consumed": [
+            {
+              "place": "shared",
+              "tokens": [
+                {
+                  "color": null,
+                  "data": null
+                }
+              ]
+            }
+          ],
+          "delivered": [],
+          "read": [],
+          "transition": "choose_b"
+        }
+      ],
+      "markingAfter": [
+        {
+          "place": "a_won",
+          "tokens": [
+            {
+              "color": null,
+              "data": null
+            }
+          ]
+        }
+      ],
+      "outcome": {
+        "consumed": [
+          {
+            "color": null,
+            "data": null
+          }
+        ],
+        "occurrence": 1,
+        "produced": [
+          {
+            "place": "a_won",
+            "token": {
+              "color": null,
+              "data": null
+            }
+          }
+        ],
+        "transition": "choose_a"
+      },
+      "statusAfter": "terminated"
+    }
+  ]
+}

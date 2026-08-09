@@ -5,12 +5,13 @@ net runtime. The spec, its schemas, and its traces are language-neutral
 artifacts; every implementation — starting with the Python reference binding —
 is a *binding* of this contract [DR 2026-07-06 implementation-language-python-first].
 Bindings are validated against the golden trace corpus in `spec/traces/`
-(arriving with CV1.DS2, harvested from the production-proven Petrus engine).
+(generated from the public Python reference binding through canonical Net and
+History schemas).
 
 This is a layered conformance claim, not a promise that every prose sentence is
-mechanically checked. Golden replay covers the coincident Petrus fixtures;
-Impetus-native tests cover ratified divergences and newer semantics. Known
-unsupported and deferred areas are named in `spec/traces/README.md`. A
+mechanically checked. Golden replay covers the normative Impetus-native corpus;
+focused semantic tests cover broader and newer semantics. Known unsupported and
+deferred areas are named in `spec/traces/README.md`. A
 normative behavior without executable evidence is a visible coverage gap, not
 verified behavior. `CONTEXT.md` supplies reviewed ubiquitous language and
 orientation; it is not mechanically proven line by line against the binding.

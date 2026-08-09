@@ -1,0 +1,290 @@
+{
+  "bindings": {
+    "settle": {
+      "kind": "handler",
+      "semantics": "for the consumed Payment, emit ApprovalNotice {approved: true} to approved and LedgerEntry {amount: Payment.data.amount} to ledger"
+    }
+  },
+  "description": "One handler firing emits different single-color values to two independently typed output arcs.",
+  "final": {
+    "marking": [
+      {
+        "place": "approved",
+        "tokens": [
+          {
+            "color": "ApprovalNotice",
+            "data": {
+              "approved": true
+            }
+          }
+        ]
+      },
+      {
+        "place": "ledger",
+        "tokens": [
+          {
+            "color": "LedgerEntry",
+            "data": {
+              "amount": 150
+            }
+          }
+        ]
+      }
+    ],
+    "status": "terminated"
+  },
+  "format": "petrus-impetus-golden-trace",
+  "history": [
+    {
+      "instance": "golden-heterogeneous-fanout",
+      "instant": 0,
+      "name": "heterogeneous-fanout",
+      "record": "InstanceCreated",
+      "schema": 4
+    },
+    {
+      "instant": 0,
+      "place": "pending",
+      "record": "TokensInitialized",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "Payment",
+          "data": {
+            "amount": 150
+          }
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "CandidateSelected",
+      "schema": 4,
+      "transition": "settle"
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "FiringBegun",
+      "schema": 4,
+      "transition": "settle"
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "place": "pending",
+      "record": "TokensConsumed",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "Payment",
+          "data": {
+            "amount": 150
+          }
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "place": "approved",
+      "record": "TokensProduced",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "ApprovalNotice",
+          "data": {
+            "approved": true
+          }
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "place": "ledger",
+      "record": "TokensProduced",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "LedgerEntry",
+          "data": {
+            "amount": 150
+          }
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "FiringCompleted",
+      "schema": 4,
+      "transition": "settle"
+    }
+  ],
+  "initialMarking": [
+    {
+      "place": "pending",
+      "tokens": [
+        {
+          "color": "Payment",
+          "data": {
+            "amount": 150
+          }
+        }
+      ]
+    }
+  ],
+  "name": "heterogeneous_fanout",
+  "net": {
+    "definition": {
+      "arcs": [
+        {
+          "color": "Payment",
+          "filter": null,
+          "mode": "consume",
+          "position": 0,
+          "source": "pending",
+          "target": "settle",
+          "weight": 1
+        },
+        {
+          "color": "ApprovalNotice",
+          "filter": null,
+          "mode": "consume",
+          "position": 1,
+          "source": "settle",
+          "target": "approved",
+          "weight": 1
+        },
+        {
+          "color": "LedgerEntry",
+          "filter": null,
+          "mode": "consume",
+          "position": 2,
+          "source": "settle",
+          "target": "ledger",
+          "weight": 1
+        }
+      ],
+      "completion": null,
+      "name": "heterogeneous-fanout",
+      "places": [
+        {
+          "color": "ApprovalNotice",
+          "path": "approved"
+        },
+        {
+          "color": "LedgerEntry",
+          "path": "ledger"
+        },
+        {
+          "color": "Payment",
+          "path": "pending"
+        }
+      ],
+      "time_domain": "integer",
+      "transitions": [
+        {
+          "guards": [],
+          "handler": {
+            "kind": "symbol",
+            "name": "settle",
+            "uri": "transition:/settle#handler"
+          },
+          "path": "settle",
+          "timers": []
+        }
+      ]
+    },
+    "format": "petrus-net-definition",
+    "version": 3
+  },
+  "version": 2,
+  "walk": [
+    {
+      "action": {
+        "at": 1,
+        "kind": "step"
+      },
+      "candidatesBefore": [
+        {
+          "consumed": [
+            {
+              "place": "pending",
+              "tokens": [
+                {
+                  "color": "Payment",
+                  "data": {
+                    "amount": 150
+                  }
+                }
+              ]
+            }
+          ],
+          "delivered": [],
+          "read": [],
+          "transition": "settle"
+        }
+      ],
+      "markingAfter": [
+        {
+          "place": "approved",
+          "tokens": [
+            {
+              "color": "ApprovalNotice",
+              "data": {
+                "approved": true
+              }
+            }
+          ]
+        },
+        {
+          "place": "ledger",
+          "tokens": [
+            {
+              "color": "LedgerEntry",
+              "data": {
+                "amount": 150
+              }
+            }
+          ]
+        }
+      ],
+      "outcome": {
+        "consumed": [
+          {
+            "color": "Payment",
+            "data": {
+              "amount": 150
+            }
+          }
+        ],
+        "occurrence": 1,
+        "produced": [
+          {
+            "place": "approved",
+            "token": {
+              "color": "ApprovalNotice",
+              "data": {
+                "approved": true
+              }
+            }
+          },
+          {
+            "place": "ledger",
+            "token": {
+              "color": "LedgerEntry",
+              "data": {
+                "amount": 150
+              }
+            }
+          }
+        ],
+        "transition": "settle"
+      },
+      "statusAfter": "terminated"
+    }
+  ]
+}

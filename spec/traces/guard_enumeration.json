@@ -1,0 +1,469 @@
+{
+  "bindings": {
+    "amount_gte_100": {
+      "kind": "guard",
+      "semantics": "the first peeked Payment token's data.amount is greater than or equal to 100"
+    },
+    "amount_lt_100": {
+      "kind": "guard",
+      "semantics": "the first peeked Payment token's data.amount is less than 100"
+    }
+  },
+  "description": "Guards evaluate every binding: reject skips the failing FIFO head and remains enabled for the deeper Payment.",
+  "final": {
+    "marking": [
+      {
+        "place": "accepted",
+        "tokens": [
+          {
+            "color": "Payment",
+            "data": {
+              "amount": 150,
+              "currency": "USD"
+            }
+          }
+        ]
+      },
+      {
+        "place": "rejected",
+        "tokens": [
+          {
+            "color": "Payment",
+            "data": {
+              "amount": 40,
+              "currency": "USD"
+            }
+          }
+        ]
+      }
+    ],
+    "status": "terminated"
+  },
+  "format": "petrus-impetus-golden-trace",
+  "history": [
+    {
+      "instance": "golden-guard-enumeration",
+      "instant": 0,
+      "name": "guard-enumeration",
+      "record": "InstanceCreated",
+      "schema": 4
+    },
+    {
+      "instant": 0,
+      "place": "pending",
+      "record": "TokensInitialized",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "Payment",
+          "data": {
+            "amount": 150,
+            "currency": "USD"
+          }
+        },
+        {
+          "color": "Payment",
+          "data": {
+            "amount": 40,
+            "currency": "USD"
+          }
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "CandidateSelected",
+      "schema": 4,
+      "transition": "accept"
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "FiringBegun",
+      "schema": 4,
+      "transition": "accept"
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "place": "pending",
+      "record": "TokensConsumed",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "Payment",
+          "data": {
+            "amount": 150,
+            "currency": "USD"
+          }
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "place": "accepted",
+      "record": "TokensProduced",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "Payment",
+          "data": {
+            "amount": 150,
+            "currency": "USD"
+          }
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "FiringCompleted",
+      "schema": 4,
+      "transition": "accept"
+    },
+    {
+      "instant": 2,
+      "occurrence": 2,
+      "record": "CandidateSelected",
+      "schema": 4,
+      "transition": "reject"
+    },
+    {
+      "instant": 2,
+      "occurrence": 2,
+      "record": "FiringBegun",
+      "schema": 4,
+      "transition": "reject"
+    },
+    {
+      "instant": 2,
+      "occurrence": 2,
+      "place": "pending",
+      "record": "TokensConsumed",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "Payment",
+          "data": {
+            "amount": 40,
+            "currency": "USD"
+          }
+        }
+      ]
+    },
+    {
+      "instant": 2,
+      "occurrence": 2,
+      "place": "rejected",
+      "record": "TokensProduced",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": "Payment",
+          "data": {
+            "amount": 40,
+            "currency": "USD"
+          }
+        }
+      ]
+    },
+    {
+      "instant": 2,
+      "occurrence": 2,
+      "record": "FiringCompleted",
+      "schema": 4,
+      "transition": "reject"
+    }
+  ],
+  "initialMarking": [
+    {
+      "place": "pending",
+      "tokens": [
+        {
+          "color": "Payment",
+          "data": {
+            "amount": 150,
+            "currency": "USD"
+          }
+        },
+        {
+          "color": "Payment",
+          "data": {
+            "amount": 40,
+            "currency": "USD"
+          }
+        }
+      ]
+    }
+  ],
+  "name": "guard_enumeration",
+  "net": {
+    "definition": {
+      "arcs": [
+        {
+          "color": "Payment",
+          "filter": null,
+          "mode": "consume",
+          "position": 0,
+          "source": "pending",
+          "target": "accept",
+          "weight": 1
+        },
+        {
+          "color": "Payment",
+          "filter": null,
+          "mode": "consume",
+          "position": 1,
+          "source": "accept",
+          "target": "accepted",
+          "weight": 1
+        },
+        {
+          "color": "Payment",
+          "filter": null,
+          "mode": "consume",
+          "position": 2,
+          "source": "pending",
+          "target": "reject",
+          "weight": 1
+        },
+        {
+          "color": "Payment",
+          "filter": null,
+          "mode": "consume",
+          "position": 3,
+          "source": "reject",
+          "target": "rejected",
+          "weight": 1
+        }
+      ],
+      "completion": null,
+      "name": "guard-enumeration",
+      "places": [
+        {
+          "color": "Payment",
+          "path": "accepted"
+        },
+        {
+          "color": "Payment",
+          "path": "pending"
+        },
+        {
+          "color": "Payment",
+          "path": "rejected"
+        }
+      ],
+      "time_domain": "integer",
+      "transitions": [
+        {
+          "guards": [
+            {
+              "kind": "symbol",
+              "name": "amount_gte_100",
+              "uri": "transition:/accept#guard:amount_gte_100"
+            }
+          ],
+          "handler": null,
+          "path": "accept",
+          "timers": []
+        },
+        {
+          "guards": [
+            {
+              "kind": "symbol",
+              "name": "amount_lt_100",
+              "uri": "transition:/reject#guard:amount_lt_100"
+            }
+          ],
+          "handler": null,
+          "path": "reject",
+          "timers": []
+        }
+      ]
+    },
+    "format": "petrus-net-definition",
+    "version": 3
+  },
+  "version": 2,
+  "walk": [
+    {
+      "action": {
+        "at": 1,
+        "kind": "step"
+      },
+      "candidatesBefore": [
+        {
+          "consumed": [
+            {
+              "place": "pending",
+              "tokens": [
+                {
+                  "color": "Payment",
+                  "data": {
+                    "amount": 150,
+                    "currency": "USD"
+                  }
+                }
+              ]
+            }
+          ],
+          "delivered": [],
+          "read": [],
+          "transition": "accept"
+        },
+        {
+          "consumed": [
+            {
+              "place": "pending",
+              "tokens": [
+                {
+                  "color": "Payment",
+                  "data": {
+                    "amount": 40,
+                    "currency": "USD"
+                  }
+                }
+              ]
+            }
+          ],
+          "delivered": [],
+          "read": [],
+          "transition": "reject"
+        }
+      ],
+      "markingAfter": [
+        {
+          "place": "accepted",
+          "tokens": [
+            {
+              "color": "Payment",
+              "data": {
+                "amount": 150,
+                "currency": "USD"
+              }
+            }
+          ]
+        },
+        {
+          "place": "pending",
+          "tokens": [
+            {
+              "color": "Payment",
+              "data": {
+                "amount": 40,
+                "currency": "USD"
+              }
+            }
+          ]
+        }
+      ],
+      "outcome": {
+        "consumed": [
+          {
+            "color": "Payment",
+            "data": {
+              "amount": 150,
+              "currency": "USD"
+            }
+          }
+        ],
+        "occurrence": 1,
+        "produced": [
+          {
+            "place": "accepted",
+            "token": {
+              "color": "Payment",
+              "data": {
+                "amount": 150,
+                "currency": "USD"
+              }
+            }
+          }
+        ],
+        "transition": "accept"
+      },
+      "statusAfter": "running"
+    },
+    {
+      "action": {
+        "at": 2,
+        "kind": "step"
+      },
+      "candidatesBefore": [
+        {
+          "consumed": [
+            {
+              "place": "pending",
+              "tokens": [
+                {
+                  "color": "Payment",
+                  "data": {
+                    "amount": 40,
+                    "currency": "USD"
+                  }
+                }
+              ]
+            }
+          ],
+          "delivered": [],
+          "read": [],
+          "transition": "reject"
+        }
+      ],
+      "markingAfter": [
+        {
+          "place": "accepted",
+          "tokens": [
+            {
+              "color": "Payment",
+              "data": {
+                "amount": 150,
+                "currency": "USD"
+              }
+            }
+          ]
+        },
+        {
+          "place": "rejected",
+          "tokens": [
+            {
+              "color": "Payment",
+              "data": {
+                "amount": 40,
+                "currency": "USD"
+              }
+            }
+          ]
+        }
+      ],
+      "outcome": {
+        "consumed": [
+          {
+            "color": "Payment",
+            "data": {
+              "amount": 40,
+              "currency": "USD"
+            }
+          }
+        ],
+        "occurrence": 2,
+        "produced": [
+          {
+            "place": "rejected",
+            "token": {
+              "color": "Payment",
+              "data": {
+                "amount": 40,
+                "currency": "USD"
+              }
+            }
+          }
+        ],
+        "transition": "reject"
+      },
+      "statusAfter": "terminated"
+    }
+  ]
+}

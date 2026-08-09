@@ -1,0 +1,334 @@
+{
+  "bindings": {},
+  "description": "A black control token traverses two default passthrough transitions.",
+  "final": {
+    "marking": [
+      {
+        "place": "done",
+        "tokens": [
+          {
+            "color": null,
+            "data": null
+          }
+        ]
+      }
+    ],
+    "status": "terminated"
+  },
+  "format": "petrus-impetus-golden-trace",
+  "history": [
+    {
+      "instance": "golden-passthrough-chain",
+      "instant": 0,
+      "name": "passthrough-chain",
+      "record": "InstanceCreated",
+      "schema": 4
+    },
+    {
+      "instant": 0,
+      "place": "start",
+      "record": "TokensInitialized",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": null,
+          "data": null
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "CandidateSelected",
+      "schema": 4,
+      "transition": "advance"
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "FiringBegun",
+      "schema": 4,
+      "transition": "advance"
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "place": "start",
+      "record": "TokensConsumed",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": null,
+          "data": null
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "place": "middle",
+      "record": "TokensProduced",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": null,
+          "data": null
+        }
+      ]
+    },
+    {
+      "instant": 1,
+      "occurrence": 1,
+      "record": "FiringCompleted",
+      "schema": 4,
+      "transition": "advance"
+    },
+    {
+      "instant": 2,
+      "occurrence": 2,
+      "record": "CandidateSelected",
+      "schema": 4,
+      "transition": "finish"
+    },
+    {
+      "instant": 2,
+      "occurrence": 2,
+      "record": "FiringBegun",
+      "schema": 4,
+      "transition": "finish"
+    },
+    {
+      "instant": 2,
+      "occurrence": 2,
+      "place": "middle",
+      "record": "TokensConsumed",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": null,
+          "data": null
+        }
+      ]
+    },
+    {
+      "instant": 2,
+      "occurrence": 2,
+      "place": "done",
+      "record": "TokensProduced",
+      "schema": 4,
+      "tokens": [
+        {
+          "color": null,
+          "data": null
+        }
+      ]
+    },
+    {
+      "instant": 2,
+      "occurrence": 2,
+      "record": "FiringCompleted",
+      "schema": 4,
+      "transition": "finish"
+    }
+  ],
+  "initialMarking": [
+    {
+      "place": "start",
+      "tokens": [
+        {
+          "color": null,
+          "data": null
+        }
+      ]
+    }
+  ],
+  "name": "passthrough_chain",
+  "net": {
+    "definition": {
+      "arcs": [
+        {
+          "color": null,
+          "filter": null,
+          "mode": "consume",
+          "position": 0,
+          "source": "start",
+          "target": "advance",
+          "weight": 1
+        },
+        {
+          "color": null,
+          "filter": null,
+          "mode": "consume",
+          "position": 1,
+          "source": "advance",
+          "target": "middle",
+          "weight": 1
+        },
+        {
+          "color": null,
+          "filter": null,
+          "mode": "consume",
+          "position": 2,
+          "source": "middle",
+          "target": "finish",
+          "weight": 1
+        },
+        {
+          "color": null,
+          "filter": null,
+          "mode": "consume",
+          "position": 3,
+          "source": "finish",
+          "target": "done",
+          "weight": 1
+        }
+      ],
+      "completion": null,
+      "name": "passthrough-chain",
+      "places": [
+        {
+          "color": null,
+          "path": "done"
+        },
+        {
+          "color": null,
+          "path": "middle"
+        },
+        {
+          "color": null,
+          "path": "start"
+        }
+      ],
+      "time_domain": "integer",
+      "transitions": [
+        {
+          "guards": [],
+          "handler": null,
+          "path": "advance",
+          "timers": []
+        },
+        {
+          "guards": [],
+          "handler": null,
+          "path": "finish",
+          "timers": []
+        }
+      ]
+    },
+    "format": "petrus-net-definition",
+    "version": 3
+  },
+  "version": 2,
+  "walk": [
+    {
+      "action": {
+        "at": 1,
+        "kind": "step"
+      },
+      "candidatesBefore": [
+        {
+          "consumed": [
+            {
+              "place": "start",
+              "tokens": [
+                {
+                  "color": null,
+                  "data": null
+                }
+              ]
+            }
+          ],
+          "delivered": [],
+          "read": [],
+          "transition": "advance"
+        }
+      ],
+      "markingAfter": [
+        {
+          "place": "middle",
+          "tokens": [
+            {
+              "color": null,
+              "data": null
+            }
+          ]
+        }
+      ],
+      "outcome": {
+        "consumed": [
+          {
+            "color": null,
+            "data": null
+          }
+        ],
+        "occurrence": 1,
+        "produced": [
+          {
+            "place": "middle",
+            "token": {
+              "color": null,
+              "data": null
+            }
+          }
+        ],
+        "transition": "advance"
+      },
+      "statusAfter": "running"
+    },
+    {
+      "action": {
+        "at": 2,
+        "kind": "step"
+      },
+      "candidatesBefore": [
+        {
+          "consumed": [
+            {
+              "place": "middle",
+              "tokens": [
+                {
+                  "color": null,
+                  "data": null
+                }
+              ]
+            }
+          ],
+          "delivered": [],
+          "read": [],
+          "transition": "finish"
+        }
+      ],
+      "markingAfter": [
+        {
+          "place": "done",
+          "tokens": [
+            {
+              "color": null,
+              "data": null
+            }
+          ]
+        }
+      ],
+      "outcome": {
+        "consumed": [
+          {
+            "color": null,
+            "data": null
+          }
+        ],
+        "occurrence": 2,
+        "produced": [
+          {
+            "place": "done",
+            "token": {
+              "color": null,
+              "data": null
+            }
+          }
+        ],
+        "transition": "finish"
+      },
+      "statusAfter": "terminated"
+    }
+  ]
+}

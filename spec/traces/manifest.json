@@ -1,0 +1,56 @@
+{
+  "fixtures": [
+    {
+      "file": "passthrough_chain.json",
+      "name": "passthrough_chain",
+      "sha256": "364a5ccb1a04b8e72f0d233cdc79916e12b988a87f431b9936762281359a4632",
+      "walkSteps": 2
+    },
+    {
+      "file": "fifo_queue.json",
+      "name": "fifo_queue",
+      "sha256": "4a9bb88c865967e448e2bde18b4f30c7531008033314212a9094679cbe3a7d63",
+      "walkSteps": 3
+    },
+    {
+      "file": "inhibitor_arc.json",
+      "name": "inhibitor_arc",
+      "sha256": "3eba3741eca833ca141f6b15856eeed6330b9df9e285563178fe15a02b22203c",
+      "walkSteps": 2
+    },
+    {
+      "file": "conflict_selection.json",
+      "name": "conflict_selection",
+      "sha256": "8902d21162e93a17cb3ed0371602e322a1765effdf24540f65e45b3641229d2d",
+      "walkSteps": 1
+    },
+    {
+      "file": "per_arc_passthrough.json",
+      "name": "per_arc_passthrough",
+      "sha256": "0c01dcc1958886121c3b92dd9641ef6c1a6099931d3cfec57c49aef41682aaa5",
+      "walkSteps": 1
+    },
+    {
+      "file": "guard_enumeration.json",
+      "name": "guard_enumeration",
+      "sha256": "d9758feb1ec1c1692edf88dd764595b4c4eb70c980fb1f60a7b1372e50bc60d3",
+      "walkSteps": 2
+    },
+    {
+      "file": "source_delivery.json",
+      "name": "source_delivery",
+      "sha256": "5584b720bc420c7f61e9350bf4d11e22da7caf1b7e0a7708efd065453db08684",
+      "walkSteps": 2
+    },
+    {
+      "file": "heterogeneous_fanout.json",
+      "name": "heterogeneous_fanout",
+      "sha256": "9e28b01c96e51f97a865560d8324b613ceaa45d87baa3504ee55c447a6eab7b1",
+      "walkSteps": 1
+    }
+  ],
+  "format": "petrus-impetus-golden-trace-manifest",
+  "generationCommand": "UV_FROZEN=1 uv run python scripts/gen-golden-traces.py spec/traces",
+  "generator": "scripts/gen-golden-traces.py",
+  "version": 2
+}
