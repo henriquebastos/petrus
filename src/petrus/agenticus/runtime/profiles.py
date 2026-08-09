@@ -2,7 +2,8 @@
 
 This module contains no adapter or provider SDK imports. A profile describes a
 planned composition only; catalog presence and a binding target do not claim
-installation or live execution.
+installation, live execution, or product support. The supported CV16 surface is
+the separately named Pi A2 Local scripted host-lifecycle conformance route.
 """
 
 from __future__ import annotations

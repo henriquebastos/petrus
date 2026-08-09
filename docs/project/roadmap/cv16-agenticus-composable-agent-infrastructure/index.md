@@ -1,9 +1,9 @@
 ---
 code: CV16
 level: Value
-status: Blocked
-status_reason: Host adoption, supported-profile qualification, and release acceptance require a new bounded story.
-updated: 2026-08-08
+status: Done
+status_reason: DS11 qualifies one supported scripted Local host lifecycle while keeping every live-provider profile qualification-only or unsupported.
+updated: 2026-08-09
 related:
   - docs/project/decisions/records/2026-08-03T0430Z-installations-own-authority-agenticus-owns-machinery.md
   - docs/project/decisions/records/2026-08-05T0923Z-net-owned-pi-loop-mirrors-a-bounded-public-seam.md
@@ -14,10 +14,10 @@ related:
 
 ## Status
 
-**Blocked.** The reusable package work represented by DS1–DS10 is implemented.
-Host adoption, supported-profile qualification, and release acceptance are not
-complete. No work session is active. Continuing requires a new bounded story
-with explicit acceptance behavior and an executable validation route.
+**Done.** DS1–DS10 establish the reusable package and DS11 qualifies one bounded
+host product surface: **Pi A2 Local host lifecycle — scripted runtime
+conformance**. This closes CV16 without promoting authenticated Pi/model/provider
+execution or any other Agenticus adapter to supported status.
 
 ## Intent
 
@@ -108,19 +108,25 @@ provider, host, deployment, or support claim. Supported behavior is limited to
 the package API and capability statements documented in the README and proven
 by the included tests.
 
-## Incomplete boundary
+## Qualified support boundary
 
-The Value remains blocked because reusable implementation alone does not
-establish an accepted host product boundary. A future bounded story must decide
-and verify:
+DS11 decides and verifies the required host boundary:
 
-- one explicit host composition using installation-owned authority;
-- which runtime profiles are supported, experimental, or unavailable;
-- authority materialization and teardown behavior;
-- crash and recovery behavior for the selected profile;
-- provider-specific cleanup and reconciliation where applicable;
-- operator-facing failure behavior;
-- package support and release acceptance.
+- The supported label is **Pi A2 Local host lifecycle — scripted runtime
+  conformance**, composed through finite immutable script data and Petrus-owned
+  `LocalProcessEnvironment` lifecycle.
+- `pi.native.a2.local` with an external Pi installation and every other binding
+  target remain experimental and qualification-only; unqualified and
+  unsupported cells retain those exact classifications.
+- Authority is installation-owned and one-shot. Durable operation/body/workspace
+  state is secret-free, and bodies publish only after aggregate cleanup proof.
+- Terminal replay precedes readiness and authority. Real process death after
+  admission becomes `restart-indeterminate` with no redispatch; unreconciled
+  local residue makes host close fail closed.
+- Python API plus bounded `RuntimeProtocolError` and settlement codes is the
+  operator surface for this pre-release boundary.
+- Routine and release gates pass with external qualification explicitly
+  deselected, not claimed green.
 
 No live-provider support is inferred from adapter existence. A profile is
 supported only when current package documentation says so and the included
@@ -160,11 +166,11 @@ Any story that resumes CV16 must preserve these invariants:
 - A claim of support for every implemented adapter.
 - Exactly-once provider execution or external effects.
 - Public promotion of private Motus implementation modules.
-- New host adoption, support, or release work without a bounded story.
+- Broader host adoption, support, or release claims without a bounded story.
 
-## Resume condition
+## Closure condition
 
-Create one bounded story naming the selected host-neutral composition and
-support profile, its authority and recovery boundaries, and an executable
-acceptance route. Until that story exists and is accepted, CV16 remains
-Blocked and no working session is active.
+Met by CV16.DS11: one support label, authority and recovery boundaries, an
+executable public lifecycle route, precise exclusions, and passing full/release
+evidence. Future provider or adapter support is new bounded work, not inferred
+from CV16 closure.

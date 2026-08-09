@@ -40,6 +40,34 @@ scripts/check full
 Use `scripts/check quick [PATH ...]` for static feedback and
 `scripts/check release` for the zero-skip release gate.
 
+## Agenticus support matrix
+
+Agenticus is an optional Petrus composition subsystem. Its current pre-release
+support boundary is deliberately narrower than its catalog of runtime profile
+descriptors:
+
+| Surface | Current status | Evidence boundary |
+| --- | --- | --- |
+| **Pi A2 Local host lifecycle — scripted runtime conformance** | **Supported** | Public Python composition, credential-free scripted runtime client, `LocalProcessEnvironment`, scoped Hands, workspace archive, cleanup-gated bodies, terminal replay, and real process-restart classification. |
+| `pi.native.a2.local` with the exact external Pi installation and a live model/provider | Experimental, qualification-only | Opt-in installation/provider tests only; excluded from routine and release checks. No authenticated Pi, model, or provider support is claimed. |
+| Other Agenticus binding-target descriptors | Experimental, qualification-only | Descriptor and adapter contracts exist, but catalog presence is not a product support claim. |
+| Profile-table cells marked `unqualified` | Unavailable as supported profiles | No qualifying support evidence. |
+| Profile-table cells marked `unsupported` | Unsupported | The current architecture excludes the composition. |
+
+The supported scripted route is
+`compose_pi_a2_scripted_runtime(...)` in
+`petrus.agenticus.runtime.pi_a2_host`. It exposes composition/readiness,
+operation start/wait/close, body loading, acknowledgement, and host close through
+Python. Operator failures use bounded `RuntimeProtocolError` and settlement
+codes. Authority remains installation-owned and one-shot; credentials never
+enter durable operation, body, or workspace state. The route qualifies local
+host lifecycle only—not Pi behavior, model quality, provider authentication, or
+power-loss durability.
+
+The `agenticus-amp` and `agenticus-claude` extras below install exact optional
+SDK dependencies; installing an extra does not promote its runtime profile to
+supported status.
+
 ## Python net authoring
 
 `petrus.impetus.dsl` compiles concise Python declarations into the canonical,

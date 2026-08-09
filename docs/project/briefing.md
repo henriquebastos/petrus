@@ -16,8 +16,10 @@ observation and capture protocols; bounded simulation; and portable canonical
 Net definitions.
 
 There is no current working session. Completed runtime Values remain documented
-in the roadmap. CV10 and CV16 retain blocked or planned technical work; a
-closed working session does not make those incomplete boundaries complete.
+in the roadmap. CV10 retains blocked or planned technical work; a closed working
+session does not make those incomplete boundaries complete. CV16 is complete at
+one deliberately narrow support boundary: scripted Pi A2 Local host lifecycle,
+not authenticated Pi/model/provider execution.
 
 ## Architecture premises
 

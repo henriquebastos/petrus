@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import io
 import json
+import os
+import subprocess
+import sys
 import tarfile
 import threading
 import time
@@ -21,20 +24,19 @@ from petrus.agenticus.connection.custody import ConnectionIdentity
 from petrus.agenticus.connection.key import KeyContext, KeyErasureEvidence
 from petrus.agenticus.connection.storage import StorageSecurityError
 from petrus.agenticus.hands.contract import ToolMethod
-from petrus.agenticus.runtime.installation import (
-    InstalledComponent,
-    ProbeDisposition,
-    RuntimeInstallation,
-    RuntimeProbeResult,
-)
+from petrus.agenticus.runtime.installation import ProbeDisposition
 from petrus.agenticus.runtime.operation import RuntimeCleanupDisposition, RuntimeProtocolError
 from petrus.agenticus.runtime.pi_a2_host import (
     PiA2DirectAuthority,
     PiA2RuntimeHost,
     PiA2RuntimeHostConfig,
     PiA2RuntimePolicy,
+    PiA2ScriptedCall,
+    PiA2ScriptedTurn,
     PiA2RuntimeStart,
+    _compose_pi_a2_scripted_client_runtime,
     compose_pi_a2_runtime,
+    compose_pi_a2_scripted_runtime,
 )
 from petrus.agenticus.runtime.profiles import PI_NATIVE_A2_LOCAL
 from petrus.agenticus.thread.continuation import Continuation
@@ -217,23 +219,6 @@ def _config(tmp_path: Path, **changes: object) -> PiA2RuntimeHostConfig:
     return PiA2RuntimeHostConfig(**values)
 
 
-def _ready(host: PiA2RuntimeHost) -> RuntimeProbeResult:
-    installation = RuntimeInstallation(
-        PI_NATIVE_A2_LOCAL.identity,
-        1,
-        (InstalledComponent("pi-coding-agent", pi.PI_SDK_VERSION, pi.PI_SDK_SOURCE),),
-        "test",
-        "test",
-        frozenset({"runtime.cancel", "runtime.continue", "runtime.harness-owned", "runtime.local"}),
-    )
-    result = RuntimeProbeResult(PI_NATIVE_A2_LOCAL.identity, ProbeDisposition.READY, installation)
-    host._adapter._installation = installation
-    host._adapter._node = "/synthetic/node"
-    host._adapter._sdk_entrypoint = "/synthetic/pi/index.js"
-    host._probe = result
-    return result
-
-
 def _start(
     tmp_path: Path,
     name: str = "operation",
@@ -265,13 +250,13 @@ def _host(
     factory: Factory | None = None,
     provider: LocalProcessEnvironment | None = None,
 ) -> PiA2RuntimeHost:
-    host = compose_pi_a2_runtime(
+    host = _compose_pi_a2_scripted_client_runtime(
         config=_config(tmp_path),
         authority=authority.value(),
         provider=provider,
         client_factory=factory or Factory(),
     )
-    _ready(host)
+    host.scripted_readiness()
     return host
 
 
@@ -355,8 +340,26 @@ def test_probe_is_authority_free_and_nonready_start_fails_before_admission(tmp_p
 
 
 def test_completed_operation_commits_bodies_only_after_verified_cleanup(tmp_path: Path) -> None:
-    authority, factory = Authority(), Factory(Plan(hands=True))
-    host = _host(tmp_path, authority, factory)
+    authority = Authority()
+    script = (
+        PiA2ScriptedTurn(
+            "answer",
+            (
+                PiA2ScriptedCall(ToolMethod.WORKSPACE_READ, '{"path":"input.txt"}'),
+                PiA2ScriptedCall(ToolMethod.WORKSPACE_SEARCH, '{"query":"input","path":"input.txt"}'),
+                PiA2ScriptedCall(ToolMethod.WORKSPACE_SHELL, '{"argv":["/bin/true"],"cwd":"."}'),
+                PiA2ScriptedCall(ToolMethod.WORKSPACE_WRITE, '{"path":"output.txt","content":"changed"}'),
+                PiA2ScriptedCall(ToolMethod.WORKSPACE_TEST, "{}"),
+            ),
+        ),
+    )
+    host = compose_pi_a2_scripted_runtime(config=_config(tmp_path), authority=authority.value(), script=script)
+
+    readiness = host.scripted_readiness()
+
+    assert readiness.ready
+    assert readiness.support_label == "Pi A2 Local host lifecycle — scripted runtime conformance"
+    assert authority.calls == 0 and not host.authority_requested
     operation = host.start(_start(tmp_path))
 
     settlement = operation.wait(1)
@@ -372,7 +375,6 @@ def test_completed_operation_commits_bodies_only_after_verified_cleanup(tmp_path
     assert API_KEY not in (tmp_path / "state" / "operations.sqlite3").read_bytes()
     assert API_KEY not in (tmp_path / "state" / "bodies.sqlite3").read_bytes()
     assert authority.calls == 1 and all(not buffer or set(buffer) == {0} for buffer in authority.buffers)
-    assert len(factory.calls) == 1 and factory.calls[0]["api_key"] == API_KEY.decode()
     assert operation.close().disposition is RuntimeCleanupDisposition.CLEAN
     assert host.close() and authority.keys.erased == 1
 
@@ -422,7 +424,7 @@ def test_per_start_policy_is_exact_attachment_authority(tmp_path: Path) -> None:
 
 def test_policy_ceiling_rejection_does_not_burn_operation_identity(tmp_path: Path) -> None:
     authority = Authority()
-    host = compose_pi_a2_runtime(
+    host = _compose_pi_a2_scripted_client_runtime(
         config=_config(
             tmp_path,
             capabilities=frozenset({ToolMethod.WORKSPACE_READ}),
@@ -431,7 +433,7 @@ def test_policy_ceiling_rejection_does_not_burn_operation_identity(tmp_path: Pat
         authority=authority.value(),
         client_factory=Factory(),
     )
-    _ready(host)
+    host.scripted_readiness()
     excess_capability = PiA2RuntimePolicy(
         frozenset({ToolMethod.WORKSPACE_WRITE}),
         frozenset({"output.txt"}),
@@ -512,18 +514,17 @@ def test_terminal_replay_precedes_probe_authority_and_territory(tmp_path: Path) 
     expected = host.start(start).wait(1)
     assert host.close()
     replay_authority = Authority()
-    provider = LocalProcessEnvironment()
-    replay = compose_pi_a2_runtime(
+    replay = compose_pi_a2_scripted_runtime(
         config=_config(tmp_path),
         authority=replay_authority.value(),
-        provider=provider,
-        client_factory=Factory(),
+        script=(PiA2ScriptedTurn("must-not-run"),),
     )
 
     operation = replay.start(start)
 
     assert operation.wait() == expected
-    assert replay_authority.calls == 0 and provider.lookup(replay._territory_operation("operation")) is None
+    assert replay_authority.calls == 0
+    assert replay._provider.lookup(replay._territory_operation("operation")) is None
     assert operation.close().verified
     assert replay.close()
 
@@ -575,7 +576,8 @@ def test_indeterminate_close_prevents_late_waiter_publication(tmp_path: Path) ->
         host.load_output(reference)
     record = host._ledger.lookup("operation")
     assert record is not None and record.settlement().outcome is TurnOutcome.INDETERMINATE
-    assert host.close()
+    with pytest.raises(RuntimeProtocolError, match="host-cleanup-uncertain"):
+        host.close()
 
 
 def test_changed_work_conflicts_before_probe_or_authority(tmp_path: Path) -> None:
@@ -645,7 +647,69 @@ def test_surviving_executing_record_becomes_indeterminate_without_authority(tmp_
         recovered.start(start)
 
     assert recovered_authority.calls == 0
-    assert recovered.close()
+    with pytest.raises(RuntimeProtocolError, match="host-cleanup-uncertain"):
+        recovered.close()
+
+
+def test_killed_host_process_reopens_admitted_work_without_redispatch(tmp_path: Path) -> None:
+    marker = tmp_path / "admitted"
+    child = """
+import time
+from pathlib import Path
+from tests.petrus.agenticus.runtime.test_pi_a2_host import Authority, _config, _start
+from petrus.agenticus.runtime.pi_a2_host import PiA2ScriptedTurn, compose_pi_a2_scripted_runtime
+
+root = Path({root!r})
+host = compose_pi_a2_scripted_runtime(
+    config=_config(root, wall_timeout=30, attachment_timeout=31, credential_ttl=31),
+    authority=Authority().value(),
+    script=(PiA2ScriptedTurn("delayed", delay_seconds=30),),
+)
+host.scripted_readiness()
+host.start(_start(root))
+Path({marker!r}).write_text("admitted")
+while True:
+    time.sleep(1)
+""".format(root=str(tmp_path), marker=str(marker))
+    environment = dict(os.environ)
+    environment["TMPDIR"] = str(tmp_path)
+    process = subprocess.Popen(
+        (sys.executable, "-c", child),
+        cwd=Path(__file__).parents[4],
+        env=environment,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        deadline = time.monotonic() + 10
+        while not marker.exists() and process.poll() is None and time.monotonic() < deadline:
+            time.sleep(0.01)
+        if not marker.exists():
+            stdout, stderr = process.communicate(timeout=1)
+            pytest.fail(f"child did not durably admit work: {stdout} {stderr}")
+        process.kill()
+        process.wait(5)
+        assert process.returncode == -9
+
+        authority = Authority()
+        reopened = compose_pi_a2_scripted_runtime(
+            config=_config(tmp_path, wall_timeout=30, attachment_timeout=31, credential_ttl=31),
+            authority=authority.value(),
+            script=(PiA2ScriptedTurn("must-not-run"),),
+        )
+
+        assert len(reopened.recovered_settlements) == 1
+        assert reopened.recovered_settlements[0].termination_code == "restart-indeterminate"
+        with pytest.raises(RuntimeProtocolError, match="operation-indeterminate"):
+            reopened.start(_start(tmp_path))
+        assert authority.calls == 0
+        with pytest.raises(RuntimeProtocolError, match="host-cleanup-uncertain"):
+            reopened.close()
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(5)
 
 
 def test_pre_workspace_fingerprint_conflicts_without_authority_or_provider_work(tmp_path: Path) -> None:
@@ -667,7 +731,8 @@ def test_pre_workspace_fingerprint_conflicts_without_authority_or_provider_work(
 
     assert authority.calls == 0
     assert provider.lookup(host._territory_operation("operation")) is None
-    assert host.close()
+    with pytest.raises(RuntimeProtocolError, match="host-cleanup-uncertain"):
+        host.close()
 
 
 def test_invalid_authority_is_consumed_once_and_replays_terminal_failure(tmp_path: Path) -> None:
@@ -682,8 +747,8 @@ def test_invalid_authority_is_consumed_once_and_replays_terminal_failure(tmp_pat
     value = PiA2DirectAuthority(
         ConnectionIdentity("direct", "anthropic", "account", "api-key"), authority.keys, invalid
     )
-    host = compose_pi_a2_runtime(config=_config(tmp_path), authority=value, client_factory=Factory())
-    _ready(host)
+    host = _compose_pi_a2_scripted_client_runtime(config=_config(tmp_path), authority=value, client_factory=Factory())
+    host.scripted_readiness()
 
     with pytest.raises(RuntimeProtocolError, match="credential-invalid"):
         host.start(_start(tmp_path))

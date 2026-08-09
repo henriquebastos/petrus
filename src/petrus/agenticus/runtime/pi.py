@@ -1014,6 +1014,7 @@ class PiRuntimeAdapter:
         self._lease_failure = "runtime-territory-lease-required" if split else "runtime-local-lease-required"
         self._factory = client_factory
         self._installation: RuntimeInstallation | None = None
+        self._scripted_conformance = False
         self._node = self._sdk_entrypoint = None
         self._cc_patch_entrypoint: str | None = None
         self._helper: Path | None = None
@@ -1145,8 +1146,19 @@ class PiRuntimeAdapter:
                 self._factory = _SubprocessFactory(helper)
         return self._record(RuntimeProbeResult(self.descriptor.identity, ProbeDisposition.READY, installation))
 
+    def _enable_scripted_conformance(self) -> None:
+        """Ready the Petrus-owned scripted client without forging an installation."""
+
+        with self._lock:
+            if self._factory is None:
+                raise TypeError("scripted Pi conformance requires a client factory")
+            self._scripted_conformance = True
+            self._node = "scripted-conformance:node"
+            self._sdk_entrypoint = "scripted-conformance:sdk"
+
     def _record(self, result: RuntimeProbeResult) -> RuntimeProbeResult:
         with self._lock:
+            self._scripted_conformance = False
             self._installation = result.installation if result.disposition is ProbeDisposition.READY else None
             if self._installation is None:
                 self._node = self._sdk_entrypoint = None
@@ -1188,7 +1200,7 @@ class PiRuntimeAdapter:
         key = _Key(sha256(repr(identity).encode()).hexdigest())
         with self._lock:
             if (
-                self._installation is None
+                (self._installation is None and not self._scripted_conformance)
                 or self._factory is None
                 or self._node is None
                 or self._sdk_entrypoint is None

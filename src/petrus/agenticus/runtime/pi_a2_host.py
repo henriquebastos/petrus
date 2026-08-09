@@ -1,9 +1,11 @@
-"""Supported Petrus-owned composition for one native Pi A2 Local host.
+"""Petrus-owned composition for one Pi A2 Local host lifecycle.
 
 The host owns Agent Connection custody, the Motus territory, Episode
 Attachment and Hands, native Continuation bodies, durable operation recovery,
-and ordered teardown.  It deliberately supports only direct API-key Pi A2
-Local.  Probe and durable replay run before authority is requested.
+and ordered teardown. The supported product surface is the explicitly scripted
+runtime-conformance composition. Exact external Pi and provider execution
+through ``compose_pi_a2_runtime`` remains experimental and qualification-only.
+Probe and durable replay run before authority is requested.
 
 The durable operation ledger is secret-free.  Provider output and native Pi
 session JSONL live in a separate private body store and become loadable only
@@ -26,6 +28,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any, cast
 
+from petrus.agenticus.runtime import pi
 from petrus.agenticus.attachment.binding import MotusAttachmentBinding
 from petrus.agenticus.attachment.episode import EpisodeAttachment
 from petrus.agenticus.catalog.descriptor import CapabilityDescriptor, DescriptorIdentity, DescriptorKind
@@ -112,6 +115,8 @@ _REQUIRED_ENVIRONMENT_CAPABILITIES = frozenset(
 _MAX_PROMPT_BYTES = 64 * 1024
 _MAX_KEY_BYTES = 8192
 _FINGERPRINT_SCHEMA_VERSION = 2
+_SCRIPTED_SUPPORT_LABEL = "Pi A2 Local host lifecycle — scripted runtime conformance"
+_SCRIPTED_SESSION = "00000000-0000-4000-8000-000000000001"
 
 
 def _text(value: object, name: str, maximum: int = 256) -> str:
@@ -389,6 +394,118 @@ class PiA2DirectAuthority:
             raise TypeError("Pi A2 authority requires host KeyOperations")
         if not callable(self.supply_api_key):
             raise TypeError("Pi A2 authority supplier must be callable")
+
+
+@dataclass(frozen=True)
+class PiA2ScriptedCall:
+    """One finite Hands request in a scripted conformance turn."""
+
+    method: ToolMethod
+    params_json: str
+    expected_ok: bool = True
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.method, ToolMethod) or type(self.expected_ok) is not bool:
+            raise TypeError("scripted Pi call requires an exact method and expected verdict")
+        try:
+            params = json.loads(self.params_json)
+        except json.JSONDecodeError:
+            raise ValueError("scripted Pi call params must be JSON") from None
+        if type(params) is not dict or len(self.params_json.encode()) > 8192:
+            raise ValueError("scripted Pi call params must be a bounded JSON object")
+
+
+@dataclass(frozen=True)
+class PiA2ScriptedTurn:
+    """Finite data interpreted by Petrus's credential-free scripted client."""
+
+    output_text: str
+    calls: tuple[PiA2ScriptedCall, ...] = ()
+    delay_seconds: float = 0.0
+    cleanup_verified: bool = True
+    failure_code: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.output_text, str) or len(self.output_text.encode()) > 1_000_000:
+            raise ValueError("scripted Pi output must be bounded text")
+        calls = tuple(self.calls)
+        if len(calls) > 256 or any(not isinstance(call, PiA2ScriptedCall) for call in calls):
+            raise TypeError("scripted Pi calls must be finite PiA2ScriptedCall values")
+        object.__setattr__(self, "calls", calls)
+        if (
+            isinstance(self.delay_seconds, bool)
+            or not isinstance(self.delay_seconds, int | float)
+            or not math.isfinite(self.delay_seconds)
+            or self.delay_seconds < 0
+            or self.delay_seconds > 60
+        ):
+            raise ValueError("scripted Pi delay must be finite and at most 60 seconds")
+        if type(self.cleanup_verified) is not bool:
+            raise TypeError("scripted Pi cleanup verdict must be boolean")
+        if self.failure_code is not None:
+            _text(self.failure_code, "scripted Pi failure code")
+
+
+@dataclass(frozen=True)
+class PiA2ScriptedReadiness:
+    """Readiness for the Petrus-owned script interpreter, not a Pi installation."""
+
+    support_label: str = _SCRIPTED_SUPPORT_LABEL
+    ready: bool = True
+
+
+class _ScriptedClient:
+    def __init__(self, turn: PiA2ScriptedTurn, prior: PiContinuationPayloadV1 | None) -> None:
+        self._turn, self._prior = turn, prior
+
+    def run(self, gateway, invocation, current, deadline):
+        stop = min(deadline, time.monotonic() + self._turn.delay_seconds)
+        while time.monotonic() < stop:
+            if not current():
+                raise RuntimeProtocolError("cancelled")
+            time.sleep(min(0.01, stop - time.monotonic()))
+        if self._turn.failure_code is not None:
+            raise RuntimeProtocolError(self._turn.failure_code)
+        coordinates = invocation.attachment.coordinates()
+        for index, call in enumerate(self._turn.calls):
+            result = gateway.submit(
+                {
+                    "version": 1,
+                    "call_id": f"scripted-{index}",
+                    "episode_id": coordinates.episode_id,
+                    "attachment_id": coordinates.attachment_id,
+                    "attachment_epoch": coordinates.attachment_epoch,
+                    "grant_epoch": invocation.grant_epoch,
+                    "method": call.method.value,
+                    "params": json.loads(call.params_json),
+                }
+            )
+            if result.ok is not call.expected_ok:
+                raise RuntimeProtocolError("script-expectation-failed")
+        session = self._prior.session_id if self._prior is not None else _SCRIPTED_SESSION
+        body = (
+            self._prior.session_jsonl
+            if self._prior is not None
+            else json.dumps({"type": "session", "version": 3, "id": session}, separators=(",", ":")).encode() + b"\n"
+        )
+        body += json.dumps({"type": "message", "body": self._turn.output_text}, separators=(",", ":")).encode() + b"\n"
+        return pi._HelperResult(pi._Candidate(session, self._turn.output_text, body), None, "turn-completed")
+
+    def close(self) -> bool:
+        return self._turn.cleanup_verified
+
+
+class _ScriptedFactory:
+    def __init__(self, script: tuple[PiA2ScriptedTurn, ...]) -> None:
+        self._script = list(script)
+        self._lock = threading.Lock()
+
+    def create(self, **kwargs):
+        with self._lock:
+            if not self._script:
+                raise RuntimeProtocolError("script-exhausted")
+            turn = self._script.pop(0)
+        return _ScriptedClient(turn, kwargs["prior"])
 
 
 class _BodyStore(PiTurnOperations, PiContinuationOperations):
@@ -845,7 +962,7 @@ class _HostOperation(RuntimeOperation):
 
 
 class PiA2RuntimeHost:
-    """Owned native Pi A2 Local lifecycle with replay-before-authority."""
+    """Owned Pi A2 Local host lifecycle with replay-before-authority."""
 
     descriptor = PI_NATIVE_A2_LOCAL
     snapshot = _SNAPSHOT
@@ -868,6 +985,8 @@ class PiA2RuntimeHost:
         self._bodies, self._ledger, self._adapter = bodies, ledger, adapter
         self._provider, self._clock = provider, clock
         self._probe: RuntimeProbeResult | None = None
+        self._scripted_conformance = False
+        self._scripted_ready = False
         self._authority_requested = False
         self._closed = False
         self._close_error: RuntimeProtocolError | None = None
@@ -889,6 +1008,8 @@ class PiA2RuntimeHost:
     def probe(self) -> RuntimeProbeResult:
         with self._lock:
             self._ensure_open()
+            if self._scripted_conformance:
+                raise RuntimeProtocolError("scripted-readiness-only")
             result = self._adapter.probe(
                 cli_path=self.config.cli_path,
                 node_path=self.config.node_path,
@@ -896,6 +1017,17 @@ class PiA2RuntimeHost:
             )
             self._probe = result
             return result
+
+    def scripted_readiness(self) -> PiA2ScriptedReadiness:
+        """Ready only Petrus's script interpreter without probing Pi or authority."""
+
+        with self._lock:
+            self._ensure_open()
+            if not self._scripted_conformance:
+                raise RuntimeProtocolError("scripted-readiness-unavailable")
+            self._adapter._enable_scripted_conformance()
+            self._scripted_ready = True
+            return PiA2ScriptedReadiness()
 
     def start(self, start: PiA2RuntimeStart) -> RuntimeOperation:
         with self._lifecycle_lock:
@@ -1071,6 +1203,10 @@ class PiA2RuntimeHost:
                 clean = operation.close().verified and clean
             except Exception:
                 clean = False
+        try:
+            clean = not any(not record.cleanup_evidence().verified for record in self._ledger.records()) and clean
+        except Exception:
+            clean = False
         for territory in tuple(self._territories.values()):
             try:
                 clean = self._provider.lookup(territory) is None and clean
@@ -1103,6 +1239,12 @@ class PiA2RuntimeHost:
                 clean = False
         try:
             clean = not any(self._root.joinpath("materializations").iterdir()) and clean
+        except FileNotFoundError:
+            pass
+        except Exception:
+            clean = False
+        try:
+            clean = not any(self._root.joinpath("runtime").iterdir()) and clean
         except FileNotFoundError:
             pass
         except Exception:
@@ -1149,6 +1291,10 @@ class PiA2RuntimeHost:
                 opaque.erase()
 
     def _require_ready(self) -> None:
+        if self._scripted_conformance:
+            if not self._scripted_ready:
+                raise RuntimeProtocolError("runtime-not-ready")
+            return
         result = self._probe
         if result is None or result.disposition is not ProbeDisposition.READY or result.installation is None:
             raise RuntimeProtocolError("runtime-not-ready")
@@ -1301,11 +1447,61 @@ def compose_pi_a2_runtime(  # noqa: C901 - composition rollback owns each acquir
         raise
 
 
+def compose_pi_a2_scripted_runtime(
+    *,
+    config: PiA2RuntimeHostConfig,
+    authority: PiA2DirectAuthority,
+    script: tuple[PiA2ScriptedTurn, ...],
+    clock: Callable[[], float] = time.monotonic,
+) -> PiA2RuntimeHost:
+    """Compose the supported credential-free scripted host lifecycle.
+
+    This public seam qualifies Petrus-owned Pi A2 Local composition and
+    lifecycle only. It neither probes nor claims an external Pi, model, or
+    provider installation. Callers supply only finite immutable script data;
+    Petrus owns the interpreter and exact ``LocalProcessEnvironment``.
+    """
+
+    if not isinstance(script, tuple) or not script or any(type(turn) is not PiA2ScriptedTurn for turn in script):
+        raise TypeError("scripted Pi conformance requires finite PiA2ScriptedTurn data")
+    return _compose_pi_a2_scripted_client_runtime(
+        config=config,
+        authority=authority,
+        client_factory=_ScriptedFactory(script),
+        clock=clock,
+    )
+
+
+def _compose_pi_a2_scripted_client_runtime(
+    *,
+    config: PiA2RuntimeHostConfig,
+    authority: PiA2DirectAuthority,
+    client_factory: object,
+    provider: EnvironmentProvider | None = None,
+    clock: Callable[[], float] = time.monotonic,
+) -> PiA2RuntimeHost:
+    """Internal conformance harness for exercising host failure boundaries."""
+
+    host = compose_pi_a2_runtime(
+        config=config,
+        authority=authority,
+        provider=provider,
+        clock=clock,
+        client_factory=client_factory,
+    )
+    host._scripted_conformance = True
+    return host
+
+
 __all__ = [
     "PiA2DirectAuthority",
     "PiA2RuntimeHost",
     "PiA2RuntimeHostConfig",
     "PiA2RuntimePolicy",
+    "PiA2ScriptedCall",
+    "PiA2ScriptedReadiness",
+    "PiA2ScriptedTurn",
     "PiA2RuntimeStart",
     "compose_pi_a2_runtime",
+    "compose_pi_a2_scripted_runtime",
 ]

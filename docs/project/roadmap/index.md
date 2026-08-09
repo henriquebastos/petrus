@@ -2,8 +2,8 @@
 
 Roadmap items carry their own status and preserve durable technical direction.
 There is currently no active working session. This is distinct from incomplete
-work: CV10 and CV16 retain blocked or planned boundaries that require a newly
-bounded story before work resumes.
+work: CV10 retains blocked or planned boundaries that require a newly bounded
+story before work resumes.
 
 ## Retained Values
 
@@ -15,8 +15,8 @@ bounded story before work resumes.
   is not a current authorization or working session.
 - CV11–CV15: semantic observation, durable captures, long-History navigation,
   canonical Net inspection, and bounded simulation.
-- CV16: Agenticus infrastructure. Completed reusable package work is retained;
-  blocked and planned boundaries remain explicit.
+- CV16: Agenticus infrastructure and one supported scripted Pi A2 Local host
+  lifecycle. Live-provider profiles remain qualification-only or unsupported.
 - CV17–CV18: hosted bounded simulation and portable canonical Net definitions.
 
 Application-specific and site-operation plans are not part of this source
