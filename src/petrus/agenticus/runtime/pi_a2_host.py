@@ -26,7 +26,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Protocol, cast
 
 from petrus.agenticus.runtime import pi
 from petrus.agenticus.attachment.binding import MotusAttachmentBinding
@@ -454,6 +454,26 @@ class PiA2ScriptedReadiness:
     ready: bool = True
 
 
+class PiA2RuntimeHost(Protocol):
+    """Public observation and operation surface for a composed Pi A2 host."""
+
+    config: PiA2RuntimeHostConfig
+    descriptor: CapabilityDescriptor
+    snapshot: ResolutionSnapshot
+    recovered_settlements: tuple[RuntimeTurnSettlement, ...]
+
+    @property
+    def authority_requested(self) -> bool: ...
+
+    def probe(self) -> RuntimeProbeResult: ...
+    def scripted_readiness(self) -> PiA2ScriptedReadiness: ...
+    def start(self, start: PiA2RuntimeStart) -> RuntimeOperation: ...
+    def load_output(self, reference: str) -> str: ...
+    def load_workspace_archive(self, operation_id: str) -> bytes: ...
+    def acknowledge(self, operation_id: str) -> PiOperationRecord: ...
+    def close(self) -> bool: ...
+
+
 class _ScriptedClient:
     def __init__(self, turn: PiA2ScriptedTurn, prior: PiContinuationPayloadV1 | None) -> None:
         self._turn, self._prior = turn, prior
@@ -785,7 +805,7 @@ class _ReplayOperation(RuntimeOperation):
 class _HostOperation(RuntimeOperation):
     def __init__(
         self,
-        host: PiA2RuntimeHost,
+        host: _PiA2RuntimeHost,
         inner: RuntimeOperation,
         attachment: EpisodeAttachment,
         territory_operation_id: str,
@@ -961,7 +981,7 @@ class _HostOperation(RuntimeOperation):
         self._host._operation_finished(self.operation_id)
 
 
-class PiA2RuntimeHost:
+class _PiA2RuntimeHost:
     """Owned Pi A2 Local host lifecycle with replay-before-authority."""
 
     descriptor = PI_NATIVE_A2_LOCAL
@@ -1367,15 +1387,32 @@ class PiA2RuntimeHost:
         return f"pi-a2-attachment-{sha256(operation_id.encode()).hexdigest()}"
 
 
-def compose_pi_a2_runtime(  # noqa: C901 - composition rollback owns each acquired collaborator
+def compose_pi_a2_runtime(
     *,
     config: PiA2RuntimeHostConfig,
     authority: PiA2DirectAuthority,
-    provider: EnvironmentProvider | None = None,
     clock: Callable[[], float] = time.monotonic,
-    client_factory: object | None = None,
 ) -> PiA2RuntimeHost:
-    """Compose one owned direct-API-key Pi A2 Local host without using authority."""
+    """Compose the external-qualification host with exact owned collaborators."""
+
+    return _compose_pi_a2_runtime(
+        config=config,
+        authority=authority,
+        provider=LocalProcessEnvironment(),
+        clock=clock,
+        client_factory=None,
+    )
+
+
+def _compose_pi_a2_runtime(  # noqa: C901 - composition rollback owns each acquired collaborator
+    *,
+    config: PiA2RuntimeHostConfig,
+    authority: PiA2DirectAuthority,
+    provider: EnvironmentProvider,
+    clock: Callable[[], float],
+    client_factory: object | None,
+) -> _PiA2RuntimeHost:
+    """Internal collaborator-aware construction for bounded failure injection."""
 
     if not isinstance(config, PiA2RuntimeHostConfig) or not isinstance(authority, PiA2DirectAuthority):
         raise TypeError("Pi A2 composition requires exact config and authority values")
@@ -1383,16 +1420,15 @@ def compose_pi_a2_runtime(  # noqa: C901 - composition rollback owns each acquir
         raise ValueError("Pi A2 authority provider must match the configured provider")
     if not callable(clock):
         raise TypeError("Pi A2 clock must be callable")
-    selected_provider: EnvironmentProvider = provider or LocalProcessEnvironment()
     if any(
-        not callable(getattr(selected_provider, method, None))
+        not callable(getattr(provider, method, None))
         for method in ("lookup", "create", "attach", "execute", "export", "destroy")
     ):
         raise TypeError("Pi A2 provider must implement the public Motus environment contract")
-    if getattr(selected_provider, "provider", None) != "local-process":
+    if getattr(provider, "provider", None) != "local-process":
         raise ValueError("Pi A2 host supports only the Local Motus provider")
     if not _REQUIRED_ENVIRONMENT_CAPABILITIES.issubset(
-        frozenset(cast(Iterable[str], getattr(selected_provider, "capabilities", ())))
+        frozenset(cast(Iterable[str], getattr(provider, "capabilities", ())))
     ):
         raise ValueError("Pi A2 Local provider lacks required capabilities")
     root = _private_root(config.state_root)
@@ -1425,7 +1461,7 @@ def compose_pi_a2_runtime(  # noqa: C901 - composition rollback owns each acquir
             clock=clock,
             client_factory=cast(Any, client_factory),
         )
-        return PiA2RuntimeHost(
+        return _PiA2RuntimeHost(
             config,
             authority,
             root,
@@ -1434,7 +1470,7 @@ def compose_pi_a2_runtime(  # noqa: C901 - composition rollback owns each acquir
             bodies,
             ledger,
             adapter,
-            selected_provider,
+            provider,
             clock,
         )
     except BaseException:
@@ -1479,13 +1515,13 @@ def _compose_pi_a2_scripted_client_runtime(
     client_factory: object,
     provider: EnvironmentProvider | None = None,
     clock: Callable[[], float] = time.monotonic,
-) -> PiA2RuntimeHost:
+) -> _PiA2RuntimeHost:
     """Internal conformance harness for exercising host failure boundaries."""
 
-    host = compose_pi_a2_runtime(
+    host = _compose_pi_a2_runtime(
         config=config,
         authority=authority,
-        provider=provider,
+        provider=provider or LocalProcessEnvironment(),
         clock=clock,
         client_factory=client_factory,
     )

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import inspect
 import json
 import os
 import subprocess
@@ -34,6 +35,7 @@ from petrus.agenticus.runtime.pi_a2_host import (
     PiA2ScriptedCall,
     PiA2ScriptedTurn,
     PiA2RuntimeStart,
+    _compose_pi_a2_runtime,
     _compose_pi_a2_scripted_client_runtime,
     compose_pi_a2_runtime,
     compose_pi_a2_scripted_runtime,
@@ -278,10 +280,12 @@ def _tar_with(name: str, *, kind: bytes = tarfile.REGTYPE, linkname: str = "") -
 def test_config_and_composition_are_exactly_direct_pi_a2_local(tmp_path: Path) -> None:
     config = _config(tmp_path)
     authority = Authority()
-    host = compose_pi_a2_runtime(config=config, authority=authority.value(), client_factory=Factory())
+    host = compose_pi_a2_runtime(config=config, authority=authority.value())
 
     assert host.descriptor == PI_NATIVE_A2_LOCAL
     assert host.snapshot.descriptor(PI_NATIVE_A2_LOCAL.identity.kind) == PI_NATIVE_A2_LOCAL
+    assert type(host._provider) is LocalProcessEnvironment
+    assert host._adapter._factory is None
     assert authority.calls == 0
     assert host.close()
     assert authority.calls == 0 and authority.keys.erased == 0
@@ -290,7 +294,42 @@ def test_config_and_composition_are_exactly_direct_pi_a2_local(tmp_path: Path) -
     foreign = LocalProcessEnvironment()
     foreign.provider = "foreign"
     with pytest.raises(ValueError, match="only the Local"):
-        compose_pi_a2_runtime(config=config, authority=authority.value(), provider=foreign)
+        _compose_pi_a2_runtime(
+            config=config,
+            authority=authority.value(),
+            provider=foreign,
+            clock=time.monotonic,
+            client_factory=None,
+        )
+
+
+def test_public_host_construction_boundaries_exclude_arbitrary_collaborators(tmp_path: Path) -> None:
+    assert tuple(inspect.signature(compose_pi_a2_runtime).parameters) == ("config", "authority", "clock")
+    assert tuple(inspect.signature(compose_pi_a2_scripted_runtime).parameters) == (
+        "config",
+        "authority",
+        "script",
+        "clock",
+    )
+    with pytest.raises(TypeError, match="Protocols cannot be instantiated"):
+        PiA2RuntimeHost()  # type: ignore[misc]
+
+    authority = Authority()
+    native = compose_pi_a2_runtime(config=_config(tmp_path), authority=authority.value())
+    assert type(native._provider) is LocalProcessEnvironment
+    assert native._adapter._factory is None
+    assert native.close()
+
+    scripted_root = tmp_path / "scripted"
+    scripted_root.mkdir()
+    scripted = compose_pi_a2_scripted_runtime(
+        config=_config(scripted_root),
+        authority=Authority().value(),
+        script=(PiA2ScriptedTurn("bounded"),),
+    )
+    assert type(scripted._provider) is LocalProcessEnvironment
+    assert type(scripted._adapter._factory).__name__ == "_ScriptedFactory"
+    assert scripted.close()
 
 
 def test_start_requires_exact_safe_workspace_and_operation_policy(tmp_path: Path) -> None:
@@ -328,7 +367,7 @@ def test_start_requires_exact_safe_workspace_and_operation_policy(tmp_path: Path
 
 def test_probe_is_authority_free_and_nonready_start_fails_before_admission(tmp_path: Path) -> None:
     authority = Authority()
-    host = compose_pi_a2_runtime(config=_config(tmp_path), authority=authority.value(), client_factory=Factory())
+    host = compose_pi_a2_runtime(config=_config(tmp_path), authority=authority.value())
 
     result = host.probe()
     assert result.disposition is not ProbeDisposition.READY
@@ -587,13 +626,7 @@ def test_changed_work_conflicts_before_probe_or_authority(tmp_path: Path) -> Non
     host.start(original_start).wait(1)
     assert host.close()
     replay_authority = Authority()
-    provider = LocalProcessEnvironment()
-    replay = compose_pi_a2_runtime(
-        config=_config(tmp_path),
-        authority=replay_authority.value(),
-        provider=provider,
-        client_factory=Factory(),
-    )
+    replay = compose_pi_a2_runtime(config=_config(tmp_path), authority=replay_authority.value())
     (tmp_path / "working" / "input.txt").write_text("changed-input")
     changed_archive = workspace_archive(tmp_path / "working")
     changed_workspace = replace(
@@ -625,7 +658,7 @@ def test_changed_work_conflicts_before_probe_or_authority(tmp_path: Path) -> Non
             replay.start(changed)
 
     assert replay_authority.calls == 0
-    assert provider.lookup(replay._territory_operation("operation")) is None
+    assert replay._provider.lookup(replay._territory_operation("operation")) is None
     assert replay.close()
 
 
@@ -639,9 +672,7 @@ def test_surviving_executing_record_becomes_indeterminate_without_authority(tmp_
     host._ledger.close()
     host._storage.close()
     recovered_authority = Authority()
-    recovered = compose_pi_a2_runtime(
-        config=_config(tmp_path), authority=recovered_authority.value(), client_factory=Factory()
-    )
+    recovered = compose_pi_a2_runtime(config=_config(tmp_path), authority=recovered_authority.value())
 
     with pytest.raises(RuntimeProtocolError, match="operation-indeterminate"):
         recovered.start(start)
@@ -837,7 +868,6 @@ def test_private_state_root_rejects_unsafe_existing_mode(tmp_path: Path) -> None
         compose_pi_a2_runtime(
             config=_config(tmp_path, state_root=state),
             authority=authority.value(),
-            client_factory=Factory(),
         )
 
     assert authority.calls == 0

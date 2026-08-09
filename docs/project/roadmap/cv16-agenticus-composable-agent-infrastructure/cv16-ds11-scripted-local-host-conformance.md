@@ -86,13 +86,18 @@ after durable admission reopens as `restart-indeterminate` without authority or
 runtime dispatch. Recovered cleanup remains unverified and host close fails
 closed rather than claiming orphan reconciliation.
 
+The public native composer likewise owns its exact `LocalProcessEnvironment`
+and normal probed subprocess client. Collaborator-aware composition and the
+concrete host implementation are underscored; exported `PiA2RuntimeHost` is the
+non-instantiable observation/operation protocol.
+
 Executed evidence on 2026-08-09:
 
 - `UV_FROZEN=1 uv run pytest -q tests/petrus/agenticus/runtime/test_pi_a2_host.py`
-  — 22 passed.
-- `scripts/check full` — 2020 passed.
-- `scripts/check release` — 2020 passed in the parallel full run, followed by
-  2020 passed and 17 explicitly deselected in the fixed-order run.
+  — 23 passed.
+- `scripts/check full` — 2021 passed.
+- `scripts/check release` — 2021 passed in the parallel full run, followed by
+  2021 passed and 17 explicitly deselected in the fixed-order run.
 
 The deselected tests are the configured external installation, authenticated
 provider, and Gondolin qualification routes. They were not executed and are not
