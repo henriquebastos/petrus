@@ -642,16 +642,25 @@ class _Operation:
             self._result, self._cleanup_disposition = result, cleanup
             self._condition.notify_all()
 
+    def _publication_error(self) -> str | None:
+        if self._cancelled:
+            return "cancelled"
+        grant = self.inv.attachment.grants().current()
+        if grant is None or grant.grant_epoch != self.inv.grant_epoch:
+            return "grant-mismatch"
+        if self.adapter._clock() >= min(grant.deadline, self.inv.attachment.deadline):
+            return "deadline-exceeded"
+        return None
+
     def claim(self) -> str | None:
         with self._condition:
-            if self._cancelled:
-                return "cancelled"
-            grant = self.inv.attachment.grants().current()
-            if grant is None or grant.grant_epoch != self.inv.grant_epoch:
-                return "grant-mismatch"
-            if self.adapter._clock() >= min(grant.deadline, self.inv.attachment.deadline):
-                return "deadline-exceeded"
-            if not self.adapter._binding_current(self.inv):
+            if error := self._publication_error():
+                return error
+        binding_current = self.adapter._binding_current(self.inv)
+        with self._condition:
+            if error := self._publication_error():
+                return error
+            if not binding_current:
                 return "runtime-territory-lease-required"
             self._publishing = True
             return None

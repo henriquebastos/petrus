@@ -1062,6 +1062,116 @@ def test_native_a4_post_run_lease_drift_releases_authority_without_publication(
     assert attachment.settle().settlement.verified
 
 
+@pytest.mark.parametrize("territory_profile", ["gondolin", "e2b"])
+def test_native_a4_cancellation_wins_while_remote_publication_lookup_is_stalled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, territory_profile: str
+) -> None:
+    rig = Rig(tmp_path, territory_profile=territory_profile)
+    invocation, attachment = rig.invocation("stalled-publication")
+    lookup_started, release_lookup = threading.Event(), threading.Event()
+    binding_current = rig.adapter._binding_current
+    calls = 0
+
+    def stall_after_initial_validation(current: pi.PiRuntimeInvocation) -> bool:
+        nonlocal calls
+        calls += 1
+        if calls > 1:
+            lookup_started.set()
+            assert release_lookup.wait(2)
+        return binding_current(current)
+
+    monkeypatch.setattr(rig.adapter, "_binding_current", stall_after_initial_validation)
+    operation = rig.adapter.start(invocation)
+    assert lookup_started.wait(2)
+
+    try:
+        wait_started = time.monotonic()
+        with pytest.raises(TimeoutError, match="has not settled"):
+            operation.wait(0.05)
+        assert time.monotonic() - wait_started < 0.2
+        started = time.monotonic()
+        assert operation.cancel("stop") is CancellationDisposition.REQUESTED
+        assert time.monotonic() - started < 0.2
+    finally:
+        release_lookup.set()
+
+    result = operation.wait(3)
+    assert result.outcome is TurnOutcome.CANCELLED
+    assert result.output_reference is result.continuation_reference is None
+    assert not rig.turns.values and not rig.continuations.values
+    assert [name for name, _ in rig.custody.records] == ["materialize", "release"]
+    assert operation.close().disposition is RuntimeCleanupDisposition.CLEAN
+    assert attachment.settle().settlement.verified
+
+
+@pytest.mark.parametrize("territory_profile", ["gondolin", "e2b"])
+@pytest.mark.parametrize("lapse", ["grant", "deadline"])
+def test_native_a4_rechecks_publication_admission_after_remote_lookup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, territory_profile: str, lapse: str
+) -> None:
+    rig = Rig(tmp_path, territory_profile=territory_profile)
+    invocation, attachment = rig.invocation("stale-admission")
+    now = [time.monotonic()]
+    rig.adapter._clock = lambda: now[0]
+    lookup_started, release_lookup = threading.Event(), threading.Event()
+    binding_current = rig.adapter._binding_current
+    calls = 0
+
+    def stall_after_initial_validation(current: pi.PiRuntimeInvocation) -> bool:
+        nonlocal calls
+        calls += 1
+        if calls > 1:
+            lookup_started.set()
+            assert release_lookup.wait(2)
+        return binding_current(current)
+
+    monkeypatch.setattr(rig.adapter, "_binding_current", stall_after_initial_validation)
+    operation = rig.adapter.start(invocation)
+    assert lookup_started.wait(2)
+    if lapse == "grant":
+        attachment.grants().close()
+        expected = "grant-mismatch"
+    else:
+        now[0] = attachment.deadline
+        expected = "deadline-exceeded"
+    release_lookup.set()
+
+    result = operation.wait(3)
+    assert result.outcome is TurnOutcome.FAILED
+    assert result.termination_code == expected
+    assert result.output_reference is result.continuation_reference is None
+    assert not rig.turns.values and not rig.continuations.values
+    assert [name for name, _ in rig.custody.records] == ["materialize", "release"]
+    assert operation.close().disposition is RuntimeCleanupDisposition.CLEAN
+    assert attachment.settle().settlement.verified
+
+
+def test_native_a4_publication_claim_makes_later_cancellation_too_late(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rig = Rig(tmp_path, territory_profile="gondolin")
+    invocation, attachment = rig.invocation("claimed-publication")
+    admission_started, release_admission = threading.Event(), threading.Event()
+    admit_result = rig.custody.admit_result
+
+    def stalled_admission(fence, *, operation_id):
+        admission_started.set()
+        assert release_admission.wait(2)
+        return admit_result(fence, operation_id=operation_id)
+
+    monkeypatch.setattr(rig.custody, "admit_result", stalled_admission)
+    operation = rig.adapter.start(invocation)
+    assert admission_started.wait(2)
+    assert operation.cancel("stop") is CancellationDisposition.TOO_LATE
+    release_admission.set()
+
+    result = operation.wait(3)
+    assert result.outcome is TurnOutcome.COMPLETED
+    assert result.output_reference is not None and result.continuation_reference is not None
+    assert operation.close().disposition is RuntimeCleanupDisposition.CLEAN
+    assert attachment.settle().settlement.verified
+
+
 def test_resolution_stale_lease_provider_and_expired_deadline_fail_before_authority(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

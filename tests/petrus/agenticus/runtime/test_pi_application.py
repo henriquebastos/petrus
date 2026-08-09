@@ -809,6 +809,32 @@ def test_resolution_grant_runtime_and_connection_bindings_reject_stale(tmp_path:
         rig.adapter.start(rig.invocation("territory", ()))
 
 
+def test_application_a5_post_run_lease_drift_releases_authority_without_publication(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rig = Rig(tmp_path, "gondolin", Plan())
+    invocation = rig.invocation("post-run-stale", ())
+    run = Client.run
+
+    def complete_then_replace(self, gateway, current_invocation, current, deadline):
+        result = run(self, gateway, current_invocation, current, deadline)
+        object.__setattr__(rig.binding.execution.lease, "provider", "e2b")
+        return result
+
+    monkeypatch.setattr(Client, "run", complete_then_replace)
+    operation = rig.adapter.start(invocation)
+    result = operation.wait(2)
+
+    assert result.outcome is TurnOutcome.FAILED
+    assert result.termination_code == "runtime-territory-lease-required"
+    assert result.output_reference is result.continuation_reference is None
+    assert not rig.turns.values and not rig.continuations.values
+    assert [name for name, _ in rig.custody.records] == ["materialize", "release"]
+    assert operation.close().disposition is RuntimeCleanupDisposition.CLEAN
+    object.__setattr__(rig.binding.execution.lease, "provider", "gondolin")
+    assert rig.attachment.settle().settlement.verified
+
+
 @pytest.mark.parametrize(
     "error", ["provider-failed", "protocol-failed", "terminal-missing", "frame-order", "malformed-frame"]
 )
@@ -845,6 +871,116 @@ def test_cancellation_deadline_and_cleanup_failure_prevent_publication(tmp_path:
         result.termination_code == "cleanup-unverified" and cleanup.disposition is RuntimeCleanupDisposition.UNVERIFIED
     )
     assert not dirty.turns.values and not dirty.continuations.values
+
+
+@pytest.mark.parametrize("profile", ["gondolin", "e2b"])
+def test_application_a5_cancellation_wins_while_remote_publication_lookup_is_stalled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, profile: str
+) -> None:
+    rig = Rig(tmp_path, profile, Plan())
+    invocation = rig.invocation("stalled-publication", ())
+    lookup_started, release_lookup = threading.Event(), threading.Event()
+    binding_current = rig.adapter._binding_current
+    calls = 0
+
+    def stall_after_initial_validation(current: app.PiApplicationRuntimeInvocation) -> bool:
+        nonlocal calls
+        calls += 1
+        if calls > 1:
+            lookup_started.set()
+            assert release_lookup.wait(2)
+        return binding_current(current)
+
+    monkeypatch.setattr(rig.adapter, "_binding_current", stall_after_initial_validation)
+    operation = rig.adapter.start(invocation)
+    assert lookup_started.wait(2)
+
+    try:
+        wait_started = time.monotonic()
+        with pytest.raises(TimeoutError, match="has not settled"):
+            operation.wait(0.05)
+        assert time.monotonic() - wait_started < 0.2
+        started = time.monotonic()
+        assert operation.cancel("stop") is CancellationDisposition.REQUESTED
+        assert time.monotonic() - started < 0.2
+    finally:
+        release_lookup.set()
+
+    result = operation.wait(2)
+    assert result.outcome is TurnOutcome.CANCELLED
+    assert result.output_reference is result.continuation_reference is None
+    assert not rig.turns.values and not rig.continuations.values
+    assert [name for name, _ in rig.custody.records] == ["materialize", "release"]
+    assert operation.close().disposition is RuntimeCleanupDisposition.CLEAN
+    assert rig.attachment.settle().settlement.verified
+
+
+@pytest.mark.parametrize("profile", ["gondolin", "e2b"])
+@pytest.mark.parametrize("lapse", ["grant", "deadline"])
+def test_application_a5_rechecks_publication_admission_after_remote_lookup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, profile: str, lapse: str
+) -> None:
+    rig = Rig(tmp_path, profile, Plan())
+    invocation = rig.invocation("stale-admission", ())
+    now = [time.monotonic()]
+    rig.adapter._clock = lambda: now[0]
+    lookup_started, release_lookup = threading.Event(), threading.Event()
+    binding_current = rig.adapter._binding_current
+    calls = 0
+
+    def stall_after_initial_validation(current: app.PiApplicationRuntimeInvocation) -> bool:
+        nonlocal calls
+        calls += 1
+        if calls > 1:
+            lookup_started.set()
+            assert release_lookup.wait(2)
+        return binding_current(current)
+
+    monkeypatch.setattr(rig.adapter, "_binding_current", stall_after_initial_validation)
+    operation = rig.adapter.start(invocation)
+    assert lookup_started.wait(2)
+    if lapse == "grant":
+        rig.attachment.grants().close()
+        expected = "grant-mismatch"
+    else:
+        now[0] = rig.attachment.deadline
+        expected = "deadline-exceeded"
+    release_lookup.set()
+
+    result = operation.wait(2)
+    assert result.outcome is TurnOutcome.FAILED
+    assert result.termination_code == expected
+    assert result.output_reference is result.continuation_reference is None
+    assert not rig.turns.values and not rig.continuations.values
+    assert [name for name, _ in rig.custody.records] == ["materialize", "release"]
+    assert operation.close().disposition is RuntimeCleanupDisposition.CLEAN
+    assert rig.attachment.settle().settlement.verified
+
+
+def test_application_a5_publication_claim_makes_later_cancellation_too_late(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rig = Rig(tmp_path, "gondolin", Plan())
+    invocation = rig.invocation("claimed-publication", ())
+    admission_started, release_admission = threading.Event(), threading.Event()
+    admit_result = rig.custody.admit_result
+
+    def stalled_admission(fence, *, operation_id):
+        admission_started.set()
+        assert release_admission.wait(2)
+        return admit_result(fence, operation_id=operation_id)
+
+    monkeypatch.setattr(rig.custody, "admit_result", stalled_admission)
+    operation = rig.adapter.start(invocation)
+    assert admission_started.wait(2)
+    assert operation.cancel("stop") is CancellationDisposition.TOO_LATE
+    release_admission.set()
+
+    result = operation.wait(2)
+    assert result.outcome is TurnOutcome.COMPLETED
+    assert result.output_reference is not None and result.continuation_reference is not None
+    assert operation.close().disposition is RuntimeCleanupDisposition.CLEAN
+    assert rig.attachment.settle().settlement.verified
 
 
 @pytest.mark.parametrize("failure", ["admit", "turn", "continuation"])
