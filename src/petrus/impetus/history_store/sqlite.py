@@ -18,6 +18,7 @@ import json
 import os
 import re
 import sqlite3
+import time
 import weakref
 from importlib import import_module
 from pathlib import Path
@@ -188,7 +189,18 @@ class SqliteHistoryStore:
         self._connection.execute("PRAGMA busy_timeout = 5000")
         self._connection.execute("PRAGMA foreign_keys = ON")
         self._connection.execute("PRAGMA synchronous = FULL")
-        mode = self._connection.execute("PRAGMA journal_mode = WAL").fetchone()[0]
+        deadline = time.monotonic() + 5.0
+        while True:
+            try:
+                mode = self._connection.execute("PRAGMA journal_mode = WAL").fetchone()[0]
+                break
+            except sqlite3.OperationalError as error:
+                # This pragma can bypass the busy handler while another first
+                # constructor establishes WAL. Retry only that bootstrap lock;
+                # all other operational failures retain their original fate.
+                if "locked" not in str(error).lower() or time.monotonic() >= deadline:
+                    raise
+                time.sleep(0.01)
         if str(mode).lower() != "wal":
             raise ValueError(f"{self.path}: SQLite refused WAL journal mode (reported {mode!r})")
 

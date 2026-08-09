@@ -751,14 +751,19 @@ def test_lost_heartbeat_and_failure_replies_are_not_replayed(tmp_path: Path) -> 
     path = tmp_path / "dispatch.sqlite3"
     endpoint = f"ipc://{tmp_path}/dispatch.sock"
     dispatch = LocalDispatch(path, instance="instance")
-    dispatch.dispatch(1, invocation(attempts=2))
-    dispatch.dispatch(2, invocation(attempts=1))
     delays = {"heartbeat": 0.2, "fail": 0.2}
 
     def factory(queues, worker_id):
         return DelayedProvider(LocalWorkerDispatch(path, queues=queues, worker_id=worker_id), delays)
 
     running = RunningServer(ZeroMQDispatchServer._from_factory(endpoint, factory))
+    readiness = ZeroMQWorkerDispatch(endpoint)
+    try:
+        assert readiness.claim() is None
+    finally:
+        readiness.close()
+    dispatch.dispatch(1, invocation(attempts=2))
+    dispatch.dispatch(2, invocation(attempts=1))
     client = ZeroMQWorkerDispatch(endpoint, request_timeout=0.05)
     try:
         first = client.claim()

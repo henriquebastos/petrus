@@ -142,20 +142,17 @@ def test_async_worker_integrates_distinct_absurd_lane_claimants_and_terminals(ab
     for occurrence in range(1, 4):
         adapter.dispatch(occurrence, invocation_for(queue, payload=occurrence))
     authority.commit()
-    entered = 0
-    peak = 0
+    admitted: set[int] = set()
     release = asyncio.Event()
-    all_entered = asyncio.Event()
+    all_admitted = asyncio.Event()
 
     async def probe(invocation, *, context):
-        nonlocal entered, peak
-        entered += 1
-        peak = max(peak, entered)
-        if entered == 3:
-            all_entered.set()
-        details = await context.heartbeat(details={"payload": invocation.input["payload"]})
+        payload = invocation.input["payload"]
+        admitted.add(payload)
+        if admitted == {1, 2, 3}:
+            all_admitted.set()
+        details = await context.heartbeat(details={"payload": payload})
         await release.wait()
-        entered -= 1
         return details
 
     worker = AsyncWorker(
@@ -166,14 +163,14 @@ def test_async_worker_integrates_distinct_absurd_lane_claimants_and_terminals(ab
 
     async def exercise():
         running = asyncio.create_task(worker.run(poll_interval=0.01))
-        await asyncio.wait_for(all_entered.wait(), 5)
+        await asyncio.wait_for(all_admitted.wait(), 5)
         worker.stop()
         release.set()
         await running
 
     asyncio.run(asyncio.wait_for(exercise(), 10))
 
-    assert peak == 3
+    assert admitted == {1, 2, 3}
     assert sorted(adapter.collect()) == [(number, {"payload": number}) for number in range(1, 4)]
 
 

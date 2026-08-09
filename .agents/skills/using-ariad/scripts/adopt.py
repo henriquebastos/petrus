@@ -12,12 +12,15 @@ ASSETS = Path(__file__).resolve().parents[1] / "assets/project-templates"
 INTEGRATION_MARKER = b"<!-- ariad-entrypoint: docs/ariad/index.md -->"
 INTEGRATION_DIRECTIVE = b"@docs/ariad/index.md"
 
+
 def files() -> list[tuple[Path, Path]]:
     return [(p, p.relative_to(ASSETS)) for p in sorted(ASSETS.rglob("*")) if p.is_file()]
+
 
 def integrated_agents(data: bytes) -> bool:
     lines = {line.strip() for line in data.splitlines()}
     return INTEGRATION_MARKER in lines and INTEGRATION_DIRECTIVE in lines
+
 
 def collision(destination: Path, target: Path) -> str | None:
     """Return the first unsafe destination component (cooperative local CLI safety)."""
@@ -32,10 +35,12 @@ def collision(destination: Path, target: Path) -> str | None:
         return f"destination already exists: {destination.relative_to(target)}"
     return None
 
+
 def create_exclusive(destination: Path, data: bytes) -> None:
     """Create a file without truncation; callers must also recheck its parents."""
     with destination.open("xb") as stream:
         stream.write(data)
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -65,8 +70,14 @@ def main() -> int:
                     if integrated_agents(destination.read_bytes()):
                         present += 1
                         continue
-                    print("manual integration required: existing AGENTS.md does not clearly integrate Ariad", file=sys.stderr)
-                    print("Add this block without removing project-owned instructions:\n\n<!-- ariad-entrypoint: docs/ariad/index.md -->\n@docs/ariad/index.md\nIf the @path directive is not expanded by this runtime, read `docs/ariad/index.md` directly before meaningful work.", file=sys.stderr)
+                    print(
+                        "manual integration required: existing AGENTS.md does not clearly integrate Ariad",
+                        file=sys.stderr,
+                    )
+                    print(
+                        "Add this block without removing project-owned instructions:\n\n<!-- ariad-entrypoint: docs/ariad/index.md -->\n@docs/ariad/index.md\nIf the @path directive is not expanded by this runtime, read `docs/ariad/index.md` directly before meaningful work.",
+                        file=sys.stderr,
+                    )
                     return MANUAL_AGENTS
                 print(f"manual integration required: destination differs: {rel}", file=sys.stderr)
                 return COLLISION
@@ -90,10 +101,14 @@ def main() -> int:
                 raise FileExistsError(problem)
             create_exclusive(destination, data)
         except (FileExistsError, FileNotFoundError, NotADirectoryError, IsADirectoryError, OSError) as exc:
-            print(f"manual integration required: creation collision at {destination.relative_to(target)}: {exc}", file=sys.stderr)
+            print(
+                f"manual integration required: creation collision at {destination.relative_to(target)}: {exc}",
+                file=sys.stderr,
+            )
             return COLLISION
     print("adoption applied")
     return READY
+
 
 if __name__ == "__main__":
     raise SystemExit(main())
