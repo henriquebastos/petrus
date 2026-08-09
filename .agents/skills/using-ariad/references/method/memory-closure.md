@@ -42,6 +42,8 @@ For each piece of short-term context, ask:
 
 If the first answer is no, discard it. If the second answer is yes, point to the owner rather than copying it. If it must survive and has no owner, promote it once.
 
+If no authorized durable owner exists, do not invent one. Mark context release **not safe** until the project or Navigator establishes an owner.
+
 | Short-term material | Durable owner |
 | --- | --- |
 | Current project, product, architecture, environment, or process truth | The focused current document that owns that truth |
@@ -118,7 +120,7 @@ Verify that Process, Project, and Product agree with the resulting state. Check 
 
 If this is a configured commit boundary, the work satisfies that boundary's lifecycle requirements, and commit authorization is present, record a commit whose message explains why the project changed. Add a worklog milestone only when the milestone itself deserves a durable operational narrative.
 
-If commit authorization is required but absent, stop before committing and report the proposed history action. Treat push as a separate policy and checkpoint: absent push authorization never prevents an otherwise authorized local commit. If this is not a configured history boundary, leave the work in its truthful lifecycle and working-tree state. Memory Closure does not create a commit or push boundary.
+At that boundary, if commit authorization is required but absent, stop before committing and report the proposed history action. Treat push as a separate policy and checkpoint: absent push authorization never prevents an otherwise authorized local commit. If this is not a configured commit boundary, leave the work in its truthful lifecycle and working-tree state. Memory Closure does not create a commit or push boundary.
 
 ### 7. Emit a Compact Closure Receipt
 
@@ -146,16 +148,16 @@ When Memory Closure coincides with an existing story, refinement, exploration, o
 
 Short-term context is safe to release when:
 
-- every consequential item was promoted to one durable owner or deliberately discarded;
+- every consequential item was promoted to one durable owner, retained under the dirty-release rule below, or deliberately discarded;
 - repository and lifecycle state are truthful;
 - verification and unresolved risk are explicit;
 - history policy was followed or the pending checkpoint is visible;
 - the next coherent movement is named;
-- the next Driver can recover detail through project indexes, linked records, and Git without needing the transcript.
+- the next Driver can recover detail through project indexes, linked records, Git, and any guaranteed dirty-state transfer without needing the transcript.
 
 If any accepted decision, critical evidence, active blocker, or necessary next step still exists only in conversation, context release is not safe.
 
-Dirty context release is safe only when the receiving Driver is guaranteed to inherit the same worktree, the owning work surface durably records intent, lifecycle state, blockers, and next action, and the receipt names staged, unstaged, and untracked paths. If the worktree will not survive and no authorized durable checkpoint or project-defined handoff surface exists, mark context release **not safe**.
+Dirty context release is safe only when all of these hold: the owning work surface records intent, lifecycle state, blockers, and next action; the receipt names staged, unstaged, and untracked paths; and either the receiving Driver is guaranteed to inherit the same worktree or an authorized durable checkpoint or project-defined handoff surface preserves every consequential uncommitted change. Inherited dirty state is short-term operational transfer, not durable Git history or transferable long-term memory. Otherwise, mark context release **not safe**.
 
 ## Progressive Resume
 

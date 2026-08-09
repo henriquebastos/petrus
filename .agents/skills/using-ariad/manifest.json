@@ -97,7 +97,7 @@
     },
     {
       "destination": "references/method/memory-closure.md",
-      "sha256": "5cdf45c994dd83e2adf15c6242fea3e535fc856122304c5520d74bf2e178f738",
+      "sha256": "a395c5c806eaf9b739128a94ce014afd466358edddef9b94e5122d92594c7668",
       "source": "docs/method/memory-closure.md"
     },
     {
@@ -162,7 +162,7 @@
     },
     {
       "destination": "assets/project-templates/docs/process/development-guide/workflow-and-checkpoints.md",
-      "sha256": "29c369bc6a80027e957328eb3dcaa6bcddbef235242c388186954b6ac08905a7",
+      "sha256": "591308f05ca8c6330041ef961f4300631eee8f6fbb02b68552ad9410c446c967",
       "source": "docs/project-templates/docs/process/development-guide/workflow-and-checkpoints.md"
     },
     {
@@ -252,7 +252,7 @@
     },
     {
       "destination": "SKILL.md",
-      "sha256": "362169694a0dcb18d9c2c14bace1bddeb4935312142608e4af5179103c8df569",
+      "sha256": "7262c297d2aead00815f66151b0d25ab6e95a2e00b06860af5770c9492eac0f1",
       "source": "authored:SKILL.md"
     },
     {
@@ -262,9 +262,9 @@
     }
   ],
   "format_version": "1",
-  "method_digest": "55dd4fc024fba15769ef354e783f68235e33fef766e950886bcecb535224ed19",
+  "method_digest": "9257e4a6b9542dc5536af2bd17e7d60a9784711faaaa926591278f4be7f8371f",
   "package": "using-ariad",
-  "package_digest": "ef362ad80254ac1b9615c420116da1e7844043a82bc6dfa7307e0e5d0f41be65",
-  "package_version": "0.2.0",
+  "package_digest": "82abd3545b6d456649bc33fddb19671939ab512dd0249050a25fe7600df25572",
+  "package_version": "0.2.1",
   "source_path": "skills/using-ariad"
 }
