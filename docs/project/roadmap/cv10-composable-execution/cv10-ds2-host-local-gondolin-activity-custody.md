@@ -2,7 +2,7 @@
 code: CV10.DS2
 level: Delivery Story
 status: Done
-status_reason: Private host-local Activity custody preserves one Episode territory across JSON-fenced Inline pre-admission retry
+status_reason: Private host-local Activity execution borrows one existing Episode Attachment across JSON-fenced Inline pre-admission retry
 updated: 2026-08-09
 related:
   - CV10.DS1
@@ -10,13 +10,14 @@ related:
   - docs/project/decisions/records/2026-08-01T0736Z-cv10-execution-contracts-remain-private.md
 ---
 
-# Qualify host-local Gondolin Activity custody
+# Qualify host-local Activity execution through an existing Gondolin Attachment
 
 ## Intent
 
 Prove that formal Motus Activity attempts can invoke the hermetic Codex A3 lane
-through one host-owned Episode territory without serializing connection,
-Attachment, provider, or runtime collaborators.
+through one pre-existing Episode Attachment without serializing connection,
+Attachment, provider, or runtime collaborators or giving the Activity any role
+in territory lifecycle.
 
 ## Scope
 

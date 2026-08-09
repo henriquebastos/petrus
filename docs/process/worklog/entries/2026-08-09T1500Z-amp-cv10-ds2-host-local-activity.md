@@ -12,7 +12,7 @@ verification:
   - scripts/check release, 2031 passed then 2031 passed with 17 external routes deselected
 ---
 
-# Qualified host-local Activity custody over one Episode territory
+# Qualified host-local Activity execution through one Episode Attachment
 
 ## What changed
 
@@ -29,10 +29,11 @@ admission diagnostics are reduced to a safe code.
 
 ## Why it matters
 
-Petrus now proves that Episode-owned territory and formal Activity retry are
-compatible without making live provider objects Activity data. The bounded
-result preserves the architecture while avoiding a false claim that a closure
-can survive Worker process migration.
+Petrus now proves that formal Activity retry can borrow an Episode-owned
+territory through its existing Attachment without making live provider objects
+Activity data or giving Activity any territory-lifecycle responsibility. The
+bounded result preserves the architecture while avoiding a false claim that a
+closure can survive Worker process migration.
 
 ## Verification
 

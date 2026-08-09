@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import select
+import secrets
+import socket
+import sqlite3
+import stat
 import subprocess
 import sys
 import textwrap
@@ -63,6 +69,13 @@ from petrus.agenticus.runtime.codex import (
     CodexRuntimeInvocation,
 )
 from petrus.agenticus.runtime.installation import ProbeDisposition
+from petrus.agenticus.runtime._codex_gondolin_service import (
+    _ACTIVITY,
+    _MAX_REQUEST,
+    _CodexGondolinActivityClient,
+    _CodexGondolinRuntimeService,
+    _json_bytes,
+)
 from petrus.agenticus.runtime.operation import RuntimeCleanupDisposition, RuntimeProtocolError
 from petrus.agenticus.runtime.profiles import CODEX_A2_LOCAL, CODEX_A3_GONDOLIN
 from petrus.agenticus.thread.continuation import Continuation, ContinuationState
@@ -70,6 +83,7 @@ from petrus.agenticus.thread.identity import ContinuationId, EpisodeId, ThreadId
 from petrus.agenticus.thread.lifecycle import CancellationDisposition, TurnOutcome
 from petrus.motus.activity import ActivityInvocation, ExecutionPolicy
 from petrus.motus.dispatch import InlineDispatch
+from petrus.motus.dispatch.local import LocalDispatch
 from petrus.motus.execution import (
     MAX_PRIVATE_FILE_BYTES,
     CleanupDisposition,
@@ -656,6 +670,33 @@ def gondolin_activity_input(
         "state_version": connection.state_version,
         "continuation": None if continuation_value is None else continuation_value.to_data(),
     }
+
+
+def _start_codex_worker(path: Path, environment: dict[str, str]) -> subprocess.Popen[str]:
+    process = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "petrus.motus.worker",
+            "--provider",
+            "local",
+            "--path",
+            str(path),
+            "--registry",
+            "tests.petrus.agenticus.runtime.codex_worker_support:activities",
+            "--poll-interval",
+            "0.02",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        env=environment,
+    )
+    assert process.stdout is not None
+    readable, _, _ = select.select([process.stdout], [], [], 10)
+    assert readable, "Codex Local Worker did not become ready"
+    assert json.loads(process.stdout.readline())["ready"] is True
+    return process
 
 
 def test_exact_descriptors_and_opaque_values_hide_provider_bodies() -> None:
@@ -1508,6 +1549,333 @@ def test_gondolin_activity_inline_retry_keeps_host_owned_episode_territory(
     assert attachment.binding.lease_identity.lease_id == attempts[0][2]
     assert attachment.settle(drain_timeout=2).settlement.verified
     assert not any(root.iterdir())
+
+
+def test_gondolin_runtime_service_replays_terminal_to_replacement_local_worker(
+    tmp_path: Path,
+) -> None:
+    executable = fake_codex(tmp_path, CODEX_GONDOLIN_VERSION)
+    sdk = fake_gondolin_sdk(tmp_path, executable)
+    root = tmp_path / "gondolin-worker"
+    provider = GondolinEnvironment(root, sdk_module=str(sdk), lease_ttl=30)
+    continuations, turns, custody = Continuations(), Turns(), Custody()
+    adapter = CodexGondolinRuntimeAdapter(
+        CodexRuntimeConfig("host-1", credential_ttl=10, command_timeout=10, cancellation_grace=2),
+        CodexContinuationCodec(continuations),
+        turns,
+        custody,
+    )
+    _unused, attachment = gondolin_invocation(
+        tmp_path, provider, custody, "operation-gondolin-worker-episode", "unused"
+    )
+    assert adapter.probe(attachment).disposition is ProbeDisposition.READY
+    binding = attachment.binding
+    assert isinstance(binding, MotusAttachmentBinding)
+    territory, coordinates = binding.lease_identity, attachment.coordinates()
+    starts: list[tuple[str, str, str]] = []
+    original_start = adapter.start
+
+    def count_start(invocation):
+        starts.append(
+            (
+                invocation.operation_id,
+                invocation.attachment.coordinates().attachment_id,
+                invocation.attachment.binding.lease_identity.lease_id,
+            )
+        )
+        return original_start(invocation)
+
+    adapter.start = count_start  # type: ignore[method-assign]
+    endpoint, ledger = tmp_path / "runtime.sock", tmp_path / "runtime-ledger.db"
+    token = secrets.token_urlsafe(32)
+    service = _CodexGondolinRuntimeService(endpoint, ledger, token, adapter, custody.view(), attachment)
+    service.start()
+    dispatch_path = tmp_path / "dispatch.db"
+    dispatch = LocalDispatch(dispatch_path, instance="codex-worker")
+    operation_id = "operation-gondolin-worker-runtime"
+    dispatch.dispatch(
+        1,
+        ActivityInvocation(
+            _ACTIVITY,
+            input=gondolin_activity_input(attachment, custody, "first", turn_id="turn-gondolin-worker"),
+            policy=ExecutionPolicy(attempts=2, heartbeat_timeout=1),
+            idempotency=operation_id,
+        ),
+    )
+    withheld = tmp_path / "reply-withheld"
+    environment = {
+        **os.environ,
+        "PETRUS_CODEX_GONDOLIN_ENDPOINT": str(endpoint),
+        "PETRUS_CODEX_GONDOLIN_TOKEN": token,
+        "PETRUS_CODEX_GONDOLIN_WITHHOLD": str(withheld),
+    }
+    first = _start_codex_worker(dispatch_path, environment)
+    replacement: subprocess.Popen[str] | None = None
+    try:
+        deadline = time.monotonic() + 15
+        terminal = None
+        while time.monotonic() < deadline:
+            with sqlite3.connect(ledger) as db:
+                terminal = db.execute(
+                    "SELECT terminal FROM operations WHERE operation_id=? AND phase='terminal'", (operation_id,)
+                ).fetchone()
+            if terminal is not None and withheld.exists():
+                break
+            assert first.poll() is None
+            time.sleep(0.02)
+        assert terminal is not None and withheld.exists()
+        first.kill()
+        first.wait(5)
+        time.sleep(1.05)
+        replacement = _start_codex_worker(dispatch_path, environment)
+        assert dispatch.wait_for_results(10)
+        collected = dispatch.collect()
+        assert collected == (
+            (
+                1,
+                {
+                    "version": 1,
+                    "operation_id": operation_id,
+                    "episode_id": attachment.episode_id.value,
+                    "turn_id": "turn-gondolin-worker",
+                    "outcome": "completed",
+                    "accepted_appends": 1,
+                    "termination_code": "turn-completed",
+                    "output_reference": f"codex-turn-{operation_id}",
+                    "continuation_reference": f"codex-continuation-{operation_id}",
+                    "cleanup": {"disposition": "clean", "code": "client-closed"},
+                },
+            ),
+        )
+        assert starts == [(operation_id, coordinates.attachment_id, territory.lease_id)]
+        assert attachment.coordinates() == coordinates and binding.lease_identity == territory
+        assert provider.lookup(territory.operation_id) is not None and len(tuple(root.iterdir())) == 1
+    finally:
+        for process in (first, replacement):
+            if process is not None and process.poll() is None:
+                process.terminate()
+                process.wait(5)
+        service.close()
+
+    settled = attachment.settle(drain_timeout=2)
+    assert settled.settlement.verified
+    restored = tmp_path / "worker-settled-workspace"
+    extract_workspace_archive(settled.archive, restored)
+    assert (restored / "public-input.txt").read_text() == "public-workspace-canary"
+    assert binding.cleanup_result is not None and binding.cleanup_result.identity == territory
+    assert provider.lookup(territory.operation_id) is None and not any(root.iterdir())
+
+
+def test_gondolin_runtime_service_fences_frames_conflicts_restart_and_redacts(
+    tmp_path: Path,
+) -> None:
+    executable = fake_codex(tmp_path, CODEX_GONDOLIN_VERSION)
+    sdk = fake_gondolin_sdk(tmp_path, executable)
+    root = tmp_path / "gondolin-service-fences"
+    provider = GondolinEnvironment(root, sdk_module=str(sdk), lease_ttl=30)
+    custody = Custody()
+    adapter = CodexGondolinRuntimeAdapter(
+        CodexRuntimeConfig("host-1", credential_ttl=10, command_timeout=10, cancellation_grace=2),
+        CodexContinuationCodec(Continuations()),
+        Turns(),
+        custody,
+    )
+    _unused, attachment = gondolin_invocation(tmp_path, provider, custody, "operation-service-fences", "unused")
+    endpoint, ledger, token = tmp_path / "fence.sock", tmp_path / "fence.db", "t" * 32
+    service = _CodexGondolinRuntimeService(endpoint, ledger, token, adapter, custody.view(), attachment)
+    service.start()
+    assert stat.S_IMODE(endpoint.stat().st_mode) == 0o600
+    endpoint_identity = (endpoint.stat().st_dev, endpoint.stat().st_ino)
+    with pytest.raises(RuntimeError, match="runtime-service-owned"):
+        _CodexGondolinRuntimeService(endpoint, ledger, token, adapter, custody.view(), attachment)
+    assert (endpoint.stat().st_dev, endpoint.stat().st_ino) == endpoint_identity
+    with sqlite3.connect(ledger) as db:
+        assert db.execute("SELECT COUNT(*) FROM operations").fetchone() == (0,)
+
+    def exchange(frame: bytes) -> dict[str, object]:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+            client.connect(str(endpoint))
+            client.sendall(frame)
+            return json.loads(client.recv(4096))
+
+    value = gondolin_activity_input(attachment, custody, "first", turn_id="turn-service-fences")
+    assert exchange(
+        _json_bytes({"version": 1, "token": "x" * 32, "operation_id": "unauthorized", "input": value}) + b"\n"
+    ) == {"ok": False, "error": "unauthorized"}
+    assert exchange(b'{"version":1, "token":"bad"}\n')["error"] == "request-invalid"
+    assert exchange(b"x" * (_MAX_REQUEST + 1))["error"] == "frame-too-large"
+    canonical = _json_bytes({"version": 1, "token": token, "operation_id": "same", "input": value})
+    adapter.start = lambda _invocation: (_ for _ in ()).throw(RuntimeError(AUTH_CANARY.decode()))  # type: ignore[method-assign]
+    first = exchange(canonical + b"\n")
+    assert first == {"ok": False, "error": "runtime-failed"} and AUTH_CANARY.decode() not in repr(first)
+    changed = _json_bytes(
+        {"version": 1, "token": token, "operation_id": "same", "input": {**value, "prompt": "changed"}}
+    )
+    assert exchange(changed + b"\n") == {"ok": False, "error": "operation-conflict"}
+    service.close()
+
+    with sqlite3.connect(ledger) as db:
+        canonical_request = _json_bytes({"version": 1, "operation_id": "interrupted", "input": value})
+        db.execute(
+            "INSERT INTO operations(operation_id,request_fingerprint,phase,episode_id,turn_id) "
+            "VALUES(?,?,'executing',?,?)",
+            (
+                "interrupted",
+                hashlib.sha256(canonical_request).hexdigest(),
+                attachment.episode_id.value,
+                "turn-service-fences",
+            ),
+        )
+    restarted = _CodexGondolinRuntimeService(endpoint, ledger, token, adapter, custody.view(), attachment)
+    restarted.start()
+    try:
+        interrupted = _json_bytes({"version": 1, "token": token, "operation_id": "interrupted", "input": value})
+        assert exchange(interrupted + b"\n") == {"ok": False, "error": "operation-indeterminate"}
+    finally:
+        restarted.close()
+
+    entered, release = threading.Event(), threading.Event()
+
+    def block_runtime_start(_invocation):
+        entered.set()
+        assert release.wait(10)
+        raise RuntimeError("bounded failure")
+
+    adapter.start = block_runtime_start  # type: ignore[method-assign]
+    active = _CodexGondolinRuntimeService(endpoint, ledger, token, adapter, custody.view(), attachment)
+    active.start()
+    active_request = _json_bytes({"version": 1, "token": token, "operation_id": "active", "input": value}) + b"\n"
+    active_responses: list[dict[str, object]] = []
+    requester = threading.Thread(target=lambda: active_responses.append(exchange(active_request)))
+    requester.start()
+    assert entered.wait(2)
+    with pytest.raises(RuntimeError, match="runtime-service-quiescence-failed"):
+        active.close()
+    assert endpoint.exists()
+    with pytest.raises(RuntimeError, match="runtime-service-owned"):
+        _CodexGondolinRuntimeService(endpoint, ledger, token, adapter, custody.view(), attachment)
+    release.set()
+    requester.join(3)
+    assert not requester.is_alive() and active_responses == [{"ok": False, "error": "runtime-failed"}]
+    active.close()
+    assert not endpoint.exists()
+
+    foreign = tmp_path / "foreign-service"
+    foreign.mkdir(mode=0o700)
+    foreign_ledger = foreign / "ledger.db"
+    with sqlite3.connect(foreign_ledger) as db:
+        db.execute("CREATE TABLE operations (operation_id TEXT PRIMARY KEY)")
+        db.execute("PRAGMA user_version=1")
+    with pytest.raises(RuntimeError, match="runtime-service-storage-failed"):
+        _CodexGondolinRuntimeService(
+            foreign / "runtime.sock", foreign_ledger, token, adapter, custody.view(), attachment
+        )
+
+    escaped = tmp_path / "escaped-ledger.db"
+    dangling = tmp_path / "dangling-service"
+    dangling.mkdir(mode=0o700)
+    (dangling / "ledger.db").symlink_to(escaped)
+    with pytest.raises(RuntimeError, match="runtime-service-storage-failed"):
+        _CodexGondolinRuntimeService(
+            dangling / "runtime.sock", dangling / "ledger.db", token, adapter, custody.view(), attachment
+        )
+    assert not escaped.exists()
+
+    corrupt = tmp_path / "corrupt-service"
+    corrupt_service = _CodexGondolinRuntimeService(
+        corrupt / "runtime.sock", corrupt / "ledger.db", token, adapter, custody.view(), attachment
+    )
+    corrupt_service.close()
+    with sqlite3.connect(corrupt / "ledger.db") as db:
+        db.execute("PRAGMA ignore_check_constraints=ON")
+        db.execute(
+            "INSERT INTO operations(operation_id,request_fingerprint,phase,episode_id,turn_id) "
+            "VALUES(?,?,'executing',?,?)",
+            ("corrupt", "z" * 64, attachment.episode_id.value, "turn-service-fences"),
+        )
+    with pytest.raises(RuntimeError, match="runtime-service-storage-failed"):
+        _CodexGondolinRuntimeService(
+            corrupt / "runtime.sock", corrupt / "ledger.db", token, adapter, custody.view(), attachment
+        )
+    assert attachment.settle(drain_timeout=2).settlement.verified
+    assert not any(root.iterdir())
+
+
+def test_gondolin_runtime_activity_client_renews_custody_and_rejects_malformed_terminal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    token = "t" * 32
+    monkeypatch.setenv("PETRUS_CODEX_GONDOLIN_TOKEN", token)
+    invocation = ActivityInvocation(
+        _ACTIVITY,
+        input={"episode_id": "episode-client-boundary", "turn_id": "turn-client-boundary"},
+        policy=ExecutionPolicy(attempts=2, heartbeat_timeout=1),
+        idempotency="operation-client-boundary",
+    )
+    client = _CodexGondolinActivityClient()
+    monkeypatch.setenv("PETRUS_CODEX_GONDOLIN_ENDPOINT", str(tmp_path / "absent.sock"))
+    with pytest.raises(RuntimeProtocolError, match="activity-stale"):
+        client(invocation, context=ActivityContext(stale=True))
+
+    def one_response(endpoint: Path, response: bytes, *, delay: float = 0) -> threading.Thread:
+        ready = threading.Event()
+
+        def serve() -> None:
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server:
+                server.bind(str(endpoint))
+                server.listen(1)
+                ready.set()
+                connection, _ = server.accept()
+                with connection:
+                    received = b""
+                    while b"\n" not in received:
+                        received += connection.recv(4096)
+                    time.sleep(delay)
+                    connection.sendall(response)
+
+        thread = threading.Thread(target=serve)
+        thread.start()
+        assert ready.wait(2)
+        return thread
+
+    delayed_endpoint = tmp_path / "delayed.sock"
+    delayed = one_response(
+        delayed_endpoint,
+        _json_bytes({"ok": False, "error": "runtime-failed"}) + b"\n",
+        delay=0.6,
+    )
+    monkeypatch.setenv("PETRUS_CODEX_GONDOLIN_ENDPOINT", str(delayed_endpoint))
+    context = ActivityContext()
+    heartbeat_calls = 0
+    original_heartbeat = context.heartbeat
+
+    def heartbeat(*, details=None):
+        nonlocal heartbeat_calls
+        heartbeat_calls += 1
+        return original_heartbeat(details=details)
+
+    context.heartbeat = heartbeat  # type: ignore[method-assign]
+    with pytest.raises(RuntimeProtocolError, match="runtime-failed"):
+        client(invocation, context=context)
+    delayed.join(2)
+    assert not delayed.is_alive() and heartbeat_calls >= 3
+
+    malformed_endpoint = tmp_path / "malformed.sock"
+    malformed = one_response(malformed_endpoint, _json_bytes({"ok": True, "result": {}}) + b"\n")
+    monkeypatch.setenv("PETRUS_CODEX_GONDOLIN_ENDPOINT", str(malformed_endpoint))
+    with pytest.raises(RuntimeProtocolError, match="runtime-service-failed"):
+        client(invocation, context=ActivityContext())
+    malformed.join(2)
+    assert not malformed.is_alive()
+
+    recursive_endpoint = tmp_path / "recursive.sock"
+    recursive = one_response(recursive_endpoint, b"[" * 1100 + b"0" + b"]" * 1100 + b"\n")
+    monkeypatch.setenv("PETRUS_CODEX_GONDOLIN_ENDPOINT", str(recursive_endpoint))
+    with pytest.raises(RuntimeProtocolError, match="runtime-service-failed"):
+        client(invocation, context=ActivityContext())
+    recursive.join(2)
+    assert not recursive.is_alive()
 
 
 def test_gondolin_activity_refuses_unfenced_or_stale_requests_before_runtime_start(

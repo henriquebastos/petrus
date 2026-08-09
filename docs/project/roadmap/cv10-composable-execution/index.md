@@ -2,7 +2,7 @@
 code: CV10
 level: Value
 status: Blocked
-status_reason: CV10.DS1–DS2 completed Episode ownership and host-local Activity custody; remote Worker reconstruction, live support, and retention remain blocked or unbounded
+status_reason: CV10.DS1–DS3 completed Episode ownership and hermetic Local Worker terminal replay; live support, multi-host execution, and retention remain blocked or unbounded
 updated: 2026-08-09
 related:
   - docs/project/decisions/records/2026-07-28T1052Z-local-dispatch-and-worker-provider-boundary.md
@@ -39,9 +39,16 @@ results do not promote a generic public agent or environment API.
   operation, not one Activity attempt. CV10.DS1 qualified that lifecycle with
   the hermetic Gondolin Codex runtime-protocol lane while preserving
   provider-neutral identity, export, and cleanup fences.
-- CV10.DS2 qualified private host-local Motus Activity custody: a JSON-fenced
-  Inline pre-admission retry keeps one stable runtime operation, Attachment, and
-  lease. It does not qualify process migration or remote Worker reconstruction.
+- CV10.DS2 qualified private host-local Motus Activity execution through one
+  existing Attachment: a JSON-fenced Inline pre-admission retry keeps one
+  stable runtime operation, Attachment, and lease. Activity never owns the
+  territory lifecycle.
+- CV10.DS3 qualified one hermetic Local Worker process-loss route through a
+  fenced host request service. A replacement Worker replays a terminal stored
+  before reply without redispatching runtime work. The Episode host provisions
+  and later settles the territory outside Activity; the service only borrows
+  its existing Attachment. Multi-host service discovery and live providers
+  remain unqualified.
 - Live model-backed Gondolin support remains blocked until the exact provider,
   image, model authority, and credentials are available through an authorized
   acceptance route.
@@ -62,7 +69,7 @@ results do not promote a generic public agent or environment API.
 
 ## Current state
 
-CV10.DS1 and CV10.DS2 are Done at their bounded hermetic qualifications. No
-CV10 working session is active. Live provider support, public execution
-contracts, retained territories, multi-process Activity retry/reconstruction,
-and a wider profile matrix remain blocked or require newly bounded stories.
+CV10.DS1–DS3 are Done at their bounded hermetic qualifications. No CV10 working
+session is active. Live provider support, public execution contracts, retained
+territories, network or multi-host Worker reconstruction, and a wider profile
+matrix remain blocked or require newly bounded stories.
