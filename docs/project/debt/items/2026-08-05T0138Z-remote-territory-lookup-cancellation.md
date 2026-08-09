@@ -1,6 +1,6 @@
 ---
 id: remote-territory-lookup-can-delay-cancellation
-status: Carried
+status: Paid
 kind: operations
 severity: medium
 source: CV16.DS9
@@ -49,3 +49,17 @@ prove that cancellation remains responsive and no stale result can publish.
 The condition was exposed when the formerly Local-only native Pi adapter gained
 Gondolin/E2B profiles. Application-owned A5 has the same underlying provider
 observation shape and should close under the same solution.
+
+Paid on 2026-08-09. Native A4 and application-owned A5 now perform territory
+currency observation outside the operation condition, then re-enter the
+condition to re-check cancellation, grant epoch, and deadline before claiming
+publication. Deterministic Gondolin and E2B race tests prove that `wait()` and
+`cancel()` remain responsive during a stalled observation, cancellation wins
+without result publication, lapsed grant/deadline authority fails closed, and
+a publication claim that already won still makes later cancellation too late.
+Both runtime paths also refuse a stale publication-time territory observation.
+
+This pays the operation-lock debt without claiming provider-wide timeout
+bounds: provider cancellation and final settlement may still depend on the
+remote provider returning, and territory currency remains a point-in-time
+observation rather than a provider-side transaction spanning result storage.
