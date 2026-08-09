@@ -49,7 +49,6 @@ from petrus.impetus.petrinet.schema import (
     Arc,
     ArcMode,
     Delay,
-    FilterDeclaration,
     GuardDeclaration,
     Instant,
     Net,
@@ -116,6 +115,7 @@ type GuardImplementations = Mapping[Any, Guard]
 
 # A filter implementation: a pure boolean over a single token.
 type Filter = Callable[[Token], bool]
+type FilterImplementations = Mapping[Any, Filter]
 
 
 @dataclass(frozen=True)
@@ -154,8 +154,9 @@ type Offer = Veto | Satisfied | Alternatives
 def offer(
     arc: Arc,
     marking: Marking,
-    filters: Mapping[FilterDeclaration, Filter],
+    filters: FilterImplementations,
     anchors: Mapping[NetPath, tuple[Instant, ...]] | None = None,
+    filter_identity: NetUri | None = None,
 ) -> Offer:
     """
     The arc's whole answer to ``marking``: ``Veto``, ``Satisfied``, or
@@ -170,7 +171,7 @@ def offer(
 
     def admits(token: Token) -> bool:
         """The arc's admission judgment (inscription narrowed by filter), bound for the queue's scan."""
-        return admitted(arc, token, filters)
+        return admitted(arc, token, filters, filter_identity)
 
     queue = TokenQueue.time_blind(marking.place(arc.source))
     if arc.mode is ArcMode.INHIBIT:
@@ -204,7 +205,7 @@ def candidates(
     net: Net,
     marking: Marking,
     guards: GuardImplementations | None = None,
-    filters: Mapping[FilterDeclaration, Filter] | None = None,
+    filters: FilterImplementations | None = None,
     watermark: Instant | None = None,
     entry_instants: Mapping[NetPath, tuple[Instant, ...]] | None = None,
 ) -> list[Binding]:
@@ -237,7 +238,7 @@ def next_maturation(
     net: Net,
     marking: Marking,
     guards: GuardImplementations | None = None,
-    filters: Mapping[FilterDeclaration, Filter] | None = None,
+    filters: FilterImplementations | None = None,
     watermark: Instant | None = None,
     entry_instants: Mapping[NetPath, tuple[Instant, ...]] | None = None,
 ) -> Instant | None:
@@ -255,7 +256,7 @@ def _survey(  # noqa: C901
     net: Net,
     marking: Marking,
     guards: GuardImplementations,
-    filters: Mapping[FilterDeclaration, Filter],
+    filters: FilterImplementations,
     watermark: Instant | None,
     entry_instants: Mapping[NetPath, tuple[Instant, ...]],
 ) -> tuple[list[Binding], list[Instant]]:
@@ -298,8 +299,8 @@ def _survey(  # noqa: C901
         # Delay demands anchors — never a raw IndexError.
         anchored = any(isinstance(timer, Delay) for timer in transition.timers)
         offers: list[Alternatives] = []
-        for arc in net.inputs(path):
-            answer = offer(arc, marking, filters, entry_instants if anchored else None)
+        for arc, position in zip(net.inputs(path), net.input_positions(path)):
+            answer = offer(arc, marking, filters, entry_instants if anchored else None, net.filter_uris()[position])
             if isinstance(answer, Veto):
                 break  # one veto gates the transition out; later arcs are never consulted
             if isinstance(answer, Alternatives):
@@ -342,7 +343,7 @@ def maturation(timers: tuple[Delay | Until, ...], anchor: Instant | None) -> Ins
     return max(anchor + timer.duration if isinstance(timer, Delay) else timer.instant for timer in timers)
 
 
-def selection(arc: Arc, queue: tuple[Token, ...], filters: Mapping[FilterDeclaration, Filter]) -> tuple[Token, ...]:
+def selection(arc: Arc, queue: tuple[Token, ...], filters: FilterImplementations) -> tuple[Token, ...]:
     """
     The HEAD selection ``arc`` makes from its place's queue: FIFO-first-match,
     the first ``weight`` tokens the arc admits, scanning front-to-back — the
@@ -358,7 +359,12 @@ def selection(arc: Arc, queue: tuple[Token, ...], filters: Mapping[FilterDeclara
     return tuple(scanned[position] for position in positions)
 
 
-def admitted(arc: Arc, token: Token, filters: Mapping[FilterDeclaration, Filter]) -> bool:
+def admitted(
+    arc: Arc,
+    token: Token,
+    filters: FilterImplementations,
+    filter_identity: NetUri | None = None,
+) -> bool:
     """
     Whether ``arc`` admits ``token``: the inscription's color (nominal match,
     ``Arc.admits``) narrowed by its optional filter. A filter raising on a
@@ -372,16 +378,15 @@ def admitted(arc: Arc, token: Token, filters: Mapping[FilterDeclaration, Filter]
         return False
     if arc.filter is None:
         return True
-    implementation = filters[arc.filter]
+    identity = filter_identity if filter_identity is not None else arc.filter
+    implementation = filters[identity] if identity in filters else filters[arc.filter]
     try:
         return bool(implementation(token))
     except Exception as error:
-        # The expression is addressed by repr + endpoint pair until NetUri
-        # addressing lands (docs/project/debt/items/
-        # 2026-07-09T0000Z-evaluation-diagnostics-not-neturi-addressed.md).
+        # Keep the authored declaration visible beside its canonical occurrence
+        # identity; the latter disambiguates same-endpoint parallel arcs.
         warnings.warn(
-            f"filter {arc.filter!r} on arc {arc.source} -> {arc.target} raised {error!r} evaluating {token!r}; "
-            f"token not admitted",
+            f"filter {arc.filter!r} at {identity!r} raised {error!r} evaluating {token!r}; token not admitted",
             FilterEvaluationWarning,
             stacklevel=2,
         )

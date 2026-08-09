@@ -92,6 +92,24 @@ def test_net_project_compile_and_json_fixed_points() -> None:
     assert encoded.endswith(b"\n")
 
 
+def test_parallel_arcs_round_trip_without_wire_identity_and_rederive_the_same_uris() -> None:
+    p, t, out = map(NetPath, ("p", "t", "out"))
+    net = Net(
+        [Place(p), Place(out)],
+        [Transition(t)],
+        [Arc(p, t, filter="same"), Arc(p, t, ArcMode.READ, filter="same"), Arc(t, out)],
+    )
+
+    document = project_net_definition(net)
+    wire = serialize_net_definition(document)
+    compiled = compile_net_definition(parse_net_definition(wire))
+
+    assert compiled.arc_uris() == net.arc_uris()
+    assert compiled.filter_uris() == net.filter_uris()
+    assert serialize_net_definition(project_net_definition(compiled)) == wire
+    assert all("identity" not in arc for arc in document.definition.model_dump(mode="json")["arcs"])
+
+
 def test_exact_fixture_is_the_dsl_inspection_definition_in_loadable_v3_envelope() -> None:
     fixture = FIXTURE.read_bytes()
     document = parse_net_definition(fixture)

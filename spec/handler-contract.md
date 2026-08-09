@@ -80,6 +80,18 @@ ambiguous and fails before execution; anonymous declarations require exact URI
 binding [DR 2026-07-28
 transition-behavior-declarations-have-occurrence-identities].
 
+Every arc-filter occurrence likewise has a canonical declaration identity.
+The filter on a unique endpoint pair uses `arc:/source->/target#filter`; filters
+on repeated endpoint pairs use pair-local ordered identities
+`#filter:$0`, `#filter:$1`, and so on. A mapping may bind an exact filter
+declaration URI so equal local names have different implementations, while a
+bare named symbol deliberately shares one implementation. Supplying both for
+one declaration is ambiguous and fails before execution; inline CEL filters
+supply their own implementation and reject an exact override. Direct
+low-level enabledness calls retain bare declaration-key compatibility, but the
+Instance binding boundary resolves every occurrence to its exact URI [DR
+2026-08-09 canonical-arc-filter-occurrence-identities].
+
 The Python authored-net frontend may carry a `@direct` callable specification
 or normalize a callable in guard position as a typed predicate until canonical
 `Net` construction. It then writes an anonymous handler or guard marker into

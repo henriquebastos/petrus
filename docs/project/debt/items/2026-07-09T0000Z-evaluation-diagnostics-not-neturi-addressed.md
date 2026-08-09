@@ -1,6 +1,6 @@
 ---
 id: arc-filter-evaluation-diagnostics-not-neturi-addressed
-status: Carried
+status: Paid
 kind: design
 severity: low
 source: CV2 slice 5 (arc filters) review, gpt-5.5 spec-fidelity lens; Navigator adjudicated 2026-07-09
@@ -58,3 +58,11 @@ Related: DR 2026-07-08 guard-filter-evaluation-errors; ADR 0029;
 URIs are shipped and used in evaluation diagnostics. Arc-filter declaration
 identities are still absent, so this item remains `Carried` only for filters;
 its metadata and carrying reason now describe the current boundary.
+
+## Payment
+
+Paid on 2026-08-09. The flattened Net now derives canonical arc occurrence and
+filter declaration URIs in semantic arc order. `FilterEvaluationWarning`
+includes the exact declaration URI, and parallel same-endpoint coverage pins
+distinct `#filter:$0` and `#filter:$1` diagnostics while preserving
+error-means-not-admitted behavior.

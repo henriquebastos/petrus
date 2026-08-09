@@ -124,6 +124,31 @@ class NetUri:
         fragment = declaration if name is None else f"{declaration}:{quote(name, safe='-._~$')}"
         return cls(f"{owner}:/{encoded_path}#{fragment}")
 
+    @classmethod
+    def arc(cls, source: NetPath | str, target: NetPath | str, occurrence: int | None = None) -> NetUri:
+        """Address one directed arc, optionally by its generated pair-local occurrence."""
+        if occurrence is not None and (
+            isinstance(occurrence, bool) or not isinstance(occurrence, int) or occurrence < 0
+        ):
+            raise ValueError(f"arc occurrence must be a non-negative integer or None, got {occurrence!r}")
+
+        def encoded(path: NetPath | str) -> str:
+            return "/".join(quote(segment, safe="-._~") for segment in NetPath(path))
+
+        fragment = "" if occurrence is None else f"#${occurrence}"
+        return cls(f"arc:/{encoded(source)}->/{encoded(target)}{fragment}")
+
+    @classmethod
+    def arc_filter(cls, arc: NetUri) -> NetUri:
+        """Address the filter declaration anchored on an arc occurrence."""
+        if not isinstance(arc, NetUri) or not arc.value.startswith("arc:/"):
+            raise ValueError(f"arc filter owner must be an arc NetUri, got {arc!r}")
+        base, separator, occurrence = arc.value.partition("#")
+        if separator and re.fullmatch(r"\$[0-9]+", occurrence) is None:
+            raise ValueError(f"arc filter owner must use a generated occurrence fragment, got {arc!r}")
+        fragment = "filter" if not separator else f"filter:{occurrence}"
+        return cls(f"{base}#{fragment}")
+
     def __str__(self) -> str:
         return self.value
 
@@ -439,11 +464,40 @@ class Net:
         # retain their one arc-inscription contract and perform no place lookup.
         self.arcs = _resolve_place_colors(place_map, transition_map, arcs)
 
-        self._inputs: dict[NetPath, list[Arc]] = {}
-        self._outputs: dict[NetPath, list[Arc]] = {}
+        pair_counts: dict[tuple[NetPath, NetPath], int] = {}
         for arc in self.arcs:
+            pair = (arc.source, arc.target)
+            pair_counts[pair] = pair_counts.get(pair, 0) + 1
+        pair_positions: dict[tuple[NetPath, NetPath], int] = {}
+        arc_uris = []
+        filter_uris = []
+        filter_declarations: dict[NetUri, FilterDeclaration] = {}
+        for arc in self.arcs:
+            pair = (arc.source, arc.target)
+            position = pair_positions.get(pair, 0)
+            pair_positions[pair] = position + 1
+            uri = NetUri.arc(arc.source, arc.target, position if pair_counts[pair] > 1 else None)
+            arc_uris.append(uri)
+            filter_uri = NetUri.arc_filter(uri) if arc.filter is not None else None
+            filter_uris.append(filter_uri)
+            if filter_uri is not None:
+                if filter_uri in filter_declarations:  # pragma: no cover - generated occurrences make this impossible
+                    raise ValueError(f"arc filter URI collision: {filter_uri}")
+                assert arc.filter is not None
+                filter_declarations[filter_uri] = arc.filter
+        if len(set(arc_uris)) != len(arc_uris):  # pragma: no cover - generated occurrences make this impossible
+            raise ValueError("arc URI collision")
+        self._arc_uris = tuple(arc_uris)
+        self._filter_uris = tuple(filter_uris)
+        self.filter_declarations = MappingProxyType(filter_declarations)
+
+        self._inputs: dict[NetPath, list[Arc]] = {}
+        self._input_positions: dict[NetPath, list[int]] = {}
+        self._outputs: dict[NetPath, list[Arc]] = {}
+        for position, arc in enumerate(self.arcs):
             if arc.source in self.places and arc.target in self.transitions:
                 self._inputs.setdefault(arc.target, []).append(arc)
+                self._input_positions.setdefault(arc.target, []).append(position)
             elif arc.source in self.transitions and arc.target in self.places:
                 # Modes and filters are input inscriptions; ignored ones would
                 # silently mis-describe the deposit.
@@ -502,6 +556,22 @@ class Net:
     def outputs(self, transition: NetPath) -> tuple[Arc, ...]:
         """Output arcs leaving this transition."""
         return tuple(self._outputs.get(transition, ()))
+
+    def arc_uris(self) -> tuple[NetUri, ...]:
+        """Canonical arc occurrence identities, position-aligned with ``arcs``."""
+        return self._arc_uris
+
+    def arc_uri(self, position: int) -> NetUri:
+        """Canonical identity of the arc occurrence at a global arc position."""
+        return self._arc_uris[position]
+
+    def filter_uris(self) -> tuple[NetUri | None, ...]:
+        """Filter identities, position-aligned with ``arcs`` (``None`` when absent)."""
+        return self._filter_uris
+
+    def input_positions(self, transition: NetPath) -> tuple[int, ...]:
+        """Global arc positions of a transition's inputs, in input order."""
+        return tuple(self._input_positions.get(transition, ()))
 
     def handler_uri(self, transition: NetPath) -> NetUri | None:
         """The canonical identity of this transition's declared handler, if any."""

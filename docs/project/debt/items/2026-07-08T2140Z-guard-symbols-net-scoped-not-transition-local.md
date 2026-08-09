@@ -1,6 +1,6 @@
 ---
 id: guard-symbols-net-scoped-not-transition-local
-status: Carried
+status: Paid
 kind: design
 severity: low
 source: CV2 slice 3 (guards) review, gpt-5.5 spec-fidelity lens
@@ -83,3 +83,11 @@ canonical occurrence/declaration index or parallel-arc fragment identity.
 Composition alone therefore cannot pay the filter remainder without inventing
 a partial addressing scheme. The debt stays `Carried`; its trigger is narrowed
 to the missing canonical arc-filter identity or a demonstrated same-name need.
+
+## Filter payment
+
+Paid on 2026-08-09. Every filter occurrence now resolves through its exact
+arc-filter declaration URI. Exact URI mappings can bind equal local names
+independently; bare names deliberately share one implementation; exact plus
+bare overlap fails before execution; and inline CEL declarations reject exact
+overrides. Parallel-arc coverage proves distinct occurrence ownership.

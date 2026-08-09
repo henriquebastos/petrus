@@ -50,6 +50,24 @@ class TestCandidates:
         marking = Marking({NetPath("p"): (Token.black(),)})
         assert [b.transition for b in candidates(net, marking)] == [NetPath("t1"), NetPath("t2")]
 
+    def test_public_candidates_keeps_named_filter_mapping_compatibility(self):
+        pending, choose = NetPath("pending"), NetPath("choose")
+        accepted = Token("Value", {"accepted": True})
+        rejected = Token("Value", {"accepted": False})
+        net = Net(
+            places=[Place(pending)],
+            transitions=[Transition(choose)],
+            arcs=[Arc(pending, choose, filter="accepted")],
+        )
+
+        [binding] = candidates(
+            net,
+            Marking({pending: (rejected, accepted)}),
+            filters={"accepted": lambda token: token.data["accepted"]},
+        )
+
+        assert binding.consumed == ((pending, (accepted,)),)
+
     def test_binding_records_the_tokens_it_would_consume(self):
         net = _net()
         token = Token("X")

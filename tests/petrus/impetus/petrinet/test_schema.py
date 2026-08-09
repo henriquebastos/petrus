@@ -63,6 +63,16 @@ class TestNetUri:
         with pytest.raises(ValueError, match="owner"):
             NetUri.declaration("net", NetPath("start"), "guard", "ready")
 
+    def test_arc_and_filter_uris_escape_endpoint_segments_and_preserve_one_fragment(self):
+        arc = NetUri.arc(NetPath("review/a.start"), NetPath("run now"), 1)
+
+        assert str(arc) == "arc:/review%2Fa/start->/run%20now#$1"
+        assert str(NetUri.arc_filter(arc)) == "arc:/review%2Fa/start->/run%20now#filter:$1"
+
+    def test_arc_filter_refuses_a_declaration_uri_as_its_owner(self):
+        with pytest.raises(ValueError, match="generated occurrence"):
+            NetUri.arc_filter(NetUri("arc:/pending->/review#filter:$0"))
+
     @pytest.mark.parametrize("value", ["transition", "transition:/review start", "transition:/review%2fstart"])
     def test_noncanonical_uri_is_rejected(self, value):
         with pytest.raises(ValueError, match="NetUri"):
@@ -123,6 +133,39 @@ class TestNet:
         assert net.guard_declarations == dict(zip(guard_uris, ("ready", ANONYMOUS, inline, ANONYMOUS)))
         with pytest.raises(TypeError):
             net.guard_declarations[guard_uris[0]] = "other"
+
+    def test_arc_occurrences_and_filters_are_position_aligned_and_immutable(self):
+        p, t, out = map(NetPath, ("p", "t", "out"))
+        repeated = Arc(p, t, filter="accept")
+        output = Arc(t, out)
+        net = Net([Place(p), Place(out)], [Transition(t)], [repeated, output, repeated])
+
+        assert net.arcs == (repeated, output, repeated)
+        assert all(type(arc) is Arc for arc in net.arcs)
+        assert net.arc_uris() == (
+            NetUri("arc:/p->/t#$0"),
+            NetUri("arc:/t->/out"),
+            NetUri("arc:/p->/t#$1"),
+        )
+        assert net.filter_uris() == (
+            NetUri("arc:/p->/t#filter:$0"),
+            None,
+            NetUri("arc:/p->/t#filter:$1"),
+        )
+        assert net.inputs(t) == (repeated, repeated)
+        assert net.input_positions(t) == (0, 2)
+        assert net.filter_declarations == {
+            NetUri("arc:/p->/t#filter:$0"): "accept",
+            NetUri("arc:/p->/t#filter:$1"): "accept",
+        }
+        with pytest.raises(TypeError):
+            net.filter_declarations[NetUri("arc:/p->/t#filter:$0")] = "other"
+
+    def test_unique_arc_and_filter_use_unfragmented_occurrence_address(self):
+        net = _line_net()
+
+        assert net.arc_uri(0) == NetUri("arc:/a->/t")
+        assert net.filter_uris() == (None, None)
 
     @pytest.mark.parametrize("configuration", [{"handler": "$generated"}, {"guards": ("$0",)}])
     def test_generated_declaration_namespace_is_reserved(self, configuration):

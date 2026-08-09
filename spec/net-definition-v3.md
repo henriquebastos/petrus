@@ -54,11 +54,15 @@ The document contains one complete flattened Net:
 Named and CEL declarations are implementation-free. Anonymous handlers and
 guards retain their canonical owner/occurrence URI. Handler and guard URIs are
 derived assertions: they must exactly match the canonical runtime `Net`.
-Filters and completion conditions have no independent URI in current semantics.
+Arc-filter declarations have canonical runtime URIs derived from endpoints,
+endpoint-pair multiplicity, and dense semantic arc order; those URIs are not
+serialized fields. Completion conditions have no independent URI in v3.
 
 Typed-place colors are already compiled onto every incident arc. A document
 with an inherited `null` arc color is noncanonical and refused rather than
-normalized. Parallel arcs remain distinct through list order and position.
+normalized. Parallel arcs remain distinct through list order and position;
+compilation deterministically assigns their pair-local `#$N` arc identities
+and `#filter:$N` filter declaration identities without changing the document.
 
 ## Canonical laws
 

@@ -200,6 +200,16 @@ ID (`#claim-review`) or a deterministic generated fragment (`#$0`)
 changing an inscription does not necessarily change identity; stable public
 references should use explicit arc IDs [ADR 0029].
 
+The flattened Net currently derives generated identities only. For repeated
+endpoint pairs, `$N` is the zero-based pair-local occurrence in semantic arc
+order. A filter is a declaration anchored on its exact arc occurrence: a
+unique arc uses `arc:/review/pending->/review/start#filter`, while parallel
+occurrences use `#filter:$0`, `#filter:$1`, and so on. This declaration-kind-first
+fragment composes the one-fragment arc identity with the existing
+`#guard:name` convention. Explicit authored arc IDs remain reserved for a
+successor interchange version; v3 preserves only order and re-derives these
+identities [DR 2026-08-09 canonical-arc-filter-occurrence-identities].
+
 ## Completion condition
 
 A net MAY declare one **completion condition**: a pure boolean predicate over

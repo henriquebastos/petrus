@@ -331,11 +331,11 @@ Deprecated working term. Prefer **Net URI** for the broader address of any addre
 
 ### Net URI
 
-A fully qualified address for any addressable part of the composed net. `NetPath` is the subset of `NetUri` that addresses place and transition nodes. Impetus uses typed URI schemes as the working canonical syntax for graph citizens, such as `place:/review/pending`, `transition:/review/start`, and `arc:/review/pending->/review/start`. Broader net URIs may address declarations anchored on their owning graph citizen with fragment syntax, such as `transition:/review/start#handler` or `place:/review/pending#initial`. In the composed/flattened net, every declaration has a canonical `NetUri`, even if it was anonymous or minimally named at authoring time.
+A fully qualified address for any addressable part of the composed net. `NetPath` is the subset of `NetUri` that addresses place and transition nodes. Impetus uses typed URI schemes as the working canonical syntax for graph citizens, such as `place:/review/pending`, `transition:/review/start`, and `arc:/review/pending->/review/start`. Parallel same-endpoint arc occurrences receive deterministic pair-local fragments (`#$0`, `#$1`); their filter declarations use declaration-kind-first fragments (`#filter:$0`, `#filter:$1`), while a unique arc's filter uses `#filter`. Broader net URIs may address declarations anchored on their owning graph citizen with fragment syntax, such as `transition:/review/start#handler` or `place:/review/pending#initial`. In the composed/flattened net, every declaration has a canonical `NetUri`, even if it was anonymous or minimally named at authoring time.
 
 ### Declaration
 
-An addressable schema element attached to a net or node, but not itself a node. Examples include handler declarations, guard declarations, timer declarations, and initial marking declarations. Authoring APIs may allow anonymous declarations, but the composed/flattened net assigns every declaration a deterministic canonical `NetUri`.
+An addressable schema element attached to a net or graph citizen, but not itself a node. Examples include handler declarations, guard declarations, arc-filter declarations, timer declarations, and initial marking declarations. Authoring APIs may allow anonymous declarations, but the composed/flattened net assigns every declaration a deterministic canonical `NetUri`.
 
 ### Flattened net
 

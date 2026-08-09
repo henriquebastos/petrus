@@ -122,7 +122,7 @@ from petrus.impetus.history import (
 )
 from petrus.impetus.history_store import HistoryStore, InMemoryHistoryStore
 from petrus.impetus.petrinet import Marking, Token, TokenQueue
-from petrus.impetus.petrinet import ArcMode, FilterDeclaration, Instant, Net, NetPath, NetUri
+from petrus.impetus.petrinet import ArcMode, Instant, Net, NetPath, NetUri
 
 # A completion-condition implementation: a pure boolean over the marking.
 type Completion = Callable[[Marking], bool]
@@ -274,7 +274,7 @@ class Instance:
         scheduler: Scheduler = select_conservative,
         guards: Mapping[str | NetUri, Guard] | None = None,
         handlers: Mapping[str | NetUri, Handler | ActivityHandler] | None = None,
-        filters: Mapping[str, Filter] | None = None,
+        filters: Mapping[str | NetUri, Filter] | None = None,
         completions: Mapping[str, Completion] | None = None,
         at: Instant = 0,
         history: HistoryStore | None = None,
@@ -384,7 +384,7 @@ class Instance:
         self,
         guards: Mapping[str | NetUri, Guard] | None,
         handlers: Mapping[str | NetUri, Handler | ActivityHandler] | None,
-        filters: Mapping[str, Filter] | None,
+        filters: Mapping[str | NetUri, Filter] | None,
         completions: Mapping[str, Completion] | None,
     ) -> None:
         """The binding layer's one home, shared by both constructors: resolve every declared symbol and inline expression of ``self.net`` to its implementation, fail-fast."""
@@ -443,14 +443,23 @@ class Instance:
         # declaration: named symbols from the supplied mapping, inline Cel
         # expressions compiled here at construction (an invalid expression
         # never runs).
-        filters = filters or {}
-        declared_filters = {arc.filter for arc in net.arcs if arc.filter is not None}
-        missing = {f for f in declared_filters if isinstance(f, str)} - filters.keys()
-        if missing:
-            raise ValueError(f"filter symbol(s) with no implementation: {sorted(missing)}")
-        self._filters: Mapping[FilterDeclaration, Filter] = MappingProxyType(
-            {f: (filters[f] if isinstance(f, str) else compile_filter(f)) for f in declared_filters}
-        )
+        filter_inputs = dict(filters or {})
+        resolved_filters: dict[NetUri, Filter] = {}
+        missing_filters = []
+        for uri, declaration in net.filter_declarations.items():
+            if isinstance(declaration, Cel):
+                if uri in filter_inputs:
+                    raise ValueError(f"inline filter declaration {uri} already supplies its Cel implementation")
+                resolved_filters[uri] = compile_filter(declaration)
+                continue
+            implementation = _implementation_for(declaration, uri, filter_inputs, "filter")
+            if implementation is _MISSING_IMPLEMENTATION:
+                missing_filters.append(f"{declaration!r} ({uri})")
+            else:
+                resolved_filters[uri] = implementation
+        if missing_filters:
+            raise ValueError(f"filter declaration(s) with no implementation: {sorted(missing_filters)}")
+        self._filters: Mapping[NetUri, Filter] = MappingProxyType(resolved_filters)
         # The net's one optional #completion declaration resolves the same two
         # encodings: a named symbol from the supplied mapping, an inline Cel
         # compiled here — where an unresolvable place reference, like an
@@ -475,7 +484,7 @@ class Instance:
         scheduler: Scheduler = select_conservative,
         guards: Mapping[str | NetUri, Guard] | None = None,
         handlers: Mapping[str | NetUri, Handler | ActivityHandler] | None = None,
-        filters: Mapping[str, Filter] | None = None,
+        filters: Mapping[str | NetUri, Filter] | None = None,
         completions: Mapping[str, Completion] | None = None,
     ) -> Instance:
         """

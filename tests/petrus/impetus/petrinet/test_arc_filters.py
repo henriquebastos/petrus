@@ -34,7 +34,7 @@ from petrus.impetus.history import (
 )
 from petrus.impetus.petrinet import Marking, Token
 from petrus.impetus.instance import Instance
-from petrus.impetus.petrinet import Arc, ArcMode, Cel, Net, NetPath, Place, Transition
+from petrus.impetus.petrinet import Arc, ArcMode, Cel, Net, NetPath, NetUri, Place, Transition
 
 INVOICE = Token("Invoice", {"number": 7})
 BIG = Token("Payment", {"amount": 150, "currency": "USD"})
@@ -136,6 +136,44 @@ class TestNamedFilterSelection:
         # mapping before the instance can run -- never mid-selection.
         with pytest.raises(ValueError, match="is_big"):
             Instance(self.net(), Marking())
+
+    def test_exact_filter_uris_bind_same_named_declarations_independently(self):
+        p, t, out = self.PENDING, self.PAY, self.OUT
+        net = Net(
+            [Place(p), Place(out)],
+            [Transition(t)],
+            [Arc(p, t, filter="choice"), Arc(p, t, ArcMode.READ, filter="choice"), Arc(t, out)],
+        )
+        first, second = tuple(net.filter_declarations)
+        instance = Instance(
+            net,
+            Marking({p: (SMALL, BIG)}),
+            filters={first: lambda token: token is BIG, second: lambda token: token is SMALL},
+        )
+
+        [binding] = instance.candidates()
+        assert binding.consumed == ((p, (BIG,)),)
+        assert binding.read == ((p, (SMALL,)),)
+
+    def test_bare_symbol_deliberately_shares_one_filter_implementation(self):
+        p, t, out = self.PENDING, self.PAY, self.OUT
+        net = Net(
+            [Place(p), Place(out)],
+            [Transition(t)],
+            [Arc(p, t, filter="choice"), Arc(p, t, ArcMode.READ, filter="choice"), Arc(t, out)],
+        )
+
+        def shared(token):
+            return token is BIG
+
+        [binding] = Instance(net, Marking({p: (SMALL, BIG)}), filters={"choice": shared}).candidates()
+        assert binding.consumed == binding.read == ((p, (BIG,)),)
+
+    def test_exact_and_bare_filter_binding_is_ambiguous(self):
+        net = self.net()
+        [uri] = net.filter_declarations
+        with pytest.raises(ValueError, match=r"both an exact implementation and local symbol 'is_big'"):
+            Instance(net, Marking(), filters={"is_big": is_big, uri: is_big})
 
 
 class TestReadAndInhibitFilters:
@@ -243,6 +281,13 @@ class TestCelFilterSelection:
         with pytest.raises(ValueError, match="CEL"):
             self.instance("amount >=", (BIG,))
 
+    def test_exact_override_of_inline_cel_filter_is_refused(self):
+        p, t, out = self.PENDING, self.PAY, self.OUT
+        net = Net([Place(p), Place(out)], [Transition(t)], [Arc(p, t, filter=Cel("true")), Arc(t, out)])
+        [uri] = net.filter_declarations
+        with pytest.raises(ValueError, match=r"inline filter declaration .* already supplies"):
+            Instance(net, Marking(), filters={uri: lambda token: True})
+
     def test_empty_cel_expression_is_rejected(self):
         with pytest.raises(ValueError, match="non-empty"):
             Cel("")
@@ -284,6 +329,29 @@ class TestFilterEvaluationErrors:
         with pytest.warns(FilterEvaluationWarning):
             [binding] = instance.candidates()
         assert binding.consumed == ((self.PENDING, (BIG,)),)
+
+    def test_parallel_filter_warning_names_the_exact_occurrence_and_scan_continues(self):
+        p, t, out = self.PENDING, self.PAY, self.OUT
+        net = Net(
+            [Place(p), Place(out)],
+            [Transition(t)],
+            [Arc(p, t, filter="first"), Arc(p, t, ArcMode.READ, filter="second"), Arc(t, out)],
+        )
+        first, second = tuple(net.filter_declarations)
+        assert first == NetUri("arc:/pending->/pay#filter:$0")
+        assert second == NetUri("arc:/pending->/pay#filter:$1")
+
+        def raising(token):
+            return token.data["amount"] > 0
+
+        instance = Instance(net, Marking({p: (Token.black(), BIG)}), filters={first: raising, second: raising})
+
+        with pytest.warns(FilterEvaluationWarning) as warnings:
+            [binding] = instance.candidates()
+        assert {"#filter:$0", "#filter:$1"} <= {
+            marker for warning in warnings for marker in ("#filter:$0", "#filter:$1") if marker in str(warning.message)
+        }
+        assert binding.consumed == binding.read == ((p, (BIG,)),)
 
     def test_inhibit_filter_error_means_no_match_and_does_not_block(self):
         # Navigator ruling: error-means-false uniformly across modes. On an
