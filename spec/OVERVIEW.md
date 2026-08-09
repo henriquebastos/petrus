@@ -115,16 +115,16 @@ runnable opinionated runtime built from them. It is **Python-first** with a
 reference binding and a future TypeScript binding validates against the same
 traces.
 
-## Decided vs deferred, and where to go next
+## Current implementation and remaining work
 
-Every core-semantics question is ratified; the spec carries **zero open
-questions**. Three implementation details are intentionally deferred to kernel
-time (record payload schemas, per-language handler contract shape, source maps
-— see `docs/project/decisions/records/2026-07-08T1727Z-kernel-deferred-spec-details`;
-the former activity-vs-worker-delivery deferral was decided 2026-07-14 by the
-activity-invocation decision: attempts are operational, canonical history
-carries the frozen request and terminal result).
+The core semantics are ratified and the Python reference kernel is delivered.
+The normative Impetus-native traces under `spec/traces/` exercise the canonical
+Net-definition and History contracts without an external oracle. The current
+runtime surface, operating profiles, and blocked boundaries are summarized in
+the [project briefing](../docs/project/briefing.md) and
+[roadmap](../docs/project/roadmap/index.md); retained structural costs and their
+revisit triggers live in the [Technical Debt Ledger](../docs/project/debt/).
 
-Next is **CV2, the Python reference kernel** — read
-`docs/project/roadmap/cv2-reference-kernel/`, then the four normative spec docs
-and `CONTEXT.md`.
+This overview is a map of the settled semantic model, not a current-work queue.
+Future work should begin from those project indexes and then return to the four
+normative specification documents for the contract being changed.

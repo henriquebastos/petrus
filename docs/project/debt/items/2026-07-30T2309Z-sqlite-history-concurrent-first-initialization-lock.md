@@ -1,6 +1,6 @@
 ---
 id:
-status: Carried
+status: Paid
 kind: test
 severity: medium
 source: CV9
@@ -56,3 +56,12 @@ exact test and repeated complete gates must pass.
 CV9 evidence: the serial full run reported one `database is locked` failure
 while all focused CV9 tests passed; the exact SQLite test passed immediately in
 isolation. No SQLite History source was changed by CV9.
+
+**Paid 2026-08-09:** synchronized reproduction located the contention at
+`PRAGMA journal_mode = WAL`, before schema `BEGIN IMMEDIATE`, DDL, load, or
+append ownership. `SqliteHistoryStore` now retries only a `locked`
+`OperationalError` from that WAL-bootstrap pragma under a five-second monotonic
+deadline; other operational errors and lock failures elsewhere retain their
+original fate. The synchronized test passed 25 repeated invocations, the
+14-test SQLite History surface passed, and the integrated full and release
+gates passed.

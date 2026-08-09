@@ -4,7 +4,7 @@ status: Carried
 kind: design
 severity: low
 source: CV2 slice 3 (guards) review, gpt-5.5 spec-fidelity lens
-revisit_trigger: Composition/subnets or canonical arc-filter declaration identities land, or a net needs same-name filter declarations with different implementations.
+revisit_trigger: Canonical arc-filter declaration identities land, or a net needs same-name filter declarations with different implementations.
 closure_condition: Filter implementation mappings key by resolved arc-filter declaration identity, with validation and tests covering same-name-different-implementation. Handler and guard scope is paid.
 ---
 
@@ -76,3 +76,10 @@ See `src/petrus/impetus/instance/__init__.py` (current validation) and
 indexes, exact `NetUri` implementation bindings, ambiguity validation, and
 same-name/different-implementation tests landed with the production Python DSL.
 The item remains `Carried` only for its filter-scope remainder.
+
+**Revisited 2026-08-09:** reusable authored definitions and canonical
+transition behavior identities have shipped, but flattened arcs still have no
+canonical occurrence/declaration index or parallel-arc fragment identity.
+Composition alone therefore cannot pay the filter remainder without inventing
+a partial addressing scheme. The debt stays `Carried`; its trigger is narrowed
+to the missing canonical arc-filter identity or a demonstrated same-name need.

@@ -1,6 +1,6 @@
 ---
 id:
-status: Carried
+status: Paid
 kind: test
 severity: medium
 source: CV9
@@ -56,3 +56,11 @@ and repeated complete gates must pass.
 CV9 evidence: two complete runs failed at the first `client.claim()` with
 `ZeroMQ Dispatch request 'claim' was not acknowledged`; the exact test passed
 immediately after each observed failure. Every focused CV9 test passed.
+
+**Paid 2026-08-09:** the test now establishes readiness with an acknowledged
+empty-custody claim before dispatching work and creating the deliberately short
+timeout client. The later delayed heartbeat/failure replies and their custody
+assertions are unchanged, so the test still exercises the intended uncertainty
+window rather than startup. Twenty repeated exact runs, the 27-test ZeroMQ
+transport file, and the integrated full and release gates passed. Production
+behavior did not change.

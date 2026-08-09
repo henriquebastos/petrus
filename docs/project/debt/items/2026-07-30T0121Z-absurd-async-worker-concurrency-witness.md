@@ -1,6 +1,6 @@
 ---
 id:
-status: Carried
+status: Paid
 kind: test
 severity: medium
 revisit_trigger: next AsyncWorker or Absurd custody change, or before relying on a green complete repository gate
@@ -89,3 +89,11 @@ unrelated ZeroMQ readiness failure. Every CV9-focused test passed. The current
 `origin/main` verification-strengthening milestone independently records the
 same Absurd witness followed by a green complete run, reinforcing that this
 carried item—not CV9 behavior—owns the unstable gate signal.
+
+**Paid 2026-08-09:** the witness now holds all admitted Activities behind one
+release event until payloads `{1, 2, 3}` have entered their Activity bodies.
+This deterministically proves three-way admission before any lane can
+terminalize or recycle. Ten repeated exact runs and the 108-test related
+AsyncWorker/Absurd surface passed; no runtime defect was found. The integrated
+`scripts/check full` and both `scripts/check release` test runs passed with
+2,011 tests each.
