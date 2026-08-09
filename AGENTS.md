@@ -1,5 +1,9 @@
 # Project Agent Instructions
 
+<!-- ariad-entrypoint: docs/ariad/index.md -->
+@docs/ariad/index.md
+If the @path directive is not expanded by this runtime, read `docs/ariad/index.md` directly before meaningful work.
+
 This is **Petrus**, an agentic Petri net runtime (see `docs/project/briefing.md`). This project uses **Ariad**.
 
 Ariad is the canonical method. This repository contains a local Ariad instance, not the canonical Ariad documentation. All project paths below are local to this repository.

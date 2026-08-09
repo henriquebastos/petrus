@@ -8,3 +8,7 @@ The vendored Absurd schema identified in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) remains under its upstream
 Apache-2.0 license and copyright. Package-manager-resolved dependencies retain
 their own licenses and are not relicensed by Petrus.
+
+The vendored Ariad `using-ariad` skill package identified in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) remains under its upstream MIT
+License, reproduced in `.agents/skills/using-ariad/LICENSE.txt`.

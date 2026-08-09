@@ -1,0 +1,265 @@
+{
+  "files": [
+    {
+      "destination": "LICENSE.txt",
+      "sha256": "8497fd0e32b6864d7237ee46210462e82a88a1bf67a7501554ff17f4dc5c0a4c",
+      "source": "LICENSE"
+    },
+    {
+      "destination": "references/delivery/cadences.md",
+      "sha256": "4f6258fc831fcb89399234f0008fe508ce441c1e6e57419d6f231206746d8f7a",
+      "source": "docs/delivery/cadences.md"
+    },
+    {
+      "destination": "references/delivery/checkpoints.md",
+      "sha256": "a2742771ac744b0cb260dd0a93302d8f14eea8d78f1ae4312387e991092f516d",
+      "source": "docs/delivery/checkpoints.md"
+    },
+    {
+      "destination": "references/delivery/conceptual-model.md",
+      "sha256": "ad9b40d33ce0c32a1de6753e7d8b27c64efa9ba85cdce3aaf0cc9132f245baf6",
+      "source": "docs/delivery/conceptual-model.md"
+    },
+    {
+      "destination": "references/delivery/flow.md",
+      "sha256": "c0d1d3dd488107bfe7bc4f7a72dc58b9521edd649be929d75cd168d698966bc3",
+      "source": "docs/delivery/flow.md"
+    },
+    {
+      "destination": "references/delivery/index.md",
+      "sha256": "aabcc6c41b53d2c71321d87d4ae8646fd5b696207f2ac39a9048be03ffe96260",
+      "source": "docs/delivery/index.md"
+    },
+    {
+      "destination": "references/delivery/release-management.md",
+      "sha256": "72c489d41d56187855cf2f6f4fee9dc30de078c7283efff55d35c69159895ce3",
+      "source": "docs/delivery/release-management.md"
+    },
+    {
+      "destination": "references/delivery/roadmap-taxonomy.md",
+      "sha256": "13fabf389fbbb81adc4daebd90cd9643f97f8c6c0dc594ddfacf9c24fa655312",
+      "source": "docs/delivery/roadmap-taxonomy.md"
+    },
+    {
+      "destination": "references/delivery/story-lifecycle.md",
+      "sha256": "18c49f66a13b8771f5d99d17f56708f6d095d18e2350b012886e79e21377c5f3",
+      "source": "docs/delivery/story-lifecycle.md"
+    },
+    {
+      "destination": "references/delivery/visual-grammar.md",
+      "sha256": "be5e40110309e340e617080a7885b144e8c6194c46adc68e8b99c5a970537660",
+      "source": "docs/delivery/visual-grammar.md"
+    },
+    {
+      "destination": "references/exploration/conceptual-model.md",
+      "sha256": "d3007039981079d4994862d274f32f357c60c2fa42cfd9074a9f2482fd83c5bd",
+      "source": "docs/exploration/conceptual-model.md"
+    },
+    {
+      "destination": "references/exploration/flow.md",
+      "sha256": "f9115da8011915e6af5d0af80ea3ca4eb2674e12bad0a267b7f040b2aa41c9f2",
+      "source": "docs/exploration/flow.md"
+    },
+    {
+      "destination": "references/exploration/index.md",
+      "sha256": "8bf0105d45ea59279b775a6fcf218dfe86ac0f73ae1f4600d8719bc4cdba883f",
+      "source": "docs/exploration/index.md"
+    },
+    {
+      "destination": "references/exploration/visual-grammar.md",
+      "sha256": "3f95089cdfb15b9943403f182967d8e033c5a8fa96a50819c91e85db4f2f8c03",
+      "source": "docs/exploration/visual-grammar.md"
+    },
+    {
+      "destination": "references/method/contracts-and-preferences.md",
+      "sha256": "dc2f05c7afb69fd987d7db079313380e255c39bb772a3c0470cf5d487f4d5fc0",
+      "source": "docs/method/contracts-and-preferences.md"
+    },
+    {
+      "destination": "references/method/driver-navigator.md",
+      "sha256": "76fb36087ca814efce131ef2bb4a62f3a0d6bdf80028d799383c963f32e98cc0",
+      "source": "docs/method/driver-navigator.md"
+    },
+    {
+      "destination": "references/method/expand-collapse.md",
+      "sha256": "1d33fe849c10fefe93c4a70d6b2cafb52a067815ab09796ec7c8a7f8789d0a8b",
+      "source": "docs/method/expand-collapse.md"
+    },
+    {
+      "destination": "references/method/explicit-policies.md",
+      "sha256": "8118e38021850d5ccb5c24f7f8f4483105820f0a0c33d91559ea72dcc3fe6e5d",
+      "source": "docs/method/explicit-policies.md"
+    },
+    {
+      "destination": "references/method/index.md",
+      "sha256": "f9c7b1f978c54b349a42e95204da38d4964f186812a2c3f2f11bb5e195ecabf0",
+      "source": "docs/method/index.md"
+    },
+    {
+      "destination": "references/method/methodological-roots.md",
+      "sha256": "55efa8c3cadea2d55d070ac7d214b118eab50b1095fc789295bacffd844fcf48",
+      "source": "docs/method/methodological-roots.md"
+    },
+    {
+      "destination": "references/method/overview.md",
+      "sha256": "6380feaec4d4ce0308492f17cebeff7b31afeb8a44b0a324895ff652fe2f8f4d",
+      "source": "docs/method/overview.md"
+    },
+    {
+      "destination": "references/method/triad.md",
+      "sha256": "5e9a9f0322f816d58af6e7dd4c704c915446b0a0091a10354e19ca5ed84af4db",
+      "source": "docs/method/triad.md"
+    },
+    {
+      "destination": "references/method/work-areas.md",
+      "sha256": "75555027c53570de20ddceac0ab1b205cfb7aa150a01d51c2c9a3f752c952041",
+      "source": "docs/method/work-areas.md"
+    },
+    {
+      "destination": "assets/project-templates/AGENTS.md",
+      "sha256": "86df7dc29532c82e7fa0506a5b13032658774c4ccf50e199d4db4b74b9013385",
+      "source": "docs/project-templates/AGENTS.md"
+    },
+    {
+      "destination": "assets/project-templates/docs/ariad/index.md",
+      "sha256": "e6792e14e4f5d959891b482ec0573f61773d47b42a186aa04969945f463b681d",
+      "source": "docs/project-templates/docs/ariad/index.md"
+    },
+    {
+      "destination": "assets/project-templates/docs/process/development-guide/commands-and-verification.md",
+      "sha256": "5f7f659bbb2df2b67c3b5ef57968977b538af05cc24ac4fc40c31141c14f9e56",
+      "source": "docs/project-templates/docs/process/development-guide/commands-and-verification.md"
+    },
+    {
+      "destination": "assets/project-templates/docs/process/development-guide/documentation-and-memory.md",
+      "sha256": "ef8b36b3947efceef5aa9cea351c8bfa00248af19a7849e5c96290c658825530",
+      "source": "docs/project-templates/docs/process/development-guide/documentation-and-memory.md"
+    },
+    {
+      "destination": "assets/project-templates/docs/process/development-guide/index.md",
+      "sha256": "e5ac688e209eec48fc3819b71732aa0d7b506321131be0374c71644e5c3b0b31",
+      "source": "docs/project-templates/docs/process/development-guide/index.md"
+    },
+    {
+      "destination": "assets/project-templates/docs/process/development-guide/local-exceptions.md",
+      "sha256": "12954657aa74dde9e73a6c1288ae71497a7601ea2aaa90ea0c8f1d63e7d63a56",
+      "source": "docs/project-templates/docs/process/development-guide/local-exceptions.md"
+    },
+    {
+      "destination": "assets/project-templates/docs/process/development-guide/navigator-preferences.md",
+      "sha256": "fbabfc5cbb9d38d8376019c9de38e6ff2b0d0c94109e26934200d50945dcb1f0",
+      "source": "docs/project-templates/docs/process/development-guide/navigator-preferences.md"
+    },
+    {
+      "destination": "assets/project-templates/docs/process/development-guide/release-and-history.md",
+      "sha256": "2cba55d248155f0d6c92583d26835e8b191e630e6a6e6d53b786aa6e01895c8c",
+      "source": "docs/project-templates/docs/process/development-guide/release-and-history.md"
+    },
+    {
+      "destination": "assets/project-templates/docs/process/development-guide/workflow-and-checkpoints.md",
+      "sha256": "29c369bc6a80027e957328eb3dcaa6bcddbef235242c388186954b6ac08905a7",
+      "source": "docs/project-templates/docs/process/development-guide/workflow-and-checkpoints.md"
+    },
+    {
+      "destination": "assets/project-templates/docs/process/worklog/entries/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "docs/project-templates/docs/process/worklog/entries/.gitkeep"
+    },
+    {
+      "destination": "assets/project-templates/docs/process/worklog/index.md",
+      "sha256": "463744eb6cd919818a173a0a69726330474d2db16c1d87067ddbd2b5a2484731",
+      "source": "docs/project-templates/docs/process/worklog/index.md"
+    },
+    {
+      "destination": "assets/project-templates/docs/product/principles/current-principles.md",
+      "sha256": "d8edef712dc3a8718d627fbfe9f8b40bd5a93335f20522596600a63d3680252a",
+      "source": "docs/project-templates/docs/product/principles/current-principles.md"
+    },
+    {
+      "destination": "assets/project-templates/docs/product/principles/index.md",
+      "sha256": "4dfe0923c006ae8c3b6fe1d21b7ea366dab5793e783ba1bf1eb04c6781f3a87a",
+      "source": "docs/project-templates/docs/product/principles/index.md"
+    },
+    {
+      "destination": "assets/project-templates/docs/project/briefing/constraints-and-environment.md",
+      "sha256": "9e64ff8911a173b52e29b91a7542999a28d6afef9316c09f55ea1944d32ef200",
+      "source": "docs/project-templates/docs/project/briefing/constraints-and-environment.md"
+    },
+    {
+      "destination": "assets/project-templates/docs/project/briefing/current-state.md",
+      "sha256": "ff56e856cff22f80ca8d4686dfca1b96384452f491a94c230e1a31667539ef95",
+      "source": "docs/project-templates/docs/project/briefing/current-state.md"
+    },
+    {
+      "destination": "assets/project-templates/docs/project/briefing/identity-and-purpose.md",
+      "sha256": "c9bed98331326244cbbeeee7085aaa0448ead009397ccc09b0123c553557c9b8",
+      "source": "docs/project-templates/docs/project/briefing/identity-and-purpose.md"
+    },
+    {
+      "destination": "assets/project-templates/docs/project/briefing/index.md",
+      "sha256": "f32c8121212c86c9b9cc496d3c9b14f7700f7749e8535a77bb23c51edb90d314",
+      "source": "docs/project-templates/docs/project/briefing/index.md"
+    },
+    {
+      "destination": "assets/project-templates/docs/project/debt/index.md",
+      "sha256": "506c308a3bf1b3514a2f303738ad774b245a2b88c0d58e361d69ea5e8801f2b2",
+      "source": "docs/project-templates/docs/project/debt/index.md"
+    },
+    {
+      "destination": "assets/project-templates/docs/project/debt/items/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "docs/project-templates/docs/project/debt/items/.gitkeep"
+    },
+    {
+      "destination": "assets/project-templates/docs/project/decisions/index.md",
+      "sha256": "6f45c7e7dff8d351a4d2ba3ae99ea46334948e9bb8407bac44f3e75519a4897c",
+      "source": "docs/project-templates/docs/project/decisions/index.md"
+    },
+    {
+      "destination": "assets/project-templates/docs/project/decisions/records/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "docs/project-templates/docs/project/decisions/records/.gitkeep"
+    },
+    {
+      "destination": "assets/project-templates/docs/project/exploration/index.md",
+      "sha256": "ae11d17de536c7c821c7a71dd4b52b1aa36ded0067f23d3849aaef7d0ac7052e",
+      "source": "docs/project-templates/docs/project/exploration/index.md"
+    },
+    {
+      "destination": "assets/project-templates/docs/project/roadmap/index.md",
+      "sha256": "1fbd799cd40b9f3f43eca9160da3222f5aa8247ab05acf532a61ad2e4baad326",
+      "source": "docs/project-templates/docs/project/roadmap/index.md"
+    },
+    {
+      "destination": "references/refinement/conceptual-model.md",
+      "sha256": "501cdacdddf9aa537b81df5b36d73eda067bda72c463847d35436e94eed04901",
+      "source": "docs/refinement/conceptual-model.md"
+    },
+    {
+      "destination": "references/refinement/flow.md",
+      "sha256": "38390399fc33a7c83162d10c50bc3f139a4da40d07c0246c93107d996d5c0557",
+      "source": "docs/refinement/flow.md"
+    },
+    {
+      "destination": "references/refinement/index.md",
+      "sha256": "83737542e24f2a8293fc82230836338e6474b32877d7a4fb4496facd7b92b24e",
+      "source": "docs/refinement/index.md"
+    },
+    {
+      "destination": "SKILL.md",
+      "sha256": "0d38d8614b17b10d14eeb009770d34cd46df5935afc402a0c4ec5d0317f78edf",
+      "source": "authored:SKILL.md"
+    },
+    {
+      "destination": "scripts/adopt.py",
+      "sha256": "aa39de71e8d83338812dd4d080965e48bddae19b2e9bbc927bf232716a5c02a6",
+      "source": "authored:scripts/adopt.py"
+    }
+  ],
+  "format_version": "1",
+  "method_digest": "8cd1daf45b9f4590159b64130e89ef8db36029d8549a524f10bf151393bffe45",
+  "package": "using-ariad",
+  "package_digest": "5f0afc0f62c1be054a0eaf8e647009e52e6afe9e38be12fc4156c946e522e76b",
+  "package_version": "0.1.0",
+  "source_path": "skills/using-ariad"
+}
