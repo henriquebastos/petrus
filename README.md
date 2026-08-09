@@ -49,7 +49,7 @@ descriptors:
 | Surface | Current status | Evidence boundary |
 | --- | --- | --- |
 | **Pi A2 Local host lifecycle — scripted runtime conformance** | **Supported** | Public Python composition, credential-free scripted runtime client, `LocalProcessEnvironment`, scoped Hands, workspace archive, cleanup-gated bodies, terminal replay, and real process-restart classification. |
-| Codex A3 Gondolin Episode territory lifecycle — hermetic conformance | Experimental, qualification-only | Fake Gondolin SDK and Codex protocol witness one exact Episode-owned lease across failed/replacement/resumed runtime operations, provider lookup, archive export, and verified destruction. No live provider, model, or credential support is claimed. |
+| Codex A3 Gondolin Episode territory lifecycle — hermetic conformance | Experimental, qualification-only | Fake Gondolin SDK and Codex protocol witness one exact Episode-owned lease across failed/replacement/resumed runtime operations, private host-local Inline Activity pre-admission retry, provider lookup, archive export, and verified destruction. No multi-process Worker, live provider, model, or credential support is claimed. |
 | `pi.native.a2.local` with the exact external Pi installation and a live model/provider | Experimental, qualification-only | Opt-in installation/provider tests only; excluded from routine and release checks. No authenticated Pi, model, or provider support is claimed. |
 | Other Agenticus binding-target descriptors | Experimental, qualification-only | Descriptor and adapter contracts exist, but catalog presence is not a product support claim. |
 | Profile-table cells marked `unqualified` | Unavailable as supported profiles | No qualifying support evidence. |

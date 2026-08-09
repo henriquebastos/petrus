@@ -15,13 +15,13 @@ ZeroMQ transport; Python DSL authoring and Graphviz rendering; read-only
 observation and capture protocols; bounded simulation; and portable canonical
 Net definitions.
 
-There is no current working session. CV10.DS1 qualified one
+There is no current working session. CV10.DS1–DS2 qualified one
 Episode/operation-owned Gondolin territory lifecycle through hermetic Codex A3
-runtime-protocol evidence; it did not claim live Gondolin, authenticated
-model/provider, formal Motus Activity retry integration, or retained-territory
-support. CV16 remains complete at one deliberately narrow support boundary:
-scripted Pi A2 Local host lifecycle, not authenticated Pi/model/provider
-execution.
+runtime-protocol evidence plus private host-local Inline Activity custody. They
+did not claim live Gondolin, authenticated model/provider, multi-process Worker
+reconstruction, or retained-territory support. CV16 remains complete at one
+deliberately narrow support boundary: scripted Pi A2 Local host lifecycle, not
+authenticated Pi/model/provider execution.
 
 ## Architecture premises
 

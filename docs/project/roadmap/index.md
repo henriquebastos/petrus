@@ -1,9 +1,9 @@
 # Roadmap
 
 Roadmap items carry their own status and preserve durable technical direction.
-There is currently no active working session. CV10.DS1 completed one
-Episode-owned hermetic Gondolin territory lifecycle without claiming live
-provider support.
+There is currently no active working session. CV10.DS1–DS2 completed one
+Episode-owned hermetic Gondolin lifecycle and host-local Activity custody
+without claiming live provider or multi-process Worker support.
 
 ## Retained Values
 
@@ -11,9 +11,10 @@ provider support.
   Ariad/runtime integration, Fabric, and first-version runtime convergence.
 - CV8: production local Activity execution, optional ZeroMQ transport, async
   Activities, and async-native Worker custody.
-- CV10: composable execution. CV10.DS1 qualified one hermetic, Episode-owned
-  Gondolin lifecycle boundary; live-provider and retention work remains blocked
-  or unbounded.
+- CV10: composable execution. CV10.DS1–DS2 qualified one hermetic,
+  Episode-owned Gondolin lifecycle and host-local Activity custody;
+  live-provider, remote Worker, and retention work remains blocked or
+  unbounded.
 - CV11–CV15: semantic observation, durable captures, long-History navigation,
   canonical Net inspection, and bounded simulation.
 - CV16: Agenticus infrastructure and one supported scripted Pi A2 Local host

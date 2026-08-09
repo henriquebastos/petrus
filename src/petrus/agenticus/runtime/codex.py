@@ -21,7 +21,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from hashlib import sha256
 from pathlib import Path
-from typing import Protocol, runtime_checkable
+from typing import Protocol, cast, runtime_checkable
 from uuid import UUID
 
 from petrus.agenticus.attachment.binding import MotusAttachmentBinding
@@ -58,6 +58,7 @@ from petrus.agenticus.runtime.result import RuntimeTurnSettlement
 from petrus.agenticus.thread.continuation import Continuation, ContinuationDescriptor, ContinuationState
 from petrus.agenticus.thread.identity import EpisodeId, TurnId
 from petrus.agenticus.thread.lifecycle import CancellationDisposition, TurnOutcome
+from petrus.motus.activity import ActivityExecutionContext, ActivityInvocation, JsonPayloadConverter
 from petrus.motus.execution import (
     MAX_COMMAND_OUTPUT_BYTES,
     MAX_PRIVATE_FILE_BYTES,
@@ -83,6 +84,7 @@ CODEX_GONDOLIN_OCI_DIGEST = "sha256:9c7e769eb44f37b1e802c55dc43ee222e7b6c907fad3
 CODEX_GONDOLIN_SOURCE = (
     f"gondolin:{CODEX_GONDOLIN_IMAGE_REF}#build={CODEX_GONDOLIN_BUILD_ID}#oci={CODEX_GONDOLIN_OCI_DIGEST}"
 )
+_CODEX_GONDOLIN_ACTIVITY = "petrus.agenticus.codex.gondolin"
 
 _PROGRAM_ID = DescriptorIdentity(DescriptorKind.PROGRAM, "codex.provider-managed", 1)
 _CONTINUATION_ID = DescriptorIdentity(DescriptorKind.CONTINUATION, "codex.native-rollout", 1)
@@ -1350,6 +1352,123 @@ class CodexGondolinRuntimeAdapter(CodexRuntimeAdapter):
             if (binding.lease_identity, binding.execution.attachment_id) not in self._qualified_attachments:
                 raise RuntimeProtocolError("territory-not-qualified")
         return super().start(invocation)
+
+
+class _CodexGondolinActivityAdapter:
+    """Host-local Motus Activity custody for one exact Episode-bound Codex lane.
+
+    Only versioned data crosses the Activity boundary. The connection,
+    Attachment, provider, and qualified runtime remain host-owned collaborators;
+    this adapter deliberately does not support reconstruction in another Worker
+    process.
+    """
+
+    def __init__(
+        self,
+        adapter: CodexGondolinRuntimeAdapter,
+        connection: ConnectionView,
+        attachment: EpisodeAttachment,
+    ) -> None:
+        if not isinstance(adapter, CodexGondolinRuntimeAdapter):
+            raise TypeError("Codex Gondolin Activity requires its exact runtime adapter")
+        if not isinstance(connection, ConnectionView) or connection.status is not ConnectionStatus.READY:
+            raise ValueError("Codex Gondolin Activity requires one ready connection view")
+        if not isinstance(attachment, EpisodeAttachment):
+            raise TypeError("Codex Gondolin Activity requires one exact Episode Attachment")
+        self._adapter = adapter
+        self._connection = connection
+        self._attachment = attachment
+
+    def __call__(
+        self,
+        invocation: ActivityInvocation,
+        *,
+        context: ActivityExecutionContext,
+    ) -> object:
+        if type(invocation.activity) is not str or invocation.activity != _CODEX_GONDOLIN_ACTIVITY:
+            raise RuntimeProtocolError("activity-mismatch")
+        if type(invocation.idempotency) is not str:
+            raise RuntimeProtocolError("idempotency-required")
+        try:
+            runtime_invocation = self._runtime_invocation(invocation)
+        except Exception:
+            raise RuntimeProtocolError("input-invalid") from None
+        try:
+            context.heartbeat(details={"phase": "runtime"})
+        except Exception:
+            raise RuntimeProtocolError("activity-stale") from None
+
+        try:
+            operation = self._adapter.start(runtime_invocation)
+        except RuntimeProtocolError:
+            raise
+        except Exception:
+            raise RuntimeProtocolError("runtime-admission-failed") from None
+        result = operation.wait()
+        cleanup = operation.close()
+        return {
+            "version": 1,
+            "operation_id": operation.operation_id,
+            "episode_id": result.episode_id.to_data(),
+            "turn_id": result.turn_id.to_data(),
+            "outcome": result.outcome.value,
+            "accepted_appends": result.accepted_appends,
+            "termination_code": result.termination_code,
+            "output_reference": result.output_reference,
+            "continuation_reference": result.continuation_reference,
+            "cleanup": {
+                "disposition": cleanup.disposition.value,
+                "code": cleanup.code,
+            },
+        }
+
+    def _runtime_invocation(self, invocation: ActivityInvocation) -> CodexRuntimeInvocation:
+        value = JsonPayloadConverter().decode(invocation.input, object)
+        fields = {
+            "version",
+            "episode_id",
+            "turn_id",
+            "prompt",
+            "attachment_id",
+            "attachment_epoch",
+            "connection_id",
+            "authority_epoch",
+            "state_version",
+            "continuation",
+        }
+        if not isinstance(value, dict) or set(value) != fields:
+            raise ValueError
+        data = cast(dict[str, object], value)
+        if type(data["version"]) is not int or data["version"] != 1:
+            raise ValueError
+        operation_id = invocation.idempotency
+        if operation_id is None:
+            raise ValueError
+        for name in ("attachment_epoch", "authority_epoch", "state_version"):
+            if type(data[name]) is not int or cast(int, data[name]) <= 0:
+                raise ValueError
+        episode_id = EpisodeId.from_data(data["episode_id"])
+        turn_id = TurnId.from_data(data["turn_id"])
+        continuation = None if data["continuation"] is None else Continuation.from_data(data["continuation"])
+        coordinates = self._attachment.coordinates()
+        if (
+            episode_id != self._attachment.episode_id
+            or data["attachment_id"] != coordinates.attachment_id
+            or data["attachment_epoch"] != coordinates.attachment_epoch
+            or data["connection_id"] != self._connection.identity.connection_id
+            or data["authority_epoch"] != self._connection.authority_epoch
+            or data["state_version"] != self._connection.state_version
+        ):
+            raise ValueError
+        return CodexRuntimeInvocation(
+            operation_id,
+            episode_id,
+            turn_id,
+            cast(str, data["prompt"]),
+            self._connection,
+            self._attachment,
+            continuation,
+        )
 
 
 __all__ = [

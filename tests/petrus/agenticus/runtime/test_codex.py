@@ -68,6 +68,8 @@ from petrus.agenticus.runtime.profiles import CODEX_A2_LOCAL, CODEX_A3_GONDOLIN
 from petrus.agenticus.thread.continuation import Continuation, ContinuationState
 from petrus.agenticus.thread.identity import ContinuationId, EpisodeId, ThreadId, TurnId
 from petrus.agenticus.thread.lifecycle import CancellationDisposition, TurnOutcome
+from petrus.motus.activity import ActivityInvocation, ExecutionPolicy
+from petrus.motus.dispatch import InlineDispatch
 from petrus.motus.execution import (
     MAX_PRIVATE_FILE_BYTES,
     CleanupDisposition,
@@ -220,6 +222,29 @@ class Custody:
             operation_id,
             CleanupEvidence(materialization.fence.attachment_id, True, False, len(materialization.home.read())),
         )
+
+
+@dataclass
+class ActivityContext:
+    attempt_id: str = "activity-attempt"
+    epoch: str = "1"
+    claimant: str = "host"
+    latest_details: object = None
+    stale: bool = False
+
+    def heartbeat(self, *, details=None) -> object:
+        if self.stale:
+            raise RuntimeError("stale activity")
+        self.latest_details = details
+        return details
+
+
+class EqualityString(str):
+    def __eq__(self, other: object) -> bool:
+        return True
+
+    def __ne__(self, other: object) -> bool:
+        return False
 
 
 class PublishingCustody(Custody):
@@ -609,6 +634,30 @@ def gondolin_invocation(
     )
 
 
+def gondolin_activity_input(
+    attachment: EpisodeAttachment,
+    custody: Custody,
+    prompt: str,
+    *,
+    turn_id: str,
+    continuation_value: Continuation | None = None,
+) -> dict[str, object]:
+    coordinates = attachment.coordinates()
+    connection = custody.view()
+    return {
+        "version": 1,
+        "episode_id": attachment.episode_id.to_data(),
+        "turn_id": turn_id,
+        "prompt": prompt,
+        "attachment_id": coordinates.attachment_id,
+        "attachment_epoch": coordinates.attachment_epoch,
+        "connection_id": connection.identity.connection_id,
+        "authority_epoch": connection.authority_epoch,
+        "state_version": connection.state_version,
+        "continuation": None if continuation_value is None else continuation_value.to_data(),
+    }
+
+
 def test_exact_descriptors_and_opaque_values_hide_provider_bodies() -> None:
     payload = CodexContinuationPayloadV1(THREAD, ROLLOUT_PATH, ROLLOUT_CANARY)
 
@@ -621,6 +670,8 @@ def test_exact_descriptors_and_opaque_values_hide_provider_bodies() -> None:
     assert CODEX_SOURCE_COMMIT == "1e85ca099e4265bf89f4016772d299816e231bb3"
     assert CODEX_NPM_INTEGRITY.startswith("sha512-")
     assert CODEX_A2_LOCAL.identity.name == "codex.a2.local"
+    assert "_CODEX_GONDOLIN_ACTIVITY" not in codex.__all__
+    assert "_CodexGondolinActivityAdapter" not in codex.__all__
     with pytest.raises(ValueError, match="safe provider-relative"):
         CodexContinuationPayloadV1(THREAD, "../rollout.jsonl", ROLLOUT_CANARY)
     with pytest.raises(ValueError, match="bounded file"):
@@ -1375,6 +1426,189 @@ def test_gondolin_lane_reuses_one_episode_territory_across_replacement_operation
     assert binding.cleanup_result.identity == territory
     assert binding.cleanup_result.disposition is CleanupDisposition.CLEAN
     assert recreated.lookup(territory.operation_id) is None and not any(root.iterdir())
+
+
+def test_gondolin_activity_inline_retry_keeps_host_owned_episode_territory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    executable = fake_codex(tmp_path, CODEX_GONDOLIN_VERSION)
+    sdk = fake_gondolin_sdk(tmp_path, executable)
+    root = tmp_path / "gondolin-activity"
+    provider = GondolinEnvironment(root, sdk_module=str(sdk), lease_ttl=30)
+    continuations, turns, custody = Continuations(), Turns(), Custody()
+    adapter = CodexGondolinRuntimeAdapter(
+        CodexRuntimeConfig("host-1", credential_ttl=10, command_timeout=10, cancellation_grace=2),
+        CodexContinuationCodec(continuations),
+        turns,
+        custody,
+    )
+    _unused, attachment = gondolin_invocation(
+        tmp_path,
+        provider,
+        custody,
+        "operation-gondolin-activity-episode",
+        "unused",
+    )
+    assert adapter.probe(attachment).disposition is ProbeDisposition.READY
+    activity = codex._CodexGondolinActivityAdapter(adapter, custody.view(), attachment)
+    attempts: list[tuple[str, str, str]] = []
+    original_start = adapter.start
+
+    def fail_before_admission_once(runtime_invocation):
+        attempts.append(
+            (
+                runtime_invocation.operation_id,
+                runtime_invocation.attachment.coordinates().attachment_id,
+                runtime_invocation.attachment.binding.lease_identity.lease_id,
+            )
+        )
+        if len(attempts) == 1:
+            raise RuntimeProtocolError("runtime-not-ready")
+        return original_start(runtime_invocation)
+
+    monkeypatch.setattr(adapter, "start", fail_before_admission_once)
+    observed_contexts: list[tuple[str, str]] = []
+
+    def recording_activity(invocation, *, context):
+        observed_contexts.append((context.attempt_id, context.epoch))
+        return activity(invocation, context=context)
+
+    invocation = ActivityInvocation(
+        codex._CODEX_GONDOLIN_ACTIVITY,
+        input=json.loads(
+            json.dumps(
+                gondolin_activity_input(
+                    attachment,
+                    custody,
+                    "first",
+                    turn_id="turn-gondolin-activity",
+                )
+            )
+        ),
+        policy=ExecutionPolicy(attempts=2),
+        idempotency="operation-gondolin-activity-runtime",
+    )
+    result = InlineDispatch({codex._CODEX_GONDOLIN_ACTIVITY: recording_activity})(invocation)
+
+    assert observed_contexts == [("inline-1", "1"), ("inline-2", "2")]
+    assert len(set(attempts)) == 1 and len(attempts) == 2
+    assert result == {
+        "version": 1,
+        "operation_id": "operation-gondolin-activity-runtime",
+        "episode_id": attachment.episode_id.value,
+        "turn_id": "turn-gondolin-activity",
+        "outcome": "completed",
+        "accepted_appends": 1,
+        "termination_code": "turn-completed",
+        "output_reference": "codex-turn-operation-gondolin-activity-runtime",
+        "continuation_reference": "codex-continuation-operation-gondolin-activity-runtime",
+        "cleanup": {"disposition": "clean", "code": "client-closed"},
+    }
+    assert attachment.binding.lease_identity.lease_id == attempts[0][2]
+    assert attachment.settle(drain_timeout=2).settlement.verified
+    assert not any(root.iterdir())
+
+
+def test_gondolin_activity_refuses_unfenced_or_stale_requests_before_runtime_start(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    executable = fake_codex(tmp_path, CODEX_GONDOLIN_VERSION)
+    sdk = fake_gondolin_sdk(tmp_path, executable)
+    root = tmp_path / "gondolin-activity-fences"
+    provider = GondolinEnvironment(root, sdk_module=str(sdk), lease_ttl=30)
+    custody = Custody()
+    adapter = CodexGondolinRuntimeAdapter(
+        CodexRuntimeConfig("host-1", credential_ttl=10, command_timeout=10, cancellation_grace=2),
+        CodexContinuationCodec(Continuations()),
+        Turns(),
+        custody,
+    )
+    _unused, attachment = gondolin_invocation(
+        tmp_path,
+        provider,
+        custody,
+        "operation-gondolin-activity-fences",
+        "unused",
+    )
+    activity = codex._CodexGondolinActivityAdapter(adapter, custody.view(), attachment)
+    value = gondolin_activity_input(attachment, custody, "first", turn_id="turn-gondolin-fences")
+    monkeypatch.setattr(adapter, "start", lambda _invocation: pytest.fail("stale request started runtime work"))
+
+    with pytest.raises(RuntimeProtocolError, match="idempotency-required"):
+        activity(ActivityInvocation(codex._CODEX_GONDOLIN_ACTIVITY, input=value), context=ActivityContext())
+    with pytest.raises(RuntimeProtocolError, match="input-invalid"):
+        activity(
+            ActivityInvocation(
+                codex._CODEX_GONDOLIN_ACTIVITY,
+                input={**value, "attachment_epoch": 2},
+                idempotency="operation-stale-fence",
+            ),
+            context=ActivityContext(),
+        )
+    with pytest.raises(RuntimeProtocolError, match="input-invalid"):
+        activity(
+            ActivityInvocation(
+                codex._CODEX_GONDOLIN_ACTIVITY,
+                input={**value, "attachment_id": EqualityString("wrong-attachment")},
+                idempotency="operation-equality-fence",
+            ),
+            context=ActivityContext(),
+        )
+    with pytest.raises(RuntimeProtocolError, match="activity-mismatch"):
+        activity(
+            ActivityInvocation(
+                EqualityString("wrong-activity"),
+                input=value,
+                idempotency="operation-equality-activity",
+            ),
+            context=ActivityContext(),
+        )
+    for field, invalid in (
+        ("version", True),
+        ("attachment_epoch", 1.0),
+        ("authority_epoch", True),
+        ("state_version", float("inf")),
+        ("prompt", b"not-json"),
+        ("continuation", ()),
+    ):
+        with pytest.raises(RuntimeProtocolError, match="input-invalid"):
+            activity(
+                ActivityInvocation(
+                    codex._CODEX_GONDOLIN_ACTIVITY,
+                    input={**value, field: invalid},
+                    idempotency=f"operation-invalid-{field}",
+                ),
+                context=ActivityContext(),
+            )
+    with pytest.raises(RuntimeProtocolError, match="activity-stale"):
+        activity(
+            ActivityInvocation(
+                codex._CODEX_GONDOLIN_ACTIVITY,
+                input=value,
+                idempotency="operation-stale-context",
+            ),
+            context=ActivityContext(stale=True),
+        )
+    monkeypatch.setattr(
+        adapter,
+        "start",
+        lambda _invocation: (_ for _ in ()).throw(RuntimeError(AUTH_CANARY.decode())),
+    )
+    with pytest.raises(RuntimeProtocolError, match="runtime-admission-failed") as redacted:
+        activity(
+            ActivityInvocation(
+                codex._CODEX_GONDOLIN_ACTIVITY,
+                input=value,
+                idempotency="operation-redacted-admission",
+            ),
+            context=ActivityContext(),
+        )
+    assert AUTH_CANARY.decode() not in repr(redacted.value)
+    assert custody.records == []
+    assert attachment.settle(drain_timeout=2).settlement.verified
+    assert not any(root.iterdir())
 
 
 def test_gondolin_lane_rejects_guest_version_drift_before_materialization(tmp_path: Path) -> None:
