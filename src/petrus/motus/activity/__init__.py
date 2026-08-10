@@ -437,6 +437,7 @@ class ActivityExecutionContext(Protocol):
     attempt_id: str
     epoch: str
     claimant: str
+    instance: str | None
     latest_details: object
 
     def heartbeat(self, *, details: object = _OMITTED) -> object:
@@ -454,6 +455,7 @@ class AsyncActivityExecutionContext(Protocol):
     attempt_id: str
     epoch: str
     claimant: str
+    instance: str | None
     latest_details: object
 
     async def heartbeat(self, *, details: object = _OMITTED) -> object:

@@ -538,6 +538,12 @@ The immutable logical instruction prepared by a server-side handler for one firi
 
 One operational try by a Worker to execute an Activity invocation. Dispatch owns its identity, lease epoch, deadline, renewal, expiry, reassignment, checkpoint acceptance, and stale-epoch refusal. Long-running Activity code heartbeats the current epoch and may attach an operational recovery checkpoint. Claims, heartbeats, checkpoints, backoff, and attempt failures remain outside canonical History. Exhausting the frozen execution policy produces the canonical `ActivityFailed` terminal fact after Instance-side acceptance.
 
+A Worker-facing Attempt may carry the durable Instance identity that authorized
+the logical execution. That identity is execution scope, not Activity business
+input: it lets shared Worker infrastructure select host-composed implementations
+and lets operational terminals wake the owning Instance. It never carries an
+Engine, marking, credentials, clients, callables, or mutable ambient context.
+
 ### Activity result
 
 The typed, Petri-agnostic output returned by an activity. `ActivityCompleted` freezes it in canonical history before the server-side handler deterministically projects it into token and delivery-registration effects. A business refusal is a completed typed result. An exhausted operational failure is a classified `ActivityFailed`; a handler may explicitly project it through deterministic `project_failure`, while handlers without that opt-in retain `FiringFailed` and halt.
@@ -645,7 +651,7 @@ The stable provider-facing identity of one logical activity invocation. Operatio
 
 ### Worker definition
 
-Motus deployment configuration naming the operational queues a Worker subscribes to and the Activity implementations it can execute, plus concurrency and polling. An Activity implementation may declare its default heartbeat timeout; the effective value is resolved and frozen in the invocation's execution policy before dispatch rather than chosen by the Worker at runtime. DevOps/provider configuration supplies compute, accelerators, software, service access, authority, capacity, placement, process health, scaling, and termination. A Worker imports Activity implementations rather than a runnable Net definition and does not invent retry, idempotency, routing, or reconciliation policy.
+Motus deployment configuration naming the operational queues a Worker subscribes to and the Activity implementations it can execute, plus concurrency and polling. A Worker may use a host-supplied resolver to select an implementation by durable Instance identity and Activity name; an explicit `None` answer falls back to its ordinary default implementation mapping. Cohesive Activity modules, overlays, decorators, clients, and credentials remain live host composition and are reconstructed from configuration rather than serialized into Dispatch. An Activity implementation may declare its default heartbeat timeout; the effective value is resolved and frozen in the invocation's execution policy before dispatch rather than chosen by the Worker at runtime. DevOps/provider configuration supplies compute, accelerators, software, service access, authority, capacity, placement, process health, scaling, and termination. A Worker imports Activity implementations rather than a runnable Net definition and does not invent retry, idempotency, routing, or reconciliation policy.
 
 ### Activity queue routing
 

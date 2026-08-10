@@ -16,6 +16,12 @@ bounded simulation; and portable canonical Net definitions. Fabric's existing
 call and spawn demonstrations are unfinished prototype evidence, not a
 completed capability or support claim; Fabric is subject to rewrite.
 
+Shared durable Workers receive the authorizing Instance identity on each
+Attempt and may resolve host-composed scoped Activity implementations while
+retaining an ordinary default mapping. Synchronous hosts may pump bounded
+immediately available work; multi-Instance scheduling and wake indexing remain
+host lifecycle responsibilities.
+
 CV10.DS1–DS4 qualified one Episode/operation-owned Gondolin territory lifecycle
 through hermetic Codex A3 runtime-protocol evidence, host-local Inline Activity
 execution, a real Local Worker process-loss/replacement route with host-stored

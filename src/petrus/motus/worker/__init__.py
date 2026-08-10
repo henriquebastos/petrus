@@ -41,16 +41,34 @@ def _is_async_activity(value: object) -> bool:
 
 def _validate_registry(activities: Mapping[str, Any], *, asynchronous: bool) -> dict[str, Any]:
     registry = dict(activities)
-    if not registry or any(
-        not isinstance(name, str) or not name or not callable(value) for name, value in registry.items()
-    ):
-        raise ValueError("Worker activities must be a non-empty mapping of non-empty string names to callables")
+    if any(not isinstance(name, str) or not name or not callable(value) for name, value in registry.items()):
+        raise ValueError("Worker activities must map non-empty string names to callables")
     wrong = [name for name, value in registry.items() if _is_async_activity(value) is not asynchronous]
     if wrong:
         required = "asynchronous" if asynchronous else "synchronous"
         hint = " (AsyncActivityDefinitions or async callables)" if asynchronous else ""
         raise TypeError(f"Worker requires {required} Activities{hint}; wrong-mode registry entries: {sorted(wrong)}")
     return registry
+
+
+def _resolve_activity(
+    activities: Mapping[str, Any],
+    resolver: Callable[[str, str], Any | None] | None,
+    attempt: ActivityAttempt,
+    *,
+    asynchronous: bool,
+) -> Any | None:
+    implementation = None
+    if resolver is not None:
+        if attempt.instance is None:
+            raise LookupError("Worker scoped resolver requires an Activity Attempt instance")
+        implementation = resolver(attempt.instance, attempt.invocation.activity)
+        if implementation is not None and not callable(implementation):
+            raise TypeError("Worker resolver must return an Activity callable or None")
+        if implementation is not None and _is_async_activity(implementation) is not asynchronous:
+            required = "asynchronous" if asynchronous else "synchronous"
+            raise TypeError(f"Worker resolver returned an Activity that is not {required}")
+    return activities.get(attempt.invocation.activity) if implementation is None else implementation
 
 
 @dataclass
@@ -60,6 +78,7 @@ class ActivityExecutionContext:
     attempt_id: str
     epoch: str
     claimant: str
+    instance: str | None
     latest_details: object
     _provider: WorkerDispatch = field(repr=False)
     _attempt: ActivityAttempt = field(repr=False)
@@ -72,13 +91,27 @@ class ActivityExecutionContext:
 class Worker:
     """Run registered Activities one at a time over a Worker-facing Dispatch."""
 
-    def __init__(self, provider: WorkerDispatch, activities: Mapping[str, Activity], *, worker_id: str | None = None):
+    def __init__(
+        self,
+        provider: WorkerDispatch,
+        activities: Mapping[str, Activity],
+        *,
+        resolver: Callable[[str, str], Activity | None] | None = None,
+        worker_id: str | None = None,
+    ):
         if not isinstance(provider, WorkerDispatch):
             raise TypeError("Worker provider must implement WorkerDispatch")
+        if resolver is not None and not callable(resolver):
+            raise TypeError("Worker resolver must be callable")
         self._provider = provider
         self._activities = _validate_registry(activities, asynchronous=False)
+        if not self._activities and resolver is None:
+            raise ValueError("Worker requires default Activities or a scoped resolver")
+        self._resolver = resolver
         self._worker_id = worker_id or f"worker-{os.getpid()}"
         self._stop = False
+        self._driving = threading.Lock()
+        self._closed = False
 
     def stop(self) -> None:
         """Stop new claims; an Activity already running is allowed to terminalize."""
@@ -87,23 +120,61 @@ class Worker:
     def run(self, *, poll_interval: float = 0.25) -> None:
         if poll_interval < 0:
             raise ValueError("Worker poll interval must be non-negative")
-        log.emit("worker_started", worker=self._worker_id, concurrency=1)
-        self._say(ready=True, worker=self._worker_id)
+        self._start_driving()
         try:
+            log.emit("worker_started", worker=self._worker_id, concurrency=1)
+            self._say(ready=True, worker=self._worker_id)
             while not self._stop:
                 self._drain()
                 if not self._stop:
                     self._provider.wait(poll_interval)
         finally:
-            self._provider.close()
-            log.emit("worker_stopped", worker=self._worker_id, concurrency=1)
+            try:
+                self._close()
+            finally:
+                self._driving.release()
+                log.emit("worker_stopped", worker=self._worker_id, concurrency=1)
 
-    def _drain(self) -> None:
-        while not self._stop:
+    def run_available(self, *, limit: int) -> int:
+        """Execute at most ``limit`` immediately claimable Attempts without waiting or closing custody."""
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 0:
+            raise ValueError("Worker run_available limit must be a non-negative integer")
+        self._start_driving()
+        try:
+            return self._drain(limit=limit)
+        finally:
+            self._driving.release()
+
+    def close(self) -> None:
+        """Close this Worker's custody provider once; no further driving is permitted."""
+        if not self._driving.acquire(blocking=False):
+            raise RuntimeError("Worker is already being driven")
+        try:
+            self._close()
+        finally:
+            self._driving.release()
+
+    def _start_driving(self) -> None:
+        if not self._driving.acquire(blocking=False):
+            raise RuntimeError("Worker is already being driven")
+        if self._closed:
+            self._driving.release()
+            raise RuntimeError("Worker is closed")
+
+    def _close(self) -> None:
+        if not self._closed:
+            self._closed = True
+            self._provider.close()
+
+    def _drain(self, *, limit: int | None = None) -> int:
+        processed = 0
+        while not self._stop and (limit is None or processed < limit):
             attempt = self._provider.claim()
             if attempt is None:
-                return
+                return processed
             self._execute(attempt)
+            processed += 1
+        return processed
 
     def _execute(self, attempt: ActivityAttempt) -> None:
         invocation = attempt.invocation
@@ -119,7 +190,7 @@ class Worker:
             error: Exception | None = None
             result: object = None
             try:
-                implementation = self._activities.get(invocation.activity)
+                implementation = _resolve_activity(self._activities, self._resolver, attempt, asynchronous=False)
                 if implementation is None:
                     raise LookupError(
                         f"no activity implementation for {invocation.activity!r}: "
@@ -129,6 +200,7 @@ class Worker:
                     attempt.attempt_id,
                     attempt.epoch,
                     attempt.claimant,
+                    attempt.instance,
                     attempt.latest_details,
                     self._provider,
                     attempt,
@@ -164,6 +236,7 @@ class AsyncActivityExecutionContext:
     attempt_id: str
     epoch: str
     claimant: str
+    instance: str | None
     latest_details: object
     _access: _AsyncWorkerAccess = field(repr=False)
     _slot: int = field(repr=False)
@@ -346,13 +419,19 @@ class AsyncWorker:
         activities: Mapping[str, AsyncActivity],
         *,
         concurrency: int,
+        resolver: Callable[[str, str], AsyncActivity | None] | None = None,
         worker_id: str | None = None,
     ):
         if not callable(provider_factory):
             raise TypeError("AsyncWorker provider_factory must be callable")
         if isinstance(concurrency, bool) or not isinstance(concurrency, int) or concurrency <= 0:
             raise ValueError("AsyncWorker concurrency must be a positive integer")
+        if resolver is not None and not callable(resolver):
+            raise TypeError("AsyncWorker resolver must be callable")
         self._activities = _validate_registry(activities, asynchronous=True)
+        if not self._activities and resolver is None:
+            raise ValueError("AsyncWorker requires default Activities or a scoped resolver")
+        self._resolver = resolver
         self._factory = provider_factory
         self._access_factory: Callable[[], Awaitable[_AsyncWorkerAccess]] | None = None
         self._concurrency = concurrency
@@ -366,6 +445,7 @@ class AsyncWorker:
         activities: Mapping[str, AsyncActivity],
         *,
         concurrency: int,
+        resolver: Callable[[str, str], AsyncActivity | None] | None = None,
         worker_id: str | None = None,
     ) -> AsyncWorker:
         """Explicit internal native-async construction door; no shape guessing."""
@@ -376,7 +456,13 @@ class AsyncWorker:
         def unused_sync_factory() -> WorkerDispatch:
             raise AssertionError("native async access does not construct a synchronous provider")
 
-        worker = cls(unused_sync_factory, activities, concurrency=concurrency, worker_id=worker_id)
+        worker = cls(
+            unused_sync_factory,
+            activities,
+            concurrency=concurrency,
+            resolver=resolver,
+            worker_id=worker_id,
+        )
         worker._access_factory = access_factory
         return worker
 
@@ -541,13 +627,14 @@ class AsyncWorker:
                 attempt.attempt_id,
                 attempt.epoch,
                 attempt.claimant,
+                attempt.instance,
                 attempt.latest_details,
                 access,
                 slot,
                 attempt,
             )
             try:
-                implementation = self._activities.get(invocation.activity)
+                implementation = _resolve_activity(self._activities, self._resolver, attempt, asynchronous=True)
                 if implementation is None:
                     raise LookupError(
                         f"no activity implementation for {invocation.activity!r}: "

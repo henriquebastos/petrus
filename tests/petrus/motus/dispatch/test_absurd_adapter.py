@@ -138,17 +138,20 @@ def publish(adapter: AbsurdDispatch, connection, occurrence: int, invocation: Ac
 
 
 def test_async_worker_integrates_distinct_absurd_lane_claimants_and_terminals(absurd_dsn, authority, queue):
-    adapter = adapter_over(authority, default_queue=queue)
+    instance = f"scope-{uuid4().hex[:8]}"
+    adapter = AbsurdDispatch(authority, instance=instance, default_queue=queue)
     for occurrence in range(1, 4):
         adapter.dispatch(occurrence, invocation_for(queue, payload=occurrence))
     authority.commit()
     admitted: set[int] = set()
+    scopes: set[str | None] = set()
     release = asyncio.Event()
     all_admitted = asyncio.Event()
 
     async def probe(invocation, *, context):
         payload = invocation.input["payload"]
         admitted.add(payload)
+        scopes.add(context.instance)
         if admitted == {1, 2, 3}:
             all_admitted.set()
         details = await context.heartbeat(details={"payload": payload})
@@ -171,7 +174,29 @@ def test_async_worker_integrates_distinct_absurd_lane_claimants_and_terminals(ab
     asyncio.run(asyncio.wait_for(exercise(), 10))
 
     assert admitted == {1, 2, 3}
+    assert scopes == {instance}
     assert sorted(adapter.collect()) == [(number, {"payload": number}) for number in range(1, 4)]
+
+
+@pytest.mark.parametrize(
+    "key",
+    [":occurrence-1", "instance:occurrence-0", "instance:occurrence-01", "instance:occurrence-١"],
+)
+def test_absurd_scope_rejects_noncanonical_publication_identity(key):
+    with pytest.raises(ValueError, match="publication identity"):
+        petrus.motus.dispatch.absurd._instance_from_key(key)
+
+
+def test_absurd_scope_recovers_instance_with_occurrence_text_inside_it():
+    assert (
+        petrus.motus.dispatch.absurd._instance_from_key("tenant:occurrence-segment:occurrence-17")
+        == "tenant:occurrence-segment"
+    )
+
+
+@pytest.mark.parametrize("key", [None, "", "foreign-task-key"])
+def test_absurd_scope_leaves_foreign_tasks_unscoped_for_default_workers(key):
+    assert petrus.motus.dispatch.absurd._instance_from_key(key) is None
 
 
 def queue_state(connection, queue: str, key: str):

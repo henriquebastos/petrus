@@ -221,11 +221,11 @@ def test_v1_schema_migrates_pending_active_and_terminal_custody_without_losing_f
     dispatch.dispatch(1, call)
     dispatch.dispatch(2, call)
     dispatch.dispatch(3, call)
-    active = ActivityAttempt('["one",2]', "1", "active", "default", call, {"progress": 1})
+    active = ActivityAttempt('["one",2]', "1", "active", "default", call, {"progress": 1}, "one")
 
     assert LocalWorkerDispatch(path, _claimant="active").heartbeat(active) == {"progress": 1}
     assert dispatch.collect() == ((3, ActivityFailure("broken")),)
-    done = ActivityAttempt('["one",3]', "1", "done", "default", call, None)
+    done = ActivityAttempt('["one",3]', "1", "done", "default", call, None, "one")
     LocalWorkerDispatch(path, _claimant="done").fail(done, "broken")
     with sqlite3.connect(path) as connection:
         assert connection.execute("SELECT version FROM impetus_local_dispatch_schema").fetchone() == (2,)
@@ -267,8 +267,8 @@ def test_routes_and_instances_share_domain_but_claim_by_queue(tmp_path: Path) ->
     two.dispatch(1, invocation("other"))
     cpu = LocalWorkerDispatch(path, queues=["cpu"], _claimant="worker-cpu")
     general = LocalWorkerDispatch(path, queues=["general"], _claimant="worker-general")
-    assert json.loads(require_claim(cpu).attempt_id)[0] == "one"
-    assert json.loads(require_claim(general).attempt_id)[0] == "two"
+    assert require_claim(cpu).instance == "one"
+    assert require_claim(general).instance == "two"
     assert cpu.claim() is None
 
 

@@ -937,7 +937,10 @@ class TestActivityRegistry:
         [{}, {"": lambda invocation, *, context: None}, {7: lambda invocation, *, context: None}, {"work": object()}],
     )
     def test_worker_refuses_invalid_activity_registries(self, fixture_db, registry):
-        with pytest.raises(ValueError, match="non-empty mapping.*names to callables"):
+        message = (
+            "default Activities or a scoped resolver" if not registry else "map non-empty string names to callables"
+        )
+        with pytest.raises(ValueError, match=message):
             Worker(AbsurdWorkerDispatch(fixture_db, queues=(CAPABILITY,)), registry)
 
     def test_worker_refuses_an_empty_queue_subscription(self, fixture_db):

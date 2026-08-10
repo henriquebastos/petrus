@@ -202,6 +202,24 @@ def decode_invocation(payload: Mapping) -> ActivityInvocation:
         raise ValueError(f"{rejection}: {error}") from error
 
 
+def _instance_from_key(value: object) -> str | None:
+    """Recover Petrus workflow scope from its durable Absurd publication key."""
+    if not isinstance(value, str):
+        return None
+    instance, separator, occurrence = value.rpartition(":occurrence-")
+    if not separator:
+        return None
+    if (
+        not instance
+        or not occurrence.isascii()
+        or not occurrence.isdigit()
+        or int(occurrence) <= 0
+        or occurrence != str(int(occurrence))
+    ):
+        raise ValueError(f"invalid Petrus Absurd publication identity {value!r}")
+    return instance
+
+
 class GuardedDispatch:
     """Exclusive Worker-side door over Absurd custody, fenced by the active run lease."""
 
@@ -223,6 +241,11 @@ class GuardedDispatch:
                 return None
             task = dict(zip([column.name for column in cursor.description], row, strict=True))
             policy_timeout = decode_invocation(task["params"]).policy.heartbeat_timeout
+            identity = self._connection.execute(
+                sql.SQL("SELECT idempotency_key FROM absurd.{} WHERE task_id=%s").format(sql.Identifier(f"t_{queue}")),
+                (task["task_id"],),
+            ).fetchone()
+            task["petrus_instance"] = _instance_from_key(identity[0] if identity is not None else None)
             self._connection.execute("SELECT absurd.extend_claim(%s, %s, %s)", (queue, task["run_id"], policy_timeout))
             details = self._connection.execute(
                 "SELECT state FROM absurd.get_task_checkpoint_state(%s, %s, %s)",
@@ -457,6 +480,7 @@ class AbsurdWorkerDispatch:
                 queue,
                 decode_invocation(task["params"]),
                 details,
+                task.get("petrus_instance"),
             )
         return None
 

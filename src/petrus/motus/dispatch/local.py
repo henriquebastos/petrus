@@ -230,7 +230,13 @@ class LocalWorkerDispatch:
                     (epoch, self.claimant, deadline, now, attempt_deadline, instance, occurrence),
                 )
                 attempt = ActivityAttempt(
-                    _attempt_id(instance, occurrence), str(epoch), self.claimant, queue, invocation, _json(details)
+                    _attempt_id(instance, occurrence),
+                    str(epoch),
+                    self.claimant,
+                    queue,
+                    invocation,
+                    _json(details),
+                    instance,
                 )
         for instance, occurrence, epoch, claimant in expired:
             log.emit(
@@ -419,6 +425,8 @@ def _attempt_key(attempt: ActivityAttempt) -> tuple[str, int]:
         instance, occurrence = value
         _name(instance, "attempt instance")
         _occurrence(occurrence)
+        if attempt.instance != instance:
+            raise ValueError
         return instance, occurrence
     except (TypeError, ValueError, json.JSONDecodeError) as error:
         raise ValueError(f"invalid Local Activity attempt identity {attempt.attempt_id!r}") from error

@@ -30,8 +30,11 @@ class ActivityAttempt:
     queue: str
     invocation: ActivityInvocation
     latest_details: object = None
+    instance: str | None = None
 
     def __post_init__(self) -> None:
+        if self.instance is not None and (not isinstance(self.instance, str) or not self.instance):
+            raise ValueError("Activity Attempt instance must be a non-empty string or None")
         object.__setattr__(self, "latest_details", snapshot_heartbeat_details(self.latest_details))
 
 
@@ -76,7 +79,11 @@ class InlineDispatch:
         started = __import__("time").monotonic()
         for attempt in range(1, invocation.policy.attempts + 1):
             context = _InlineActivityExecutionContext(
-                attempt_id=f"inline-{attempt}", epoch=str(attempt), claimant="inline", latest_details=None
+                attempt_id=f"inline-{attempt}",
+                epoch=str(attempt),
+                claimant="inline",
+                latest_details=None,
+                instance=None,
             )
             try:
                 return implementation(invocation, context=context)
@@ -113,6 +120,7 @@ class _InlineActivityExecutionContext:
     epoch: str
     claimant: str
     latest_details: object
+    instance: str | None
 
     def heartbeat(self, *, details: object = _OMITTED) -> object:
         if details is not _OMITTED:

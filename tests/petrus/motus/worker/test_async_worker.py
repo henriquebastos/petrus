@@ -40,6 +40,7 @@ def _attempt(number: int) -> ActivityAttempt:
         "claimant",
         "io",
         ActivityInvocation("io", input={"item": {"value": number}}),
+        instance=f"instance-{number}",
     )
 
 
@@ -261,6 +262,72 @@ def test_async_worker_runs_exact_concurrency_on_event_loop_and_owns_providers_by
     assert len(providers.owners) == concurrency
     assert all(len(owner_threads) == 1 for owner_threads in providers.owners.values())
     assert all(next(iter(owner_threads)) != loop_thread for owner_threads in providers.owners.values())
+
+
+def test_async_worker_resolves_scoped_module_and_exposes_instance_context():
+    providers = SharedProviders([_attempt(1)])
+    observed = []
+    worker = None
+
+    async def scoped(invocation, *, context):
+        observed.append(context.instance)
+        assert worker is not None
+        worker.stop()
+        return {"instance": context.instance}
+
+    worker = AsyncWorker(
+        providers.factory,
+        {},
+        concurrency=1,
+        resolver=lambda instance, activity: scoped if (instance, activity) == ("instance-1", "io") else None,
+    )
+    asyncio.run(worker.run(poll_interval=0))
+
+    assert observed == ["instance-1"]
+    assert providers.completed[0][1] == {"instance": "instance-1"}
+
+
+def test_native_async_access_preserves_scoped_resolution():
+    claimed = _attempt(1)
+    completed = []
+    worker = None
+
+    class Access:
+        async def ready(self):
+            pass
+
+        async def claim(self, slot):
+            nonlocal claimed
+            value, claimed = claimed, None
+            return value
+
+        async def complete(self, slot, attempt, result):
+            completed.append((attempt, result))
+
+        async def fail(self, slot, attempt, error):
+            raise AssertionError(error)
+
+        async def wait(self, slot, timeout):
+            return False
+
+        async def close(self):
+            pass
+
+    async def scoped(invocation, *, context):
+        assert context.instance == "instance-1"
+        assert worker is not None
+        worker.stop()
+        return "scoped"
+
+    worker = AsyncWorker._from_async_access(
+        lambda: asyncio.sleep(0, result=Access()),
+        {},
+        concurrency=1,
+        resolver=lambda instance, activity: scoped if (instance, activity) == ("instance-1", "io") else None,
+    )
+    asyncio.run(worker.run(poll_interval=0))
+
+    assert completed == [(_attempt(1), "scoped")]
 
 
 @pytest.mark.parametrize("concurrency", [0, -1, True, 1.5])

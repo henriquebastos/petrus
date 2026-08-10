@@ -31,7 +31,7 @@ from petrus.motus.worker import AsyncWorker
 
 
 def test_zap_domain_preserves_the_operational_protocol_identity() -> None:
-    assert zeromq._ZAP_DOMAIN == "impetus.dispatch.worker.v1"
+    assert zeromq._ZAP_DOMAIN == "impetus.dispatch.worker.v2"
 
 
 class RunningServer:
@@ -355,7 +355,26 @@ def test_async_completion_retries_identical_payload_with_fresh_bounded_sockets(t
 def _attempt_for_transport():
     from petrus.motus.dispatch import ActivityAttempt
 
-    return ActivityAttempt("attempt", "epoch", "claimant", "default", invocation())
+    return ActivityAttempt("attempt", "epoch", "claimant", "default", invocation(), instance="instance")
+
+
+def test_v2_attempt_wire_requires_and_preserves_nullable_instance():
+    encoded = zeromq._encode_attempt(_attempt_for_transport())
+    assert set(encoded) == {
+        "attempt_id",
+        "epoch",
+        "claimant",
+        "queue",
+        "invocation",
+        "latest_details",
+        "instance",
+    }
+    assert zeromq._decode_attempt(encoded).instance == "instance"
+    encoded["instance"] = None
+    assert zeromq._decode_attempt(encoded).instance is None
+    del encoded["instance"]
+    with pytest.raises(ValueError, match="requires exactly"):
+        zeromq._decode_attempt(encoded)
 
 
 def test_ipc_async_worker_uses_concurrent_zeromq_owner_lanes_and_heartbeats(tmp_path: Path) -> None:
@@ -418,6 +437,7 @@ def test_queue_allowlist_drain_and_thread_ownership_are_explicit(tmp_path: Path)
         assert len(errors) == 1 and "owning thread" in str(errors[0])
         attempt = client.claim()
         assert attempt is not None
+        assert attempt.instance == "instance"
         server.request_drain(2)
         client.complete(attempt, "drained")
         assert dispatch.collect() == ((1, "drained"),)
@@ -860,7 +880,7 @@ def test_protocol_refuses_widened_unknown_version_and_oversized_requests(tmp_pat
     socket.linger = 0
     socket.connect(endpoint)
     base = {
-        "version": 1,
+        "version": 2,
         "request_id": "request",
         "client_id": "client",
         "worker_id": "worker",
@@ -870,7 +890,7 @@ def test_protocol_refuses_widened_unknown_version_and_oversized_requests(tmp_pat
     try:
         for request, message in (
             ({**base, "extra": True}, "requires exactly"),
-            ({**base, "version": 2}, "unsupported"),
+            ({**base, "version": 1}, "unsupported"),
             ({**base, "version": True}, "unsupported"),
             ({**base, "operation": "x" * 300}, "protocol limit"),
             ({**base, "padding": "x" * 1_500}, "maximum message size"),
@@ -971,6 +991,7 @@ def test_dispatch_service_process_death_preserves_lease_details_and_restart_reco
         time.sleep(1.05)
         reclaimed = replacement.claim()
         assert reclaimed is not None
+        assert reclaimed.instance == "instance"
         assert reclaimed.epoch == "2" and reclaimed.latest_details == {"checkpoint": 5}
         replacement.complete(reclaimed, "recovered")
         assert dispatch.collect() == ((1, "recovered"),)

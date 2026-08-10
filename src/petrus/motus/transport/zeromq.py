@@ -43,14 +43,14 @@ except ModuleNotFoundError as error:  # pragma: no cover - exercised in a blocke
         "ZeroMQ Dispatch Transport requires the optional 'zeromq' extra; install petrus[zeromq]"
     ) from error
 
-_VERSION = 1
+_VERSION = 2
 _MAX_MESSAGE_BYTES = 1024 * 1024
 _HWM = 4
 _MAX_CLIENTS = 1_000
 _MAX_IDENTITY_BYTES = 256
 _MAX_QUEUE_COUNT = 32
 _MAX_ERROR_BYTES = 1_024
-_ZAP_DOMAIN = "impetus.dispatch.worker.v1"
+_ZAP_DOMAIN = "impetus.dispatch.worker.v2"
 
 _WorkerProviderFactory = Callable[[Sequence[str], str], WorkerDispatch]
 
@@ -64,7 +64,7 @@ class OperationUncertain(ConnectionError):
 
 
 class AsyncZeroMQWorkerAccess:
-    """Event-loop-owned native async Worker access over the v1 wire protocol."""
+    """Event-loop-owned native async Worker access over the v2 wire protocol."""
 
     def __init__(
         self,
@@ -481,7 +481,7 @@ class ZeroMQDispatchServer:
         *,
         max_message_bytes: int = _MAX_MESSAGE_BYTES,
     ) -> ZeroMQDispatchServer:
-        """Private fault-injection door; production v1 is Local-backed only."""
+        """Private fault-injection door; production v2 is Local-backed only."""
         server = cls.__new__(cls)
         server._initialize(
             endpoint,
@@ -829,15 +829,19 @@ def _encode_attempt(attempt: ActivityAttempt) -> dict[str, object]:
         "queue": attempt.queue,
         "invocation": _encode_invocation(attempt.invocation),
         "latest_details": attempt.latest_details,
+        "instance": attempt.instance,
     }
 
 
 def _decode_attempt(value: object) -> ActivityAttempt:
     data = _exact(
         value,
-        {"attempt_id", "epoch", "claimant", "queue", "invocation", "latest_details"},
+        {"attempt_id", "epoch", "claimant", "queue", "invocation", "latest_details", "instance"},
         "Activity Attempt",
     )
+    instance = data.get("instance")
+    if instance is not None:
+        instance = _name(instance, "attempt instance")
     return ActivityAttempt(
         _name(data["attempt_id"], "attempt id"),
         _name(data["epoch"], "attempt epoch"),
@@ -845,6 +849,7 @@ def _decode_attempt(value: object) -> ActivityAttempt:
         _name(data["queue"], "attempt queue"),
         _decode_invocation(data["invocation"]),
         data["latest_details"],
+        instance,
     )
 
 

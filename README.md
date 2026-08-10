@@ -127,6 +127,31 @@ in [`spec/traces/`](spec/traces/). Project terminology is defined in
 [`CONTEXT.md`](CONTEXT.md). Development and architecture conventions are in
 [`docs/process/`](docs/process/).
 
+## Shared Activity workers
+
+Durable Dispatch implementations preserve the authorizing Instance on each
+Worker-facing Attempt. A shared Worker can keep an ordinary default Activity
+mapping and optionally resolve a scoped implementation without putting routing
+fields in business input:
+
+```python
+worker = Worker(
+    provider,
+    default_activities,
+    resolver=lambda instance, activity: scoped_modules.get(instance, {}).get(activity),
+)
+```
+
+The resolver and its modules are host configuration: reconstruct them after a
+process restart; never serialize closures, clients, credentials, Engines, or
+mutable context. Returning `None` selects the default mapping. Synchronous
+hosts may call `worker.run_available(limit=100)` to process only immediately
+claimable Attempts, then explicitly `worker.close()`; the long-lived `run()`
+path remains available. `InlineDispatch({...})` is unchanged.
+
+ZeroMQ Worker transport protocol v2 carries Instance scope. Clients and
+servers must upgrade together; v1 peers are rejected explicitly.
+
 ## License
 
 Petrus-authored content is licensed under Apache-2.0. See

@@ -17,7 +17,9 @@ and no live provider or multi-host support is claimed.
 - CV8: production local Activity execution, optional ZeroMQ transport, async
   Activities, async-native Worker custody, and one provider-neutral logical
   execution with bounded durable retries, deadlines, and terminal-failure
-  projection/recovery.
+  projection/recovery. Shared Workers preserve authorizing Instance scope and
+  may resolve host-composed scoped implementations without changing the simple
+  default or Inline paths.
 - CV10: composable execution. CV10.DS1–DS4 qualified one hermetic,
   Episode-owned Gondolin lifecycle, host-local Activity execution, Local
   Worker terminal replay, and private single-host retained lease
