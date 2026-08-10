@@ -1,8 +1,8 @@
 ---
 code: CV10.DS4
 level: Delivery Story
-status: Active
-status_reason: Implementing one hermetic single-host custody transfer, reconstructed reclaim, and exact retirement route
+status: Done
+status_reason: Qualified one hermetic single-host exact-lease release, reconstructed reclaim, and verified retirement route
 updated: 2026-08-10
 related:
   - CV10.DS1
@@ -71,3 +71,32 @@ Attachment or retire it with verified cleanup.
 - Reconstructing an Attachment that was active when its host died.
 - Preserving private provider files or runtime rollout as application state.
 - Public execution, retention, Session, Activity, or Worker lifecycle APIs.
+
+## Completion Evidence
+
+- A private mode-0600 SQLite custody ledger writes release intent before
+  Attachment closure, admits one live writer and one live obligation per
+  provider operation, retains a bounded digest-verified public archive, and
+  securely clears archive bytes after verified retirement.
+- Attachment release closes and drains binding-wide runtime operation
+  admission, including Gondolin private-file probe cleanup, before export and
+  exact lease transfer. The old binding becomes stale without destroying the
+  retained territory.
+- A replacement Python process opened the same custody ledger and hermetic
+  Gondolin root, reclaimed the exact lease into a distinct Episode Attachment,
+  and released it for exact parent-side retirement. Reclaim has no creation
+  fallback.
+- Malformed durable identity types quarantine without provider cleanup;
+  trustworthy temporary identity conflicts remain retryable retirement
+  obligations. Incomplete release, reclaim, attached, and cleanup states fail
+  closed toward exact retirement rather than reconstructing active work.
+- Package-boundary tests keep the Codex Activity adapter and runtime service
+  free of retained Territory lifecycle calls.
+- Focused Agenticus and package-boundary verification passed 109 tests.
+  `scripts/check full` passed 2067 tests. `scripts/check release` passed 2067
+  tests in parallel and then 2067 tests with 17 external qualification routes
+  deselected in fixed order.
+
+The result qualifies only one hermetic local host state root. It does not claim
+power-loss durability, live-provider support, multi-host custody, provider-side
+fencing, or reconstruction of work that was active when its host died.

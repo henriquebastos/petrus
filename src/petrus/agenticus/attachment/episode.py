@@ -27,7 +27,12 @@ from dataclasses import dataclass, field
 from threading import RLock
 from typing import Protocol
 
-from petrus.agenticus.attachment.binding import AttachmentBinding, AttachmentCoordinates, BindingSettlement
+from petrus.agenticus.attachment.binding import (
+    AttachmentBinding,
+    AttachmentCoordinates,
+    BindingSettlement,
+    MotusAttachmentBinding,
+)
 from petrus.agenticus.catalog.descriptor import CapabilityDescriptor, DescriptorKind
 from petrus.agenticus.catalog.resolution import ResolutionSnapshot
 from petrus.agenticus.connection.custody import AttachmentFence
@@ -35,6 +40,7 @@ from petrus.agenticus.hands.gateway import CallFence, HandsAdapter, HandsGateway
 from petrus.agenticus.hands.grants import GrantLedger
 from petrus.agenticus.thread.identity import EpisodeId
 from petrus.motus.execution.archive import MAX_WORKSPACE_ARCHIVE_BYTES
+from petrus.motus.execution import LeaseIdentity
 
 _MAX_IDENTITY_BYTES = 256
 
@@ -96,6 +102,40 @@ class AttachmentSettlement:
             raise ValueError("settlement archive digest must match the exported archive")
         if not isinstance(self.settlement, BindingSettlement):
             raise TypeError("settlement evidence must be BindingSettlement")
+
+
+@dataclass(frozen=True)
+class AttachmentRelease:
+    """Evidence that one closed Attachment transferred an exact lease to its host."""
+
+    attachment_id: str
+    epoch: int
+    stages_discarded: int
+    archive: bytes = field(repr=False)
+    archive_digest: str
+    territory: LeaseIdentity
+
+    def __post_init__(self) -> None:
+        if type(self.epoch) is not int or self.epoch <= 0:
+            raise ValueError("release epoch must be a positive integer")
+        if type(self.stages_discarded) is not int or self.stages_discarded < 0:
+            raise ValueError("release stages_discarded must be a non-negative integer")
+        if not isinstance(self.archive, bytes):
+            raise TypeError("release archive must be bytes")
+        if self.archive_digest != hashlib.sha256(self.archive).hexdigest():
+            raise ValueError("release archive digest must match the exported archive")
+        if not isinstance(self.territory, LeaseIdentity):
+            raise TypeError("release territory must be an exact LeaseIdentity")
+
+
+class _ReleaseAdmission(Protocol):
+    def _accept_release(
+        self,
+        binding: MotusAttachmentBinding,
+        coordinates: AttachmentCoordinates,
+        stages_discarded: int,
+        archive: bytes,
+    ) -> LeaseIdentity: ...
 
 
 class _EpochFence:
@@ -176,6 +216,7 @@ class EpisodeAttachment:
         self._aborted = False
         self._cancelled = False
         self._settlement: AttachmentSettlement | None = None
+        self._release: AttachmentRelease | None = None
         self._uncertain = False
         self._settling = False
 
@@ -304,7 +345,7 @@ class EpisodeAttachment:
         with self._barrier:
             if self._uncertain:
                 raise UncertainCustodyError("retry settlement instead of settling again")
-            if self._settlement is not None:
+            if self._settlement is not None or self._release is not None:
                 raise EpisodeAttachmentError("attachment epoch is already settled")
             if self._settling:
                 raise EpisodeAttachmentError("attachment settlement is already in progress")
@@ -349,6 +390,63 @@ class EpisodeAttachment:
                 self._settlement = record
                 self._uncertain = not settlement.verified
             return record
+        finally:
+            with self._barrier:
+                self._settling = False
+
+    def _release_to(  # noqa: C901 - release ordering and fail-closed transition stay in one barrier owner
+        self, admission: _ReleaseAdmission, *, drain_timeout: float = 30.0
+    ) -> AttachmentRelease:
+        """Close this Attachment and transfer its exact Motus lease to durable host custody."""
+
+        if not callable(getattr(admission, "_accept_release", None)):
+            raise TypeError("attachment release requires host custody admission")
+        with self._barrier:
+            if self._uncertain:
+                raise UncertainCustodyError("uncertain custody blocks attachment release")
+            if self._settlement is not None or self._release is not None or not self._open:
+                raise EpisodeAttachmentError("attachment is already settled or released")
+            if self._settling:
+                raise EpisodeAttachmentError("attachment settlement is already in progress")
+            if not isinstance(self._binding, MotusAttachmentBinding):
+                raise EpisodeAttachmentError("retained custody currently requires an exact Motus binding")
+            self._settling = True
+            self._open = False
+            gateways = tuple(self._gateways)
+            binding = self._binding
+            coordinates = self.coordinates()
+        try:
+            if not binding._quiesce(drain_timeout):  # noqa: SLF001 - host release owns this private binding transition
+                raise EpisodeAttachmentError("runtime operations did not drain before release")
+            for gateway in gateways:
+                if not gateway.drain(drain_timeout):
+                    raise EpisodeAttachmentError("current calls did not drain before release")
+            stages = sum(gateway.cleanup_stages() for gateway in gateways)
+            archive = binding.export_archive()
+            if not isinstance(archive, bytes):
+                raise TypeError("attachment binding archive must be bytes")
+            if len(archive) > MAX_WORKSPACE_ARCHIVE_BYTES:
+                raise EpisodeAttachmentError("attachment archive exceeds the public Motus workspace archive bound")
+            territory = admission._accept_release(binding, coordinates, stages, archive)
+            if territory != binding.lease_identity:
+                raise EpisodeAttachmentError("host custody accepted a different territory identity")
+            record = AttachmentRelease(
+                self._attachment_id,
+                self._epoch,
+                stages,
+                archive,
+                hashlib.sha256(archive).hexdigest(),
+                territory,
+            )
+            with self._barrier:
+                self._ledger.close()
+                self._release = record
+            return record
+        except Exception:
+            with self._barrier:
+                self._ledger.close()
+                self._uncertain = True
+            raise EpisodeAttachmentError("attachment release to host custody failed") from None
         finally:
             with self._barrier:
                 self._settling = False

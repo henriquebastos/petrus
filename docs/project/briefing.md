@@ -16,15 +16,17 @@ bounded simulation; and portable canonical Net definitions. Fabric's existing
 call and spawn demonstrations are unfinished prototype evidence, not a
 completed capability or support claim; Fabric is subject to rewrite.
 
-CV10.DS4 is active for one hermetic single-host retained-territory custody and
-reconciliation route. CV10.DS1–DS3 qualified one Episode/operation-owned
-Gondolin territory lifecycle through hermetic Codex A3 runtime-protocol
-evidence, host-local Inline Activity execution, and a real Local Worker
-process-loss/replacement route with host-stored terminal replay.
-The Activity and request service only borrow an existing Episode Attachment;
-territory provisioning and settlement remain orthogonal host responsibilities.
-The evidence does not claim live Gondolin, authenticated model/provider,
-network or multi-host Worker reconstruction, or retained-territory support.
+CV10.DS1–DS4 qualified one Episode/operation-owned Gondolin territory lifecycle
+through hermetic Codex A3 runtime-protocol evidence, host-local Inline Activity
+execution, a real Local Worker process-loss/replacement route with host-stored
+terminal replay, and one private single-host retained-territory reconciliation
+route. A reconstructed host can reclaim only the exact retained lease or retire
+it with verified cleanup. The Activity, Worker, and request service only borrow
+an existing Episode Attachment; provisioning, retention, reconciliation,
+export, and settlement remain orthogonal host responsibilities. The evidence
+does not claim live Gondolin, authenticated model/provider, network or
+multi-host custody, provider-side fencing, power-loss durability, or recovery
+of work that was active when its host died.
 CV16 remains complete at one deliberately narrow support boundary: scripted Pi
 A2 Local host lifecycle, not authenticated Pi/model/provider execution.
 

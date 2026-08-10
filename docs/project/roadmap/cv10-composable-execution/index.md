@@ -1,8 +1,8 @@
 ---
 code: CV10
 level: Value
-status: Active
-status_reason: CV10.DS4 is actively qualifying one hermetic single-host retained-territory custody and reconciliation route
+status: Blocked
+status_reason: DS1–DS4 are complete at bounded hermetic qualifications; live-provider and multi-host custody require authorized provider and fencing evidence
 updated: 2026-08-10
 related:
   - docs/project/decisions/records/2026-07-28T1052Z-local-dispatch-and-worker-provider-boundary.md
@@ -52,9 +52,13 @@ results do not promote a generic public agent or environment API.
 - Live model-backed Gondolin support remains blocked until the exact provider,
   image, model authority, and credentials are available through an authorized
   acceptance route.
-- CV10.DS4 is actively bounding durable retained-territory custody and
-  reconciliation to one hermetic host state root. It does not imply multi-host
-  transfer, live-provider support, or general retention support.
+- CV10.DS4 qualified durable retained-territory custody and reconciliation for
+  one hermetic host state root. Release drains all existing Attachment work,
+  transfers one exact lease and bounded public archive to host custody, and
+  permits reconstructed exact reclaim or verified retirement without giving
+  Activity or Worker lifecycle authority. It does not imply multi-host
+  transfer, live-provider support, power-loss durability, or general retention
+  support.
 - Any wider provider matrix requires a newly bounded story and fresh evidence.
 
 ## Invariants
@@ -69,8 +73,8 @@ results do not promote a generic public agent or environment API.
 
 ## Current state
 
-CV10.DS1–DS3 are Done at their bounded hermetic qualifications. CV10.DS4 is
-Active for one private single-host retained-territory reconciliation route.
-Live provider support, public execution contracts, network or multi-host
-Worker reconstruction, and a wider profile matrix remain blocked or require
-newly bounded stories.
+CV10.DS1–DS4 are Done at their bounded hermetic qualifications. CV10 remains
+Blocked beyond those boundaries: live provider support, public execution
+contracts, network or multi-host Worker reconstruction and custody,
+provider-side fencing, power-loss durability, and a wider profile matrix
+require authorized evidence or newly bounded stories.

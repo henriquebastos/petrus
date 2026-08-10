@@ -13,7 +13,10 @@ capability-scoped Hands path requires Motus.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
+from contextlib import contextmanager
 from dataclasses import dataclass, field
+from threading import Condition, local
 from typing import Protocol
 
 from petrus.motus.execution import (
@@ -25,6 +28,7 @@ from petrus.motus.execution import (
     EnvironmentSpec,
     ExecutionAttachment,
     LeaseIdentity,
+    LeaseState,
 )
 
 _KIND_PATTERN = re.compile(r"[a-z][a-z0-9-]{0,63}")
@@ -157,6 +161,11 @@ class MotusAttachmentBinding:
         self._base_archive = base_archive
         self._discard_output = False
         self._cleanup: CleanupResult | None = None
+        self._released = False
+        self._operations = Condition()
+        self._operation_state = local()
+        self._operation_admission_open = True
+        self._active_operations = 0
 
     @classmethod
     def open(
@@ -185,8 +194,35 @@ class MotusAttachmentBinding:
             raise MotusBindingError("Motus attachment failed after verified cleanup") from None
         return cls(provider, lease, execution, workspace_archive_bytes)
 
+    @classmethod
+    def _reclaim_exact(
+        cls,
+        provider: EnvironmentProvider,
+        expected: LeaseIdentity,
+        *,
+        workspace_archive_bytes: bytes,
+        input_digest: str,
+    ) -> MotusAttachmentBinding:
+        """Attach only to one exact retained lease; never create a replacement."""
+
+        if not isinstance(expected, LeaseIdentity):
+            raise TypeError("retained Motus reclaim requires an exact LeaseIdentity")
+        lease = provider.lookup(expected.operation_id)
+        if lease is None:
+            raise MotusBindingError("retained Motus lease is absent")
+        if lease.identity != expected:
+            raise MotusBindingError("retained Motus lease identity conflicts with provider lookup")
+        if lease.state is not LeaseState.READY:
+            raise MotusBindingError("retained Motus lease is not ready")
+        try:
+            execution = provider.attach(lease, workspace_archive_bytes, input_digest)
+        except Exception:
+            raise MotusBindingError("retained Motus lease attachment failed") from None
+        return cls(provider, lease, execution, workspace_archive_bytes)
+
     @property
     def provider(self) -> EnvironmentProvider:
+        self._ensure_owned()
         return self._provider
 
     @property
@@ -195,6 +231,7 @@ class MotusAttachmentBinding:
 
     @property
     def execution(self) -> ExecutionAttachment:
+        self._ensure_owned()
         return self._execution
 
     @property
@@ -206,7 +243,8 @@ class MotusAttachmentBinding:
     def execute(self, command: Command) -> CommandResult:
         """Run one bounded command, provenance-fenced to the exact lease."""
 
-        result = self._provider.execute(self._execution, command)
+        with self._operation():
+            result = self._provider.execute(self._execution, command)
         if result.provenance.identity != self._lease.identity:
             raise MotusBindingError("command result provenance does not match the bound lease")
         if result.timed_out or result.superseded or result.output_truncated:
@@ -214,10 +252,12 @@ class MotusAttachmentBinding:
         return result
 
     def cancel(self, reason: str) -> None:
+        self._ensure_owned()
         self._discard_output = True
         self._provider.cancel(self._lease, reason)
 
     def export_archive(self) -> bytes:
+        self._ensure_owned()
         if self._discard_output:
             return self._base_archive
         return self._provider.export(self._execution)
@@ -225,6 +265,7 @@ class MotusAttachmentBinding:
     def settle(self) -> BindingSettlement:
         """Destroy the exact lease and consume its fail-closed cleanup evidence."""
 
+        self._ensure_owned()
         cleanup = self._provider.destroy(self._lease)
         if not isinstance(cleanup, CleanupResult):
             raise MotusBindingError("provider destroy must return CleanupResult")
@@ -242,6 +283,59 @@ class MotusAttachmentBinding:
             verified=cleanup.verified,
             detail="provider cleanup evidence consumed",
         )
+
+    def _release(self, accept: Callable[[EnvironmentLease], None]) -> LeaseIdentity:
+        """Irrevocably close this binding before host custody accepts its lease."""
+
+        if not callable(accept):
+            raise TypeError("Motus binding release requires a custody acceptance callback")
+        with self._operations:
+            self._ensure_owned()
+            if self._operation_admission_open or self._active_operations:
+                raise MotusBindingError("Motus binding release requires quiesced operation admission")
+            self._released = True
+        accept(self._lease)
+        return self._lease.identity
+
+    def _quiesce(self, timeout: float) -> bool:
+        """Close operation admission and wait for every borrowed provider operation."""
+
+        if isinstance(timeout, bool) or not isinstance(timeout, int | float) or timeout < 0:
+            raise ValueError("Motus binding quiescence timeout must be non-negative")
+        with self._operations:
+            self._ensure_owned()
+            self._operation_admission_open = False
+            return self._operations.wait_for(lambda: self._active_operations == 0, timeout)
+
+    @contextmanager
+    def _operation(self):
+        """Borrow this binding's provider authority until one operation is complete."""
+
+        depth = getattr(self._operation_state, "depth", 0)
+        if depth:
+            self._operation_state.depth = depth + 1
+            try:
+                yield
+            finally:
+                self._operation_state.depth -= 1
+            return
+        with self._operations:
+            self._ensure_owned()
+            if not self._operation_admission_open:
+                raise MotusBindingError("Motus binding operation admission is closed")
+            self._active_operations += 1
+            self._operation_state.depth = 1
+        try:
+            yield
+        finally:
+            with self._operations:
+                self._operation_state.depth = 0
+                self._active_operations -= 1
+                self._operations.notify_all()
+
+    def _ensure_owned(self) -> None:
+        if self._released:
+            raise MotusBindingError("Motus binding authority was released to host custody")
 
 
 __all__ = [

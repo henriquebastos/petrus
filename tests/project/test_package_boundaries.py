@@ -154,6 +154,41 @@ assert not any(name == 'psycopg' or name.startswith('psycopg.') for name in sys.
     subprocess.run([sys.executable, "-c", code], check=True)
 
 
+def test_activity_worker_and_runtime_service_do_not_own_retained_territory_lifecycle() -> None:
+    forbidden = {
+        "_release_to",
+        "begin_release",
+        "create",
+        "destroy",
+        "export",
+        "lookup",
+        "reclaim",
+        "release",
+        "retire",
+        "settle",
+    }
+    targets = {
+        "src/petrus/agenticus/runtime/codex.py": {"_CodexGondolinActivityAdapter"},
+        "src/petrus/agenticus/runtime/_codex_gondolin_service.py": {"_CodexGondolinRuntimeService"},
+    }
+    for relative, class_names in targets.items():
+        tree = ast.parse((REPO_ROOT / relative).read_text(), filename=relative)
+        for node in tree.body:
+            if not isinstance(node, ast.ClassDef) or node.name not in class_names:
+                continue
+            calls = {
+                child.func.attr
+                for child in ast.walk(node)
+                if isinstance(child, ast.Call) and isinstance(child.func, ast.Attribute)
+            }
+            assert forbidden.isdisjoint(calls), (relative, node.name, forbidden & calls)
+
+    worker = REPO_ROOT / "src/petrus/motus/worker/__init__.py"
+    tree = ast.parse(worker.read_text(), filename=str(worker.relative_to(REPO_ROOT)))
+    imports = {node.module for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) and node.module is not None}
+    assert "petrus.agenticus.attachment._retention" not in imports
+
+
 def test_postgres_history_provider_returns_only_the_neutral_engine() -> None:
     from petrus.engine import Engine
     from petrus.engine import postgres

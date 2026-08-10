@@ -15,6 +15,7 @@ import sys
 import textwrap
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -23,7 +24,8 @@ import pytest
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 import petrus.agenticus.runtime.codex as codex
-from petrus.agenticus.attachment.binding import MotusAttachmentBinding
+from petrus.agenticus.attachment._retention import SqliteTerritoryCustody, TerritoryCustodyPhase
+from petrus.agenticus.attachment.binding import MotusAttachmentBinding, MotusBindingError
 from petrus.agenticus.attachment.episode import EpisodeAttachment
 from petrus.agenticus.catalog.descriptor import CapabilityDescriptor, DescriptorIdentity, DescriptorKind
 from petrus.agenticus.catalog.resolution import ResolutionSnapshot
@@ -1469,6 +1471,153 @@ def test_gondolin_lane_reuses_one_episode_territory_across_replacement_operation
     assert recreated.lookup(territory.operation_id) is None and not any(root.iterdir())
 
 
+def test_gondolin_episode_releases_to_reconstructed_host_custody_then_reclaims_exact_lease(tmp_path: Path) -> None:
+    executable = fake_codex(tmp_path, CODEX_GONDOLIN_VERSION)
+    sdk = fake_gondolin_sdk(tmp_path, executable)
+    root = tmp_path / "gondolin-retained"
+    provider = GondolinEnvironment(root, sdk_module=str(sdk), lease_ttl=30)
+    continuations, turns, connection = Continuations(), Turns(), Custody()
+    adapter = CodexGondolinRuntimeAdapter(
+        CodexRuntimeConfig("host-1", credential_ttl=10, command_timeout=10, cancellation_grace=2),
+        CodexContinuationCodec(continuations),
+        turns,
+        connection,
+    )
+    first, attachment = gondolin_invocation(
+        tmp_path,
+        provider,
+        connection,
+        "operation-gondolin-retained",
+        "first",
+    )
+    assert adapter.probe(attachment).disposition is ProbeDisposition.READY
+    first_operation = adapter.start(first)
+    first_result = first_operation.wait(10)
+    assert first_result.outcome is TurnOutcome.COMPLETED and first_operation.close().verified
+    binding = attachment.binding
+    assert isinstance(binding, MotusAttachmentBinding)
+    territory = binding.lease_identity
+
+    ledger_path = tmp_path / "territory-custody" / "custody.db"
+    custody = SqliteTerritoryCustody(ledger_path, clock=lambda: 10)
+    released = custody.release("retained-codex", "host-1", attachment, retain_until=100, drain_timeout=2)
+    assert released.territory == territory
+    assert AUTH_CANARY not in released.archive
+    assert continuations.load(first_result.continuation_reference or "").rollout not in released.archive
+    assert provider.lookup(territory.operation_id) is not None and len(tuple(root.iterdir())) == 1
+    custody.close()
+
+    reconstructed_provider = GondolinEnvironment(root, sdk_module=str(sdk), lease_ttl=30)
+    reconstructed = SqliteTerritoryCustody(ledger_path, clock=lambda: 20)
+    reclaimed = reconstructed.reclaim(
+        "retained-codex",
+        "host-1",
+        reconstructed_provider,
+        episode_id=EpisodeId("episode-gondolin-reclaimed"),
+        snapshot=gondolin_snapshot(),
+        attachment_id="agenticus-attachment-gondolin-reclaimed",
+        deadline=time.monotonic() + 15,
+    )
+    assert reclaimed.binding.lease_identity == territory
+    assert reclaimed.coordinates().attachment_epoch == attachment.coordinates().attachment_epoch + 1
+    assert reconstructed.lookup("retained-codex").phase is TerritoryCustodyPhase.ATTACHED  # type: ignore[union-attr]
+    assert reconstructed_provider.lookup(territory.operation_id).identity == territory  # type: ignore[union-attr]
+    assert len(tuple(root.iterdir())) == 1
+    assert adapter.probe(reclaimed).disposition is ProbeDisposition.READY
+
+    second = CodexRuntimeInvocation(
+        "operation-gondolin-reclaimed-runtime",
+        reclaimed.episode_id,
+        TurnId("turn-gondolin-reclaimed-runtime"),
+        "second",
+        connection.view(),
+        reclaimed,
+        continuation(first_result.continuation_reference or ""),
+    )
+    second_operation = adapter.start(second)
+    second_result = second_operation.wait(10)
+    assert second_result.outcome is TurnOutcome.COMPLETED and second_operation.close().verified
+
+    reconstructed.release("retained-codex", "host-1", reclaimed, retain_until=110, drain_timeout=2)
+    retired = reconstructed.retire("retained-codex", "host-1", reconstructed_provider)
+    assert retired.phase is TerritoryCustodyPhase.RETIRED
+    assert reconstructed_provider.lookup(territory.operation_id) is None and not any(root.iterdir())
+    reconstructed.close()
+
+
+def test_gondolin_retained_lease_is_reclaimed_and_released_by_a_replacement_host_process(tmp_path: Path) -> None:
+    executable = fake_codex(tmp_path, CODEX_GONDOLIN_VERSION)
+    sdk = fake_gondolin_sdk(tmp_path, executable)
+    root = tmp_path / "gondolin-process-retained"
+    provider = GondolinEnvironment(root, sdk_module=str(sdk), lease_ttl=30)
+    connection = Custody()
+    _invocation, attachment = gondolin_invocation(
+        tmp_path,
+        provider,
+        connection,
+        "operation-gondolin-process-retained",
+        "unused",
+    )
+    territory = attachment.binding.lease_identity
+    ledger_path = tmp_path / "process-territory-custody" / "custody.db"
+    custody = SqliteTerritoryCustody(ledger_path, clock=lambda: 10)
+    custody.release("process-retained", "host-1", attachment, retain_until=100, drain_timeout=2)
+    custody.close()
+
+    result_path = tmp_path / "replacement-result.json"
+    code = """
+import json, sys
+from pathlib import Path
+from petrus.agenticus.attachment._retention import SqliteTerritoryCustody
+from petrus.agenticus.catalog.descriptor import CapabilityDescriptor, DescriptorIdentity, DescriptorKind
+from petrus.agenticus.catalog.resolution import ResolutionSnapshot
+from petrus.agenticus.thread.identity import EpisodeId
+from petrus.motus.execution.gondolin import GondolinEnvironment
+
+root, sdk, ledger, output = map(Path, sys.argv[1:])
+snapshot = ResolutionSnapshot(1, tuple(
+    CapabilityDescriptor(DescriptorIdentity(kind, f'{kind.value}-replacement', 1), frozenset(), ())
+    for kind in (DescriptorKind.RUNTIME, DescriptorKind.HANDS, DescriptorKind.TERRITORY)
+))
+provider = GondolinEnvironment(root, sdk_module=str(sdk), lease_ttl=30)
+custody = SqliteTerritoryCustody(ledger, clock=lambda: 20)
+attachment = custody.reclaim(
+    'process-retained', 'host-1', provider,
+    episode_id=EpisodeId('episode-replacement-process'), snapshot=snapshot,
+    attachment_id='attachment-replacement-process', deadline=100,
+)
+identity = attachment.binding.lease_identity
+epoch = attachment.epoch
+execution_attachment = attachment.binding.execution.attachment_id
+custody.release('process-retained', 'host-1', attachment, retain_until=100, drain_timeout=2)
+custody.close()
+output.write_text(json.dumps({
+    'operation_id': identity.operation_id, 'provider': identity.provider,
+    'lease_id': identity.lease_id, 'epoch': epoch,
+    'execution_attachment': execution_attachment,
+}))
+"""
+    subprocess.run(
+        [sys.executable, "-c", code, str(root), str(sdk), str(ledger_path), str(result_path)],
+        check=True,
+    )
+    result = json.loads(result_path.read_text())
+    assert (result["operation_id"], result["provider"], result["lease_id"]) == (
+        territory.operation_id,
+        territory.provider,
+        territory.lease_id,
+    )
+    assert result["epoch"] == attachment.epoch + 1 and result["execution_attachment"]
+    assert len(tuple(root.iterdir())) == 1
+
+    recovered = SqliteTerritoryCustody(ledger_path, clock=lambda: 30)
+    record = recovered.lookup("process-retained")
+    assert record is not None and record.phase is TerritoryCustodyPhase.RETAINED and record.generation == 2
+    assert recovered.retire("process-retained", "host-1", provider).phase is TerritoryCustodyPhase.RETIRED
+    assert provider.lookup(territory.operation_id) is None and not any(root.iterdir())
+    recovered.close()
+
+
 def test_gondolin_activity_inline_retry_keeps_host_owned_episode_territory(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -2091,6 +2240,74 @@ def test_gondolin_lane_private_probe_failure_cleans_and_never_qualifies_or_mater
     with pytest.raises(RuntimeProtocolError, match="territory-not-qualified"):
         adapter.start(invocation)
     assert attachment.settle(drain_timeout=2).settlement.verified
+
+
+def test_gondolin_private_probe_cleanup_drains_before_host_retention_export(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    executable = fake_codex(tmp_path, CODEX_GONDOLIN_VERSION)
+    sdk = fake_gondolin_sdk(tmp_path, executable)
+    provider = GondolinEnvironment(tmp_path / "gondolin-probe-release", sdk_module=str(sdk), lease_ttl=30)
+    adapter = CodexGondolinRuntimeAdapter(
+        CodexRuntimeConfig("host-1", credential_ttl=10, command_timeout=10, cancellation_grace=2),
+        CodexContinuationCodec(Continuations()),
+        Turns(),
+        Custody(),
+    )
+    _invocation, attachment = gondolin_invocation(
+        tmp_path,
+        provider,
+        Custody(),
+        "operation-gondolin-probe-release",
+        "never-run",
+    )
+    entered, finish, exported = threading.Event(), threading.Event(), threading.Event()
+    original_cleanup = provider.cleanup_private_files
+    original_export = provider.export
+
+    def blocking_cleanup(execution):
+        entered.set()
+        assert finish.wait(2)
+        return original_cleanup(execution)
+
+    def recording_export(execution):
+        exported.set()
+        return original_export(execution)
+
+    monkeypatch.setattr(provider, "cleanup_private_files", blocking_cleanup)
+    monkeypatch.setattr(provider, "export", recording_export)
+    custody = SqliteTerritoryCustody(tmp_path / "probe-custody" / "custody.db", clock=lambda: 10)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        probing = pool.submit(adapter.probe, attachment)
+        assert entered.wait(1)
+        releasing = pool.submit(
+            custody.release,
+            "custody-probe",
+            "host-1",
+            attachment,
+            retain_until=50,
+            drain_timeout=2,
+        )
+        binding = attachment.binding
+        assert isinstance(binding, MotusAttachmentBinding)
+        deadline = time.monotonic() + 1
+        while time.monotonic() < deadline:
+            try:
+                with binding._operation():  # noqa: SLF001 - observe host release closing operation admission
+                    pass
+            except MotusBindingError:
+                break
+        else:
+            pytest.fail("release did not close operation admission")
+        assert not releasing.done() and not exported.is_set()
+        finish.set()
+        probing.result(5)
+        released = releasing.result(5)
+    assert exported.is_set()
+    assert custody.lookup("custody-probe").phase is TerritoryCustodyPhase.RETAINED  # type: ignore[union-attr]
+    assert custody.retire("custody-probe", "host-1", provider).phase is TerritoryCustodyPhase.RETIRED
+    custody.close()
+    assert released.territory == attachment.binding.lease_identity
 
 
 def test_gondolin_lane_failed_reprobe_revokes_only_that_exact_attachment(tmp_path: Path, monkeypatch) -> None:

@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Protocol, cast, runtime_checkable
 from uuid import UUID
 
-from petrus.agenticus.attachment.binding import MotusAttachmentBinding
+from petrus.agenticus.attachment.binding import MotusAttachmentBinding, MotusBindingError
 from petrus.agenticus.attachment.episode import EpisodeAttachment, EpisodeAttachmentError
 from petrus.agenticus.catalog.descriptor import CapabilityDescriptor, DescriptorIdentity, DescriptorKind
 from petrus.agenticus.connection.custody import (
@@ -571,14 +571,21 @@ class _CodexOperation:
         self._thread.start()
 
     def _run(self) -> None:
-        result, cleanup = self.adapter._execute(
-            self.invocation,
-            self.prior,
-            self._is_current,
-            self._claim_publication,
-            self.executable,
-            self.execution_path,
-        )
+        binding = self.invocation.attachment.binding
+        assert isinstance(binding, MotusAttachmentBinding)
+        try:
+            with binding._operation():  # noqa: SLF001 - one host runtime borrows the whole territory operation
+                result, cleanup = self.adapter._execute(
+                    self.invocation,
+                    self.prior,
+                    self._is_current,
+                    self._claim_publication,
+                    self.executable,
+                    self.execution_path,
+                )
+        except MotusBindingError:
+            result = self.adapter._settle(self.invocation, TurnOutcome.FAILED, 0, "runtime-not-ready")
+            cleanup = RuntimeCleanupDisposition.NOT_CREATED
         with self._condition:
             if self._cancelled and result.outcome is not TurnOutcome.CANCELLED:
                 result = self.adapter._settle(self.invocation, TurnOutcome.CANCELLED, 0, "cancelled")
@@ -1148,41 +1155,47 @@ class CodexGondolinRuntimeAdapter(CodexRuntimeAdapter):
         passed = False
         cleaned = False
         try:
-            reference = transfer.import_private_file(binding.execution, probe_file)
-            result = binding.execute(
-                Command(
-                    (
-                        self._helper_executable,
-                        "-c",
-                        "import os,pathlib,sys; p=pathlib.Path(os.environ['PETRUS_PROBE'])/'probe'; sys.exit(64) if p.read_bytes()!=b'agenticus-codex-a3-before' else p.write_bytes(b'agenticus-codex-a3-after')",
-                    ),
-                    environment={"LANG": "C.UTF-8", "PATH": self._guest_path},
-                    timeout=remaining,
-                    output_limit=64,
-                    private_roots={"PETRUS_PROBE": reference},
-                )
-            )
-            passed = (
-                result.returncode == 0
-                and not result.stdout
-                and not result.stderr
-                and not result.timed_out
-                and not result.superseded
-                and not result.output_truncated
-                and transfer.export_private_file(binding.execution, reference) == expected
-            )
-        except OSError, RuntimeError, ValueError:
-            passed = False
-        finally:
-            try:
-                deleted = reference is None or transfer.delete_private_file(binding.execution, reference).verified
-            except OSError, RuntimeError, ValueError:
-                deleted = False
-            try:
-                attachment_cleaned = transfer.cleanup_private_files(binding.execution).verified
-            except OSError, RuntimeError, ValueError:
-                attachment_cleaned = False
-            cleaned = deleted and attachment_cleaned
+            with binding._operation():  # noqa: SLF001 - release must drain the complete private-file probe
+                try:
+                    reference = transfer.import_private_file(binding.execution, probe_file)
+                    result = binding.execute(
+                        Command(
+                            (
+                                self._helper_executable,
+                                "-c",
+                                "import os,pathlib,sys; p=pathlib.Path(os.environ['PETRUS_PROBE'])/'probe'; sys.exit(64) if p.read_bytes()!=b'agenticus-codex-a3-before' else p.write_bytes(b'agenticus-codex-a3-after')",
+                            ),
+                            environment={"LANG": "C.UTF-8", "PATH": self._guest_path},
+                            timeout=remaining,
+                            output_limit=64,
+                            private_roots={"PETRUS_PROBE": reference},
+                        )
+                    )
+                    passed = (
+                        result.returncode == 0
+                        and not result.stdout
+                        and not result.stderr
+                        and not result.timed_out
+                        and not result.superseded
+                        and not result.output_truncated
+                        and transfer.export_private_file(binding.execution, reference) == expected
+                    )
+                except OSError, RuntimeError, ValueError:
+                    passed = False
+                finally:
+                    try:
+                        deleted = (
+                            reference is None or transfer.delete_private_file(binding.execution, reference).verified
+                        )
+                    except OSError, RuntimeError, ValueError:
+                        deleted = False
+                    try:
+                        attachment_cleaned = transfer.cleanup_private_files(binding.execution).verified
+                    except OSError, RuntimeError, ValueError:
+                        attachment_cleaned = False
+                    cleaned = deleted and attachment_cleaned
+        except MotusBindingError:
+            return False
         return passed and cleaned
 
     def _credential_free_probe_command(
