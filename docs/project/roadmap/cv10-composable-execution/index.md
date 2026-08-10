@@ -1,9 +1,9 @@
 ---
 code: CV10
 level: Value
-status: Blocked
-status_reason: CV10.DS1–DS3 completed Episode ownership and hermetic Local Worker terminal replay; live support, multi-host execution, and retention remain blocked or unbounded
-updated: 2026-08-09
+status: Active
+status_reason: CV10.DS4 is actively qualifying one hermetic single-host retained-territory custody and reconciliation route
+updated: 2026-08-10
 related:
   - docs/project/decisions/records/2026-07-28T1052Z-local-dispatch-and-worker-provider-boundary.md
   - docs/project/decisions/records/2026-07-28T1907Z-async-worker-custody-stays-private.md
@@ -52,9 +52,9 @@ results do not promote a generic public agent or environment API.
 - Live model-backed Gondolin support remains blocked until the exact provider,
   image, model authority, and credentials are available through an authorized
   acceptance route.
-- Durable retained-territory custody and autonomous orphan reconciliation need
-  newly bounded stories before retention can become a supported settlement
-  policy.
+- CV10.DS4 is actively bounding durable retained-territory custody and
+  reconciliation to one hermetic host state root. It does not imply multi-host
+  transfer, live-provider support, or general retention support.
 - Any wider provider matrix requires a newly bounded story and fresh evidence.
 
 ## Invariants
@@ -69,7 +69,8 @@ results do not promote a generic public agent or environment API.
 
 ## Current state
 
-CV10.DS1–DS3 are Done at their bounded hermetic qualifications. No CV10 working
-session is active. Live provider support, public execution contracts, retained
-territories, network or multi-host Worker reconstruction, and a wider profile
-matrix remain blocked or require newly bounded stories.
+CV10.DS1–DS3 are Done at their bounded hermetic qualifications. CV10.DS4 is
+Active for one private single-host retained-territory reconciliation route.
+Live provider support, public execution contracts, network or multi-host
+Worker reconstruction, and a wider profile matrix remain blocked or require
+newly bounded stories.

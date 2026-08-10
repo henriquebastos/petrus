@@ -1,11 +1,11 @@
 # Roadmap
 
 Roadmap items carry their own status and preserve durable technical direction.
-There is currently no active working session. CV10.DS1–DS3 completed one
-Episode-owned hermetic Gondolin lifecycle plus Local Worker terminal replay
-through a host service that borrows the existing Attachment. Activity never
-owns territory lifecycle, and no live provider or multi-host support is
-claimed.
+CV10.DS4 is active for one hermetic single-host retained-territory custody and
+reconciliation route. CV10.DS1–DS3 completed one Episode-owned Gondolin
+lifecycle plus Local Worker terminal replay through a host service that
+borrows the existing Attachment. Activity never owns territory lifecycle, and
+no live provider or multi-host support is claimed.
 
 ## Retained Values
 
@@ -18,8 +18,9 @@ claimed.
   Activities, and async-native Worker custody.
 - CV10: composable execution. CV10.DS1–DS3 qualified one hermetic,
   Episode-owned Gondolin lifecycle, host-local Activity execution, and Local
-  Worker terminal replay; live-provider, network/multi-host Worker, and
-  retention work remains blocked or unbounded.
+  Worker terminal replay. CV10.DS4 is actively qualifying one private
+  single-host retention/reconciliation route; live-provider and
+  network/multi-host work remains blocked or unbounded.
 - CV11–CV15: semantic observation, durable captures, long-History navigation,
   canonical Net inspection, and bounded simulation.
 - CV16: Agenticus infrastructure and one supported scripted Pi A2 Local host
