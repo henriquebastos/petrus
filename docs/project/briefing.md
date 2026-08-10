@@ -9,11 +9,12 @@ portable-definition surfaces.
 
 The language-neutral design and Python reference kernel are delivered. Current
 runtime capabilities include durable in-memory, JSONL, SQLite, and optional
-PostgreSQL History Stores; provider-neutral Engine composition; Fabric call and
-spawn lifecycles; Local and optional Absurd Dispatch; Workers and optional
-ZeroMQ transport; Python DSL authoring and Graphviz rendering; read-only
-observation and capture protocols; bounded simulation; and portable canonical
-Net definitions.
+PostgreSQL History Stores; provider-neutral Engine composition; Local and
+optional Absurd Dispatch; Workers and optional ZeroMQ transport; Python DSL
+authoring and Graphviz rendering; read-only observation and capture protocols;
+bounded simulation; and portable canonical Net definitions. Fabric's existing
+call and spawn demonstrations are unfinished prototype evidence, not a
+completed capability or support claim; Fabric is subject to rewrite.
 
 There is no current working session. CV10.DS1–DS3 qualified one
 Episode/operation-owned Gondolin territory lifecycle through hermetic Codex A3

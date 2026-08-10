@@ -9,8 +9,11 @@ claimed.
 
 ## Retained Values
 
-- CV1–CV6: language-neutral foundations, Python kernel, runtime topology,
-  Ariad/runtime integration, Fabric, and first-version runtime convergence.
+- CV1–CV4 and CV6: language-neutral foundations, Python kernel, runtime
+  topology, Ariad/runtime integration, and first-version runtime convergence.
+- CV5/Fabric: unfinished prototype call/spawn demonstrations retained as
+  evidence only. Fabric is subject to rewrite and is not a completed or
+  supported capability.
 - CV8: production local Activity execution, optional ZeroMQ transport, async
   Activities, and async-native Worker custody.
 - CV10: composable execution. CV10.DS1–DS3 qualified one hermetic,

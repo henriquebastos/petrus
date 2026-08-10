@@ -24,9 +24,11 @@ Instance authors canonical terminal History.
 
 Petrus is pre-release software. The package metadata currently reports
 `0.0.0`; no PyPI publication is claimed. The language-neutral specification,
-Python kernel, durable History Stores, Engine, Fabric, production local
-Activity execution, optional providers, observation, bounded simulation, and
-portable Net definitions are implemented and tested. See
+Python kernel, durable History Stores, Engine, production local Activity
+execution, optional providers, observation, bounded simulation, and portable
+Net definitions are implemented and tested. Fabric is an unfinished prototype
+and is subject to rewrite; its existing call/spawn demonstrations are not a
+support or completion claim. See
 [`spec/OVERVIEW.md`](spec/OVERVIEW.md), the [project briefing](docs/project/briefing.md),
 and the [roadmap](docs/project/roadmap/index.md).
 
