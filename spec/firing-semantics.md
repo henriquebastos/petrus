@@ -105,6 +105,23 @@ schedule multiple enabled firing occurrences concurrently when policy allows
 execution runtime responsibilities, outside canonical history [ADR 0006,
 ADR 0007, DR 2026-07-14 activity-invocation-runtime-seam].
 
+Operational retries reuse the exact frozen invocation, correlation, and
+idempotency identities. Retryable failures may schedule another Attempt only
+within the bounded policy and aggregate deadline; non-retryable failures and
+exhausted policies produce one terminal `ActivityFailed`. A heartbeat renews
+the current Attempt's liveness lease but cannot extend its start-to-close or
+the logical execution's schedule-to-close deadline. Delayed retry belongs to a
+durable execution adapter and is never implemented by blocking Inline
+execution [DR 2026-08-10 one-logical-activity-execution].
+
+Terminal failure follows the same freeze-before-projection boundary as
+success. The runtime first records `ActivityFailed`; then an explicitly
+failure-projecting handler deterministically ends the firing through ordinary
+effects, while a legacy handler records `FiringFailed` and halts. If a crash
+separates those boundaries, reload resumes only projection or fail-and-halt
+from the frozen failure and does not dispatch another Attempt [DR 2026-08-10
+one-logical-activity-execution].
+
 ## Token production
 
 Output tokens are produced at end firing per output arc. Each output arc's

@@ -567,6 +567,17 @@ class Coordinator:
                 self._dispatch.dispatch(occurrence.id, occurrence.invocation)
         for occurrence in in_flight:
             if occurrence.invocation is not None and occurrence.id in pending:
+                frozen = self.instance.pending_activity_outcomes[occurrence.id]
+                if isinstance(frozen, ActivityFailure):
+                    handler = self.instance.bound_handler(occurrence.binding.transition)
+                    underlying = getattr(handler, "handler", handler)
+                    if not callable(getattr(underlying, "project_failure", None)):
+                        self.instance.fail(occurrence, frozen, at=self._clock.now())
+                        self._committed()
+                        raise RuntimeError(
+                            f"activity for firing occurrence {occurrence.id} ({occurrence.binding.transition}) "
+                            f"failed terminally: {frozen.error}"
+                        )
                 firings.append(self.instance.complete(occurrence, at=self._clock.now()))
         for occurrence in in_flight:
             if occurrence.invocation is None:
@@ -593,8 +604,11 @@ class Coordinator:
                 actions.append(AcceptResult(occurrence_id, outcome))
                 continue
             dispatched = self._dispatched.get(occurrence_id)
-            if dispatched is not None and not isinstance(outcome, ActivityFailure):
-                self.instance.record_activity_completion(dispatched, outcome, at=self._clock.now())
+            if dispatched is not None:
+                if isinstance(outcome, ActivityFailure):
+                    self.instance.record_activity_failure(dispatched, outcome, at=self._clock.now())
+                else:
+                    self.instance.record_activity_completion(dispatched, outcome, at=self._clock.now())
                 continue
             raise ValueError(
                 f"the Dispatch completed occurrence {occurrence_id}, which is not in flight: "
@@ -667,11 +681,21 @@ class Coordinator:
                 # resume-fresh, where the durable outbox redispatches.
                 self._unbuffer_arrival(occurrence_id)
                 if isinstance(outcome, ActivityFailure):
-                    self.instance.fail(occurrence, outcome.error, at=self._clock.now())
+                    self.instance.record_activity_failure(occurrence, outcome, at=self._clock.now())
+                    self._committed()
+                    handler = self.instance.bound_handler(occurrence.binding.transition)
+                    underlying = getattr(handler, "handler", handler)
+                    projects = callable(getattr(underlying, "project_failure", None))
+                    if projects:
+                        firings.append(self.instance.complete(occurrence, at=self._clock.now()))
+                    else:
+                        self.instance.fail(occurrence, outcome, at=self._clock.now())
                     # The recorded failure is a whole fact: on a joined
                     # transaction it must commit before the halt propagates —
                     # the raise below is the driver's policy, never a rollback.
                     self._committed()
+                    if projects:
+                        return None, True
                     raise RuntimeError(
                         f"activity for firing occurrence {occurrence.id} ({occurrence.binding.transition}) "
                         f"failed terminally: {outcome.error}"

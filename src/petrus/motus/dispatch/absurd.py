@@ -50,7 +50,9 @@ import re
 import time
 import uuid
 from collections.abc import Mapping, Sequence
+from datetime import timedelta
 from importlib import resources
+from typing import Any, cast
 
 # Pip imports — the optional extra, refused loud by name when absent.
 try:
@@ -129,10 +131,21 @@ def encode_invocation(invocation: ActivityInvocation) -> dict:
         "policy": {
             "attempts": invocation.policy.attempts,
             "heartbeat_timeout": invocation.policy.heartbeat_timeout,
+            "initial_interval": invocation.policy.initial_interval,
+            "coefficient": invocation.policy.coefficient,
+            "max_interval": invocation.policy.max_interval,
+            "jitter": invocation.policy.jitter,
+            "start_to_close": invocation.policy.start_to_close,
+            "schedule_to_close": invocation.policy.schedule_to_close,
         },
         "correlation": invocation.correlation,
         "idempotency": invocation.idempotency,
     }
+
+
+def _canonical_json(value: object) -> str:
+    """Deterministic type-sensitive JSON comparison spelling for decoded jsonb."""
+    return json.dumps(value, allow_nan=False, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 # The exact wire shape decode_invocation admits — nothing more, nothing less:
@@ -155,7 +168,20 @@ def decode_invocation(payload: Mapping) -> ActivityInvocation:
     policy = payload["policy"]
     if (
         not isinstance(policy, Mapping)
-        or set(policy) != {"attempts", "heartbeat_timeout"}
+        or set(policy)
+        not in (
+            {"attempts", "heartbeat_timeout"},
+            {
+                "attempts",
+                "heartbeat_timeout",
+                "initial_interval",
+                "coefficient",
+                "max_interval",
+                "jitter",
+                "start_to_close",
+                "schedule_to_close",
+            },
+        )
         or isinstance(policy["attempts"], bool)
         or not isinstance(policy["attempts"], int)
         or isinstance(policy["heartbeat_timeout"], bool)
@@ -168,7 +194,7 @@ def decode_invocation(payload: Mapping) -> ActivityInvocation:
         return ActivityInvocation(
             payload["activity"],
             input=payload["input"],
-            policy=ExecutionPolicy(attempts=policy["attempts"], heartbeat_timeout=policy["heartbeat_timeout"]),
+            policy=ExecutionPolicy(**policy),
             correlation=payload["correlation"],
             idempotency=payload["idempotency"],
         )
@@ -234,21 +260,97 @@ class GuardedDispatch:
         task_id,
         run_id,
         result: object = _OMITTED,
-        error: Exception | None = None,
+        error: Exception | ActivityFailure | None = None,
     ) -> None:
         if error is None and result is _OMITTED:
             raise ValueError("a successful terminal report requires a result")
+        failure = None
+        if error is not None:
+            failure = (
+                error
+                if isinstance(error, ActivityFailure)
+                else ActivityFailure(str(error), kind=type(error).__name__, retryable=True)
+            )
+        reason = (
+            None
+            if failure is None
+            else {
+                "petrus_failure": 1,
+                "name": failure.kind,
+                "message": failure.error,
+                "details": failure.details,
+                "retryable": failure.retryable,
+                "retry_after": failure.retry_after,
+            }
+        )
         try:
-            self._guard(queue, task_id=task_id, run_id=run_id)
+            if self._guard_terminal(
+                queue, task_id=task_id, run_id=run_id, result=result if failure is None else _OMITTED, reason=reason
+            ):
+                self._connection.commit()
+                return
             if error is None:
                 self._connection.execute("SELECT absurd.complete_run(%s, %s, %s)", (queue, run_id, Jsonb(result)))
             else:
-                reason = {"name": type(error).__name__, "message": str(error)}
-                self._connection.execute("SELECT absurd.fail_run(%s, %s, %s, NULL)", (queue, run_id, Jsonb(reason)))
+                assert failure is not None and reason is not None
+                run = self._connection.execute(
+                    "SELECT attempt, absurd.current_time() FROM absurd.{} WHERE run_id=%s".format(f"r_{queue}"),
+                    (run_id,),
+                ).fetchone()
+                if run is None:
+                    raise RuntimeError("stale Activity Attempt: run disappeared while guarded")
+                attempt, provider_now = run
+                params = self._connection.execute(
+                    "SELECT t.params FROM absurd.{} t JOIN absurd.{} r USING(task_id) WHERE r.run_id=%s".format(
+                        f"t_{queue}", f"r_{queue}"
+                    ),
+                    (run_id,),
+                ).fetchone()[0]
+                policy = decode_invocation(params).policy
+                delay = max(policy.retry_policy.delay(attempt), failure.retry_after or 0)
+                retry_at = provider_now + timedelta(seconds=delay) if failure.retryable else None
+                if not failure.retryable:
+                    self._connection.execute(
+                        "UPDATE absurd.{} t SET max_attempts=%s FROM absurd.{} r "
+                        "WHERE r.run_id=%s AND t.task_id=r.task_id".format(f"t_{queue}", f"r_{queue}"),
+                        (attempt, run_id),
+                    )
+                self._connection.execute(
+                    "SELECT absurd.fail_run(%s, %s, %s, %s)", (queue, run_id, Jsonb(reason), retry_at)
+                )
             self._connection.commit()
         except BaseException:
             self._connection.rollback()
             raise
+
+    def _guard_terminal(self, queue: str, *, task_id, run_id, result: object, reason: object) -> bool:
+        validate_queue(queue)
+        query = sql.SQL(
+            "SELECT r.task_id,r.state,r.claimed_by,r.claim_expires_at,"
+            "r.claim_expires_at > absurd.current_time(),r.result,r.failure_reason,t.state FROM absurd.{} r "
+            "JOIN absurd.{} t USING(task_id) WHERE r.run_id=%s FOR UPDATE OF r"
+        ).format(sql.Identifier(f"r_{queue}"), sql.Identifier(f"t_{queue}"))
+        row = self._connection.execute(query, (run_id,)).fetchone()
+        if row is None or str(row[0]) != str(task_id):
+            raise RuntimeError("stale Activity Attempt: task/run identity is not current")
+        _, state, claimant, deadline, unexpired, stored_result, stored_failure, task_state = row
+        if claimant != self.claimant:
+            raise RuntimeError("stale Activity Attempt: claimant, state, or lease deadline is no longer current")
+        if state == "completed":
+            if task_state != "completed":
+                raise RuntimeError("stale Activity Attempt: claimant, state, or lease deadline is no longer current")
+            if result is not _OMITTED and _canonical_json(stored_result) == _canonical_json(result):
+                return True
+            raise ValueError("conflicting terminal report")
+        if state == "failed":
+            if not isinstance(stored_failure, Mapping) or stored_failure.get("petrus_failure") != 1:
+                raise RuntimeError("stale Activity Attempt: claimant, state, or lease deadline is no longer current")
+            if reason is not None and _canonical_json(stored_failure) == _canonical_json(reason):
+                return True
+            raise ValueError("conflicting terminal report")
+        if state != "running" or deadline is None or not unexpired:
+            raise RuntimeError("stale Activity Attempt: claimant, state, or lease deadline is no longer current")
+        return False
 
     def latest_details(self, queue: str, task_id) -> object:
         row = self._connection.execute(
@@ -373,9 +475,9 @@ class AbsurdWorkerDispatch:
         self._dispatch.terminal(attempt.queue, task_id=attempt.attempt_id, run_id=attempt.epoch, result=result)
         self._notify(attempt.queue)
 
-    def fail(self, attempt: ActivityAttempt, error: str | Exception) -> None:
-        exception = error if isinstance(error, Exception) else RuntimeError(error)
-        self._dispatch.terminal(attempt.queue, task_id=attempt.attempt_id, run_id=attempt.epoch, error=exception)
+    def fail(self, attempt: ActivityAttempt, error: str | Exception | ActivityFailure) -> None:
+        failure = error if isinstance(error, (Exception, ActivityFailure)) else RuntimeError(error)
+        self._dispatch.terminal(attempt.queue, task_id=attempt.attempt_id, run_id=attempt.epoch, error=failure)
         self._notify(attempt.queue)
 
     def wait(self, timeout: float) -> bool:
@@ -446,6 +548,18 @@ def _spell_failure(reason: object) -> str:
         # Membership above establishes this dynamic JSON mapping's key.
         return f"{reason['name']}: {message}" if message else str(reason["name"])  # ty: ignore[invalid-argument-type]
     return json.dumps(reason)
+
+
+def _decode_failure(reason: object) -> ActivityFailure:
+    if isinstance(reason, Mapping) and reason.get("petrus_failure") == 1:
+        return ActivityFailure(
+            cast(Any, reason.get("message")),
+            cast(Any, reason.get("name")),
+            reason.get("details"),
+            cast(Any, reason.get("retryable")),
+            cast(Any, reason.get("retry_after")),
+        )
+    return ActivityFailure(_spell_failure(reason))
 
 
 class AbsurdDispatch:
@@ -542,8 +656,13 @@ class AbsurdDispatch:
                 "(autocommit=False): occurrence "
                 "discovery, custody reconciliation, spawn, and notification must commit or roll back together"
             )
+        if invocation.policy.start_to_close is not None or invocation.policy.schedule_to_close is not None:
+            raise ValueError(
+                "AbsurdDispatch does not support start_to_close or schedule_to_close with the pinned provider; "
+                "exact deadlines require cancellation tombstones and are therefore refused"
+            )
         queue = self.queue_for(invocation.activity)
-        existing = self._recover_custody(occurrence, queue)
+        existing = self._recover_custody(occurrence, queue, invocation)
         if existing is not None:
             self._tasks[occurrence] = existing
             return
@@ -555,6 +674,8 @@ class AbsurdDispatch:
         options = {
             "idempotency_key": f"{self._instance}:occurrence-{occurrence}",
             "max_attempts": invocation.policy.attempts,
+            # GuardedDispatch computes the complete Petrus retry policy from
+            # the canonical params against absurd.current_time().
             "retry_strategy": {"kind": "none"},
         }
         (task_id, _run_id, _attempt, _created) = self._connection.execute(
@@ -572,7 +693,9 @@ class AbsurdDispatch:
         )
 
     # Complexity exception: reviewed as one transactional custody state machine.
-    def _recover_custody(self, occurrence: int, target: str) -> tuple[str, str] | None:  # noqa: C901
+    def _recover_custody(  # noqa: C901
+        self, occurrence: int, target: str, invocation: ActivityInvocation
+    ) -> tuple[str, str] | None:
         """Find and, when safe, atomically transfer one provider custody to the current route."""
         key = f"{self._instance}:occurrence-{occurrence}"
         # One deterministic transaction-scoped mutex for this canonical
@@ -603,6 +726,18 @@ class AbsurdDispatch:
                 f"ambiguous Absurd custody for {key}: found {len(live)} live tasks across provider queues"
             )
         queue, task_id, task_state, first_started, run_id, run_state = live[0]
+        identity = sql.SQL("SELECT task_name,params FROM absurd.{} WHERE task_id=%s").format(
+            sql.Identifier(f"t_{queue}")
+        )
+        task_name, params = self._connection.execute(identity, (task_id,)).fetchone()
+        try:
+            recovered_params = encode_invocation(decode_invocation(params))
+        except ValueError as error:
+            raise ValueError(f"Absurd publication conflict for {key}: stored invocation params are invalid") from error
+        if task_name != invocation.activity or _canonical_json(recovered_params) != _canonical_json(
+            encode_invocation(invocation)
+        ):
+            raise ValueError(f"Absurd publication conflict for {key}: activity or invocation params differ")
         # Terminal custody wins over routing history. In an A -> B -> A
         # sequence A necessarily contains the transfer tombstone; if B has
         # since finished, that sole durable outcome must be collected rather
@@ -673,7 +808,7 @@ class AbsurdDispatch:
                         f"task {task_id} (occurrence {occurrence}) is cancelled in Absurd: a custody tombstone "
                         f"is not an activity outcome, refusing to fold a guess"
                     )
-                outcome = payload if state == "completed" else ActivityFailure(_spell_failure(failure))
+                outcome = payload if state == "completed" else _decode_failure(failure)
                 arrived.append((terminal_at, occurrence, outcome))
         arrived.sort(key=lambda item: (item[0], item[1]))
         self._collected.update(occurrence for _, occurrence, _ in arrived)

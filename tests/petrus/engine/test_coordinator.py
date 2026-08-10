@@ -183,7 +183,7 @@ class TestInlineDispatch:
         adapter = InlineDispatch({"work": explode})
         adapter.dispatch(1, ActivityInvocation("work", correlation="c", idempotency="i"))
 
-        assert adapter.collect() == ((1, ActivityFailure("RuntimeError('provider down')")),)
+        assert adapter.collect() == ((1, ActivityFailure("provider down", kind="RuntimeError", retryable=True)),)
 
 
 # ── the two policies ─────────────────────────────────────────

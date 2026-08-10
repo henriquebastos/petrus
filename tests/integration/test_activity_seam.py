@@ -35,10 +35,12 @@ import pytest
 
 # Internal imports
 from petrus.motus.activity import (
+    ActivityError,
     ActivityFailure,
     ActivityInvocation,
     DataclassPayloadConverter,
     ExecutionPolicy,
+    RetryPolicy,
     activity,
 )
 from petrus.impetus.binding import DerivedActivityHandler, HandlerResult
@@ -579,6 +581,47 @@ class TestExecutionPolicy:
         with pytest.raises(ValueError, match="attempts"):
             ExecutionPolicy(attempts=attempts)
 
+    @pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+    def test_non_finite_retry_and_deadline_values_are_rejected_at_the_value_door(self, value):
+        for construct in (
+            lambda: RetryPolicy(initial_interval=value),
+            lambda: ExecutionPolicy(start_to_close=value),
+            lambda: ActivityFailure("failed", retry_after=value),
+        ):
+            with pytest.raises(ValueError):
+                construct()
+
+    def test_backoff_saturates_without_overflow_and_jitter_is_not_claimed(self):
+        policy = RetryPolicy(initial_interval=1, coefficient=10, max_interval=60, max_attempts=10_000)
+        assert policy.delay(10_000) == 60
+        with pytest.raises(ValueError, match="jitter is unsupported"):
+            RetryPolicy(jitter=0.1)
+        with pytest.raises(ValueError, match="attempt number"):
+            policy.delay(0)
+
+        assert policy.delay(10**1000) == 60
+
+    def test_backoff_handles_extreme_finite_values_without_ratio_or_power_overflow(self):
+        assert RetryPolicy(initial_interval=1e9, max_interval=1e8).delay(1) == 1e8
+        assert RetryPolicy(initial_interval=1e-308, coefficient=1, max_interval=1e9).delay(10**9) == 1e-308
+        assert RetryPolicy(initial_interval=1e-308, coefficient=1e308, max_interval=1e9).delay(3) == 1e9
+        assert RetryPolicy(initial_interval=1e-308, coefficient=10, max_interval=1e9).delay(316) <= 1e9
+
+    @pytest.mark.parametrize(
+        "construct",
+        [
+            lambda: RetryPolicy(initial_interval=1_000_000_001),
+            lambda: RetryPolicy(max_interval=1_000_000_001),
+            lambda: ExecutionPolicy(heartbeat_timeout=1_000_000_001),
+            lambda: ExecutionPolicy(start_to_close=1_000_000_001),
+            lambda: ExecutionPolicy(schedule_to_close=1_000_000_001),
+            lambda: ActivityFailure("failed", retry_after=1_000_000_001),
+        ],
+    )
+    def test_provider_neutral_durations_refuse_values_over_one_billion_seconds(self, construct):
+        with pytest.raises(ValueError, match="at most 1000000000 seconds"):
+            construct()
+
 
 class TestActivityInvocation:
     def test_defaults_are_the_conservative_resolution(self):
@@ -787,6 +830,13 @@ class TestRecordActivityCompletion:
         with pytest.raises(ValueError, match="different result"):
             instance.record_activity_completion(occurrence, {"status": "declined"})
 
+    def test_nested_boolean_and_integer_results_are_distinct(self):
+        instance, occurrence = _begun(ChargeCard())
+        instance.record_activity_completion(occurrence, {"nested": [{"value": True}]})
+
+        with pytest.raises(ValueError, match="different result"):
+            instance.record_activity_completion(occurrence, {"nested": [{"value": 1}]})
+
     def test_an_ended_pure_occurrence_still_reads_as_already_ended(self):
         # The ended-occurrence acknowledgement door below serves activity
         # facts only; an ended occurrence with no terminal activity fact
@@ -987,7 +1037,7 @@ class TestTerminalActivityReplayDivergence:
             ActivityCompleted(T, {"status": "captured"}, occurrence=1),
             ActivityFailed(T, "provider down", occurrence=1),
         )
-        with pytest.raises(ValueError, match="failed after its activity completed"):
+        with pytest.raises(ValueError, match="second terminal activity fact"):
             replay_in_flight(history)
 
 
@@ -1146,7 +1196,7 @@ class TestFail:
             ActivityFailed(T, "TimeoutError('provider gone')", occurrence=1, instant=4),
             FiringFailed(T, "TimeoutError('provider gone')", occurrence=1, instant=4),
         )
-        assert history.batches[-1] == 2
+        assert history.batches[-2:] == [1, 1]
         assert instance.in_flight == ()
 
     def test_a_pure_failure_stays_firing_failed_alone(self):
@@ -1157,6 +1207,13 @@ class TestFail:
 
         assert not [r for r in instance.history if isinstance(r, ActivityFailed)]
         assert isinstance(instance.history.records[-1], FiringFailed)
+
+    def test_a_pure_firing_rejects_activity_failure_freeze(self):
+        instance = Instance(_activity_net(handler=None), Marking({A: (PAYMENT,)}))
+        occurrence = instance.begin(instance.candidates()[0])
+
+        with pytest.raises(ValueError, match="pure firing.*no activity"):
+            instance.record_activity_failure(occurrence, ActivityFailure("boom"))
 
     def test_fail_refuses_a_completed_activity(self):
         # A completed activity's projection failure is fixed by code and a
@@ -1206,6 +1263,37 @@ class TestInlineDispatch:
         assert tuple(adapter.activities) == ("charge_card",)
         with pytest.raises(FrozenInstanceError):
             adapter.activities = {}
+
+    def test_classified_retries_are_immediate_and_never_sleep(self, monkeypatch):
+        calls = []
+
+        def flaky(invocation, *, context):
+            calls.append((invocation, context.epoch))
+            if len(calls) < 3:
+                raise ActivityError("temporary", kind="Unavailable", retryable=True, retry_after=60)
+            return "done"
+
+        monkeypatch.setattr("time.sleep", lambda _seconds: pytest.fail("InlineDispatch must never sleep for backoff"))
+        invocation = ActivityInvocation(
+            "flaky",
+            policy=ExecutionPolicy(attempts=3, initial_interval=30),
+            correlation="operation",
+            idempotency="effect",
+        )
+
+        assert InlineDispatch({"flaky": flaky})(invocation) == "done"
+        assert [epoch for _, epoch in calls] == ["1", "2", "3"]
+        assert all(call == invocation for call, _ in calls)
+
+    def test_generic_exception_keeps_precise_retryable_metadata_when_budget_exhausts(self):
+        def broken(invocation, *, context):
+            del invocation, context
+            raise LookupError("missing account")
+
+        dispatch = InlineDispatch({"broken": broken})
+        dispatch.dispatch(7, ActivityInvocation("broken", policy=ExecutionPolicy(attempts=2)))
+
+        assert dispatch.collect() == ((7, ActivityFailure("missing account", kind="LookupError", retryable=True)),)
 
     def test_value_shape_preserves_the_prior_dataclass_contract(self):
         def activity(invocation, *, context):
@@ -1476,6 +1564,117 @@ class TestKillWindowTwo:
         ]
 
 
+class FailureProjectingCharge(ChargeCard):
+    def __init__(self, *, broken: bool = False):
+        super().__init__()
+        self.broken = broken
+        self.failures = []
+
+    def project_failure(self, binding, failure):
+        if self.broken:
+            raise RuntimeError("failure projection crashed")
+        self.failures.append(failure)
+        return {B: (Token("ActivityFailure", {"kind": failure.kind, "details": failure.details}),)}
+
+
+class TestTerminalFailureProjection:
+    def test_opt_in_failure_projection_routes_one_typed_terminal_token(self):
+        handler = FailureProjectingCharge()
+        instance, occurrence = _begun(handler)
+        failure = ActivityFailure(
+            "request rejected",
+            kind="InvalidRequest",
+            details={"field": "account"},
+            retryable=False,
+        )
+
+        instance.record_activity_failure(occurrence, failure, at=2)
+        firing = instance.complete(occurrence, at=3)
+
+        assert handler.failures == [failure]
+        assert firing.occurrence == 1
+        assert instance.marking == Marking(
+            {B: (Token("ActivityFailure", {"kind": "InvalidRequest", "details": {"field": "account"}}),)}
+        )
+        assert len([record for record in instance.history if isinstance(record, ActivityFailed)]) == 1
+        assert len([record for record in instance.history if isinstance(record, FiringCompleted)]) == 1
+        assert not [record for record in instance.history if isinstance(record, FiringFailed)]
+
+    def test_equal_failure_redelivery_acknowledges_and_conflicts_are_refused(self):
+        instance, occurrence = _begun(FailureProjectingCharge())
+        failure = ActivityFailure("down", "Unavailable", {"region": "west"}, True, 3)
+        instance.record_activity_failure(occurrence, failure)
+        before = instance.history.records
+
+        instance.record_activity_failure(occurrence, failure)
+        assert instance.history.records == before
+        with pytest.raises(ValueError, match="conflicting terminal activity report"):
+            instance.record_activity_failure(occurrence, ActivityFailure("different", retryable=False))
+        with pytest.raises(ValueError, match="terminal activity fact already exists"):
+            instance.record_activity_completion(occurrence, {"status": "late-success"})
+
+    def test_nested_boolean_and_integer_failure_details_are_distinct(self):
+        instance, occurrence = _begun(FailureProjectingCharge())
+        instance.record_activity_failure(occurrence, ActivityFailure("down", details={"nested": [True]}))
+
+        with pytest.raises(ValueError, match="conflicting terminal activity report"):
+            instance.record_activity_failure(occurrence, ActivityFailure("down", details={"nested": [1]}))
+        with pytest.raises(ValueError, match="frozen result stands"):
+            instance.fail(occurrence, ActivityFailure("down", details={"nested": [1]}))
+
+    def test_failure_projection_crash_reloads_the_frozen_failure_without_another_attempt(self, tmp_path):
+        path = tmp_path / "history.jsonl"
+        broken = FailureProjectingCharge(broken=True)
+        instance, occurrence = _begun(broken, history=JsonlHistoryStore(path))
+        failure = ActivityFailure("down", "Unavailable", {"checkpoint": 2}, True, 5)
+        instance.record_activity_failure(occurrence, failure, at=3)
+        with pytest.raises(RuntimeError, match="projection crashed"):
+            instance.complete(occurrence, at=4)
+        del instance
+
+        fixed = FailureProjectingCharge()
+        resumed = Instance.resume(_activity_net(), JsonlHistoryStore(path), handlers={"charge": fixed})
+        [rebuilt] = resumed.in_flight
+        resumed.complete(rebuilt, at=5)
+
+        assert fixed.prepared == 0
+        assert fixed.failures == [failure]
+        assert len([record for record in resumed.history if isinstance(record, ActivityFailed)]) == 1
+        assert resumed.marking == Marking(
+            {B: (Token("ActivityFailure", {"kind": "Unavailable", "details": {"checkpoint": 2}}),)}
+        )
+
+    def test_legacy_fail_and_halt_recovers_after_the_failure_freeze(self, tmp_path):
+        path = tmp_path / "history.jsonl"
+        instance, occurrence = _begun(ChargeCard(), history=JsonlHistoryStore(path))
+        failure = ActivityFailure("down", "Unavailable", retryable=True)
+        instance.record_activity_failure(occurrence, failure, at=3)
+        del instance
+
+        resumed = Instance.resume(_activity_net(), JsonlHistoryStore(path), handlers={"charge": ChargeCard()})
+        [rebuilt] = resumed.in_flight
+        resumed.fail(rebuilt, failure, at=4)
+
+        assert len([record for record in resumed.history if isinstance(record, ActivityFailed)]) == 1
+        assert len([record for record in resumed.history if isinstance(record, FiringFailed)]) == 1
+        assert resumed.in_flight == ()
+
+    def test_ended_failure_replay_preserves_classification_for_late_acknowledgement(self, tmp_path):
+        path = tmp_path / "history.jsonl"
+        instance, occurrence = _begun(ChargeCard(), history=JsonlHistoryStore(path))
+        failure = ActivityFailure("down", "Unavailable", {"region": "west"}, True, 7)
+        instance.record_activity_failure(occurrence, failure)
+        instance.fail(occurrence, failure)
+        resumed = Instance.resume(_activity_net(), JsonlHistoryStore(path), handlers={"charge": ChargeCard()})
+        before = resumed.history.records
+
+        resumed.record_activity_failure(occurrence, failure)
+
+        assert resumed.history.records == before
+        with pytest.raises(ValueError, match="conflicting terminal activity report"):
+            resumed.record_activity_failure(occurrence, ActivityFailure("different"))
+
+
 # ── replay guards: what the live writer could never write ────
 
 
@@ -1520,6 +1719,12 @@ class TestActivityReplayGuards:
         with pytest.raises(ValueError, match="replay divergence.*no activity was requested"):
             replay_in_flight(history)
 
+    def test_an_activity_failure_for_a_pure_occurrence_is_replay_divergence(self):
+        history = InMemoryHistoryStore()
+        history.extend(_begin_records(with_request=False) + [ActivityFailed(T, "boom", occurrence=1, instant=2)])
+        with pytest.raises(ValueError, match="replay divergence.*no activity was requested"):
+            replay_in_flight(history)
+
     def test_a_second_terminal_activity_fact_is_replay_divergence(self):
         history = InMemoryHistoryStore()
         history.extend(
@@ -1543,13 +1748,12 @@ class TestActivityReplayGuards:
         assert occurrence.invocation is not None
         assert replay_projection_pending(history) == {1: {"status": "ok"}}
 
-    def test_an_activity_failure_without_its_firing_boundary_is_a_torn_batch(self):
-        # fail() commits ActivityFailed + FiringFailed whole [convention 45]:
-        # the failure fact alone is a shape the live writer cannot leave.
+    def test_an_activity_failure_without_its_firing_boundary_is_projection_pending(self):
+        # V2 freezes ActivityFailed alone before deterministic failure
+        # projection (or the legacy fail-and-halt boundary).
         history = InMemoryHistoryStore()
         history.extend(_begin_records() + [ActivityFailed(T, "boom", occurrence=1, instant=2)])
-        with pytest.raises(ValueError, match="replay divergence.*torn commit batch"):
-            replay_in_flight(history)
+        assert replay_projection_pending(history) == {1: ActivityFailure("boom")}
 
     def test_resume_rejects_an_activity_request_on_a_purely_bound_transition(self):
         # Code-vs-record coherence at the door: the trace says an activity

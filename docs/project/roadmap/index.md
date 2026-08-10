@@ -15,7 +15,9 @@ and no live provider or multi-host support is claimed.
   evidence only. Fabric is subject to rewrite and is not a completed or
   supported capability.
 - CV8: production local Activity execution, optional ZeroMQ transport, async
-  Activities, and async-native Worker custody.
+  Activities, async-native Worker custody, and one provider-neutral logical
+  execution with bounded durable retries, deadlines, and terminal-failure
+  projection/recovery.
 - CV10: composable execution. CV10.DS1–DS4 qualified one hermetic,
   Episode-owned Gondolin lifecycle, host-local Activity execution, Local
   Worker terminal replay, and private single-host retained lease

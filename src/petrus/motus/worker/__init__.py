@@ -15,7 +15,14 @@ from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Protocol
 
 import petrus.telemetry as telemetry
-from petrus.motus.activity import Activity, AsyncActivity, AsyncActivityDefinition, _OMITTED
+from petrus.motus.activity import (
+    Activity,
+    ActivityError,
+    ActivityFailure,
+    AsyncActivity,
+    AsyncActivityDefinition,
+    _OMITTED,
+)
 from petrus.motus.activity import snapshot_heartbeat_details
 from petrus.motus.dispatch import ActivityAttempt, WorkerDispatch
 
@@ -134,7 +141,7 @@ class Worker:
                 if error is None:
                     self._provider.complete(attempt, result)
                 else:
-                    self._provider.fail(attempt, error)
+                    self._provider.fail(attempt, error.failure if isinstance(error, ActivityError) else error)
             except Exception as refused:
                 self._say(worker=self._worker_id, refused=attempt.attempt_id, error=str(refused).strip())
                 span.set(outcome="refused")
@@ -259,7 +266,7 @@ class _AsyncWorkerAccess(Protocol):
 
     async def complete(self, slot: int, attempt: ActivityAttempt, result: object) -> None: ...
 
-    async def fail(self, slot: int, attempt: ActivityAttempt, error: str | Exception) -> None: ...
+    async def fail(self, slot: int, attempt: ActivityAttempt, error: str | Exception | ActivityFailure) -> None: ...
 
     async def wait(self, slot: int, timeout: float) -> bool: ...
 
@@ -317,7 +324,7 @@ class _SynchronousWorkerAccess:
     async def complete(self, slot: int, attempt: ActivityAttempt, result: object) -> None:
         await self._lanes[slot].call("complete", attempt, result)
 
-    async def fail(self, slot: int, attempt: ActivityAttempt, error: str | Exception) -> None:
+    async def fail(self, slot: int, attempt: ActivityAttempt, error: str | Exception | ActivityFailure) -> None:
         await self._lanes[slot].call("fail", attempt, error)
 
     async def wait(self, slot: int, timeout: float) -> bool:
@@ -558,7 +565,9 @@ class AsyncWorker:
                 if error is None:
                     await _owned(access.complete(slot, attempt, result))
                 else:
-                    await _owned(access.fail(slot, attempt, error))
+                    await _owned(
+                        access.fail(slot, attempt, error.failure if isinstance(error, ActivityError) else error)
+                    )
             except Exception as refused:
                 self._say(worker=self._worker_id, refused=attempt.attempt_id, error=str(refused).strip())
                 span.set(outcome="refused")

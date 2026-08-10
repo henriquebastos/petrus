@@ -68,7 +68,15 @@ def _encoded(value: Any) -> Any:
     if isinstance(value, DeliveryRegistration):
         return {"source": str(value.source), "key": value.key}
     if isinstance(value, ExecutionPolicy):
-        return {"attempts": value.attempts, "heartbeat_timeout": value.heartbeat_timeout}
+        encoded = {field.name: getattr(value, field.name) for field in fields(value)}
+        defaults = ExecutionPolicy()
+        if all(
+            encoded[name] == getattr(defaults, name)
+            for name in encoded
+            if name not in {"attempts", "heartbeat_timeout"}
+        ):
+            return {name: encoded[name] for name in ("attempts", "heartbeat_timeout")}
+        return encoded
     if isinstance(value, tuple):
         return [_encoded(item) for item in value]
     return value
@@ -80,9 +88,11 @@ def _decoded(field: str, value: Any) -> Any:
     if field == "tokens":
         return tuple(Token(**token) for token in value)
     if field == "policy":
+        old_fields = {"attempts", "heartbeat_timeout"}
+        current_fields = {item.name for item in fields(ExecutionPolicy)}
         if (
             not isinstance(value, Mapping)
-            or set(value) != {"attempts", "heartbeat_timeout"}
+            or set(value) not in (old_fields, current_fields)
             or isinstance(value["attempts"], bool)
             or not isinstance(value["attempts"], int)
             or isinstance(value["heartbeat_timeout"], bool)
@@ -90,9 +100,9 @@ def _decoded(field: str, value: Any) -> Any:
         ):
             raise ValueError(
                 "cannot decode ExecutionPolicy: policy must be exactly "
-                f"{{'attempts': int, 'heartbeat_timeout': int}}, got {value!r}"
+                f"the legacy or current exact policy fields, got {value!r}"
             )
-        return ExecutionPolicy(attempts=value["attempts"], heartbeat_timeout=value["heartbeat_timeout"])
+        return ExecutionPolicy(**value)
     return value
 
 

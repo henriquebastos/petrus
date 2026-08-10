@@ -311,6 +311,10 @@ class ActivityFailed:
 
     transition: NetPath
     error: str
+    kind: str = "ActivityError"
+    details: object = None
+    retryable: bool = False
+    retry_after: float | None = None
     _: KW_ONLY
     occurrence: int
     instant: Instant = 0

@@ -14,9 +14,15 @@ import uuid
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from types import ModuleType
-from typing import cast
+from typing import Any, cast
 
-from petrus.motus.activity import ActivityInvocation, ExecutionPolicy, _OMITTED, snapshot_heartbeat_details
+from petrus.motus.activity import (
+    ActivityFailure,
+    ActivityInvocation,
+    ExecutionPolicy,
+    _OMITTED,
+    snapshot_heartbeat_details,
+)
 from petrus.motus.dispatch import ActivityAttempt, WorkerDispatch
 
 fcntl: ModuleType | None
@@ -151,10 +157,11 @@ class AsyncZeroMQWorkerAccess:
         if _exact(value, {"completed"}, "complete result") != {"completed": True}:
             raise RuntimeError("ZeroMQ Dispatch returned an invalid complete acknowledgement")
 
-    async def fail(self, slot: int, attempt: ActivityAttempt, error: str | Exception) -> None:
+    async def fail(self, slot: int, attempt: ActivityAttempt, error: str | Exception | ActivityFailure) -> None:
         del slot
-        spelling = error if isinstance(error, str) else repr(error)
-        value = await self._rpc("fail", {"attempt": _encode_attempt(attempt), "error": spelling})
+        value = await self._rpc(
+            "fail", {"attempt": _encode_attempt(attempt), "failure": _encode_failure(_classified_failure(error))}
+        )
         if _exact(value, {"failed"}, "fail result") != {"failed": True}:
             raise RuntimeError("ZeroMQ Dispatch returned an invalid fail acknowledgement")
 
@@ -296,11 +303,10 @@ class ZeroMQWorkerDispatch:
         if _exact(value, {"completed"}, "complete result") != {"completed": True}:
             raise RuntimeError("ZeroMQ Dispatch returned an invalid complete acknowledgement")
 
-    def fail(self, attempt: ActivityAttempt, error: str | Exception) -> None:
-        spelling = error if isinstance(error, str) else repr(error)
-        if not isinstance(spelling, str):
-            raise TypeError("Activity failure must be a string or exception")
-        value = self._rpc("fail", {"attempt": _encode_attempt(attempt), "error": spelling})
+    def fail(self, attempt: ActivityAttempt, error: str | Exception | ActivityFailure) -> None:
+        value = self._rpc(
+            "fail", {"attempt": _encode_attempt(attempt), "failure": _encode_failure(_classified_failure(error))}
+        )
         if _exact(value, {"failed"}, "fail result") != {"failed": True}:
             raise RuntimeError("ZeroMQ Dispatch returned an invalid fail acknowledgement")
 
@@ -684,10 +690,15 @@ class ZeroMQDispatchServer:
                 _require_fields(request, base | {"attempt", "result"}, "complete")
                 return operation, (_decode_attempt(request["attempt"]), request["result"])
             if operation == "fail":
-                _require_fields(request, base | {"attempt", "error"}, "fail")
-                if not isinstance(request["error"], str):
-                    raise ValueError("failure error must be a string")
-                return operation, (_decode_attempt(request["attempt"]), request["error"])
+                if "failure" in request:
+                    _require_fields(request, base | {"attempt", "failure"}, "fail")
+                    failure = _decode_failure(request["failure"])
+                else:
+                    _require_fields(request, base | {"attempt", "error"}, "fail")
+                    if not isinstance(request["error"], str):
+                        raise ValueError("failure error must be a string")
+                    failure = ActivityFailure(request["error"], retryable=True)
+                return operation, (_decode_attempt(request["attempt"]), failure)
             raise ValueError(f"unknown Worker Dispatch operation {operation!r}")
         except ValueError as error:
             raise _ProtocolError(str(error)) from error
@@ -740,7 +751,7 @@ class ZeroMQDispatchServer:
             return {"completed": True}
         if operation == "fail":
             attempt, error = arguments
-            assert isinstance(attempt, ActivityAttempt) and isinstance(error, str)
+            assert isinstance(attempt, ActivityAttempt) and isinstance(error, ActivityFailure)
             provider.fail(attempt, error)
             return {"failed": True}
         raise AssertionError(f"decoded unknown Worker Dispatch operation {operation!r}")
@@ -843,7 +854,16 @@ def _encode_invocation(value: ActivityInvocation) -> dict[str, object]:
     return {
         "activity": value.activity,
         "input": value.input,
-        "policy": {"attempts": value.policy.attempts, "heartbeat_timeout": value.policy.heartbeat_timeout},
+        "policy": {
+            "attempts": value.policy.attempts,
+            "heartbeat_timeout": value.policy.heartbeat_timeout,
+            "initial_interval": value.policy.initial_interval,
+            "coefficient": value.policy.coefficient,
+            "max_interval": value.policy.max_interval,
+            "jitter": value.policy.jitter,
+            "start_to_close": value.policy.start_to_close,
+            "schedule_to_close": value.policy.schedule_to_close,
+        },
         "correlation": value.correlation,
         "idempotency": value.idempotency,
     }
@@ -851,13 +871,22 @@ def _encode_invocation(value: ActivityInvocation) -> dict[str, object]:
 
 def _decode_invocation(value: object) -> ActivityInvocation:
     data = _exact(value, {"activity", "input", "policy", "correlation", "idempotency"}, "Activity invocation")
-    policy = _exact(data["policy"], {"attempts", "heartbeat_timeout"}, "execution policy")
+    legacy = {"attempts", "heartbeat_timeout"}
+    current = legacy | {
+        "initial_interval",
+        "coefficient",
+        "max_interval",
+        "jitter",
+        "start_to_close",
+        "schedule_to_close",
+    }
+    if not isinstance(data["policy"], dict) or set(data["policy"]) not in (legacy, current):
+        raise ValueError("execution policy requires exact legacy or current fields")
+    policy = cast(dict[str, object], data["policy"])
     for field in ("attempts", "heartbeat_timeout"):
         if isinstance(policy[field], bool) or not isinstance(policy[field], int):
             raise ValueError(f"execution policy {field} must be an integer")
     activity = _name(data["activity"], "Activity name")
-    attempts = cast(int, policy["attempts"])
-    heartbeat_timeout = cast(int, policy["heartbeat_timeout"])
     correlation = data["correlation"]
     idempotency = data["idempotency"]
     if correlation is not None:
@@ -867,10 +896,44 @@ def _decode_invocation(value: object) -> ActivityInvocation:
     return ActivityInvocation(
         activity,
         input=data["input"],
-        policy=ExecutionPolicy(attempts, heartbeat_timeout),
+        policy=ExecutionPolicy(**policy),  # ty: ignore[invalid-argument-type]
         correlation=correlation,
         idempotency=idempotency,
     )
+
+
+def _encode_failure(value: ActivityFailure) -> dict[str, object]:
+    return {
+        "type": "activity_failure",
+        "error": value.error,
+        "kind": value.kind,
+        "details": value.details,
+        "retryable": value.retryable,
+        "retry_after": value.retry_after,
+    }
+
+
+def _decode_failure(value: object) -> ActivityFailure:
+    data = _exact(value, {"type", "error", "kind", "details", "retryable", "retry_after"}, "failure")
+    if data["type"] != "activity_failure":
+        raise ValueError("unsupported failure payload type")
+    return ActivityFailure(
+        cast(Any, data["error"]),
+        cast(Any, data["kind"]),
+        data["details"],
+        cast(Any, data["retryable"]),
+        cast(Any, data["retry_after"]),
+    )
+
+
+def _classified_failure(value: str | Exception | ActivityFailure) -> ActivityFailure:
+    if isinstance(value, ActivityFailure):
+        return value
+    if isinstance(value, str):
+        return ActivityFailure(value, retryable=True)
+    if isinstance(value, Exception):
+        return ActivityFailure(repr(value), kind=type(value).__name__, retryable=True)
+    raise TypeError("Activity failure must be a string, exception, or ActivityFailure")
 
 
 def _decode_response(payload: bytes, request_id: str) -> object:

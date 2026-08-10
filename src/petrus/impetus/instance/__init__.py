@@ -223,6 +223,24 @@ def _canonical_payload(value: object, rejection: str) -> object:
         ) from None
 
 
+def _canonical_payload_text(value: object) -> str:
+    """Deterministic, type-sensitive spelling of an already admitted JSON payload."""
+    return json.dumps(value, allow_nan=False, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _failure_text(value: ActivityFailure) -> str:
+    """Type-sensitive spelling of the complete durable failure wire."""
+    return _canonical_payload_text(
+        {
+            "error": value.error,
+            "kind": value.kind,
+            "details": value.details,
+            "retryable": value.retryable,
+            "retry_after": value.retry_after,
+        }
+    )
+
+
 def _validate_binding_shape(net: Net, binding: Binding, rejection: str) -> None:
     """
     The one home of the begin-batch shape rule, writer and replay alike: a
@@ -875,7 +893,7 @@ class Instance:
                     f"a failed occurrence cannot retroactively succeed, and a different late result is an "
                     f"operational conflict [DR 2026-07-14 source-delivery-projection-and-identity]"
                 )
-            if terminal == result:
+            if _canonical_payload_text(terminal) == _canonical_payload_text(result):
                 # the recorded fact already answers this redelivery; acknowledge quietly
                 self._log.emit("activity_redelivery_acknowledged", occurrence=occurrence.id)
                 return
@@ -889,7 +907,13 @@ class Instance:
             )
         result = _canonical_payload(result, f"{rejection}: invalid activity result")
         if occurrence.id in self._frozen_results:
-            if self._frozen_results[occurrence.id] == result:
+            frozen = self._frozen_results[occurrence.id]
+            if isinstance(frozen, ActivityFailure):
+                raise ValueError(
+                    f"{rejection}: a terminal activity fact already exists with a failure — "
+                    "a failed occurrence cannot retroactively succeed"
+                )
+            if _canonical_payload_text(frozen) == _canonical_payload_text(result):
                 # the first terminal activity fact won; acknowledge, append nothing
                 self._log.emit("activity_redelivery_acknowledged", occurrence=occurrence.id)
                 return
@@ -909,6 +933,46 @@ class Instance:
             occurrence=occurrence.id,
             instant=instant,
         )
+
+    def record_activity_failure(
+        self, occurrence: FiringOccurrence, failure: ActivityFailure, at: Instant | None = None
+    ) -> None:
+        """Freeze one canonical classified failure before projection or halt."""
+        if not isinstance(failure, ActivityFailure):
+            raise TypeError("record_activity_failure requires ActivityFailure")
+        if occurrence.id in self._terminal_activity:
+            terminal = self._terminal_activity[occurrence.id]
+            if isinstance(terminal, ActivityFailure) and _failure_text(terminal) == _failure_text(failure):
+                return
+            raise ValueError("conflicting terminal activity report")
+        self._ensure_in_flight(occurrence, "record an activity failure for")
+        if occurrence.invocation is None:
+            raise ValueError("cannot record an activity failure for a pure firing — it runs no activity")
+        if occurrence.id in self._frozen_results:
+            frozen = self._frozen_results[occurrence.id]
+            if isinstance(frozen, ActivityFailure) and _failure_text(frozen) == _failure_text(failure):
+                return
+            raise ValueError("conflicting terminal activity report")
+        instant = self._instant(at)
+        self.history.append(
+            ActivityFailed(
+                occurrence.binding.transition,
+                failure.error,
+                failure.kind,
+                failure.details,
+                failure.retryable,
+                failure.retry_after,
+                occurrence=occurrence.id,
+                instant=instant,
+            )
+        )
+        self._advance(instant)
+        self._frozen_results[occurrence.id] = failure
+
+    @property
+    def pending_activity_outcomes(self) -> Mapping[int, object]:
+        """Detached view of frozen outcomes still awaiting a firing boundary."""
+        return MappingProxyType(dict(self._frozen_results))
 
     def complete(
         self,
@@ -958,7 +1022,15 @@ class Instance:
                 raise TypeError(
                     f"{rejection}: its impure occurrence is not bound to an ActivityHandler — recorded and live state disagree"
                 )
-            projected = handler.project(occurrence.binding, self._frozen_results[occurrence.id])
+            frozen = self._frozen_results[occurrence.id]
+            if isinstance(frozen, ActivityFailure):
+                underlying = getattr(handler, "handler", handler)
+                projector = getattr(underlying, "project_failure", None)
+                if projector is None:
+                    raise ValueError(f"{rejection}: frozen failure has no opt-in failure projection")
+                projected = projector(occurrence.binding, frozen)
+            else:
+                projected = handler.project(occurrence.binding, frozen)
         envelope = projected if isinstance(projected, HandlerResult) else HandlerResult(tokens=projected)
         armed, closes, opens = self._armed_after(occurrence, envelope)
         instant = self._instant(at)
@@ -1067,7 +1139,7 @@ class Instance:
             armed[effect.source].add(effect.key)
         return armed, closes, opens
 
-    def fail(self, occurrence: FiringOccurrence, error: str, at: Instant | None = None) -> None:
+    def fail(self, occurrence: FiringOccurrence, error: str | ActivityFailure, at: Instant | None = None) -> None:
         """
         End the occurrence in terminal failure. The batch is the whole commit:
         for an impure occurrence, ``ActivityFailed`` (exhausted execution)
@@ -1083,32 +1155,39 @@ class Instance:
         into a failed firing [the decision's Deferred section].
         """
         self._ensure_in_flight(occurrence, "fail")
+        failure = error if isinstance(error, ActivityFailure) else ActivityFailure(error)
         if occurrence.id in self._frozen_results:
-            raise ValueError(
-                f"cannot fail firing occurrence {occurrence.id} ({occurrence.binding.transition}): its "
-                f"activity already completed — the frozen result stands; fix the projection and retry "
-                f"complete() [DR 2026-07-14 activity-invocation-runtime-seam, Deferred]"
-            )
+            frozen = self._frozen_results[occurrence.id]
+            if not isinstance(frozen, ActivityFailure) or _failure_text(frozen) != _failure_text(failure):
+                raise ValueError(
+                    f"cannot fail firing occurrence {occurrence.id} ({occurrence.binding.transition}): its "
+                    f"activity already completed — the frozen result stands; fix the projection and retry "
+                    f"complete() [DR 2026-07-14 activity-invocation-runtime-seam, Deferred]"
+                )
+        if occurrence.invocation is not None and occurrence.id not in self._frozen_results:
+            self.record_activity_failure(occurrence, failure, at=at)
+        handler = self.bound_handler(occurrence.binding.transition)
+        underlying = getattr(handler, "handler", handler)
+        if occurrence.invocation is not None and callable(getattr(underlying, "project_failure", None)):
+            self.complete(occurrence, at=at)
+            return
         instant = self._instant(at)
-        records: list[Record] = []
-        if occurrence.invocation is not None:
-            records.append(
-                ActivityFailed(occurrence.binding.transition, error, occurrence=occurrence.id, instant=instant)
-            )
-        records.append(FiringFailed(occurrence.binding.transition, error, occurrence=occurrence.id, instant=instant))
+        records: list[Record] = [
+            FiringFailed(occurrence.binding.transition, failure.error, occurrence=occurrence.id, instant=instant)
+        ]
         self.history.extend(records)
         self._advance(instant)
         if occurrence.invocation is not None:
             # The terminal index's failure half: a late result meets the
             # recorded ActivityFailed, never a silent "never began it".
-            self._terminal_activity[occurrence.id] = ActivityFailure(error)
+            self._terminal_activity[occurrence.id] = self._frozen_results.pop(occurrence.id)
         del self._in_flight[occurrence.id]
         self._log.emit(
             "firing_failed",
             transition=str(occurrence.binding.transition),
             occurrence=occurrence.id,
             instant=instant,
-            error=error,
+            error=failure.error,
         )
 
     def _ensure_in_flight(self, occurrence: FiringOccurrence, verb: str) -> None:

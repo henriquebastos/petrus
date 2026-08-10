@@ -222,7 +222,9 @@ def replay_terminal_activity(history) -> dict[int, object]:
                     f"fact before the terminal boundary"
                 )
             terminal[record.occurrence] = (
-                record.result if isinstance(record, ActivityCompleted) else ActivityFailure(record.error)
+                record.result
+                if isinstance(record, ActivityCompleted)
+                else ActivityFailure(record.error, record.kind, record.details, record.retryable, record.retry_after)
             )
     return {occurrence: value for occurrence, value in terminal.items() if occurrence in ended}
 
@@ -304,12 +306,22 @@ def _sorted_lifecycle(  # noqa: C901
                 )
             frozen[record.occurrence] = record.result
         elif isinstance(record, ActivityFailed):
+            requested = record.occurrence in begun and any(
+                isinstance(existing, ActivityRequested) for existing in begun[record.occurrence]
+            )
+            if not requested:
+                raise ValueError(
+                    f"replay divergence: activity failed for firing occurrence {record.occurrence} "
+                    f"({record.transition}) but no activity was requested in its begin batch"
+                )
             if record.occurrence in frozen:
                 raise ValueError(
-                    f"replay divergence: firing occurrence {record.occurrence} ({record.transition}) failed "
-                    f"after its activity completed — the live writer refuses to fail a frozen-completed occurrence"
+                    f"replay divergence: a second terminal activity fact for firing occurrence "
+                    f"{record.occurrence} ({record.transition})"
                 )
-            ending.add(record.occurrence)
+            frozen[record.occurrence] = ActivityFailure(
+                record.error, record.kind, record.details, record.retryable, record.retry_after
+            )
         elif isinstance(record, TokensProduced):
             ending.add(record.occurrence)
         elif isinstance(record, (DeliveryRegistrationOpened, DeliveryRegistrationClosed)):

@@ -250,12 +250,71 @@ def async_activity(
     return declare(function) if function is not None else declare
 
 
+MAX_DURATION_SECONDS = 1_000_000_000
+"""Largest accepted duration: provider-neutral and safe for milliseconds and datetimes."""
+
+
+@dataclass(frozen=True)
+class RetryPolicy:
+    """Provider-neutral deterministic retry policy; durations are seconds, at most 1,000,000,000."""
+
+    initial_interval: float = 0
+    coefficient: float = 2
+    max_interval: float = 60
+    max_attempts: int = 1
+    jitter: float = 0
+
+    def __post_init__(self) -> None:
+        for name in ("initial_interval", "coefficient", "max_interval", "jitter"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+                raise ValueError(f"RetryPolicy {name} must be a non-negative number")
+        for name in ("initial_interval", "max_interval"):
+            if getattr(self, name) > MAX_DURATION_SECONDS:
+                raise ValueError(
+                    f"RetryPolicy {name} must be at most {MAX_DURATION_SECONDS} seconds for provider-neutral duration safety"
+                )
+        if self.coefficient < 1:
+            raise ValueError("RetryPolicy coefficient must be >= 1")
+        if isinstance(self.max_attempts, bool) or not isinstance(self.max_attempts, int) or self.max_attempts < 1:
+            raise ValueError("RetryPolicy max_attempts must be an integer >= 1")
+        if self.jitter != 0:
+            raise ValueError("RetryPolicy jitter is unsupported; only deterministic jitter=0 is accepted")
+
+    def delay(self, failed_attempt: int) -> float:
+        """Delay following the numbered failed attempt."""
+        if isinstance(failed_attempt, bool) or not isinstance(failed_attempt, int) or failed_attempt < 1:
+            raise ValueError("RetryPolicy delay requires a failed attempt number >= 1")
+        if self.initial_interval == 0 or self.max_interval == 0:
+            return 0
+        if self.initial_interval >= self.max_interval:
+            return self.max_interval
+        if self.coefficient == 1:
+            return self.initial_interval
+        exponent = failed_attempt - 1
+        saturation_exponent = math.ceil(
+            (math.log(self.max_interval) - math.log(self.initial_interval)) / math.log(self.coefficient)
+        )
+        if exponent >= saturation_exponent:
+            return self.max_interval
+        return min(
+            self.max_interval,
+            math.exp(math.log(self.initial_interval) + exponent * math.log(self.coefficient)),
+        )
+
+
 @dataclass(frozen=True)
 class ExecutionPolicy:
-    """The resolved number of operational attempts for one invocation."""
+    """Resolved retry, heartbeat, and aggregate/per-attempt deadlines."""
 
     attempts: int = 1
     heartbeat_timeout: int = 30
+    initial_interval: float = 0
+    coefficient: float = 2
+    max_interval: float = 60
+    jitter: float = 0
+    start_to_close: float | None = None
+    schedule_to_close: float | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.attempts, bool) or not isinstance(self.attempts, int) or self.attempts < 1:
@@ -269,6 +328,26 @@ class ExecutionPolicy:
             or self.heartbeat_timeout <= 0
         ):
             raise ValueError("ExecutionPolicy heartbeat_timeout must be a positive integer")
+        if self.heartbeat_timeout > MAX_DURATION_SECONDS:
+            raise ValueError(
+                f"ExecutionPolicy heartbeat_timeout must be at most {MAX_DURATION_SECONDS} seconds "
+                "for provider-neutral duration safety"
+            )
+        RetryPolicy(self.initial_interval, self.coefficient, self.max_interval, self.attempts, self.jitter)
+        for name in ("start_to_close", "schedule_to_close"):
+            value = getattr(self, name)
+            if value is not None and (
+                isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0
+            ):
+                raise ValueError(f"ExecutionPolicy {name} must be a positive number or None")
+            if value is not None and value > MAX_DURATION_SECONDS:
+                raise ValueError(
+                    f"ExecutionPolicy {name} must be at most {MAX_DURATION_SECONDS} seconds for provider-neutral duration safety"
+                )
+
+    @property
+    def retry_policy(self) -> RetryPolicy:
+        return RetryPolicy(self.initial_interval, self.coefficient, self.max_interval, self.attempts, self.jitter)
 
 
 @dataclass(frozen=True)
@@ -293,11 +372,65 @@ class ActivityInvocation:
                 )
 
 
+def _failure_details(value: object) -> object:
+    try:
+        encoded = json.dumps(value, allow_nan=False, ensure_ascii=False, separators=(",", ":"))
+        if len(encoded.encode()) > 16_384:
+            raise ValueError("Activity failure details exceed the 16384-byte limit")
+        return json.loads(encoded)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"Activity failure details must be JSON-faithful: {error}") from error
+
+
 @dataclass(frozen=True)
 class ActivityFailure:
-    """A Dispatch terminal failure value."""
+    """Safe, durable classified terminal failure value."""
 
     error: str
+    kind: str = "ActivityError"
+    details: object = None
+    retryable: bool = False
+    retry_after: float | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.error, str) or not self.error or len(self.error) > 4096:
+            raise ValueError("ActivityFailure error must be a non-empty string of at most 4096 characters")
+        if not isinstance(self.kind, str) or not self.kind or len(self.kind) > 128:
+            raise ValueError("ActivityFailure kind must be a non-empty string of at most 128 characters")
+        if not isinstance(self.retryable, bool):
+            raise TypeError("ActivityFailure retryable must be bool")
+        if self.retry_after is not None and (
+            isinstance(self.retry_after, bool)
+            or not isinstance(self.retry_after, (int, float))
+            or not math.isfinite(self.retry_after)
+            or self.retry_after < 0
+        ):
+            raise ValueError("ActivityFailure retry_after must be a non-negative number or None")
+        if self.retry_after is not None and self.retry_after > MAX_DURATION_SECONDS:
+            raise ValueError(
+                f"ActivityFailure retry_after must be at most {MAX_DURATION_SECONDS} seconds for provider-neutral duration safety"
+            )
+        object.__setattr__(self, "details", _failure_details(self.details))
+
+
+class ActivityError(Exception):
+    """Exception an Activity raises to classify a safe operational failure."""
+
+    def __init__(
+        self,
+        error: str,
+        *,
+        kind: str = "ActivityError",
+        details: object = None,
+        retryable: bool = False,
+        retry_after: float | None = None,
+    ) -> None:
+        self.failure = ActivityFailure(error, kind, details, retryable, retry_after)
+        super().__init__(error)
+
+    @property
+    def error(self) -> str:
+        return self.failure.error
 
 
 class ActivityExecutionContext(Protocol):
@@ -339,6 +472,7 @@ __all__ = [
     "ActivityDeclaration",
     "ActivityDefinition",
     "ActivityExecutionContext",
+    "ActivityError",
     "ActivityFailure",
     "ActivityInvocation",
     "AsyncActivity",
@@ -346,8 +480,10 @@ __all__ = [
     "AsyncActivityExecutionContext",
     "DataclassPayloadConverter",
     "ExecutionPolicy",
+    "RetryPolicy",
     "HEARTBEAT_DETAILS_LIMIT",
     "JsonPayloadConverter",
+    "MAX_DURATION_SECONDS",
     "PayloadConverter",
     "activity",
     "async_activity",

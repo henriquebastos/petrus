@@ -19,11 +19,18 @@ from petrus.impetus.history_store import JsonlHistoryStore, SqliteHistoryStore
 from petrus.impetus.petrinet import Arc, Marking, Net, NetPath, Place, Token, Transition
 
 
-def invocation(activity: str = "work", *, attempts: int = 2, timeout: int = 30, value=1):
+def invocation(
+    activity: str = "work",
+    *,
+    attempts: int = 2,
+    timeout: int = 30,
+    value=1,
+    **policy,
+):
     return ActivityInvocation(
         activity,
         input={"value": value},
-        policy=ExecutionPolicy(attempts=attempts, heartbeat_timeout=timeout),
+        policy=ExecutionPolicy(attempts=attempts, heartbeat_timeout=timeout, **policy),
         correlation="correlation",
         idempotency="idempotency",
     )
@@ -151,6 +158,92 @@ def test_schema_initialization_is_atomic_under_spawned_process_startup(tmp_path:
     LocalDispatch(path, instance="reopened")
 
 
+def test_v1_schema_migrates_pending_active_and_terminal_custody_without_losing_fences(tmp_path: Path) -> None:
+    path = tmp_path / "dispatch.db"
+    legacy = json.dumps(
+        {
+            "activity": "work",
+            "input": {"value": 1},
+            "policy": {"attempts": 2, "heartbeat_timeout": 30},
+            "correlation": "correlation",
+            "idempotency": "idempotency",
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    with sqlite3.connect(path) as connection:
+        connection.executescript(
+            """
+            CREATE TABLE impetus_local_dispatch_schema (
+              component TEXT PRIMARY KEY CHECK(component='dispatch'), version INTEGER NOT NULL);
+            INSERT INTO impetus_local_dispatch_schema VALUES ('dispatch', 1);
+            CREATE TABLE impetus_local_dispatch_tasks (
+              sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+              instance TEXT NOT NULL, occurrence INTEGER NOT NULL CHECK(occurrence>0),
+              queue TEXT NOT NULL, invocation TEXT NOT NULL CHECK(json_valid(invocation)),
+              epoch INTEGER NOT NULL DEFAULT 0 CHECK(epoch>=0), claimant TEXT, deadline INTEGER,
+              details TEXT CHECK(details IS NULL OR json_valid(details)),
+              CHECK((epoch=0 AND claimant IS NULL AND deadline IS NULL) OR
+                    (epoch>0 AND claimant IS NOT NULL AND deadline IS NOT NULL)),
+              UNIQUE(instance, occurrence));
+            CREATE INDEX impetus_local_dispatch_claimable
+              ON impetus_local_dispatch_tasks(queue, sequence);
+            CREATE TABLE impetus_local_dispatch_terminals (
+              sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+              instance TEXT NOT NULL, occurrence INTEGER NOT NULL, epoch INTEGER NOT NULL CHECK(epoch>0),
+              claimant TEXT NOT NULL, outcome TEXT NOT NULL CHECK(json_valid(outcome)),
+              UNIQUE(instance, occurrence),
+              FOREIGN KEY(instance, occurrence)
+                REFERENCES impetus_local_dispatch_tasks(instance, occurrence));
+            """
+        )
+        connection.execute(
+            "INSERT INTO impetus_local_dispatch_tasks(instance,occurrence,queue,invocation) VALUES('one',1,'default',?)",
+            (legacy,),
+        )
+        connection.execute(
+            "INSERT INTO impetus_local_dispatch_tasks(instance,occurrence,queue,invocation,epoch,claimant,deadline,details) "
+            "VALUES('one',2,'default',?,1,'active',unixepoch('now')*1000+30000,'{\"progress\":1}')",
+            (legacy,),
+        )
+        connection.execute(
+            "INSERT INTO impetus_local_dispatch_tasks(instance,occurrence,queue,invocation,epoch,claimant,deadline) "
+            "VALUES('one',3,'default',?,1,'done',unixepoch('now')*1000+30000)",
+            (legacy,),
+        )
+        connection.execute(
+            "INSERT INTO impetus_local_dispatch_terminals(instance,occurrence,epoch,claimant,outcome) "
+            'VALUES(\'one\',3,1,\'done\',\'{"kind":"failed","error":"broken"}\')'
+        )
+
+    dispatch = LocalDispatch(path, instance="one")
+    call = invocation()
+    dispatch.dispatch(1, call)
+    dispatch.dispatch(2, call)
+    dispatch.dispatch(3, call)
+    active = ActivityAttempt('["one",2]', "1", "active", "default", call, {"progress": 1})
+
+    assert LocalWorkerDispatch(path, _claimant="active").heartbeat(active) == {"progress": 1}
+    assert dispatch.collect() == ((3, ActivityFailure("broken")),)
+    done = ActivityAttempt('["one",3]', "1", "done", "default", call, None)
+    LocalWorkerDispatch(path, _claimant="done").fail(done, "broken")
+    with sqlite3.connect(path) as connection:
+        assert connection.execute("SELECT version FROM impetus_local_dispatch_schema").fetchone() == (2,)
+        policy = json.loads(
+            connection.execute("SELECT invocation FROM impetus_local_dispatch_tasks WHERE occurrence=1").fetchone()[0]
+        )["policy"]
+    assert set(policy) == {
+        "attempts",
+        "heartbeat_timeout",
+        "initial_interval",
+        "coefficient",
+        "max_interval",
+        "jitter",
+        "start_to_close",
+        "schedule_to_close",
+    }
+
+
 def test_current_version_foreign_shape_and_invalid_custody_states_are_refused(tmp_path: Path) -> None:
     path = tmp_path / "dispatch.db"
     LocalDispatch(path, instance="one")
@@ -261,6 +354,47 @@ def test_one_second_lease_survives_the_next_wall_clock_second_boundary(tmp_path:
     assert custody.heartbeat(attempt) is None
 
 
+def test_heartbeat_renews_without_a_hard_attempt_deadline(tmp_path: Path) -> None:
+    dispatch = LocalDispatch(tmp_path / "dispatch.db", instance="one")
+    dispatch.dispatch(1, invocation(timeout=1))
+    custody = LocalWorkerDispatch(dispatch.path, _claimant="worker")
+    attempt = require_claim(custody)
+    with sqlite3.connect(dispatch.path) as connection:
+        original, hard = connection.execute(
+            "SELECT deadline,attempt_deadline FROM impetus_local_dispatch_tasks"
+        ).fetchone()
+    time.sleep(0.02)
+    custody.heartbeat(attempt)
+    with sqlite3.connect(dispatch.path) as connection:
+        renewed = connection.execute("SELECT deadline FROM impetus_local_dispatch_tasks").fetchone()[0]
+    assert hard is None
+    assert renewed > original
+
+
+def test_subsecond_deadlines_and_retry_delays_round_up_from_millisecond_clock(tmp_path: Path) -> None:
+    dispatch = LocalDispatch(tmp_path / "dispatch.db", instance="one")
+    dispatch.dispatch(1, invocation(attempts=2, start_to_close=0.0001, schedule_to_close=1.0001))
+    custody = LocalWorkerDispatch(dispatch.path, _claimant="worker")
+    require_claim(custody)
+    with sqlite3.connect(dispatch.path) as connection:
+        schedule_start, available_at, attempt_start, attempt_deadline = connection.execute(
+            "SELECT schedule_start,available_at,attempt_start,attempt_deadline FROM impetus_local_dispatch_tasks"
+        ).fetchone()
+    assert schedule_start == available_at
+    assert attempt_deadline == attempt_start + 1
+
+    retry_dispatch = LocalDispatch(tmp_path / "retry.db", instance="one")
+    retry_dispatch.dispatch(2, invocation(attempts=2, initial_interval=0.0001))
+    retry_custody = LocalWorkerDispatch(retry_dispatch.path, _claimant="worker")
+    retry = require_claim(retry_custody)
+    retry_custody.fail(retry, ActivityFailure("later", retryable=True))
+    with sqlite3.connect(retry_dispatch.path) as connection:
+        deadline, available = connection.execute(
+            "SELECT deadline,available_at FROM impetus_local_dispatch_tasks WHERE occurrence=2"
+        ).fetchone()
+    assert available == deadline + 1
+
+
 def test_oversized_heartbeat_details_are_rejected_before_persistence(tmp_path: Path) -> None:
     dispatch = LocalDispatch(tmp_path / "dispatch.db", instance="one")
     dispatch.dispatch(1, invocation())
@@ -289,6 +423,103 @@ def test_failure_retries_then_terminal_success_is_exact_and_session_redelivers(t
     assert restarted.collect() == ()
     restarted.dispatch(1, call)
     assert restarted.collect() == ((1, result),)
+
+
+def test_two_retryable_failures_then_success_keep_one_logical_invocation(tmp_path: Path) -> None:
+    dispatch = LocalDispatch(tmp_path / "dispatch.db", instance="one")
+    call = invocation(attempts=3)
+    dispatch.dispatch(1, call)
+    custody = LocalWorkerDispatch(dispatch.path, _claimant="worker")
+    attempts = []
+    for number in (1, 2):
+        attempt = require_claim(custody)
+        attempts.append(attempt)
+        custody.fail(
+            attempt,
+            ActivityFailure(
+                f"transient-{number}",
+                kind="Unavailable",
+                details={"attempt": number},
+                retryable=True,
+            ),
+        )
+    final = require_claim(custody)
+    attempts.append(final)
+    custody.complete(final, "done")
+
+    assert [attempt.epoch for attempt in attempts] == ["1", "2", "3"]
+    assert all(attempt.invocation == call for attempt in attempts)
+    assert {(attempt.invocation.correlation, attempt.invocation.idempotency) for attempt in attempts} == {
+        ("correlation", "idempotency")
+    }
+    assert dispatch.collect() == ((1, "done"),)
+
+
+def test_delayed_retry_schedule_survives_dispatch_restart(tmp_path: Path) -> None:
+    path = tmp_path / "dispatch.db"
+    dispatch = LocalDispatch(path, instance="one")
+    call = invocation(attempts=2, initial_interval=60)
+    dispatch.dispatch(1, call)
+    worker = LocalWorkerDispatch(path, _claimant="first")
+    worker.fail(
+        require_claim(worker),
+        ActivityFailure("later", kind="Unavailable", retryable=True, retry_after=30),
+    )
+
+    restarted = LocalDispatch(path, instance="one")
+    restarted.dispatch(1, call)
+    replacement = LocalWorkerDispatch(path, _claimant="replacement")
+    assert replacement.claim() is None
+    with sqlite3.connect(path) as connection:
+        available, schedule_start = connection.execute(
+            "SELECT available_at,schedule_start FROM impetus_local_dispatch_tasks"
+        ).fetchone()
+        assert available >= schedule_start + 60_000
+        connection.execute("UPDATE impetus_local_dispatch_tasks SET deadline=0,available_at=0")
+    assert require_claim(replacement).epoch == "2"
+
+
+def test_nonretryable_failure_terminalizes_without_spending_remaining_attempts(tmp_path: Path) -> None:
+    dispatch = LocalDispatch(tmp_path / "dispatch.db", instance="one")
+    dispatch.dispatch(1, invocation(attempts=5))
+    custody = LocalWorkerDispatch(dispatch.path, _claimant="worker")
+    custody.fail(
+        require_claim(custody),
+        ActivityFailure("invalid", kind="InvalidRequest", details={"field": "name"}, retryable=False),
+    )
+
+    assert custody.claim() is None
+    assert dispatch.collect() == ((1, ActivityFailure("invalid", "InvalidRequest", {"field": "name"}, False)),)
+
+
+def test_schedule_to_close_can_expire_before_first_claim(tmp_path: Path) -> None:
+    dispatch = LocalDispatch(tmp_path / "dispatch.db", instance="one")
+    dispatch.dispatch(1, invocation(attempts=3, schedule_to_close=10))
+    with sqlite3.connect(dispatch.path) as connection:
+        connection.execute("UPDATE impetus_local_dispatch_tasks SET schedule_start=0")
+
+    assert LocalWorkerDispatch(dispatch.path, _claimant="worker").claim() is None
+    [(occurrence, failure)] = dispatch.collect()
+    assert occurrence == 1
+    assert isinstance(failure, ActivityFailure)
+    assert failure.kind == "DeadlineExceeded"
+
+
+def test_start_to_close_deadline_fences_the_attempt_and_terminalizes_when_exhausted(tmp_path: Path) -> None:
+    dispatch = LocalDispatch(tmp_path / "dispatch.db", instance="one")
+    dispatch.dispatch(1, invocation(attempts=1, start_to_close=10))
+    custody = LocalWorkerDispatch(dispatch.path, _claimant="worker")
+    attempt = require_claim(custody)
+    with sqlite3.connect(dispatch.path) as connection:
+        connection.execute("UPDATE impetus_local_dispatch_tasks SET deadline=0,attempt_deadline=0 WHERE instance='one'")
+
+    with pytest.raises(ValueError, match="stale"):
+        custody.heartbeat(attempt)
+    assert custody.claim() is None
+    [(occurrence, failure)] = dispatch.collect()
+    assert occurrence == 1
+    assert isinstance(failure, ActivityFailure)
+    assert failure.kind == "DeadlineExceeded"
 
 
 @pytest.mark.parametrize(

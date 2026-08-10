@@ -78,6 +78,12 @@ class _ResolvedActivityHandler:
     def project(self, binding, result):
         return self.handler.project(binding, result)
 
+    def project_failure(self, binding, failure):
+        projector = getattr(self.handler, "project_failure", None)
+        if projector is None:
+            raise AttributeError("this ActivityHandler does not project failures")
+        return projector(binding, failure)
+
 
 class Engine:
     """The live motion-producing composition around one durable Instance.

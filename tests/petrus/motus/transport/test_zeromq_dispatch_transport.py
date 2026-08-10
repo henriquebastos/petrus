@@ -115,6 +115,58 @@ def test_ipc_round_trips_attempt_heartbeat_null_and_terminal_fencing(tmp_path: P
         running.close()
 
 
+def test_ipc_round_trips_v2_policy_and_classified_failure_for_sync_and_async_clients(tmp_path: Path) -> None:
+    path = tmp_path / "dispatch.sqlite3"
+    endpoint = f"ipc://{tmp_path}/v2-dispatch.sock"
+    policy = ExecutionPolicy(
+        attempts=3,
+        heartbeat_timeout=4,
+        initial_interval=5,
+        coefficient=3,
+        max_interval=20,
+        start_to_close=40,
+        schedule_to_close=90,
+    )
+    call = ActivityInvocation(
+        "work",
+        input={"operation": "stable"},
+        policy=policy,
+        correlation="correlation",
+        idempotency="idempotency",
+    )
+    failure = ActivityFailure(
+        "invalid",
+        kind="InvalidRequest",
+        details={"field": "name"},
+        retryable=False,
+        retry_after=7,
+    )
+    dispatch = LocalDispatch(path, instance="v2")
+    dispatch.dispatch(1, call)
+    dispatch.dispatch(2, call)
+    running = RunningServer(ZeroMQDispatchServer.local(endpoint, path, allowed_queues=("default",)))
+    client = ZeroMQWorkerDispatch(running.endpoint)
+
+    async def fail_second() -> None:
+        access = await AsyncZeroMQWorkerAccess.create(running.endpoint)
+        try:
+            attempt = await access.claim(0)
+            assert attempt is not None and attempt.invocation == call
+            await access.fail(0, attempt, failure)
+        finally:
+            await access.close()
+
+    try:
+        first = client.claim()
+        assert first is not None and first.invocation == call
+        client.fail(first, failure)
+        asyncio.run(fail_second())
+        assert dispatch.collect() == ((1, failure), (2, failure))
+    finally:
+        client.close()
+        running.close()
+
+
 def test_async_ipc_direct_claim_heartbeat_completion_fencing_and_idempotent_close(tmp_path: Path) -> None:
     path = tmp_path / "dispatch.sqlite3"
     endpoint = f"ipc://{tmp_path}/async-dispatch.sock"
@@ -280,7 +332,7 @@ def test_async_completion_retries_identical_payload_with_fresh_bounded_sockets(t
 
     async def exercise():
         access = await AsyncZeroMQWorkerAccess.create(
-            f"ipc://{tmp_path}/unused.sock", request_timeout=0.001, terminal_timeout=0.004, max_in_flight_operations=1
+            f"ipc://{tmp_path}/unused.sock", request_timeout=0.001, terminal_timeout=0.02, max_in_flight_operations=1
         )
 
         def open_socket():
@@ -601,7 +653,7 @@ def test_async_lost_heartbeat_and_failure_replies_are_not_replayed(tmp_path: Pat
     try:
         asyncio.run(exercise())
         assert calls == {"heartbeat": 1, "fail": 1}
-        assert dispatch.collect() == ((1, ActivityFailure("final")),)
+        assert dispatch.collect() == ((1, ActivityFailure("final", retryable=True)),)
     finally:
         running.close()
 
@@ -788,7 +840,7 @@ def test_lost_heartbeat_and_failure_replies_are_not_replayed(tmp_path: Path) -> 
         delays["fail"] = 0.2
         with pytest.raises(ConnectionError, match="fail.*not acknowledged"):
             client.fail(final, "final")
-        assert dispatch.collect() == ((1, "recovered"), (2, ActivityFailure("final")))
+        assert dispatch.collect() == ((1, "recovered"), (2, ActivityFailure("final", retryable=True)))
     finally:
         client.close()
         running.close()

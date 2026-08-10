@@ -12,6 +12,7 @@ from typing import Protocol, runtime_checkable
 
 from petrus.motus.activity import (
     Activity,
+    ActivityError,
     ActivityFailure,
     ActivityInvocation,
     _OMITTED,
@@ -44,7 +45,7 @@ class WorkerDispatch(Protocol):
 
     def complete(self, attempt: ActivityAttempt, result: object) -> None: ...
 
-    def fail(self, attempt: ActivityAttempt, error: str | Exception) -> None: ...
+    def fail(self, attempt: ActivityAttempt, error: str | Exception | ActivityFailure) -> None: ...
 
     def wait(self, timeout: float) -> bool: ...
 
@@ -72,26 +73,38 @@ class InlineDispatch:
                 f"{sorted(self.activities)}"
             )
         implementation = self.activities[invocation.activity]
+        started = __import__("time").monotonic()
         for attempt in range(1, invocation.policy.attempts + 1):
             context = _InlineActivityExecutionContext(
                 attempt_id=f"inline-{attempt}", epoch=str(attempt), claimant="inline", latest_details=None
             )
             try:
                 return implementation(invocation, context=context)
-            except Exception:
-                if attempt == invocation.policy.attempts:
+            except Exception as error:
+                failure = _classify_inline_failure(error)
+                elapsed = __import__("time").monotonic() - started
+                expired = (
+                    invocation.policy.schedule_to_close is not None and elapsed >= invocation.policy.schedule_to_close
+                )
+                if not failure.retryable or expired or attempt == invocation.policy.attempts:
                     raise
 
     def dispatch(self, occurrence: int, invocation: ActivityInvocation) -> None:
         try:
             self._completed.append((occurrence, self(invocation)))
         except Exception as error:
-            self._completed.append((occurrence, ActivityFailure(repr(error))))
+            self._completed.append((occurrence, _classify_inline_failure(error)))
 
     def collect(self) -> tuple[tuple[int, object], ...]:
         drained = tuple(self._completed)
         self._completed.clear()
         return drained
+
+
+def _classify_inline_failure(error: Exception) -> ActivityFailure:
+    if isinstance(error, ActivityError):
+        return error.failure
+    return ActivityFailure(str(error) or type(error).__name__, kind=type(error).__name__, retryable=True)
 
 
 @dataclass

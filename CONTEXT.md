@@ -540,7 +540,25 @@ One operational try by a Worker to execute an Activity invocation. Dispatch owns
 
 ### Activity result
 
-The typed, Petri-agnostic output returned by an activity. `ActivityCompleted` freezes it in canonical history before the server-side handler deterministically projects it into token and delivery-registration effects. A business refusal such as a card decline is a completed typed result; an exhausted infrastructure failure is `ActivityFailed`, bypasses handler projection, and ends the firing through `FiringFailed`.
+The typed, Petri-agnostic output returned by an activity. `ActivityCompleted` freezes it in canonical history before the server-side handler deterministically projects it into token and delivery-registration effects. A business refusal is a completed typed result. An exhausted operational failure is a classified `ActivityFailed`; a handler may explicitly project it through deterministic `project_failure`, while handlers without that opt-in retain `FiringFailed` and halt.
+
+### Activity failure
+
+A safe durable operational failure value carrying a bounded message,
+provider-neutral kind, JSON-faithful details, retryability, and optional
+retry-after guidance. Retryability classifies the failure independently of
+whether the frozen execution policy permits another Attempt. Only terminal
+failure enters canonical History; failed Attempts remain Dispatch state.
+
+### Activity execution policy
+
+The immutable policy frozen into one Activity invocation. It defaults to one
+Attempt and may opt into bounded deterministic exponential backoff, a renewable
+heartbeat timeout, per-Attempt start-to-close, and aggregate schedule-to-close.
+The current deterministic policy accepts zero jitter only and bounds every
+duration at 1,000,000,000 seconds for provider-neutral representability. A
+provider must refuse deadline fields it cannot enforce soundly rather than
+approximate them.
 
 ### Dispatch
 

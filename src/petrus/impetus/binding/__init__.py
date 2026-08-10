@@ -41,6 +41,13 @@ class ActivityHandler(Protocol):
     def project(self, binding: Binding, result: object) -> Mapping[NetPath | str, Sequence[Token]] | HandlerResult: ...
 
 
+@runtime_checkable
+class FailureProjectingActivityHandler(Protocol):
+    def project_failure(
+        self, binding: Binding, failure: object
+    ) -> Mapping[NetPath | str, Sequence[Token]] | HandlerResult: ...
+
+
 @dataclass(frozen=True)
 class _DerivedInput:
     name: str

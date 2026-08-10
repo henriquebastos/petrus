@@ -155,6 +155,16 @@ execution adapter's reconstructible store, correlated by invocation identity —
 this refines ADR 0034's original clause that attempts and retries appear in
 the canonical log [DR 2026-07-14 activity-invocation-runtime-seam].
 
+The terminal failure is a standalone freeze boundary, not merely a field in
+the later firing halt. `ActivityFailed` preserves the safe classified failure
+before either deterministic `project_failure` effects or legacy
+`FiringFailed`. A durable prefix ending at that record is recoverable: reload
+repeats projection only and never creates another Attempt. Intermediate
+retryable failures remain Dispatch state and never enter canonical History;
+only the accepted first terminal value does. Identical terminal redelivery is
+acknowledged and a conflicting terminal value is rejected [DR 2026-08-10
+one-logical-activity-execution].
+
 ## Activities, not worker mechanics
 
 The event history records semantic **activities** and process facts — not

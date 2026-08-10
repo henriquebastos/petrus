@@ -223,6 +223,26 @@ Worker capability or queue-routing field in either `ActivityInvocation` or
 `ActivityRequested`; Engine configuration routes by exact Activity name over
 an operational default queue plus optional overrides.
 
+One frozen invocation is one logical Activity execution. Its correlation and
+idempotency identities remain stable across all operational Attempts. The
+resolved execution policy defaults to one Attempt and may opt into bounded
+deterministic backoff, renewable heartbeat custody, per-Attempt
+start-to-close, and aggregate schedule-to-close deadlines. Dispatch owns that
+operational state; canonical History does not record intermediate failures,
+delays, or custody topology. Duration values have a provider-neutral maximum
+of 1,000,000,000 seconds and fail before dispatch when exceeded [DR 2026-08-10
+one-logical-activity-execution].
+
+An Activity may classify a safe durable failure with a provider-neutral kind,
+JSON-faithful details, retryability, and optional retry-after guidance. After
+policy exhaustion, `ActivityFailed` freezes that terminal value before any net
+projection. An Activity handler may explicitly provide
+`project_failure(binding, failure)` to deterministically project a terminal
+failure into ordinary token and registration effects. Without that opt-in,
+legacy `FiringFailed` and runtime halt semantics remain. Failure projection is
+pure and replayable: a reload may run it again from the frozen fact but never
+re-executes the Activity [DR 2026-08-10 one-logical-activity-execution].
+
 ## Reusable components
 
 Reusable components expose three layers separately [ADR 0002]:

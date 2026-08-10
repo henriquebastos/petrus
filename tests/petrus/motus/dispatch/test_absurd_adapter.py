@@ -324,6 +324,33 @@ class TestDispatch:
 
         assert len(task_rows(observer, queue, adapter, 7)) == 1
 
+    def test_redispatch_with_conflicting_invocation_is_refused(self, authority, queue):
+        adapter = adapter_over(authority, default_queue=queue)
+        original = invocation_for(queue, payload={"version": 1})
+        publish(adapter, authority, 7, original)
+
+        with pytest.raises(ValueError, match="publication conflict"):
+            adapter.dispatch(7, ActivityInvocation("different_activity", input={"version": 2}))
+
+    def test_redispatch_normalizes_legacy_two_field_policy_before_comparison(self, authority, queue):
+        adapter = adapter_over(authority, default_queue=queue)
+        invocation = invocation_for(queue)
+        publish(adapter, authority, 7, invocation)
+        authority.execute(
+            f"UPDATE absurd.t_{queue} SET params = jsonb_set(params, '{{policy}}', %s)",
+            (Jsonb({"attempts": 1, "heartbeat_timeout": 30}),),
+        )
+
+        adapter.dispatch(7, invocation)
+
+    @pytest.mark.parametrize("field", ["start_to_close", "schedule_to_close"])
+    def test_pinned_absurd_provider_refuses_deadlines_it_cannot_enforce_exactly(self, authority, queue, field):
+        adapter = adapter_over(authority, default_queue=queue)
+        policy = ExecutionPolicy(**{field: 10})
+
+        with pytest.raises(ValueError, match="does not support start_to_close or schedule_to_close"):
+            adapter.dispatch(1, ActivityInvocation("probe_activity", policy=policy))
+
     def test_the_doorbell_and_the_spawn_ride_the_open_transaction(self, authority, listener, observer, queue):
         # Join mode: BEFORE the commit, another connection sees neither the
         # task nor the NOTIFY; the commit delivers both together [D11]. The
@@ -1067,6 +1094,113 @@ class TestGuardedAttemptDispatch:
         ).fetchone()[0]
         assert after >= before
         assert dispatch.heartbeat(queue, task_id=task["task_id"], run_id=task["run_id"], timeout=5) == {"offset": [1]}
+
+    def test_nonretryable_classified_failure_terminalizes_and_round_trips_exactly(self, authority, observer, queue):
+        adapter = adapter_over(authority, default_queue=queue)
+        call = ActivityInvocation("probe_activity", policy=ExecutionPolicy(attempts=4))
+        publish(adapter, authority, 1, call)
+        dispatch = GuardedDispatch(authority, claimant="worker")
+        task, _ = dispatch.claim(queue, timeout=30)
+        failure = ActivityFailure(
+            "invalid",
+            kind="InvalidRequest",
+            details={"field": "name"},
+            retryable=False,
+            retry_after=9,
+        )
+
+        dispatch.terminal(
+            queue,
+            task_id=task["task_id"],
+            run_id=task["run_id"],
+            error=failure,
+        )
+
+        assert observer.execute(f"SELECT state,max_attempts FROM absurd.t_{queue}").fetchone() == ("failed", 1)
+        assert adapter.collect() == ((1, failure),)
+
+    def test_duplicate_completion_acknowledges_and_conflicts_are_refused(self, authority, queue):
+        self._spawn(authority, queue)
+        dispatch = GuardedDispatch(authority, claimant="worker")
+        task, _ = dispatch.claim(queue, timeout=30)
+
+        dispatch.terminal(queue, task_id=task["task_id"], run_id=task["run_id"], result={"ok": True})
+        dispatch.terminal(queue, task_id=task["task_id"], run_id=task["run_id"], result={"ok": True})
+        with pytest.raises(ValueError, match="conflicting terminal report"):
+            dispatch.terminal(queue, task_id=task["task_id"], run_id=task["run_id"], result={"ok": False})
+        with pytest.raises(ValueError, match="conflicting terminal report"):
+            dispatch.terminal(queue, task_id=task["task_id"], run_id=task["run_id"], error=RuntimeError("late"))
+
+    def test_nested_boolean_and_integer_success_results_conflict(self, authority, queue):
+        self._spawn(authority, queue)
+        dispatch = GuardedDispatch(authority, claimant="worker")
+        task, _ = dispatch.claim(queue, timeout=30)
+        dispatch.terminal(queue, task_id=task["task_id"], run_id=task["run_id"], result={"nested": [True]})
+
+        with pytest.raises(ValueError, match="conflicting terminal report"):
+            dispatch.terminal(queue, task_id=task["task_id"], run_id=task["run_id"], result={"nested": [1]})
+
+    @pytest.mark.parametrize("retryable", [False, True])
+    def test_duplicate_classified_failure_acknowledges_after_terminal_or_retry_advance(
+        self, authority, queue, retryable
+    ):
+        self._spawn(authority, queue)
+        dispatch = GuardedDispatch(authority, claimant="worker")
+        task, _ = dispatch.claim(queue, timeout=30)
+        failure = ActivityFailure("down", kind="Unavailable", details={"zone": 1}, retryable=retryable)
+
+        dispatch.terminal(queue, task_id=task["task_id"], run_id=task["run_id"], error=failure)
+        dispatch.terminal(queue, task_id=task["task_id"], run_id=task["run_id"], error=failure)
+        with pytest.raises(ValueError, match="conflicting terminal report"):
+            dispatch.terminal(
+                queue,
+                task_id=task["task_id"],
+                run_id=task["run_id"],
+                error=ActivityFailure("different", kind="Unavailable", retryable=retryable),
+            )
+
+    def test_nested_boolean_and_integer_failure_details_conflict(self, authority, queue):
+        self._spawn(authority, queue)
+        dispatch = GuardedDispatch(authority, claimant="worker")
+        task, _ = dispatch.claim(queue, timeout=30)
+        dispatch.terminal(
+            queue,
+            task_id=task["task_id"],
+            run_id=task["run_id"],
+            error=ActivityFailure("down", details={"nested": [True]}),
+        )
+
+        with pytest.raises(ValueError, match="conflicting terminal report"):
+            dispatch.terminal(
+                queue,
+                task_id=task["task_id"],
+                run_id=task["run_id"],
+                error=ActivityFailure("down", details={"nested": [1]}),
+            )
+
+    def test_retry_after_is_a_floor_over_policy_backoff_on_provider_time(self, authority, observer, queue):
+        adapter = adapter_over(authority, default_queue=queue)
+        call = ActivityInvocation(
+            "probe_activity",
+            policy=ExecutionPolicy(attempts=2, initial_interval=1, max_interval=60),
+        )
+        publish(adapter, authority, 1, call)
+        dispatch = GuardedDispatch(authority, claimant="worker")
+        task, _ = dispatch.claim(queue, timeout=30)
+        before = observer.execute("SELECT absurd.current_time()").fetchone()[0]
+
+        dispatch.terminal(
+            queue,
+            task_id=task["task_id"],
+            run_id=task["run_id"],
+            error=ActivityFailure("later", kind="Unavailable", retryable=True, retry_after=30),
+        )
+
+        state, available = observer.execute(
+            f"SELECT state,available_at FROM absurd.r_{queue} ORDER BY attempt DESC LIMIT 1"
+        ).fetchone()
+        assert state == "sleeping"
+        assert (available - before).total_seconds() >= 29
 
     def test_stale_claimant_epoch_and_terminal_are_fenced(self, authority, queue):
         self._spawn(authority, queue, heartbeat_timeout=1)
