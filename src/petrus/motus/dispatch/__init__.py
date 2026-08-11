@@ -7,8 +7,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from enum import StrEnum
 from types import MappingProxyType
-from typing import Protocol, runtime_checkable
+from typing import ClassVar, Protocol, runtime_checkable
 
 from petrus.motus.activity import (
     Activity,
@@ -38,6 +39,32 @@ class ActivityAttempt:
         object.__setattr__(self, "latest_details", snapshot_heartbeat_details(self.latest_details))
 
 
+@dataclass(frozen=True)
+class CancellationInstruction:
+    """Recoverable fence for one exact logical invocation after canonical commit."""
+
+    occurrence: int
+    invocation: ActivityInvocation
+    history_position: int
+
+    def __post_init__(self) -> None:
+        for noun, value in (("occurrence", self.occurrence), ("history_position", self.history_position)):
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                raise ValueError(f"Cancellation Instruction {noun} must be a positive integer")
+        if not isinstance(self.invocation, ActivityInvocation):
+            raise TypeError("Cancellation Instruction requires an ActivityInvocation")
+
+
+class CancellationDisposition(StrEnum):
+    """Operational custody found when a cancellation fence was installed."""
+
+    TOMBSTONED = "tombstoned"
+    RETIRED = "retired"
+    FENCED = "fenced"
+    TERMINAL = "terminal"
+    ACKNOWLEDGED = "acknowledged"
+
+
 @runtime_checkable
 class WorkerDispatch(Protocol):
     """The provider-neutral synchronous custody surface consumed by ``Worker``."""
@@ -65,9 +92,14 @@ class InlineDispatch:
 
     activities: Mapping[str, Activity]
     _completed: list[tuple[int, object]] = field(default_factory=list, init=False, repr=False, compare=False)
+    # Kept outside the dataclass field surface so the established public value
+    # shape remains exactly ``activities`` + ``_completed``. Cancellation is
+    # operational adapter state, not part of InlineDispatch value equality.
+    _cancelled: ClassVar[dict[int, CancellationInstruction]]
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "activities", MappingProxyType(dict(self.activities)))
+        object.__setattr__(self, "_cancelled", {})
 
     def __call__(self, invocation: ActivityInvocation) -> object:
         if invocation.activity not in self.activities:
@@ -97,6 +129,10 @@ class InlineDispatch:
                     raise
 
     def dispatch(self, occurrence: int, invocation: ActivityInvocation) -> None:
+        if occurrence in self._cancelled:
+            if self._cancelled[occurrence].invocation != invocation:
+                raise ValueError(f"cancellation conflict for occurrence {occurrence}")
+            return
         try:
             self._completed.append((occurrence, self(invocation)))
         except Exception as error:
@@ -106,6 +142,17 @@ class InlineDispatch:
         drained = tuple(self._completed)
         self._completed.clear()
         return drained
+
+    def cancel(self, instruction: CancellationInstruction) -> CancellationDisposition:
+        prior = self._cancelled.get(instruction.occurrence)
+        if prior is not None:
+            if prior != instruction:
+                raise ValueError(f"cancellation conflict for occurrence {instruction.occurrence}")
+            return CancellationDisposition.ACKNOWLEDGED
+        self._cancelled[instruction.occurrence] = instruction
+        if any(occurrence == instruction.occurrence for occurrence, _ in self._completed):
+            return CancellationDisposition.TERMINAL
+        return CancellationDisposition.TOMBSTONED
 
 
 def _classify_inline_failure(error: Exception) -> ActivityFailure:
@@ -137,18 +184,30 @@ class Dispatch(Protocol):
     def collect(self) -> Sequence[tuple[int, object]]: ...
 
 
+@runtime_checkable
+class CancellableDispatch(Protocol):
+    """Optional recoverable cancellation extension used by lifecycle scopes."""
+
+    def cancel(self, instruction: CancellationInstruction) -> CancellationDisposition: ...
+
+
 class InMemoryDispatch:
     """Deterministic in-memory Dispatch whose pending work is pumped explicitly."""
 
     def __init__(self) -> None:
         self._pending: dict[int, ActivityInvocation] = {}
         self._completed: list[tuple[int, object]] = []
+        self._cancelled: dict[int, CancellationInstruction] = {}
 
     @property
     def pending(self) -> Mapping[int, ActivityInvocation]:
         return MappingProxyType(dict(self._pending))
 
     def dispatch(self, occurrence: int, invocation: ActivityInvocation) -> None:
+        if occurrence in self._cancelled:
+            if self._cancelled[occurrence].invocation != invocation:
+                raise ValueError(f"cancellation conflict for occurrence {occurrence}")
+            return
         if occurrence in self._pending:
             raise ValueError(f"occurrence {occurrence} is already pending in this pool: one dispatch per occurrence")
         self._pending[occurrence] = invocation
@@ -159,12 +218,32 @@ class InMemoryDispatch:
         return drained
 
     def complete(self, occurrence: int, result: object) -> None:
-        self._take(occurrence)
+        if occurrence not in self._cancelled:
+            self._take(occurrence)
         self._completed.append((occurrence, result))
 
     def fail(self, occurrence: int, error: str) -> None:
-        self._take(occurrence)
+        if occurrence not in self._cancelled:
+            self._take(occurrence)
         self._completed.append((occurrence, ActivityFailure(error)))
+
+    def cancel(self, instruction: CancellationInstruction) -> CancellationDisposition:
+        prior = self._cancelled.get(instruction.occurrence)
+        if prior is not None:
+            if prior != instruction:
+                raise ValueError(f"cancellation conflict for occurrence {instruction.occurrence}")
+            return CancellationDisposition.ACKNOWLEDGED
+        if instruction.occurrence in self._pending:
+            invocation = self._pending[instruction.occurrence]
+            if invocation != instruction.invocation:
+                raise ValueError(f"cancellation conflict for occurrence {instruction.occurrence}")
+            self._cancelled[instruction.occurrence] = instruction
+            del self._pending[instruction.occurrence]
+            return CancellationDisposition.RETIRED
+        self._cancelled[instruction.occurrence] = instruction
+        if any(occurrence == instruction.occurrence for occurrence, _ in self._completed):
+            return CancellationDisposition.TERMINAL
+        return CancellationDisposition.TOMBSTONED
 
     def _take(self, occurrence: int) -> None:
         if occurrence not in self._pending:
@@ -174,6 +253,9 @@ class InMemoryDispatch:
 
 __all__ = [
     "ActivityAttempt",
+    "CancellableDispatch",
+    "CancellationDisposition",
+    "CancellationInstruction",
     "Dispatch",
     "InMemoryDispatch",
     "InlineDispatch",

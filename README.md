@@ -152,6 +152,47 @@ path remains available. `InlineDispatch({...})` is unchanged.
 ZeroMQ Worker transport protocol v2 carries Instance scope. Clients and
 servers must upgrade together; v1 peers are rejected explicitly.
 
+## Lifecycle scopes
+
+Lifecycle scopes let a host replace one exact generation of queued and
+in-flight work without making Dispatch or a scheduler canonical. The durable
+identity is `(name, generation)`; retain the exact value returned by the
+Engine and provide it with generation-targeted ingress:
+
+```python
+from petrus.impetus.scope import LifecycleScope
+
+scope: LifecycleScope = engine.open_scope("conversation")
+engine.deliver("ingress", token, identity="provider-event-42", scope=scope)
+next_scope = engine.reset_scope(scope)
+```
+
+`close_scope(scope)` and `reset_scope(scope)` commit exact queue cleanup and
+in-flight cancellation to canonical History before Dispatch sees any
+cancellation instruction. Reset closes generation N and opens N+1 atomically.
+Consumed inputs are not restored; compensation is explicit domain work.
+Cancellation fences future accepted execution but does not claim that an
+ambiguous external effect did not happen.
+
+An Activity terminal already accepted into History must finish deterministic
+projection before its generation can close or reset. Local Dispatch can accept
+an exact late report from a fenced claimant for canonical quarantine. Absurd
+rejects a post-cancellation Worker report as stale and may eventually clean its
+provider tombstone; applications using durable providers still need stable
+downstream idempotency, lookup-first reconciliation, retention aligned with the
+recovery window, and explicit compensation for ambiguous effects. Inline and
+In-Memory Dispatch retain only process-local cancellation/result state.
+
+An identified delivery targeting a generation proven closed is durably
+acknowledged and dropped. Passing only a scope name means the generation is
+uncertain, so Petrus quarantines the delivery rather than silently targeting
+the current generation. Quarantine is an audit fact, not a reprocessing queue;
+applications reconcile or compensate explicitly from History. Observation
+snapshot v1 does not expose `active_scopes`, so scope-aware observers fold the
+complete History prefix. Unscoped deliveries and execution remain unchanged.
+Hosts still own scheduling and provider/webhook custody. Durable scope values
+must never contain credentials, clients, closures, Activities, or Engines.
+
 ## License
 
 Petrus-authored content is licensed under Apache-2.0. See

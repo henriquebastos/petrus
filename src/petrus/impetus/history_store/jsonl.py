@@ -11,15 +11,19 @@ before it is in memory. Inject one at ``Instance`` construction and the
 whole history is durable from the first record, every appending door included;
 load one over an existing file and the records read back value-equal.
 
-The schema is versioned by the CV3 schema-4 History contract, with older
-schemas refused rather than migrated (occurrence vocabulary, delivery
-identity, and read accounting):
+History records retain one canonical spelling each: the CV3 unscoped contract
+uses schema 4, while lifecycle-scope records and records carrying scope or
+queue-occurrence provenance use the additive schema 5. One JSONL History may
+therefore contain both versions in append order. Older schemas are refused
+rather than migrated (occurrence vocabulary, delivery identity, and read
+accounting):
 
-- envelope ``{"record": <type name>, "schema": 4, ...fields}`` — the class
-  name is the discriminator and ``schema`` the envelope version; an unknown
-  name fails loud (a KNOWN schema-1 name fails naming its schema-2
-  successor), a missing or non-4 ``schema`` fails naming the no-migration
-  posture, and
+- envelope ``{"record": <type name>, "schema": <4 or 5>, ...fields}`` — the
+  class name is the discriminator and ``schema`` the per-record envelope
+  version; unscoped records require 4 and lifecycle/provenance records require
+  5, so a noncanonical alternate spelling fails loud. An unknown name fails
+  loud (a KNOWN schema-1 name fails naming its schema-2 successor), a missing
+  or unsupported ``schema`` fails naming the no-migration posture, and
   a known category whose field shape drifted fails as the record type's own
   constructor rejection. No v1 converter exists: no production histories
   predate the migration, so a v1 payload refuses loud rather than silently
@@ -84,8 +88,6 @@ __all__ = [
 log = telemetry.get_logger("impetus")
 
 
-# The envelope version this kernel writes and reads — bumped only at a
-# current canonical schema 4; older schemas are refused without migration.
 class DurableAppend:
     """
     The durability policy, split from the format: append whole batches of

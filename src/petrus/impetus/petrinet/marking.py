@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from typing import Any
 
 # Internal imports
+from petrus.impetus.scope import LifecycleScope
 from petrus.impetus.petrinet.schema import Color, Instant, NetPath
 
 
@@ -77,12 +78,21 @@ class TokenQueue(Sequence):
     positions must index the entry instants.
     """
 
-    __slots__ = ("_tokens", "_instants")
+    __slots__ = ("_tokens", "_instants", "_identities", "_scopes")
 
-    def __init__(self, pairs: Iterable[tuple[Token, Instant]] = ()):
-        pairs = tuple(pairs)
-        self._tokens: tuple[Token, ...] = tuple(token for token, _ in pairs)
-        self._instants: tuple[Instant, ...] = tuple(instant for _, instant in pairs)
+    def __init__(
+        self,
+        pairs: Iterable[tuple[Token, Instant] | tuple[Token, Instant, int | None, LifecycleScope | None]] = (),
+    ):
+        normalized = tuple(tuple(pair) for pair in pairs)
+        if any(len(pair) not in {2, 4} for pair in normalized):
+            raise ValueError("TokenQueue entries require (token, instant) or (token, instant, identity, scope)")
+        self._tokens: tuple[Token, ...] = tuple(pair[0] for pair in normalized)
+        self._instants: tuple[Instant, ...] = tuple(pair[1] for pair in normalized)
+        self._identities: tuple[int | None, ...] = tuple(pair[2] if len(pair) == 4 else None for pair in normalized)
+        self._scopes: tuple[LifecycleScope | None, ...] = tuple(
+            pair[3] if len(pair) == 4 else None for pair in normalized
+        )
 
     @classmethod
     def time_blind(cls, tokens: Iterable[Token]) -> TokenQueue:
@@ -99,11 +109,48 @@ class TokenQueue(Sequence):
         """The entry-instant half, position-aligned with ``tokens`` — what the time view reads; the ``Delay`` anchors."""
         return self._instants
 
-    def deposit(self, token: Token, instant: Instant) -> TokenQueue:
-        """A new queue with ``token`` appended to the back, entered at ``instant``."""
-        return TokenQueue(zip(self._tokens + (token,), self._instants + (instant,)))
+    @property
+    def identities(self) -> tuple[int | None, ...]:
+        """Durable queue-occurrence identities, position-aligned with tokens."""
+        return self._identities
 
-    def remove(self, tokens: Iterable[Token]) -> TokenQueue:
+    @property
+    def scopes(self) -> tuple[LifecycleScope | None, ...]:
+        """Lifecycle provenance, position-aligned with tokens."""
+        return self._scopes
+
+    def deposit(
+        self,
+        token: Token,
+        instant: Instant,
+        *,
+        identity: int | None = None,
+        scope: LifecycleScope | None = None,
+    ) -> TokenQueue:
+        """A new queue with ``token`` appended to the back, entered at ``instant``."""
+        return TokenQueue(
+            zip(
+                self._tokens + (token,),
+                self._instants + (instant,),
+                self._identities + (identity,),
+                self._scopes + (scope,),
+                strict=True,
+            )
+        )
+
+    def selected(self, tokens: Iterable[Token]) -> tuple[tuple[int | None, LifecycleScope | None], ...]:
+        """Identify the front-most equal occurrences selected by the token-value binding."""
+        remaining = list(enumerate(self._tokens))
+        selected: list[tuple[int | None, LifecycleScope | None]] = []
+        for token in tokens:
+            match = next((position for position, (_, queued) in enumerate(remaining) if queued == token), None)
+            if match is None:
+                raise TokenNotPresent(token)
+            original, _ = remaining.pop(match)
+            selected.append((self._identities[original], self._scopes[original]))
+        return tuple(selected)
+
+    def remove(self, tokens: Iterable[Token], identities: Iterable[int] = ()) -> TokenQueue:
         """
         A new queue with each of ``tokens`` removed, in request order — each
         matching its front-most EQUAL occurrence on the token half (tokens
@@ -111,15 +158,42 @@ class TokenQueue(Sequence):
         queue order. Raises ``TokenNotPresent`` (a ``ValueError``) if a token
         is not present, leaving no partial removal observable.
         """
-        remaining_tokens = list(self._tokens)
-        remaining_instants = list(self._instants)
-        for token in tokens:
-            try:
-                position = remaining_tokens.index(token)  # front-most equal occurrence
-            except ValueError:
-                raise TokenNotPresent(token) from None
-            del remaining_tokens[position], remaining_instants[position]
-        return TokenQueue(zip(remaining_tokens, remaining_instants))
+        tokens = tuple(tokens)
+        identities = tuple(identities)
+        if identities and len(identities) != len(tokens):
+            raise ValueError("TokenQueue exact removal requires one identity per token")
+        remaining = list(zip(self._tokens, self._instants, self._identities, self._scopes, strict=True))
+        for index, token in enumerate(tokens):
+            identity = identities[index] if identities else None
+            position = next(
+                (
+                    candidate
+                    for candidate, (queued, _, queued_identity, _) in enumerate(remaining)
+                    if queued == token and (not identities or queued_identity == identity)
+                ),
+                None,
+            )
+            if position is None:
+                raise TokenNotPresent(token)
+            del remaining[position]
+        return TokenQueue(remaining)
+
+    def discard(self, identities: Iterable[int]) -> TokenQueue:
+        """Return a queue without the exact durable occurrences, failing if any is absent."""
+        remaining = list(zip(self._tokens, self._instants, self._identities, self._scopes, strict=True))
+        for identity in identities:
+            position = next(
+                (
+                    candidate
+                    for candidate, (_, _, queued_identity, _) in enumerate(remaining)
+                    if queued_identity == identity
+                ),
+                None,
+            )
+            if position is None:
+                raise ValueError(f"cannot discard queue entry {identity}: identity not present")
+            del remaining[position]
+        return TokenQueue(remaining)
 
     def admitted_by(self, admits: Callable[[Token], bool], limit: int | None = None) -> tuple[int, ...]:
         """
@@ -146,18 +220,33 @@ class TokenQueue(Sequence):
 
     def __getitem__(self, position):
         if isinstance(position, slice):
-            return TokenQueue(zip(self._tokens[position], self._instants[position]))
+            return TokenQueue(
+                zip(
+                    self._tokens[position],
+                    self._instants[position],
+                    self._identities[position],
+                    self._scopes[position],
+                    strict=True,
+                )
+            )
         return self._tokens[position]
 
     def __len__(self) -> int:
         return len(self._tokens)
 
     def __eq__(self, other: object) -> bool:
+        # Preserve TokenQueue's established public token+instant value
+        # semantics. Durable occurrence identity and lifecycle provenance are
+        # exact internal projections, inspected explicitly through their
+        # properties where cleanup/replay needs them.
         return isinstance(other, TokenQueue) and self._tokens == other._tokens and self._instants == other._instants
 
     __hash__ = None  # queues compare by value but are not used as keys (token data may be unhashable)
 
     def __repr__(self) -> str:
+        # Identity/provenance do not widen the established public debug/value
+        # surface; callers that need the exact durable projection read the
+        # aligned ``identities`` and ``scopes`` properties.
         body = ", ".join(f"({token!r}, {instant!r})" for token, instant in zip(self._tokens, self._instants))
         return f"TokenQueue([{body}])"
 

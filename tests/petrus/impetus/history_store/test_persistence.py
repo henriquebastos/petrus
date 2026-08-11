@@ -28,12 +28,18 @@ from petrus.impetus.history import (
     ActivityCompleted,
     ActivityFailed,
     ActivityRequested,
+    ActivityTerminalQuarantined,
     CandidateSelected,
     ExternalEventDelivered,
     FiringBegun,
     FiringCompleted,
     FiringFailed,
     Record,
+    ScopeClosed,
+    ScopeOpened,
+    ScopeReset,
+    ScopedDeliveryDropped,
+    ScopedDeliveryQuarantined,
     DeliveryRegistrationClosed,
     DeliveryRegistrationOpened,
     TimerMatured,
@@ -44,10 +50,17 @@ from petrus.impetus.history import (
 )
 from petrus.impetus.history_store import InMemoryHistoryStore
 from petrus.impetus.petrinet import Marking, Token
-from petrus.impetus.history.codec import decode_record, encode_record
+from petrus.impetus.history.codec import (
+    LIFECYCLE_SCHEMA_VERSION,
+    READABLE_SCHEMA_VERSIONS,
+    SCHEMA_VERSION,
+    decode_record,
+    encode_record,
+)
 from petrus.impetus.history_store import DurableAppend, JsonlHistoryStore
 from petrus.impetus.instance import Instance
 from petrus.impetus.petrinet import Arc, ArcMode, Net, NetPath, Place, Transition
+from petrus.impetus.scope import LifecycleScope
 
 PLACE, TRANSITION = NetPath("p"), NetPath("t")
 TOKEN = Token("issue", {"id": "goose", "passed": True})
@@ -55,11 +68,18 @@ TOKEN = Token("issue", {"id": "goose", "passed": True})
 
 def every_record_category() -> list[Record]:
     """One constructed instance of every category in the kernel's Record union."""
+    first = LifecycleScope("draft", 1)
+    second = LifecycleScope("draft", 2)
     return [
         InstanceCreated("instance-7f", name="order-fulfillment", instant=0),
         TokensInitialized(PLACE, (TOKEN, Token.black()), instant=0),
+        ScopeOpened(first, instant=0),
+        ScopeClosed(first, discarded=(), cancelled=(), instant=1),
+        ScopeReset(first, second, discarded=(), cancelled=(), instant=1),
         DeliveryRegistrationOpened(TRANSITION, "default", occurrence=None, instant=0),
         ExternalEventDelivered(TRANSITION, (TOKEN,), identity="occurrence-1", occurrence=1, instant=1),
+        ScopedDeliveryDropped(TRANSITION, (TOKEN,), identity="closed-1", scope=first, instant=1),
+        ScopedDeliveryQuarantined(TRANSITION, (TOKEN,), identity="uncertain-1", scope="draft", instant=1),
         CandidateSelected(TRANSITION, occurrence=2, instant=2),
         FiringBegun(TRANSITION, occurrence=2, instant=2),
         TokensConsumed(PLACE, (TOKEN,), occurrence=2, instant=2),
@@ -76,6 +96,13 @@ def every_record_category() -> list[Record]:
             instant=3,
         ),
         ActivityCompleted(TRANSITION, {"status": "captured"}, occurrence=2, instant=4),
+        ActivityTerminalQuarantined(
+            TRANSITION,
+            {"kind": "completed", "value": {"status": "late"}},
+            first,
+            occurrence=3,
+            instant=4,
+        ),
         TokensProduced(PLACE, (TOKEN,), occurrence=2, instant=4),
         DeliveryRegistrationClosed(TRANSITION, "default", occurrence=2, instant=4),
         FiringCompleted(TRANSITION, occurrence=2, instant=4),
@@ -180,6 +207,76 @@ class TestRecordCodec:
             "instant": 4,
         }
 
+    def test_schema_5_is_used_only_for_lifecycle_scope_records_and_provenance(self):
+        scope = LifecycleScope("draft", 3)
+        scoped = TokensProduced(
+            PLACE,
+            (TOKEN,),
+            occurrence=2,
+            entries=(17,),
+            scope=scope,
+            instant=4,
+        )
+
+        assert encode_record(scoped) == {
+            "record": "TokensProduced",
+            "schema": 5,
+            "place": "p",
+            "tokens": [{"color": "issue", "data": {"id": "goose", "passed": True}}],
+            "occurrence": 2,
+            "entries": [17],
+            "scope": {"name": "draft", "generation": 3},
+            "instant": 4,
+        }
+        assert decode_record(encode_record(scoped)) == scoped
+        with pytest.raises(ValueError, match="provenance require schema 5"):
+            decode_record(encode_record(scoped) | {"schema": 4})
+        assert SCHEMA_VERSION == 4
+        assert LIFECYCLE_SCHEMA_VERSION == 5
+        assert READABLE_SCHEMA_VERSIONS == {4, 5}
+        with pytest.raises(ValueError, match="not its canonical record spelling.*expected schema 4"):
+            decode_record(encode_record(FiringCompleted(TRANSITION, occurrence=2)) | {"schema": 5})
+        with pytest.raises(ValueError, match="not its canonical record spelling.*expected schema 4"):
+            decode_record(
+                {
+                    "record": "TokensProduced",
+                    "schema": 5,
+                    "place": "p",
+                    "tokens": [],
+                    "occurrence": 2,
+                    "entries": [],
+                    "scope": None,
+                    "instant": 0,
+                }
+            )
+
+    def test_schema_5_refuses_partial_or_invalid_scope_provenance(self):
+        payload = encode_record(
+            TokensProduced(
+                PLACE,
+                (TOKEN,),
+                occurrence=2,
+                entries=(17,),
+                scope=LifecycleScope("draft", 3),
+                instant=4,
+            )
+        )
+
+        without_entries = {key: value for key, value in payload.items() if key != "entries"}
+        with pytest.raises(ValueError, match="scoped movements require one queue-entry identity per token"):
+            decode_record(without_entries)
+        without_scope = {key: value for key, value in payload.items() if key != "scope"}
+        with pytest.raises(ValueError, match="queue-entry identities require lifecycle scope provenance"):
+            decode_record(without_scope)
+        for generation in (0, -1, True, "3"):
+            malformed = payload | {"scope": {"name": "draft", "generation": generation}}
+            with pytest.raises(ValueError, match="generation must be a positive integer"):
+                decode_record(malformed)
+        for name in ("", "bad\x00name", 3):
+            malformed = payload | {"scope": {"name": name, "generation": 3}}
+            with pytest.raises(ValueError, match="name must be a non-empty string without NUL"):
+                decode_record(malformed)
+
     def test_token_data_must_be_json_faithful_to_round_trip(self):
         # The codec's defended looseness, pinned: a tuple in token data is
         # legal JSON (an array) but reads back a list — value equality across
@@ -255,24 +352,35 @@ class TestRecordCodec:
         # A v1 line (or a hand-built payload) carries no "schema": the refusal
         # names the CV3 schema-2 migration and the no-converter posture — no
         # production histories predate it, so nothing silently converts.
-        with pytest.raises(ValueError, match=r"no 'schema' version.*schema 4.*no converter"):
+        with pytest.raises(ValueError, match=r"no 'schema' version.*schemas \[4, 5\].*no converter"):
             decode_record({"record": "FiringBegun", "transition": "t", "occurrence": 1, "instant": 0})
 
     def test_a_wrong_schema_version_fails_naming_the_migration(self):
-        with pytest.raises(ValueError, match=r"'schema' is 1.*reads schema 4 only.*no migration"):
+        with pytest.raises(ValueError, match=r"'schema' is 1.*reads schemas \[4, 5\] only.*no migration"):
             decode_record({"record": "FiringBegun", "schema": 1, "transition": "t", "occurrence": 1, "instant": 0})
+        for malformed in (True, 4.0, "4"):
+            with pytest.raises(ValueError, match=r"reads schemas \[4, 5\] only"):
+                decode_record(
+                    {
+                        "record": "FiringBegun",
+                        "schema": malformed,
+                        "transition": "t",
+                        "occurrence": 1,
+                        "instant": 0,
+                    }
+                )
 
     def test_schema_2_is_refused_before_record_interpretation(self):
-        with pytest.raises(ValueError, match=r"'schema' is 2.*reads schema 4 only.*no migration"):
+        with pytest.raises(ValueError, match=r"'schema' is 2.*reads schemas \[4, 5\] only.*no migration"):
             decode_record({"record": "FiringBegun", "schema": 2, "not": "the schema-4 fields"})
 
     def test_schema_3_is_refused_before_record_interpretation(self):
-        with pytest.raises(ValueError, match=r"'schema' is 3.*reads schema 4 only.*no migration"):
+        with pytest.raises(ValueError, match=r"'schema' is 3.*reads schemas \[4, 5\] only.*no migration"):
             decode_record({"record": "FiringBegun", "schema": 3, "not": "the schema-4 fields"})
 
     def test_unversioned_old_discriminators_are_refused_before_interpretation(self):
         for old_name in ("RegistrationOpened", "RegistrationClosed", "ExternalEventRecorded"):
-            with pytest.raises(ValueError, match=rf"{old_name}.*no 'schema' version.*schema 4"):
+            with pytest.raises(ValueError, match=rf"{old_name}.*no 'schema' version.*schemas \[4, 5\]"):
                 decode_record({"record": old_name, "source": "t", "key": "default", "attempt": None})
 
 
@@ -397,7 +505,7 @@ class TestJsonlHistoryStore:
             '{"record": "RegistrationOpened", "source": "t", "key": "default", "attempt": null, "instant": 0}\n',
             encoding="utf-8",
         )
-        with pytest.raises(ValueError, match=r"line 1.*no 'schema' version.*schema 4"):
+        with pytest.raises(ValueError, match=r"line 1.*no 'schema' version.*schemas \[4, 5\]"):
             JsonlHistoryStore(path)
 
     def test_a_schema_2_line_fails_through_the_actual_jsonl_load(self, tmp_path):
@@ -408,7 +516,7 @@ class TestJsonlHistoryStore:
             encoding="utf-8",
         )
 
-        with pytest.raises(ValueError, match=r"line 1.*'schema' is 2.*reads schema 4 only"):
+        with pytest.raises(ValueError, match=r"line 1.*'schema' is 2.*reads schemas \[4, 5\] only"):
             JsonlHistoryStore(path)
 
     def test_a_torn_tail_fails_loud_naming_the_line(self, tmp_path):

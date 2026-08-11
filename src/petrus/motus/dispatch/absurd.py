@@ -75,7 +75,11 @@ from petrus.motus.activity import (
     _OMITTED,
     snapshot_heartbeat_details,
 )
-from petrus.motus.dispatch import ActivityAttempt
+from petrus.motus.dispatch import (
+    ActivityAttempt,
+    CancellationDisposition,
+    CancellationInstruction,
+)
 
 # The D11 triple pin — release tag, its commit, and the sha256 of the release's
 # sql/absurd.sql, exactly as the ES-009 matrix recorded them
@@ -652,6 +656,7 @@ class AbsurdDispatch:
         if any(not isinstance(activity, str) or not activity for activity in self._activity_queues):
             raise ValueError("activity queue overrides require non-empty string Activity names")
         self._tasks: dict[int, tuple[str, str]] = {}  # occurrence -> (queue, task id), this session's dispatches
+        self._cancelled: dict[int, CancellationInstruction] = {}
         self._collected: set[int] = set()
         self._known_queues: set[str] = set()
         self._listening = False
@@ -680,6 +685,10 @@ class AbsurdDispatch:
                 "(autocommit=False): occurrence "
                 "discovery, custody reconciliation, spawn, and notification must commit or roll back together"
             )
+        if occurrence in self._cancelled:
+            if self._cancelled[occurrence].invocation != invocation:
+                raise ValueError(f"Absurd cancellation conflict for occurrence {occurrence}")
+            return
         if invocation.policy.start_to_close is not None or invocation.policy.schedule_to_close is not None:
             raise ValueError(
                 "AbsurdDispatch does not support start_to_close or schedule_to_close with the pinned provider; "
@@ -715,6 +724,103 @@ class AbsurdDispatch:
             queue=queue,
             task=str(task_id),
         )
+
+    def cancel(self, instruction: CancellationInstruction) -> CancellationDisposition:
+        """Fence one exact invocation with Absurd's durable task tombstone."""
+        if not isinstance(instruction, CancellationInstruction):
+            raise TypeError("Absurd cancellation requires a CancellationInstruction")
+        if self._connection.autocommit:
+            raise RuntimeError(
+                "Absurd cancellation cannot run in autocommit mode; its task tombstone must commit as one "
+                "recoverable operational instruction"
+            )
+        prior = self._cancelled.get(instruction.occurrence)
+        if prior is not None:
+            if prior != instruction:
+                raise ValueError(f"Absurd cancellation conflict for occurrence {instruction.occurrence}")
+            return CancellationDisposition.ACKNOWLEDGED
+        key = f"{self._instance}:occurrence-{instruction.occurrence}"
+        self._connection.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (key,))
+        found = self._custodies(key)
+        live = [row for row in found if row[2] != "cancelled"]
+        if len(live) > 1:
+            raise RuntimeError(
+                f"ambiguous Absurd custody for {key}: found {len(live)} live tasks across provider queues"
+            )
+        if not live:
+            tombstones = [row for row in found if row[2] == "cancelled"]
+            if tombstones:
+                for row in tombstones:
+                    self._verify_custody_invocation(key, row, instruction.invocation)
+                self._cancelled[instruction.occurrence] = instruction
+                return CancellationDisposition.ACKNOWLEDGED
+            # The canonical outbox may have committed before split-store
+            # publication. Materialize and cancel in this one transaction so
+            # no worker can ever observe the synthetic pending interval.
+            self.dispatch(instruction.occurrence, instruction.invocation)
+            queue, task_id = self._tasks[instruction.occurrence]
+            live = [self._custody(queue, task_id)]
+        custody = live[0]
+        self._verify_custody_invocation(key, custody, instruction.invocation)
+        queue, task_id, state, _first_started, _run_id, _run_state = custody
+        if state in {"completed", "failed"}:
+            self._tasks[instruction.occurrence] = (queue, task_id)
+            self._cancelled[instruction.occurrence] = instruction
+            return CancellationDisposition.TERMINAL
+        disposition = CancellationDisposition.RETIRED if state == "pending" else CancellationDisposition.FENCED
+        self._connection.execute("SELECT absurd.cancel_task(%s, %s)", (queue, task_id))
+        self._tasks.pop(instruction.occurrence, None)
+        self._cancelled[instruction.occurrence] = instruction
+        log.emit(
+            "absurd_cancelled",
+            occurrence=instruction.occurrence,
+            history_position=instruction.history_position,
+            disposition=disposition.value,
+            queue=queue,
+            task=task_id,
+        )
+        return disposition
+
+    def _custodies(self, key: str) -> list[tuple[str, str, str, object, str | None, str | None]]:
+        found = []
+        queues = [row[0] for row in self._connection.execute("SELECT queue_name FROM absurd.list_queues()")]
+        for queue in queues:
+            query = sql.SQL(
+                "SELECT task_id::text, state, first_started_at, last_attempt_run::text, "
+                "(SELECT state FROM absurd.{} r WHERE r.run_id = t.last_attempt_run) "
+                "FROM absurd.{} t WHERE idempotency_key = %s"
+            ).format(sql.Identifier(f"r_{queue}"), sql.Identifier(f"t_{queue}"))
+            found.extend((queue, *row) for row in self._connection.execute(query, (key,)).fetchall())
+        return found
+
+    def _custody(self, queue: str, task_id: str) -> tuple[str, str, str, object, str | None, str | None]:
+        query = sql.SQL(
+            "SELECT task_id::text, state, first_started_at, last_attempt_run::text, "
+            "(SELECT state FROM absurd.{} r WHERE r.run_id = t.last_attempt_run) "
+            "FROM absurd.{} t WHERE task_id = %s"
+        ).format(sql.Identifier(f"r_{queue}"), sql.Identifier(f"t_{queue}"))
+        row = self._connection.execute(query, (task_id,)).fetchone()
+        if row is None:
+            raise RuntimeError(f"Absurd custody for task {task_id} disappeared during cancellation")
+        return (queue, *row)
+
+    def _verify_custody_invocation(
+        self,
+        key: str,
+        custody: tuple[str, str, str, object, str | None, str | None],
+        invocation: ActivityInvocation,
+    ) -> None:
+        queue, task_id, *_ = custody
+        query = sql.SQL("SELECT task_name,params FROM absurd.{} WHERE task_id=%s").format(sql.Identifier(f"t_{queue}"))
+        task_name, params = self._connection.execute(query, (task_id,)).fetchone()
+        try:
+            recovered = encode_invocation(decode_invocation(params))
+        except ValueError as error:
+            raise ValueError(f"Absurd cancellation conflict for {key}: stored invocation params are invalid") from error
+        if task_name != invocation.activity or _canonical_json(recovered) != _canonical_json(
+            encode_invocation(invocation)
+        ):
+            raise ValueError(f"Absurd cancellation conflict for {key}: activity or invocation params differ")
 
     # Complexity exception: reviewed as one transactional custody state machine.
     def _recover_custody(  # noqa: C901

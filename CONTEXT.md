@@ -492,11 +492,52 @@ A semantic record that explains process evolution in History. The record
 categories include external event delivered, timer matured, firing candidate
 selected, firing begun, tokens consumed/read/accounted, Activity requested,
 Activity completed/failed, firing completed, tokens produced,
-delivery-registration effects, and firing failed. Queue scheduling, claims,
+delivery-registration effects, lifecycle-scope open/close/reset, scoped ingress
+disposition, terminal quarantine, and firing failed. Queue scheduling, claims,
 leases, heartbeats, and individual Activity Attempts are operational state,
-not canonical History. Impetus does not split canonical History into
+not canonical History. Exact semantic queue-entry identity and scope provenance
+do belong to History so duplicate-valued token occurrences can be replayed and
+cleaned independently. Impetus does not split canonical History into
 correctness versus observability categories; the same semantic timeline
 supports correctness, replay, fork, audit, debugging, and observability.
+
+### Lifecycle scope
+
+The immutable durable identity `(name, generation)` that owns one explicit
+generation of queued token occurrences and firing occurrences. A scope opens
+canonically, closes with exact queued-occurrence cleanup and in-flight
+cancellation, or resets atomically by closing N and opening N+1. Append order,
+not record timestamps, resolves races. Generation does not replace firing
+occurrence, invocation, correlation, idempotency, business ownership, or
+provider authority identities. A scope value contains no credentials, clients,
+closures, Activities, Engines, or mutable host capability.
+
+### Lifecycle cancellation fence
+
+The recoverable Dispatch instruction projected from an already committed
+`ScopeClosed` or `ScopeReset` record for one exact Activity invocation. History
+is the business truth and Dispatch custody is operational: no fence becomes
+visible before canonical commit, and Engine load repairs missing fences before
+republishing live outbox work. Pending custody may retire; claimed or running
+custody is fenced against future accepted execution or terminal reporting.
+The fence is not hard interruption and never proves an ambiguous external
+effect did not occur. Local Dispatch can retain an exact report from an already
+fenced claimant for canonical quarantine. Absurd treats a Worker report after
+provider cancellation as stale and may eventually clean provider tombstones;
+canonical repair can rematerialize absent cancelled custody, while stable
+downstream idempotency, reconciliation lookup, and compensation remain the
+application's responsibility. Inline and In-Memory Dispatch keep this
+operational state only for their process lifetime.
+
+### Scoped ingress disposition
+
+The canonical answer when identified ingress cannot enter an active exact
+lifecycle generation. A target proven closed is acknowledged and dropped. A
+bare scope name or exact generation not provable from History is quarantined
+and is never reinterpreted as the current generation. Exact redelivery is
+acknowledged; reuse of the identity with conflicting content fails loudly.
+Quarantine is a durable audit disposition, not a generic queue: Petrus does not
+release or retarget it, and application reconciliation is explicit.
 
 ### Deterministic net/runtime record
 

@@ -27,7 +27,9 @@ Each `petrus-impetus-golden-trace` version-2 document contains:
 - `initialMarking`: ordered queues of `{color, data}` tokens by place;
 - `walk`: explicit actions and the candidates, firing outcome, marking, and
   status observed at every boundary;
-- `history`: the complete canonical History schema-4 record sequence; and
+- `history`: the complete canonical History record sequence (the current
+  traces carry no lifecycle or queue-occurrence provenance and therefore use
+  schema 4; lifecycle/provenance records use schema 5); and
 - `final`: the final marking and derived status.
 
 Every token is exactly one `{color, data}` value. A black token has `color:

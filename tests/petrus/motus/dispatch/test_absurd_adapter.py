@@ -38,7 +38,11 @@ from psycopg.types.json import Jsonb
 
 # Internal imports
 import petrus.motus.dispatch.absurd
-from petrus.motus.dispatch import Dispatch
+from petrus.motus.dispatch import (
+    CancellationDisposition,
+    CancellationInstruction,
+    Dispatch,
+)
 from petrus.motus.dispatch.absurd import (
     ABSURD_SQL_SHA256,
     ABSURD_VERSION,
@@ -340,6 +344,54 @@ class TestInvocationWire:
 
 
 class TestDispatch:
+    def test_pending_and_missing_publication_cancel_to_durable_tombstones(self, authority, observer, queue):
+        adapter = adapter_over(authority, default_queue=queue)
+        pending = invocation_for(queue, payload="pending")
+        absent = invocation_for(queue, payload="absent")
+        adapter.dispatch(1, pending)
+
+        assert adapter.cancel(CancellationInstruction(1, pending, 11)) is CancellationDisposition.RETIRED
+        assert adapter.cancel(CancellationInstruction(2, absent, 12)) is CancellationDisposition.RETIRED
+        authority.commit()
+
+        assert task_rows(observer, queue, adapter, 1)[0][1] == "cancelled"
+        assert task_rows(observer, queue, adapter, 2)[0][1] == "cancelled"
+        assert observer.execute("SELECT * FROM absurd.claim_task(%s, %s, 30, 1)", (queue, "worker")).fetchone() is None
+
+        repaired = AbsurdDispatch(authority, instance=adapter._instance, default_queue=queue)
+        assert repaired.cancel(CancellationInstruction(1, pending, 11)) is CancellationDisposition.ACKNOWLEDGED
+        authority.commit()
+
+    def test_claimed_cancellation_fences_heartbeat_and_terminal_report(self, absurd_dsn, authority, observer, queue):
+        adapter = adapter_over(authority, default_queue=queue)
+        call = invocation_for(queue, payload="running")
+        publish(adapter, authority, 1, call)
+        worker = AbsurdWorkerDispatch(absurd_dsn, queues=(queue,), worker_id="worker")
+        attempt = worker.claim()
+        assert attempt is not None
+
+        assert adapter.cancel(CancellationInstruction(1, call, 11)) is CancellationDisposition.FENCED
+        authority.commit()
+
+        with pytest.raises(RuntimeError, match="stale Activity Attempt"):
+            worker.heartbeat(attempt)
+        with pytest.raises(RuntimeError, match="stale Activity Attempt"):
+            worker.complete(attempt, {"effect": "ambiguous"})
+        assert task_rows(observer, queue, adapter, 1)[0][1] == "cancelled"
+        worker.close()
+
+    def test_terminal_before_cancellation_remains_collectable(self, authority, observer, queue):
+        adapter = adapter_over(authority, default_queue=queue)
+        call = invocation_for(queue, payload="done")
+        publish(adapter, authority, 1, call)
+        run_id, _, _ = claim_one(observer, queue)
+        complete(observer, queue, run_id, {"done": True})
+
+        assert adapter.cancel(CancellationInstruction(1, call, 11)) is CancellationDisposition.TERMINAL
+        authority.commit()
+
+        assert adapter.collect() == ((1, {"done": True}),)
+
     def test_a_second_dispatch_of_one_occurrence_never_double_enqueues(self, authority, observer, queue):
         adapter = adapter_over(authority, default_queue=queue)
         invocation = invocation_for(queue)

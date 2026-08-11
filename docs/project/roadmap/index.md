@@ -19,7 +19,9 @@ and no live provider or multi-host support is claimed.
   execution with bounded durable retries, deadlines, and terminal-failure
   projection/recovery. Shared Workers preserve authorizing Instance scope and
   may resolve host-composed scoped implementations without changing the simple
-  default or Inline paths.
+  default or Inline paths. First-class lifecycle scopes canonically close or
+  atomically reset exact work generations, then install recoverable operational
+  cancellation fences while preserving unscoped behavior.
 - CV10: composable execution. CV10.DS1–DS4 qualified one hermetic,
   Episode-owned Gondolin lifecycle, host-local Activity execution, Local
   Worker terminal replay, and private single-host retained lease

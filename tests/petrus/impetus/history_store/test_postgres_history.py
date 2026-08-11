@@ -146,7 +146,7 @@ class TestBackendShape:
             ),
         )
 
-        with pytest.raises(ValueError, match=r"'schema' is 2.*reads schema 4 only"):
+        with pytest.raises(ValueError, match=r"'schema' is 2.*reads schemas \[4, 5\] only"):
             PostgresHistoryStore(pg_connection, instance=instance_id)
 
 

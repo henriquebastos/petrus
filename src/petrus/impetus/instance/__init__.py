@@ -88,8 +88,11 @@ from petrus.impetus.instance.firing import (
     Scheduler,
     begin_firing as begin_firing,
     complete_firing as complete_firing,
+    replay_activity_occurrences,
     replay_in_flight,
+    replay_cancelled,
     replay_projection_pending,
+    replay_quarantined_activity,
     replay_terminal_activity,
     select_conservative,
 )
@@ -97,6 +100,7 @@ from petrus.impetus.history import (
     ActivityCompleted,
     ActivityFailed,
     ActivityRequested,
+    ActivityTerminalQuarantined,
     CandidateSelected,
     ExternalEventDelivered,
     FiringBegun,
@@ -104,6 +108,11 @@ from petrus.impetus.history import (
     FiringFailed,
     InstanceCreated,
     Record,
+    ScopeClosed,
+    ScopeOpened,
+    ScopeReset,
+    ScopedDeliveryDropped,
+    ScopedDeliveryQuarantined,
     DeliveryRegistration,
     DeliveryRegistrationClosed,
     DeliveryRegistrationOpened,
@@ -117,12 +126,15 @@ from petrus.impetus.history import (
     replay_armed,
     replay_instance_identity,
     replay_next_occurrence,
+    replay_next_queue_identity,
     replay_queues,
+    replay_scopes,
     replay_watermark,
 )
 from petrus.impetus.history_store import HistoryStore, InMemoryHistoryStore
 from petrus.impetus.petrinet import Marking, Token, TokenQueue
 from petrus.impetus.petrinet import ArcMode, Instant, Net, NetPath, NetUri
+from petrus.impetus.scope import LifecycleScope
 
 # A completion-condition implementation: a pure boolean over the marking.
 type Completion = Callable[[Marking], bool]
@@ -183,6 +195,39 @@ class PriorAcknowledgement:
     occurrence: int
 
 
+class DeliveryDisposition(StrEnum):
+    """Canonical scoped-ingress acknowledgement outcome."""
+
+    DROPPED = "dropped"
+    QUARANTINED = "quarantined"
+
+
+class TerminalDisposition(StrEnum):
+    """The canonical terminal-report door's result."""
+
+    ACCEPTED = "accepted"
+    ACKNOWLEDGED = "acknowledged"
+    QUARANTINED = "quarantined"
+
+
+@dataclass(frozen=True)
+class ScopedDeliveryAcknowledgement:
+    """A scoped delivery that was durably dispositioned without firing."""
+
+    identity: str
+    disposition: DeliveryDisposition
+    scope: LifecycleScope | str
+
+
+@dataclass(frozen=True)
+class ScopeClosure:
+    """The exact cleanup and cancellation instruction committed by close/reset."""
+
+    scope: LifecycleScope
+    discarded: tuple[int, ...]
+    cancelled: tuple[int, ...]
+
+
 def _source_transitions(net: Net) -> list[NetPath]:
     """The net's source transitions in stable (string) order — the one spelling of the registration surface's key set, shared by both constructors."""
     return sorted((path for path in net.transitions if net.is_source(path)), key=str)
@@ -239,6 +284,22 @@ def _failure_text(value: ActivityFailure) -> str:
             "retry_after": value.retry_after,
         }
     )
+
+
+def _terminal_outcome(value: object) -> object:
+    """Canonical durable envelope for accepted or quarantined terminal comparison."""
+    if isinstance(value, ActivityFailure):
+        return {
+            "kind": "failed",
+            "failure": {
+                "error": value.error,
+                "kind": value.kind,
+                "details": value.details,
+                "retryable": value.retryable,
+                "retry_after": value.retry_after,
+            },
+        }
+    return {"kind": "completed", "value": value}
 
 
 def _validate_binding_shape(net: Net, binding: Binding, rejection: str) -> None:
@@ -362,7 +423,14 @@ class Instance:
         sources = _source_transitions(net)
         self._armed: dict[NetPath, set[str]] = {source: {"default"} for source in sources}
         initial: list[Record] = [InstanceCreated(self.instance_id, name=net.name, instant=at)]
-        initial.extend(TokensInitialized(place, tokens, instant=at) for place, tokens in marking)
+        next_entry = 1
+        for place, tokens in marking:
+            # Queue identities are assigned internally so a later scoped
+            # firing can name an exact input occurrence, but an unscoped
+            # initialization retains the production schema-4 record surface.
+            # Scope ownership is what makes the identity canonical.
+            initial.append(TokensInitialized(place, tokens, instant=at))
+            next_entry += len(tokens)
         initial.extend(DeliveryRegistrationOpened(source, "default", occurrence=None, instant=at) for source in sources)
         self.history.extend(initial)
         # The primary live state: per-place pair-queues of (token, entry
@@ -385,10 +453,16 @@ class Instance:
         # delivery door's idempotent acceptance reads. Each rebuilds at
         # resume from exactly its records.
         self._next_occurrence = 1
+        self._next_entry = next_entry
         self._in_flight: dict[int, FiringOccurrence] = {}
+        self._activity_occurrences: dict[int, FiringOccurrence] = {}
+        self._cancelled: dict[int, FiringOccurrence] = {}
         self._frozen_results: dict[int, object] = {}
         self._terminal_activity: dict[int, object] = {}
-        self._accepted_identities: dict[str, ExternalEventDelivered] = {}
+        self._quarantined_activity: dict[int, object] = {}
+        self._accepted_identities = {}
+        self._active_scopes: dict[str, LifecycleScope] = {}
+        self._scope_generations: dict[str, int] = {}
         self._log.emit(
             "instance_created",
             places=len(net.places),
@@ -616,10 +690,26 @@ class Instance:
                     f"no ActivityRequested — the live writer always freezes the request at begin"
                 )
         instance._in_flight = {occurrence.id: occurrence for occurrence in in_flight}
+        activity_occurrences = replay_activity_occurrences(history)
+        instance._activity_occurrences = {occurrence.id: occurrence for occurrence in activity_occurrences}
+        cancelled = replay_cancelled(history)
+        instance._cancelled = {occurrence.id: occurrence for occurrence in cancelled}
         instance._frozen_results = replay_projection_pending(history)
         instance._terminal_activity = replay_terminal_activity(history)
+        instance._quarantined_activity = replay_quarantined_activity(history)
         instance._accepted_identities = replay_accepted_identities(history)
         instance._next_occurrence = replay_next_occurrence(history)
+        instance._next_entry = replay_next_queue_identity(history)
+        instance._active_scopes, instance._scope_generations = replay_scopes(history)
+        inactive = tuple(
+            occurrence.id
+            for occurrence in instance._in_flight.values()
+            if occurrence.scope is not None and instance._active_scopes.get(occurrence.scope.name) != occurrence.scope
+        )
+        if inactive:
+            raise ValueError(
+                f"replay divergence: lifecycle close left scoped firing occurrence(s) {inactive!r} in flight"
+            )
         instance._log.emit(
             "instance_resumed",
             records=len(history),
@@ -692,6 +782,93 @@ class Instance:
         a dispatch of ``occurrence.invocation``.
         """
         return tuple(occurrence for occurrence in self._in_flight.values() if occurrence.id in self._frozen_results)
+
+    @property
+    def active_scopes(self) -> Mapping[str, LifecycleScope]:
+        """The exact active generation per scope name."""
+        return MappingProxyType(dict(self._active_scopes))
+
+    @property
+    def cancelled(self) -> tuple[FiringOccurrence, ...]:
+        """Firing occurrences terminalized by lifecycle close/reset, in canonical order."""
+        return tuple(self._cancelled.values())
+
+    @property
+    def activity_occurrences(self) -> Mapping[int, FiringOccurrence]:
+        """Every canonical Activity occurrence, retained for terminal redelivery judgment."""
+        return MappingProxyType(dict(self._activity_occurrences))
+
+    def open_scope(self, name: str, at: Instant | None = None) -> LifecycleScope:
+        """Open the next generation for ``name`` as one canonical fact."""
+        if not isinstance(name, str) or not name or "\x00" in name:
+            raise ValueError("LifecycleScope name must be a non-empty string without NUL")
+        if name in self._active_scopes:
+            raise ValueError(f"cannot open lifecycle scope {name!r}: a generation is already active")
+        scope = LifecycleScope(name, self._scope_generations.get(name, 0) + 1)
+        instant = self._instant(at)
+        self.history.append(ScopeOpened(scope, instant=instant))
+        self._advance(instant)
+        self._active_scopes[name] = scope
+        self._scope_generations[name] = scope.generation
+        return scope
+
+    def close_scope(self, scope: LifecycleScope, at: Instant | None = None) -> ScopeClosure:
+        """Close one exact active generation and apply its exact cleanup atomically."""
+        closure = self._scope_closure(scope)
+        instant = self._instant(at)
+        record = ScopeClosed(scope, closure.discarded, closure.cancelled, instant)
+        self.history.append(record)
+        self._apply_scope_terminal(record, closure)
+        self._advance(instant)
+        return closure
+
+    def reset_scope(self, scope: LifecycleScope, at: Instant | None = None) -> LifecycleScope:
+        """Atomically close one generation and open its immediate successor."""
+        closure = self._scope_closure(scope)
+        opened = LifecycleScope(scope.name, scope.generation + 1)
+        instant = self._instant(at)
+        record = ScopeReset(scope, opened, closure.discarded, closure.cancelled, instant)
+        self.history.append(record)
+        self._apply_scope_terminal(record, closure, opened=opened)
+        self._advance(instant)
+        return opened
+
+    def _scope_closure(self, scope: LifecycleScope) -> ScopeClosure:
+        if not isinstance(scope, LifecycleScope):
+            raise ValueError("scope close/reset requires an exact LifecycleScope generation")
+        if self._active_scopes.get(scope.name) != scope:
+            raise ValueError(f"cannot close lifecycle scope {scope!r}: it is not the active generation")
+        pending = tuple(occurrence.id for occurrence in self.projection_pending if occurrence.scope == scope)
+        if pending:
+            raise ValueError(
+                f"cannot close lifecycle scope {scope!r}: accepted Activity terminal(s) {pending!r} "
+                "still require deterministic projection"
+            )
+        discarded = tuple(
+            identity
+            for queue in self._queues.values()
+            for identity, provenance in zip(queue.identities, queue.scopes, strict=True)
+            if provenance == scope and identity is not None
+        )
+        cancelled = tuple(occurrence.id for occurrence in self._in_flight.values() if occurrence.scope == scope)
+        return ScopeClosure(scope, discarded, cancelled)
+
+    def _apply_scope_terminal(
+        self,
+        record: ScopeClosed | ScopeReset,
+        closure: ScopeClosure,
+        *,
+        opened: LifecycleScope | None = None,
+    ) -> None:
+        apply_movement(self._queues, record)
+        del self._active_scopes[closure.scope.name]
+        if opened is not None:
+            self._active_scopes[opened.name] = opened
+            self._scope_generations[opened.name] = opened.generation
+        for occurrence_id in closure.cancelled:
+            occurrence = self._in_flight.pop(occurrence_id)
+            self._frozen_results.pop(occurrence_id, None)
+            self._cancelled[occurrence_id] = occurrence
 
     def begin(self, binding: Binding, at: Instant | None = None) -> FiringOccurrence:
         """
@@ -781,6 +958,7 @@ class Instance:
         at: Instant | None,
         initiation: Callable[[int, Instant], Record],
         invocation: ActivityInvocation | None = None,
+        scope: LifecycleScope | None = None,
     ) -> FiringOccurrence:
         """
         The one home of an occurrence's birth: compute the effective instant,
@@ -796,15 +974,40 @@ class Instance:
         # knowing History. Instance alone narrates those effects; committed
         # state still folds from the records, live and replay alike.
         effects, _ = _begin_movement(self.marking, binding)
-        narrated: list[Record] = [FiringBegun(binding.transition, occurrence=self._next_occurrence, instant=instant)]
-        for effect in effects:
+        selected, inferred = self._binding_entries(binding)
+        provenance = {item for item in (*inferred, scope) if item is not None}
+        if len(provenance) > 1:
+            raise ValueError(f"firing {binding.transition} combines different lifecycle scopes: {sorted(provenance)!r}")
+        scope = next(iter(provenance), None)
+        narrated: list[Record] = [
+            FiringBegun(binding.transition, occurrence=self._next_occurrence, scope=scope, instant=instant)
+        ]
+        for effect, entry_selection in zip(effects, selected, strict=True):
+            if any(identity is None for identity, _ in entry_selection):
+                raise RuntimeError("live queue entry has no durable occurrence identity")
+            entries = tuple(identity for identity, _ in entry_selection if identity is not None)
+            recorded_entries = entries if scope is not None else ()
             if isinstance(effect, ConsumedTokens):
                 narrated.append(
-                    TokensConsumed(effect.place, effect.tokens, occurrence=self._next_occurrence, instant=instant)
+                    TokensConsumed(
+                        effect.place,
+                        effect.tokens,
+                        occurrence=self._next_occurrence,
+                        entries=recorded_entries,
+                        scope=scope,
+                        instant=instant,
+                    )
                 )
             elif isinstance(effect, ReadTokens):
                 narrated.append(
-                    TokensRead(effect.place, effect.tokens, occurrence=self._next_occurrence, instant=instant)
+                    TokensRead(
+                        effect.place,
+                        effect.tokens,
+                        occurrence=self._next_occurrence,
+                        entries=recorded_entries,
+                        scope=scope,
+                        instant=instant,
+                    )
                 )
             else:
                 raise TypeError(f"unknown Petrinet begin effect: {effect!r}")
@@ -827,16 +1030,19 @@ class Instance:
                     correlation=correlation,
                     idempotency=idempotency,
                     occurrence=self._next_occurrence,
+                    scope=scope,
                     instant=instant,
                 ),
             )
-        occurrence = FiringOccurrence(self._next_occurrence, binding, records, invocation=invocation)
+        occurrence = FiringOccurrence(self._next_occurrence, binding, records, invocation=invocation, scope=scope)
         self.history.extend([initiation(occurrence.id, instant), *records])
         self._advance(instant)
         self._next_occurrence += 1
         for record in records:
             apply_movement(self._queues, record)
         self._in_flight[occurrence.id] = occurrence
+        if invocation is not None:
+            self._activity_occurrences[occurrence.id] = occurrence
         self._log.emit(
             "firing_begun",
             transition=str(binding.transition),
@@ -846,9 +1052,29 @@ class Instance:
         )
         return occurrence
 
+    def _binding_entries(
+        self, binding: Binding
+    ) -> tuple[tuple[tuple[tuple[int | None, LifecycleScope | None], ...], ...], tuple[LifecycleScope, ...]]:
+        """Resolve a value binding to exact live queue occurrences without mutating state."""
+        queues = dict(self._queues)
+        selections: list[tuple[tuple[int | None, LifecycleScope | None], ...]] = []
+        scopes: list[LifecycleScope] = []
+        for place, tokens in binding.consumed:
+            queue = queues.get(place, TokenQueue())
+            selected = queue.selected(tokens)
+            identities = tuple(identity for identity, _ in selected if identity is not None)
+            queues[place] = queue.remove(tokens, identities)
+            selections.append(selected)
+            scopes.extend(scope for _, scope in selected if scope is not None)
+        for place, tokens in binding.read:
+            selected = queues.get(place, TokenQueue()).selected(tokens)
+            selections.append(selected)
+            scopes.extend(scope for _, scope in selected if scope is not None)
+        return tuple(selections), tuple(scopes)
+
     def record_activity_completion(
         self, occurrence: FiringOccurrence, result: object, at: Instant | None = None
-    ) -> None:
+    ) -> TerminalDisposition:
         """
         Freeze the activity's typed terminal ``result`` as ``ActivityCompleted``
         — its own append, committed BEFORE deterministic projection, so a
@@ -882,6 +1108,9 @@ class Instance:
             f"cannot record an activity completion for firing occurrence {occurrence.id} "
             f"({occurrence.binding.transition})"
         )
+        if occurrence.id in self._cancelled:
+            result = _canonical_payload(result, f"{rejection}: invalid activity result")
+            return self._quarantine_terminal(occurrence, _terminal_outcome(result), at)
         if occurrence.id in self._terminal_activity:
             # The ended-occurrence acknowledgement door: judge the canonical
             # value against the recorded terminal fact, append nothing.
@@ -896,7 +1125,7 @@ class Instance:
             if _canonical_payload_text(terminal) == _canonical_payload_text(result):
                 # the recorded fact already answers this redelivery; acknowledge quietly
                 self._log.emit("activity_redelivery_acknowledged", occurrence=occurrence.id)
-                return
+                return TerminalDisposition.ACKNOWLEDGED
             raise ValueError(
                 f"{rejection}: the occurrence ended with a different result — an operational conflict, not a redelivery"
             )
@@ -916,7 +1145,7 @@ class Instance:
             if _canonical_payload_text(frozen) == _canonical_payload_text(result):
                 # the first terminal activity fact won; acknowledge, append nothing
                 self._log.emit("activity_redelivery_acknowledged", occurrence=occurrence.id)
-                return
+                return TerminalDisposition.ACKNOWLEDGED
             raise ValueError(
                 f"{rejection}: a terminal activity fact already exists with a "
                 f"different result — an operational conflict, not a redelivery"
@@ -933,17 +1162,20 @@ class Instance:
             occurrence=occurrence.id,
             instant=instant,
         )
+        return TerminalDisposition.ACCEPTED
 
     def record_activity_failure(
         self, occurrence: FiringOccurrence, failure: ActivityFailure, at: Instant | None = None
-    ) -> None:
+    ) -> TerminalDisposition:
         """Freeze one canonical classified failure before projection or halt."""
         if not isinstance(failure, ActivityFailure):
             raise TypeError("record_activity_failure requires ActivityFailure")
+        if occurrence.id in self._cancelled:
+            return self._quarantine_terminal(occurrence, _terminal_outcome(failure), at)
         if occurrence.id in self._terminal_activity:
             terminal = self._terminal_activity[occurrence.id]
             if isinstance(terminal, ActivityFailure) and _failure_text(terminal) == _failure_text(failure):
-                return
+                return TerminalDisposition.ACKNOWLEDGED
             raise ValueError("conflicting terminal activity report")
         self._ensure_in_flight(occurrence, "record an activity failure for")
         if occurrence.invocation is None:
@@ -951,7 +1183,7 @@ class Instance:
         if occurrence.id in self._frozen_results:
             frozen = self._frozen_results[occurrence.id]
             if isinstance(frozen, ActivityFailure) and _failure_text(frozen) == _failure_text(failure):
-                return
+                return TerminalDisposition.ACKNOWLEDGED
             raise ValueError("conflicting terminal activity report")
         instant = self._instant(at)
         self.history.append(
@@ -968,13 +1200,40 @@ class Instance:
         )
         self._advance(instant)
         self._frozen_results[occurrence.id] = failure
+        return TerminalDisposition.ACCEPTED
+
+    def _quarantine_terminal(
+        self, occurrence: FiringOccurrence, outcome: object, at: Instant | None
+    ) -> TerminalDisposition:
+        cancelled = self._cancelled.get(occurrence.id)
+        if cancelled != occurrence or occurrence.invocation is None or occurrence.scope is None:
+            raise ValueError("conflicting terminal activity report")
+        prior = self._quarantined_activity.get(occurrence.id)
+        if prior is not None:
+            if _canonical_payload_text(prior) == _canonical_payload_text(outcome):
+                return TerminalDisposition.ACKNOWLEDGED
+            raise ValueError("conflicting terminal activity report")
+        instant = self._instant(at)
+        record = ActivityTerminalQuarantined(
+            occurrence.binding.transition,
+            outcome,
+            occurrence.scope,
+            occurrence=occurrence.id,
+            instant=instant,
+        )
+        self.history.append(record)
+        self._advance(instant)
+        self._quarantined_activity[occurrence.id] = outcome
+        return TerminalDisposition.QUARANTINED
 
     @property
     def pending_activity_outcomes(self) -> Mapping[int, object]:
         """Detached view of frozen outcomes still awaiting a firing boundary."""
         return MappingProxyType(dict(self._frozen_results))
 
-    def complete(
+    # Complexity exception: one atomic completion boundary owns projection,
+    # output narration, scope provenance, registration effects, and terminal state.
+    def complete(  # noqa: C901
         self,
         occurrence: FiringOccurrence,
         result: Mapping[NetPath | str, Sequence[Token]] | HandlerResult | None = None,
@@ -1038,11 +1297,25 @@ class Instance:
         # the canonical completion batch, including registration policy and
         # terminal lifecycle facts.
         effects, _ = _complete_movement(self.net, self.marking, occurrence.binding.transition, envelope.tokens)
+        entry_cursor = self._next_entry
+        produced_records: list[TokensProduced] = []
+        produced_entries: list[tuple[int, ...]] = []
+        for effect in effects:
+            entries = tuple(range(entry_cursor, entry_cursor + len(effect.tokens)))
+            entry_cursor += len(entries)
+            produced_entries.append(entries)
+            produced_records.append(
+                TokensProduced(
+                    effect.place,
+                    effect.tokens,
+                    occurrence=occurrence.id,
+                    entries=entries if occurrence.scope is not None else (),
+                    scope=occurrence.scope,
+                    instant=instant,
+                )
+            )
         appended = (
-            *(
-                TokensProduced(effect.place, effect.tokens, occurrence=occurrence.id, instant=instant)
-                for effect in effects
-            ),
+            *produced_records,
             *(
                 DeliveryRegistrationClosed(
                     registration.source, registration.key, occurrence=occurrence.id, instant=instant
@@ -1068,8 +1341,9 @@ class Instance:
         )
         self.history.extend(list(appended))
         self._advance(instant)
-        for record in appended:
-            apply_movement(self._queues, record)
+        self._next_entry = entry_cursor
+        for record, entries in zip(produced_records, produced_entries, strict=True):
+            apply_movement(self._queues, record, inferred_entries=entries)
         self._armed = armed
         if occurrence.invocation is not None:
             # The frozen result moves from projection-pending to the ended
@@ -1251,7 +1525,8 @@ class Instance:
         at: Instant | None = None,
         *,
         identity: str | None = None,
-    ) -> FiringOutcome | PriorAcknowledgement:
+        scope: LifecycleScope | str | None = None,
+    ) -> FiringOutcome | PriorAcknowledgement | ScopedDeliveryAcknowledgement:
         """
         Deliver an external event to a source transition, firing it.
 
@@ -1284,12 +1559,19 @@ class Instance:
         docs/project/debt/items/2026-07-09T2310Z-token-element-validation-is-per-boundary-not-kernel-wide.md).
         """
         path = NetPath(source)
+        target = scope
+        if target is not None and not isinstance(target, (LifecycleScope, str)):
+            raise TypeError("delivery scope must be a LifecycleScope, name string, or None")
+        if isinstance(target, str) and (not target or "\x00" in target):
+            raise ValueError("uncertain delivery scope must be a non-empty name without NUL")
         delivered = (tokens,) if isinstance(tokens, Token) else tuple(tokens)
         if not delivered:
             raise ValueError(f"delivery to {path} requires at least one token")
         for item in delivered:
             if not isinstance(item, Token):
                 raise ValueError(f"delivery to {path}: every delivered item must be a Token, found {item!r}")
+        if target is not None and identity is None:
+            raise ValueError(f"scoped delivery to {path} requires a stable identity")
         if identity is not None:
             # Identity and payload shape run before current source/registration
             # state: everything about that door may have rotted since the
@@ -1307,12 +1589,13 @@ class Instance:
                 )
             if identity in self._accepted_identities:
                 prior = self._accepted_identities[identity]
-                if prior.source != path or prior.tokens != delivered:
+                prior_scope = getattr(prior, "scope", None)
+                if prior.source != path or prior.tokens != delivered or prior_scope != target:
                     self._log.emit(
                         "delivery_conflicted",
                         source=str(path),
                         identity=identity,
-                        occurrence=prior.occurrence,
+                        occurrence=getattr(prior, "occurrence", None),
                     )
                     raise ValueError(
                         f"delivery identity conflict for {identity!r}: it was accepted for source {prior.source} "
@@ -1322,8 +1605,12 @@ class Instance:
                     "delivery_redelivered",
                     source=str(path),
                     identity=identity,
-                    occurrence=prior.occurrence,
+                    occurrence=getattr(prior, "occurrence", None),
                 )
+                if isinstance(prior, ScopedDeliveryDropped):
+                    return ScopedDeliveryAcknowledgement(identity, DeliveryDisposition.DROPPED, prior.scope)
+                if isinstance(prior, ScopedDeliveryQuarantined):
+                    return ScopedDeliveryAcknowledgement(identity, DeliveryDisposition.QUARANTINED, prior.scope)
                 return PriorAcknowledgement(identity, prior.occurrence)
         if path not in self.net.transitions:
             raise ValueError(f"cannot deliver to {path}: not a transition of this net")
@@ -1331,6 +1618,20 @@ class Instance:
             raise ValueError(
                 f"cannot deliver to transition {path}: it has input arcs — only a source transition takes delivery"
             )
+        if target is not None and (isinstance(target, str) or self._active_scopes.get(target.name) != target):
+            assert identity is not None
+            instant = self._instant(at)
+            if isinstance(target, LifecycleScope) and target.generation <= self._scope_generations.get(target.name, 0):
+                record = ScopedDeliveryDropped(path, delivered, identity=identity, scope=target, instant=instant)
+                disposition = DeliveryDisposition.DROPPED
+            else:
+                record = ScopedDeliveryQuarantined(path, delivered, identity=identity, scope=target, instant=instant)
+                disposition = DeliveryDisposition.QUARANTINED
+            self.history.append(record)
+            self._advance(instant)
+            self._accepted_identities[identity] = record
+            acknowledged_target = target if disposition is DeliveryDisposition.DROPPED else record.scope
+            return ScopedDeliveryAcknowledgement(identity, disposition, acknowledged_target)
         if not self._armed[path]:
             raise ValueError(f"cannot deliver to source transition {path}: no armed delivery registration")
         binding = Binding(path, consumed=(), delivered=delivered)
@@ -1345,8 +1646,10 @@ class Instance:
                 delivered,
                 identity=identity if identity is not None else f"occurrence-{occurrence}",
                 occurrence=occurrence,
+                scope=target if isinstance(target, LifecycleScope) else None,
                 instant=instant,
             ),
+            scope=target if isinstance(target, LifecycleScope) else None,
         )
         # The event fact is committed: the identity is accepted from here —
         # even if the projection below fails, the redelivery is answered by
@@ -1357,6 +1660,7 @@ class Instance:
             delivered,
             identity=accepted_identity,
             occurrence=occurrence.id,
+            scope=target if isinstance(target, LifecycleScope) else None,
             instant=self._watermark,
         )
         self._log.emit(

@@ -223,6 +223,25 @@ def test_canonical_history_fixture_is_exact_complete_page_with_schema4_typed_occ
     assert {record["occurrence"] for record in occurrence_records if record["occurrence"] is not None} == {1}
 
 
+def test_protocol_v1_history_transports_canonical_schema4_and_schema5_records_without_changing_unscoped_bytes():
+    engine = canonical_engine()
+    scope = engine.open_scope("draft")
+    engine.deliver(SOURCE, Token("External", 1), identity="draft-1", scope=scope)
+    engine.close_scope(scope)
+
+    page = engine.history_page(0, 100)
+
+    assert page["protocol"] == 1
+    assert {item["record"]["schema"] for item in page["records"]} == {4, 5}
+    lifecycle = [item["record"] for item in page["records"] if item["record"]["schema"] == 5]
+    assert [record["record"] for record in lifecycle if record["record"].startswith("Scope")] == [
+        "ScopeOpened",
+        "ScopeClosed",
+    ]
+    assert all(record.get("scope", {}).get("name") == "draft" for record in lifecycle)
+    assert page["records"][0]["record"]["schema"] == 4
+
+
 def test_canonical_capture_fixture_is_exact_snapshot_and_complete_history_prefix():
     engine = canonical_engine()
     captured_snapshot = engine.snapshot()

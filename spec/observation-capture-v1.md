@@ -19,8 +19,10 @@ The capture is strict JSON with exactly four top-level fields:
 
 `format` is the exact string `petrus-observation-capture`. `version` is the
 integer `1`, not a boolean or string. Capture schema versioning is independent
-of observation protocol 1, canonical History schema 4, and any Net-definition
-file schema. The recommended filename extension is
+of observation protocol 1, canonical History record schemas, and any
+Net-definition file schema. Canonical records without lifecycle or
+queue-occurrence provenance use schema 4; lifecycle-scope and
+provenance-bearing records use schema 5. The recommended filename extension is
 `.petrus-observation.json`; the media type remains `application/json`. Property
 order and insignificant whitespace are not semantic, and a final newline is
 optional. Schema 1 adds no provenance timestamp, digest, signature, or
@@ -68,9 +70,13 @@ frontiers may rise above `F`; they may never fall between pages. The completed
 capture still normalizes its embedded History frontier to exactly `F`.
 
 Before publication, a consumer must require stable protocol and Instance
-identity, exact dense positions, unchanged nested schema-4 records, and the
-complete prefix through `F`. Duplicate JSON member names are refused at every
-schema-owned object level before ordinary object decoding. Unknown fields in
+identity, exact dense positions, unchanged nested canonical History records,
+and the complete prefix through `F`. Each nested record retains its canonical
+schema independently: schema 4 without lifecycle or queue-occurrence
+provenance and schema 5 for a lifecycle-scope or provenance-bearing record.
+Interleaved schema-4/schema-5 records do not change capture version 1. Duplicate
+JSON member names are refused at every schema-owned object level before
+ordinary object decoding. Unknown fields in
 capture, observation-protocol, and History-record structures are refused;
 arbitrary application-owned JSON objects inside token data, Activity input,
 results, and similar value slots retain all their keys. Unsupported versions,
@@ -80,8 +86,10 @@ rather than repaired, truncated, guessed, or interpreted as predecessor data.
 
 ## Meaning and limits
 
-`snapshot.current` is the authoritative current Instance state **when captured
-at `F`**. It is not live after the producer disappears. The embedded
+`snapshot.current` is the authoritative protocol-v1 current-state projection
+**when captured at `F`**. It omits active lifecycle scopes; a scope-aware
+consumer derives those only by folding the complete embedded History through
+`F`. The snapshot is not live after the producer disappears. The embedded
 `snapshot.definition` is the exact protocol-v1 structural inspection
 projection. It is not Net-definition file schema v2/v3, contains no executable
 implementations, and cannot restore a deployment.

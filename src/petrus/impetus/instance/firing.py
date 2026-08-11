@@ -47,6 +47,7 @@ from petrus.impetus.history import (
     ActivityCompleted,
     ActivityFailed,
     ActivityRequested,
+    ActivityTerminalQuarantined,
     CandidateSelected,
     DeliveryRegistration,
     ExternalEventDelivered,
@@ -54,6 +55,8 @@ from petrus.impetus.history import (
     FiringCompleted,
     FiringFailed,
     Record,
+    ScopeClosed,
+    ScopeReset,
     DeliveryRegistrationClosed,
     DeliveryRegistrationOpened,
     TokensConsumed,
@@ -63,6 +66,7 @@ from petrus.impetus.history import (
 from petrus.impetus.binding import HandlerResult
 from petrus.impetus.petrinet import Binding, Instant, Marking, Net, NetPath, Token
 from petrus.impetus.petrinet import firing as _petrinet_firing
+from petrus.impetus.scope import LifecycleScope
 
 
 @dataclass(frozen=True)
@@ -85,6 +89,7 @@ class FiringOccurrence:
     binding: Binding
     records: tuple[Record, ...]
     invocation: ActivityInvocation | None = None
+    scope: LifecycleScope | None = None
 
 
 @dataclass(frozen=True)
@@ -229,6 +234,72 @@ def replay_terminal_activity(history) -> dict[int, object]:
     return {occurrence: value for occurrence, value in terminal.items() if occurrence in ended}
 
 
+def replay_quarantined_activity(history) -> dict[int, object]:
+    """The first durable late-terminal outcome per lifecycle-cancelled occurrence."""
+    quarantined: dict[int, object] = {}
+    cancelled: dict[int, LifecycleScope] = {}
+    for record in history:
+        if isinstance(record, (ScopeClosed, ScopeReset)):
+            scope = record.scope if isinstance(record, ScopeClosed) else record.closed
+            for occurrence in record.cancelled:
+                if occurrence in cancelled:
+                    raise ValueError(f"replay divergence: firing occurrence {occurrence} cancelled twice")
+                cancelled[occurrence] = scope
+        elif isinstance(record, ActivityTerminalQuarantined):
+            if cancelled.get(record.occurrence) != record.scope:
+                raise ValueError(
+                    f"replay divergence: terminal quarantined for firing occurrence {record.occurrence} "
+                    f"outside its lifecycle cancellation"
+                )
+            if record.occurrence in quarantined:
+                raise ValueError(
+                    f"replay divergence: a second quarantined terminal for firing occurrence {record.occurrence}"
+                )
+            quarantined[record.occurrence] = record.outcome
+    return quarantined
+
+
+def replay_cancelled(history) -> tuple[FiringOccurrence, ...]:
+    """Rebuild exact firing occurrences terminalized by lifecycle close/reset."""
+    initiated, begun, _, _, _ = _sorted_lifecycle(history)
+    cancelled: dict[int, LifecycleScope] = {}
+    for record in history:
+        if isinstance(record, (ScopeClosed, ScopeReset)):
+            scope = record.scope if isinstance(record, ScopeClosed) else record.closed
+            for occurrence_id in record.cancelled:
+                if occurrence_id in cancelled:
+                    raise ValueError(f"replay divergence: firing occurrence {occurrence_id} cancelled twice")
+                cancelled[occurrence_id] = scope
+    occurrences = []
+    for occurrence_id, scope in cancelled.items():
+        if occurrence_id not in begun or occurrence_id not in initiated:
+            raise ValueError(f"replay divergence: cancelled firing occurrence {occurrence_id} was not begun")
+        transition, delivered = initiated[occurrence_id]
+        occurrence = _rebuilt_occurrence(occurrence_id, transition, delivered, begun[occurrence_id])
+        if occurrence.scope != scope:
+            raise ValueError(
+                f"replay divergence: firing occurrence {occurrence_id} belongs to {occurrence.scope!r}, "
+                f"not closing lifecycle scope {scope!r}"
+            )
+        occurrences.append(occurrence)
+    return tuple(occurrences)
+
+
+def replay_activity_occurrences(history) -> tuple[FiringOccurrence, ...]:
+    """Rebuild every occurrence carrying an Activity request, ended or live."""
+    initiated, begun, _, _, _ = _sorted_lifecycle(history)
+    occurrences = []
+    for occurrence_id, records in begun.items():
+        if not any(isinstance(record, ActivityRequested) for record in records):
+            continue
+        if occurrence_id not in initiated:
+            raise ValueError(f"replay divergence: Activity occurrence {occurrence_id} was not initiated")
+        transition, delivered = initiated[occurrence_id]
+        _refuse_disordered_begin_batch(occurrence_id, transition, records)
+        occurrences.append(_rebuilt_occurrence(occurrence_id, transition, delivered, records))
+    return tuple(occurrences)
+
+
 # Complexity exception (>15): this is a cohesive lifecycle-record fold whose
 # branches mirror the closed record union; splitting it would obscure ordering.
 def _sorted_lifecycle(  # noqa: C901
@@ -249,15 +320,19 @@ def _sorted_lifecycle(  # noqa: C901
     validates the orderings the single writer guarantees: a begun boundary
     with no initiation; a consume, read, or activity request with no begun
     boundary; a second activity request (one recoverable activity per impure
-    handler); a completion for an occurrence that requested no activity; or
-    a second terminal activity fact — each is replay divergence the live
-    instance can never write.
+    handler); a completion for an occurrence that requested no activity; a
+    second terminal activity fact; or a lifecycle close/reset whose exact
+    cancellation set differs from the open occurrences of that generation at
+    that append position — each is replay divergence the live instance can
+    never write.
     """
     initiated: dict[int, tuple[NetPath, tuple[Token, ...]]] = {}
     begun: dict[int, list[Record]] = {}
     ended: set[int] = set()
     ending: set[int] = set()
     frozen: dict[int, object] = {}
+    scoped_open: dict[int, LifecycleScope] = {}
+    lifecycle_cancelled: set[int] = set()
     for record in history:
         if isinstance(record, CandidateSelected):
             initiated[record.occurrence] = (record.transition, ())
@@ -270,6 +345,8 @@ def _sorted_lifecycle(  # noqa: C901
                     f"begun with no initiation record"
                 )
             begun[record.occurrence] = [record]
+            if record.scope is not None:
+                scoped_open[record.occurrence] = record.scope
         elif isinstance(record, (TokensConsumed, TokensRead)):
             if record.occurrence not in begun:
                 verb = "consumed" if isinstance(record, TokensConsumed) else "read"
@@ -304,6 +381,11 @@ def _sorted_lifecycle(  # noqa: C901
                     f"replay divergence: a second terminal activity fact for firing occurrence "
                     f"{record.occurrence} ({record.transition}) — the first one wins, the writer appends no second"
                 )
+            if record.occurrence in lifecycle_cancelled:
+                raise ValueError(
+                    f"replay divergence: activity completed for lifecycle-cancelled firing occurrence "
+                    f"{record.occurrence} ({record.transition}) — late terminal reports are quarantined"
+                )
             frozen[record.occurrence] = record.result
         elif isinstance(record, ActivityFailed):
             requested = record.occurrence in begun and any(
@@ -319,15 +401,44 @@ def _sorted_lifecycle(  # noqa: C901
                     f"replay divergence: a second terminal activity fact for firing occurrence "
                     f"{record.occurrence} ({record.transition})"
                 )
+            if record.occurrence in lifecycle_cancelled:
+                raise ValueError(
+                    f"replay divergence: activity failed for lifecycle-cancelled firing occurrence "
+                    f"{record.occurrence} ({record.transition}) — late terminal reports are quarantined"
+                )
             frozen[record.occurrence] = ActivityFailure(
                 record.error, record.kind, record.details, record.retryable, record.retry_after
             )
+        elif isinstance(record, (ScopeClosed, ScopeReset)):
+            scope = record.scope if isinstance(record, ScopeClosed) else record.closed
+            expected = tuple(occurrence for occurrence, provenance in scoped_open.items() if provenance == scope)
+            if record.cancelled != expected:
+                raise ValueError(
+                    f"replay divergence: lifecycle close for {scope!r} cancels {record.cancelled!r}, "
+                    f"but the exact open occurrence set at this append position is {expected!r}"
+                )
+            pending = tuple(occurrence for occurrence in expected if occurrence in frozen)
+            if pending:
+                raise ValueError(
+                    f"replay divergence: lifecycle close for {scope!r} cancels accepted Activity "
+                    f"terminal(s) {pending!r} still awaiting deterministic projection"
+                )
+            for occurrence in expected:
+                del scoped_open[occurrence]
+            lifecycle_cancelled.update(expected)
+            ended.update(expected)
         elif isinstance(record, TokensProduced):
             ending.add(record.occurrence)
         elif isinstance(record, (DeliveryRegistrationOpened, DeliveryRegistrationClosed)):
             if record.occurrence is not None:
                 ending.add(record.occurrence)
         elif isinstance(record, (FiringCompleted, FiringFailed)):
+            if record.occurrence in lifecycle_cancelled:
+                raise ValueError(
+                    f"replay divergence: firing occurrence {record.occurrence} reached "
+                    f"{type(record).__name__} after lifecycle cancellation"
+                )
+            scoped_open.pop(record.occurrence, None)
             ended.add(record.occurrence)
     return initiated, begun, ended, ending, frozen
 
@@ -389,8 +500,22 @@ def _rebuilt_occurrence(
         ),
         None,
     )
+    begun = next(record for record in records if isinstance(record, FiringBegun))
+    scoped_records = tuple(
+        record for record in records if isinstance(record, (FiringBegun, TokensConsumed, TokensRead, ActivityRequested))
+    )
+    mismatched = tuple(type(record).__name__ for record in scoped_records if record.scope != begun.scope)
+    if mismatched:
+        raise ValueError(
+            f"replay divergence: firing occurrence {occurrence_id} ({transition}) has scope provenance "
+            f"inconsistent with FiringBegun on {mismatched!r}"
+        )
     return FiringOccurrence(
-        occurrence_id, Binding(transition, consumed, read, delivered=delivered), tuple(records), invocation=invocation
+        occurrence_id,
+        Binding(transition, consumed, read, delivered=delivered),
+        tuple(records),
+        invocation=invocation,
+        scope=begun.scope,
     )
 
 

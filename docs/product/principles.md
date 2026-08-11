@@ -23,7 +23,7 @@ Corrections are new events. Compaction never touches the canonical log — proje
 
 ### Record facts, even inconvenient ones
 
-External events are recorded as history facts whether or not any transition consumes them — production taught us that silently dropped webhooks become ledger compensation later. Side effects are observed facts in history, never recomputed during replay. Interrupted work is terminalized explicitly; nothing dangles.
+External events are recorded as history facts whether or not any transition consumes them — production taught us that silently dropped webhooks become ledger compensation later. Side effects are observed facts in history, never recomputed during replay. Interrupted work is terminalized explicitly; proven-closed ingress and late terminals are dispositioned durably rather than silently lost or retargeted. Nothing dangles.
 
 ### Capture before meaning
 

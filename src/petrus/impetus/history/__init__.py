@@ -26,8 +26,12 @@ logical epoch), no occurrence id is honestly assumable, and a default would
 silently uncorrelate a record from its firing.
 
 The public per-category payload schema is ratified: ``petrus.impetus.history.codec``
-spells every record as JSON under the schema-4 envelope [DR 2026-07-10
-durable-history-is-a-history-backend], and the
+spells records without lifecycle or queue-occurrence provenance under the
+established schema-4 envelope and lifecycle-scope/provenance records under the
+additive schema-5 envelope [DR 2026-07-10
+durable-history-is-a-history-backend; DR 2026-08-11
+history-first-lifecycle-scopes]. Each record has one canonical spelling, and a
+History may contain both in append order. The
 family names each record's node by its role — ``place`` on the movement
 records, ``transition`` on the firing records, ``source`` on the source-only
 records (``ExternalEventDelivered``, ``DeliveryRegistrationOpened``/``Closed``) —
@@ -44,6 +48,30 @@ from dataclasses import KW_ONLY, dataclass
 from petrus.motus.activity import ExecutionPolicy
 from petrus.impetus.petrinet import Marking, Token, TokenNotPresent, TokenQueue
 from petrus.impetus.petrinet import Instant, NetPath
+from petrus.impetus.scope import LifecycleScope
+
+
+def _validate_entries(
+    tokens: tuple[Token, ...],
+    entries: tuple[int, ...],
+    scope: LifecycleScope | None,
+    noun: str,
+) -> None:
+    if entries and len(entries) != len(tokens):
+        raise ValueError(f"{noun} requires one queue-entry identity per token")
+    if any(isinstance(entry, bool) or not isinstance(entry, int) or entry < 1 for entry in entries):
+        raise ValueError(f"{noun} queue-entry identities must be positive integers")
+    if len(set(entries)) != len(entries):
+        raise ValueError(f"{noun} queue-entry identities must be unique")
+    if scope is not None and len(entries) != len(tokens):
+        raise ValueError(f"{noun} scoped movements require one queue-entry identity per token")
+    if entries and scope is None:
+        raise ValueError(f"{noun} queue-entry identities require lifecycle scope provenance")
+
+
+def _exact_scope(scope: LifecycleScope, noun: str) -> None:
+    if not isinstance(scope, LifecycleScope):
+        raise ValueError(f"{noun} requires an exact LifecycleScope generation")
 
 
 @dataclass(frozen=True)
@@ -71,6 +99,70 @@ class TokensInitialized:
     place: NetPath
     tokens: tuple[Token, ...]
     instant: Instant = 0
+    _: KW_ONLY
+    entries: tuple[int, ...] = ()
+    scope: LifecycleScope | None = None
+
+    def __post_init__(self) -> None:
+        _validate_entries(self.tokens, self.entries, self.scope, "TokensInitialized")
+        if self.scope is not None:
+            _exact_scope(self.scope, "TokensInitialized")
+
+
+@dataclass(frozen=True)
+class ScopeOpened:
+    """One exact lifecycle generation became active."""
+
+    scope: LifecycleScope
+    instant: Instant = 0
+
+    def __post_init__(self) -> None:
+        _exact_scope(self.scope, "ScopeOpened")
+
+
+@dataclass(frozen=True)
+class ScopeClosed:
+    """One generation closed, discarding exact queued entries and cancelling exact firings."""
+
+    scope: LifecycleScope
+    discarded: tuple[int, ...] = ()
+    cancelled: tuple[int, ...] = ()
+    instant: Instant = 0
+
+    def __post_init__(self) -> None:
+        _exact_scope(self.scope, "ScopeClosed")
+        _validate_positive_ids(self.discarded, "ScopeClosed discarded queue entries")
+        _validate_occurrence_ids(self.cancelled, "ScopeClosed cancelled occurrences")
+
+
+@dataclass(frozen=True)
+class ScopeReset:
+    """Atomic close of one generation and open of its immediate successor."""
+
+    closed: LifecycleScope
+    opened: LifecycleScope
+    discarded: tuple[int, ...] = ()
+    cancelled: tuple[int, ...] = ()
+    instant: Instant = 0
+
+    def __post_init__(self) -> None:
+        _exact_scope(self.closed, "ScopeReset closed")
+        _exact_scope(self.opened, "ScopeReset opened")
+        if self.opened.name != self.closed.name or self.opened.generation != self.closed.generation + 1:
+            raise ValueError("ScopeReset must open the immediate next generation of the same name")
+        _validate_positive_ids(self.discarded, "ScopeReset discarded queue entries")
+        _validate_occurrence_ids(self.cancelled, "ScopeReset cancelled occurrences")
+
+
+def _validate_occurrence_ids(values: tuple[int, ...], noun: str) -> None:
+    _validate_positive_ids(values, noun)
+
+
+def _validate_positive_ids(values: tuple[int, ...], noun: str) -> None:
+    if any(isinstance(value, bool) or not isinstance(value, int) or value < 1 for value in values):
+        raise ValueError(f"{noun} must be positive integers")
+    if len(set(values)) != len(values):
+        raise ValueError(f"{noun} must be unique")
 
 
 @dataclass(frozen=True)
@@ -110,11 +202,50 @@ class ExternalEventDelivered:
     _: KW_ONLY
     identity: str
     occurrence: int
+    scope: LifecycleScope | None = None
     instant: Instant = 0
 
     def __post_init__(self) -> None:
         if not isinstance(self.identity, str) or not self.identity:
             raise ValueError(f"ExternalEventDelivered requires a non-empty string identity, got {self.identity!r}")
+        if self.scope is not None:
+            _exact_scope(self.scope, "ExternalEventDelivered")
+
+
+@dataclass(frozen=True)
+class ScopedDeliveryDropped:
+    """An identified delivery proved to target a closed generation and was acknowledged without firing."""
+
+    source: NetPath
+    tokens: tuple[Token, ...]
+    _: KW_ONLY
+    identity: str
+    scope: LifecycleScope
+    instant: Instant = 0
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.identity, str) or not self.identity:
+            raise ValueError("ScopedDeliveryDropped requires a non-empty string identity")
+        _exact_scope(self.scope, "ScopedDeliveryDropped")
+
+
+@dataclass(frozen=True)
+class ScopedDeliveryQuarantined:
+    """An identified delivery named a scope but could not prove its generation."""
+
+    source: NetPath
+    tokens: tuple[Token, ...]
+    _: KW_ONLY
+    identity: str
+    scope: LifecycleScope | str
+    instant: Instant = 0
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.identity, str) or not self.identity:
+            raise ValueError("ScopedDeliveryQuarantined requires a non-empty string identity")
+        valid_name = isinstance(self.scope, str) and bool(self.scope) and "\x00" not in self.scope
+        if not isinstance(self.scope, LifecycleScope) and not valid_name:
+            raise ValueError("ScopedDeliveryQuarantined requires a non-empty scope name without NUL")
 
 
 @dataclass(frozen=True)
@@ -209,7 +340,12 @@ class FiringBegun:
     transition: NetPath
     _: KW_ONLY
     occurrence: int
+    scope: LifecycleScope | None = None
     instant: Instant = 0
+
+    def __post_init__(self) -> None:
+        if self.scope is not None:
+            _exact_scope(self.scope, "FiringBegun")
 
 
 @dataclass(frozen=True)
@@ -220,7 +356,14 @@ class TokensConsumed:
     tokens: tuple[Token, ...]
     _: KW_ONLY
     occurrence: int
+    entries: tuple[int, ...] = ()
+    scope: LifecycleScope | None = None
     instant: Instant = 0
+
+    def __post_init__(self) -> None:
+        _validate_entries(self.tokens, self.entries, self.scope, "TokensConsumed")
+        if self.scope is not None:
+            _exact_scope(self.scope, "TokensConsumed")
 
 
 @dataclass(frozen=True)
@@ -240,7 +383,14 @@ class TokensRead:
     tokens: tuple[Token, ...]
     _: KW_ONLY
     occurrence: int
+    entries: tuple[int, ...] = ()
+    scope: LifecycleScope | None = None
     instant: Instant = 0
+
+    def __post_init__(self) -> None:
+        _validate_entries(self.tokens, self.entries, self.scope, "TokensRead")
+        if self.scope is not None:
+            _exact_scope(self.scope, "TokensRead")
 
 
 @dataclass(frozen=True)
@@ -266,6 +416,7 @@ class ActivityRequested:
     correlation: str
     idempotency: str
     occurrence: int
+    scope: LifecycleScope | None = None
     instant: Instant = 0
 
     def __post_init__(self) -> None:
@@ -276,6 +427,8 @@ class ActivityRequested:
         ):
             if not isinstance(value, str) or not value:
                 raise ValueError(f"ActivityRequested requires a non-empty string {name}, got {value!r}")
+        if self.scope is not None:
+            _exact_scope(self.scope, "ActivityRequested")
 
 
 @dataclass(frozen=True)
@@ -321,6 +474,21 @@ class ActivityFailed:
 
 
 @dataclass(frozen=True)
+class ActivityTerminalQuarantined:
+    """A terminal report arrived after lifecycle cancellation and cannot mutate the closed generation."""
+
+    transition: NetPath
+    outcome: object
+    scope: LifecycleScope
+    _: KW_ONLY
+    occurrence: int
+    instant: Instant = 0
+
+    def __post_init__(self) -> None:
+        _exact_scope(self.scope, "ActivityTerminalQuarantined")
+
+
+@dataclass(frozen=True)
 class TokensProduced:
     """Tokens deposited into a place at end firing."""
 
@@ -328,7 +496,14 @@ class TokensProduced:
     tokens: tuple[Token, ...]
     _: KW_ONLY
     occurrence: int
+    entries: tuple[int, ...] = ()
+    scope: LifecycleScope | None = None
     instant: Instant = 0
+
+    def __post_init__(self) -> None:
+        _validate_entries(self.tokens, self.entries, self.scope, "TokensProduced")
+        if self.scope is not None:
+            _exact_scope(self.scope, "TokensProduced")
 
 
 @dataclass(frozen=True)
@@ -364,8 +539,13 @@ class FiringFailed:
 Record = (
     InstanceCreated
     | TokensInitialized
+    | ScopeOpened
+    | ScopeClosed
+    | ScopeReset
     | CandidateSelected
     | ExternalEventDelivered
+    | ScopedDeliveryDropped
+    | ScopedDeliveryQuarantined
     | DeliveryRegistrationOpened
     | DeliveryRegistrationClosed
     | TimerMatured
@@ -374,6 +554,7 @@ Record = (
     | TokensRead
     | ActivityRequested
     | ActivityCompleted
+    | ActivityTerminalQuarantined
     | TokensProduced
     | FiringCompleted
     | ActivityFailed
@@ -381,7 +562,39 @@ Record = (
 )
 
 
-def apply_movement(queues: dict[NetPath, TokenQueue], record: Record) -> None:
+def _apply_scope_cleanup(queues: dict[NetPath, TokenQueue], record: ScopeClosed | ScopeReset) -> None:
+    """Discard one close/reset record's exact queue occurrences and prove completeness."""
+    closed = record.scope if isinstance(record, ScopeClosed) else record.closed
+    remaining = set(record.discarded)
+    for place, queue in tuple(queues.items()):
+        present = tuple(
+            identity
+            for identity, scope in zip(queue.identities, queue.scopes, strict=True)
+            if identity in remaining and scope == closed
+        )
+        if present:
+            queues[place] = queue.discard(present)
+            remaining.difference_update(present)
+    if remaining:
+        raise ValueError(
+            f"replay divergence: cannot discard queue entries {sorted(remaining)} from lifecycle scope {closed!r}"
+        )
+    retained = tuple(
+        identity
+        for queue in queues.values()
+        for identity, scope in zip(queue.identities, queue.scopes, strict=True)
+        if scope == closed
+    )
+    if retained:
+        raise ValueError(f"replay divergence: lifecycle close left queue entries {retained!r} in scope {closed!r}")
+
+
+def apply_movement(
+    queues: dict[NetPath, TokenQueue],
+    record: Record,
+    *,
+    inferred_entries: tuple[int, ...] | None = None,
+) -> None:
     """
     Apply one record to per-place pair-queues — the single step of the
     movement fold, shared by replay (``replay_queues``) and the live
@@ -398,16 +611,41 @@ def apply_movement(queues: dict[NetPath, TokenQueue], record: Record) -> None:
     """
     if isinstance(record, (TokensInitialized, TokensProduced)):
         queue = queues.get(record.place, TokenQueue())
-        for token in record.tokens:
-            queue = queue.deposit(token, record.instant)
+        next_identity = _next_queue_identity(queues)
+        entries = record.entries or inferred_entries or tuple(range(next_identity, next_identity + len(record.tokens)))
+        if len(entries) != len(record.tokens):
+            raise ValueError("movement fold requires one inferred queue-entry identity per token")
+        existing = {
+            identity
+            for existing_queue in queues.values()
+            for identity in existing_queue.identities
+            if identity is not None
+        }
+        duplicated = existing.intersection(entries)
+        if duplicated:
+            raise ValueError(f"replay divergence: queue-entry identities already present {sorted(duplicated)}")
+        for token, identity in zip(record.tokens, entries, strict=True):
+            queue = queue.deposit(token, record.instant, identity=identity, scope=record.scope)
         queues[record.place] = queue
     elif isinstance(record, TokensConsumed):
         try:
-            queues[record.place] = queues.get(record.place, TokenQueue()).remove(record.tokens)
+            queues[record.place] = queues.get(record.place, TokenQueue()).remove(record.tokens, record.entries)
         except TokenNotPresent as error:
             raise ValueError(
                 f"replay divergence: cannot consume {error.token!r} from {record.place}: token not present"
             ) from None
+    elif isinstance(record, (ScopeClosed, ScopeReset)):
+        _apply_scope_cleanup(queues, record)
+
+
+def _next_queue_identity(queues: dict[NetPath, TokenQueue]) -> int:
+    return (
+        max(
+            (identity for queue in queues.values() for identity in queue.identities if identity is not None),
+            default=0,
+        )
+        + 1
+    )
 
 
 def replay_queues(history) -> dict[NetPath, TokenQueue]:
@@ -418,10 +656,27 @@ def replay_queues(history) -> dict[NetPath, TokenQueue]:
     live structure ``Instance`` maintains incrementally (resume folds here
     and continues where the fold left off).
     """
-    queues: dict[NetPath, TokenQueue] = {}
-    for record in history:
-        apply_movement(queues, record)
+    queues, _ = _replay_queue_projection(history)
     return queues
+
+
+def _replay_queue_projection(history) -> tuple[dict[NetPath, TokenQueue], int]:
+    """Replay queues plus the next never-spent durable queue identity."""
+    queues: dict[NetPath, TokenQueue] = {}
+    next_identity = 1
+    spent: set[int] = set()
+    for record in history:
+        inferred_entries = None
+        if isinstance(record, (TokensInitialized, TokensProduced)):
+            inferred_entries = record.entries or tuple(range(next_identity, next_identity + len(record.tokens)))
+            duplicated = spent.intersection(inferred_entries)
+            if duplicated:
+                raise ValueError(f"replay divergence: queue-entry identities were already spent {sorted(duplicated)}")
+            spent.update(inferred_entries)
+            if inferred_entries:
+                next_identity = max(next_identity, max(inferred_entries) + 1)
+        apply_movement(queues, record, inferred_entries=inferred_entries)
+    return queues, next_identity
 
 
 def replay_marking(history) -> Marking:
@@ -484,7 +739,19 @@ def replay_next_occurrence(history) -> int:
     spent = (
         record.occurrence
         for record in history
-        if not isinstance(record, (InstanceCreated, TokensInitialized, TimerMatured))
+        if not isinstance(
+            record,
+            (
+                InstanceCreated,
+                TokensInitialized,
+                ScopeOpened,
+                ScopeClosed,
+                ScopeReset,
+                ScopedDeliveryDropped,
+                ScopedDeliveryQuarantined,
+                TimerMatured,
+            ),
+        )
     )
     return max((occurrence for occurrence in spent if occurrence is not None), default=0) + 1
 
@@ -510,7 +777,10 @@ def replay_instance_identity(history) -> InstanceCreated | None:
     return identity
 
 
-def replay_accepted_identities(history) -> dict[str, ExternalEventDelivered]:
+type AcceptedDelivery = ExternalEventDelivered | ScopedDeliveryDropped | ScopedDeliveryQuarantined
+
+
+def replay_accepted_identities(history) -> dict[str, AcceptedDelivery]:
     """
     The accepted delivery identities, each mapped to its complete recorded
     delivery fact — the projection behind the delivery door's idempotent
@@ -525,9 +795,9 @@ def replay_accepted_identities(history) -> dict[str, ExternalEventDelivered]:
     every ``ExternalEventDelivered`` record, and the writer-reserved
     namespace keeps the two from colliding.
     """
-    accepted: dict[str, ExternalEventDelivered] = {}
+    accepted: dict[str, AcceptedDelivery] = {}
     for record in history:
-        if isinstance(record, ExternalEventDelivered):
+        if isinstance(record, (ExternalEventDelivered, ScopedDeliveryDropped, ScopedDeliveryQuarantined)):
             if record.identity in accepted:
                 raise ValueError(
                     f"replay divergence: delivery identity {record.identity!r} accepted twice — the single "
@@ -535,6 +805,83 @@ def replay_accepted_identities(history) -> dict[str, ExternalEventDelivered]:
                 )
             accepted[record.identity] = record
     return accepted
+
+
+# Complexity exception: one ordered fold over the closed lifecycle/provenance record family.
+def replay_scopes(history) -> tuple[dict[str, LifecycleScope], dict[str, int]]:  # noqa: C901
+    """Rebuild active generations and the greatest generation spent per name."""
+    active: dict[str, LifecycleScope] = {}
+    generations: dict[str, int] = {}
+    for record in history:
+        if isinstance(record, ScopeOpened):
+            scope = record.scope
+            if scope.name in active or scope.generation != generations.get(scope.name, 0) + 1:
+                raise ValueError(f"replay divergence: invalid scope open {scope!r}")
+            active[scope.name] = scope
+            generations[scope.name] = scope.generation
+        elif isinstance(record, ScopeClosed):
+            if active.get(record.scope.name) != record.scope:
+                raise ValueError(f"replay divergence: scope {record.scope!r} closed while not active")
+            del active[record.scope.name]
+        elif isinstance(record, ScopeReset):
+            if active.get(record.closed.name) != record.closed:
+                raise ValueError(f"replay divergence: scope {record.closed!r} reset while not active")
+            active[record.opened.name] = record.opened
+            generations[record.opened.name] = record.opened.generation
+        elif isinstance(record, ScopedDeliveryDropped):
+            if (
+                active.get(record.scope.name) == record.scope
+                or generations.get(record.scope.name, 0) < record.scope.generation
+            ):
+                raise ValueError(
+                    f"replay divergence: delivery dropped for scope {record.scope!r} without proof it was closed"
+                )
+        elif isinstance(record, ScopedDeliveryQuarantined) and isinstance(record.scope, LifecycleScope):
+            if (
+                active.get(record.scope.name) == record.scope
+                or generations.get(record.scope.name, 0) >= record.scope.generation
+            ):
+                raise ValueError(
+                    f"replay divergence: exact delivery target {record.scope!r} was quarantined despite a known disposition"
+                )
+        elif (
+            isinstance(
+                record,
+                (
+                    TokensInitialized,
+                    ExternalEventDelivered,
+                    FiringBegun,
+                    TokensConsumed,
+                    TokensRead,
+                    ActivityRequested,
+                    TokensProduced,
+                ),
+            )
+            and record.scope is not None
+        ):
+            if active.get(record.scope.name) != record.scope:
+                raise ValueError(
+                    f"replay divergence: {type(record).__name__} uses inactive lifecycle scope {record.scope!r}"
+                )
+    return active, generations
+
+
+def replay_cancellation_positions(history) -> dict[int, int]:
+    """Map each lifecycle-cancelled occurrence to its one-based canonical append position."""
+    positions: dict[int, int] = {}
+    for position, record in enumerate(history, start=1):
+        if isinstance(record, (ScopeClosed, ScopeReset)):
+            for occurrence in record.cancelled:
+                if occurrence in positions:
+                    raise ValueError(f"replay divergence: firing occurrence {occurrence} cancelled twice")
+                positions[occurrence] = position
+    return positions
+
+
+def replay_next_queue_identity(history) -> int:
+    """One past every queue occurrence reconstructed from canonical movement order."""
+    _, next_identity = _replay_queue_projection(history)
+    return next_identity
 
 
 def replay_armed(history) -> dict[NetPath, set[str]]:

@@ -25,18 +25,22 @@ from petrus.motus.activity import (
     _OMITTED,
     snapshot_heartbeat_details,
 )
-from petrus.motus.dispatch import ActivityAttempt
+from petrus.motus.dispatch import (
+    ActivityAttempt,
+    CancellationDisposition,
+    CancellationInstruction,
+)
 
 log = telemetry.get_logger("impetus")
 
-_VERSION = 2
+_VERSION = 3
 _PREFIX = "impetus_local_dispatch_"
 
 
 _DDL = (
     """CREATE TABLE impetus_local_dispatch_schema (
  component TEXT PRIMARY KEY CHECK(component='dispatch'), version INTEGER NOT NULL)""",
-    "INSERT INTO impetus_local_dispatch_schema VALUES ('dispatch', 2)",
+    "INSERT INTO impetus_local_dispatch_schema VALUES ('dispatch', 3)",
     """CREATE TABLE impetus_local_dispatch_tasks (
  sequence INTEGER PRIMARY KEY AUTOINCREMENT,
  instance TEXT NOT NULL, occurrence INTEGER NOT NULL CHECK(occurrence>0),
@@ -56,6 +60,11 @@ _DDL = (
  CHECK((epoch=0 AND claimant IS NULL) OR (epoch>0 AND claimant IS NOT NULL)),
  UNIQUE(instance, occurrence),
  FOREIGN KEY(instance, occurrence) REFERENCES impetus_local_dispatch_tasks(instance, occurrence))""",
+    """CREATE TABLE impetus_local_dispatch_cancellations (
+ instance TEXT NOT NULL, occurrence INTEGER NOT NULL CHECK(occurrence>0),
+ history_position INTEGER NOT NULL CHECK(history_position>0),
+ invocation TEXT NOT NULL CHECK(json_valid(invocation)),
+ PRIMARY KEY(instance, occurrence))""",
 )
 
 
@@ -90,6 +99,16 @@ class LocalDispatch:
         queue = self.activity_queues.get(invocation.activity, self.default_queue)
         encoded = _encode_invocation(invocation)
         with _transaction(self.path) as connection:
+            cancelled = connection.execute(
+                "SELECT history_position,invocation FROM impetus_local_dispatch_cancellations "
+                "WHERE instance=? AND occurrence=?",
+                (self.instance, occurrence),
+            ).fetchone()
+            if cancelled is not None:
+                if cancelled[1] != encoded:
+                    raise ValueError(f"Local Dispatch publication conflict for occurrence {occurrence}")
+                self._published.add(occurrence)
+                return
             now = _now(connection)
             connection.execute(
                 "INSERT INTO impetus_local_dispatch_tasks(instance,occurrence,queue,invocation,schedule_start,available_at) "
@@ -124,6 +143,54 @@ class LocalDispatch:
             queue=queue,
             activity=invocation.activity,
         )
+
+    def cancel(self, instruction: CancellationInstruction) -> CancellationDisposition:
+        """Install one durable fence, including when publication never happened."""
+        if not isinstance(instruction, CancellationInstruction):
+            raise TypeError("Local Dispatch cancellation requires a CancellationInstruction")
+        encoded = _encode_invocation(instruction.invocation)
+        with _transaction(self.path) as connection:
+            inserted = connection.execute(
+                "INSERT INTO impetus_local_dispatch_cancellations(instance,occurrence,history_position,invocation) "
+                "VALUES(?,?,?,?) ON CONFLICT(instance,occurrence) DO NOTHING",
+                (self.instance, instruction.occurrence, instruction.history_position, encoded),
+            ).rowcount
+            cancellation = connection.execute(
+                "SELECT history_position,invocation FROM impetus_local_dispatch_cancellations "
+                "WHERE instance=? AND occurrence=?",
+                (self.instance, instruction.occurrence),
+            ).fetchone()
+            if cancellation != (instruction.history_position, encoded):
+                raise ValueError(f"Local Dispatch cancellation conflict for occurrence {instruction.occurrence}")
+            task = connection.execute(
+                "SELECT invocation,epoch FROM impetus_local_dispatch_tasks WHERE instance=? AND occurrence=?",
+                (self.instance, instruction.occurrence),
+            ).fetchone()
+            terminal = connection.execute(
+                "SELECT 1 FROM impetus_local_dispatch_terminals WHERE instance=? AND occurrence=?",
+                (self.instance, instruction.occurrence),
+            ).fetchone()
+            if task is not None and task[0] != encoded:
+                raise ValueError(f"Local Dispatch cancellation conflict for occurrence {instruction.occurrence}")
+            if not inserted:
+                disposition = CancellationDisposition.ACKNOWLEDGED
+            elif terminal is not None:
+                disposition = CancellationDisposition.TERMINAL
+            elif task is None:
+                disposition = CancellationDisposition.TOMBSTONED
+            elif task[1] == 0:
+                disposition = CancellationDisposition.RETIRED
+            else:
+                disposition = CancellationDisposition.FENCED
+        self._published.add(instruction.occurrence)
+        log.emit(
+            "dispatch_cancelled",
+            instance=self.instance,
+            occurrence=instruction.occurrence,
+            history_position=instruction.history_position,
+            disposition=disposition.value,
+        )
+        return disposition
 
     def collect(self) -> tuple[tuple[int, object], ...]:
         eligible = sorted(self._published - self._collected)
@@ -202,7 +269,9 @@ class LocalWorkerDispatch:
             row = connection.execute(
                 f"SELECT t.instance,t.occurrence,t.queue,t.invocation,t.epoch,t.details "
                 f"FROM impetus_local_dispatch_tasks t LEFT JOIN impetus_local_dispatch_terminals x "
-                f"USING(instance,occurrence) WHERE x.occurrence IS NULL AND t.queue IN ({marks}) "
+                f"USING(instance,occurrence) LEFT JOIN impetus_local_dispatch_cancellations c "
+                f"USING(instance,occurrence) WHERE x.occurrence IS NULL AND c.occurrence IS NULL "
+                f"AND t.queue IN ({marks}) "
                 "AND t.epoch < json_extract(t.invocation,'$.policy.attempts') "
                 "AND t.available_at<=? AND (t.epoch=0 OR t.deadline<=?) ORDER BY t.sequence LIMIT 1",
                 (*self.queues, now, now),
@@ -297,6 +366,9 @@ class LocalWorkerDispatch:
             outcome = {"kind": "failed", "failure": _failure_wire(failure)}
             if _acknowledge_terminal_retry(connection, attempt, outcome):
                 disposition = "terminal-retry"
+            elif _cancelled_attempt(connection, attempt):
+                self._insert_terminal(connection, attempt, outcome)
+                disposition = "cancelled-report"
             else:
                 now = _now(connection)
                 _active(connection, attempt, now)
@@ -338,6 +410,9 @@ class LocalWorkerDispatch:
         with _transaction(self.path) as connection:
             if _acknowledge_terminal_retry(connection, attempt, outcome):
                 disposition = "terminal-retry"
+            elif _cancelled_attempt(connection, attempt):
+                self._insert_terminal(connection, attempt, outcome)
+                disposition = "cancelled-report"
             else:
                 _active(connection, attempt, _now(connection))
                 self._insert_terminal(connection, attempt, outcome)
@@ -361,7 +436,9 @@ class LocalWorkerDispatch:
                 expired = _terminalize_exhausted(connection, now, self.queues)
                 row = connection.execute(
                     f"SELECT 1 FROM impetus_local_dispatch_tasks t LEFT JOIN impetus_local_dispatch_terminals x "
-                    f"USING(instance,occurrence) WHERE x.occurrence IS NULL AND t.queue IN ({marks}) "
+                    f"USING(instance,occurrence) LEFT JOIN impetus_local_dispatch_cancellations c "
+                    f"USING(instance,occurrence) WHERE x.occurrence IS NULL AND c.occurrence IS NULL "
+                    f"AND t.queue IN ({marks}) "
                     "AND t.epoch < json_extract(t.invocation,'$.policy.attempts') "
                     "AND t.available_at<=? AND (t.epoch=0 OR t.deadline<=?) LIMIT 1",
                     (*self.queues, now, now),
@@ -400,9 +477,14 @@ def _active(connection: sqlite3.Connection, attempt: ActivityAttempt, now: int):
         "SELECT 1 FROM impetus_local_dispatch_terminals WHERE instance=? AND occurrence=?",
         (instance, occurrence),
     ).fetchone()
+    cancelled = connection.execute(
+        "SELECT 1 FROM impetus_local_dispatch_cancellations WHERE instance=? AND occurrence=?",
+        (instance, occurrence),
+    ).fetchone()
     if (
         row is None
         or terminal
+        or cancelled
         or row[0] != attempt.queue
         or row[1] != _encode_invocation(attempt.invocation)
         or str(row[2]) != attempt.epoch
@@ -411,6 +493,26 @@ def _active(connection: sqlite3.Connection, attempt: ActivityAttempt, now: int):
     ):
         raise ValueError(f"stale Activity attempt {attempt.attempt_id}")
     return row
+
+
+def _cancelled_attempt(connection: sqlite3.Connection, attempt: ActivityAttempt) -> bool:
+    """Validate the exact fenced claimant before accepting its report for canonical quarantine."""
+    if not isinstance(attempt, ActivityAttempt):
+        raise TypeError("custody operation requires ActivityAttempt")
+    instance, occurrence = _attempt_key(attempt)
+    cancelled = connection.execute(
+        "SELECT 1 FROM impetus_local_dispatch_cancellations WHERE instance=? AND occurrence=?",
+        (instance, occurrence),
+    ).fetchone()
+    if cancelled is None:
+        return False
+    row = connection.execute(
+        "SELECT queue,invocation,epoch,claimant FROM impetus_local_dispatch_tasks WHERE instance=? AND occurrence=?",
+        (instance, occurrence),
+    ).fetchone()
+    if row != (attempt.queue, _encode_invocation(attempt.invocation), int(attempt.epoch), attempt.claimant):
+        raise ValueError(f"stale Activity attempt {attempt.attempt_id}")
+    return True
 
 
 def _attempt_id(instance: str, occurrence: int) -> str:
@@ -472,7 +574,9 @@ def _terminalize_exhausted(
     # later sweep time.
     retryable = connection.execute(
         f"SELECT t.instance,t.occurrence,t.epoch,t.deadline,t.invocation FROM impetus_local_dispatch_tasks t "
-        f"LEFT JOIN impetus_local_dispatch_terminals x USING(instance,occurrence) WHERE x.occurrence IS NULL "
+        f"LEFT JOIN impetus_local_dispatch_terminals x USING(instance,occurrence) "
+        f"LEFT JOIN impetus_local_dispatch_cancellations c USING(instance,occurrence) "
+        f"WHERE x.occurrence IS NULL AND c.occurrence IS NULL "
         f"AND t.queue IN ({marks}) AND t.epoch>0 AND t.deadline<=? "
         "AND t.epoch<json_extract(t.invocation,'$.policy.attempts')",
         (*queues, now),
@@ -486,7 +590,9 @@ def _terminalize_exhausted(
         )
     rows = connection.execute(
         f"SELECT t.instance,t.occurrence,t.epoch,t.claimant FROM impetus_local_dispatch_tasks t "
-        f"LEFT JOIN impetus_local_dispatch_terminals x USING(instance,occurrence) WHERE x.occurrence IS NULL "
+        f"LEFT JOIN impetus_local_dispatch_terminals x USING(instance,occurrence) "
+        f"LEFT JOIN impetus_local_dispatch_cancellations c USING(instance,occurrence) "
+        f"WHERE x.occurrence IS NULL AND c.occurrence IS NULL "
         f"AND t.queue IN ({marks}) AND ((t.epoch>0 AND t.deadline<=? "
         "AND t.epoch>=json_extract(t.invocation,'$.policy.attempts')) OR "
         "(json_extract(t.invocation,'$.policy.schedule_to_close') IS NOT NULL AND "
@@ -519,13 +625,14 @@ def _initialize(path: Path) -> None:
                 for statement in _DDL:
                     connection.execute(statement)
             else:
-                expected = {
+                v2_objects = {
                     "impetus_local_dispatch_schema": "table",
                     "impetus_local_dispatch_tasks": "table",
                     "impetus_local_dispatch_claimable": "index",
                     "impetus_local_dispatch_terminals": "table",
                 }
-                if objects != expected:
+                current_objects = v2_objects | {"impetus_local_dispatch_cancellations": "table"}
+                if objects not in (v2_objects, current_objects):
                     raise ValueError(
                         f"{path}: foreign or unversioned Local Dispatch schema; migration is not supported"
                     )
@@ -534,6 +641,12 @@ def _initialize(path: Path) -> None:
                     _migrate_v1(connection)
                     connection.execute("UPDATE impetus_local_dispatch_schema SET version=2 WHERE component='dispatch'")
                     rows = [("dispatch", 2)]
+                if rows == [("dispatch", 2)]:
+                    if objects != v2_objects:
+                        raise ValueError(f"{path}: foreign Local Dispatch schema-2 shape")
+                    connection.execute(_DDL[5])
+                    connection.execute("UPDATE impetus_local_dispatch_schema SET version=3 WHERE component='dispatch'")
+                    rows = [("dispatch", 3)]
                 if rows != [("dispatch", _VERSION)]:
                     raise ValueError(f"{path}: unsupported Local Dispatch schema {rows!r}; migration is not supported")
                 _validate_shape(connection, path)
@@ -551,10 +664,11 @@ def _validate_shape(connection: sqlite3.Connection, path: Path) -> None:
         "impetus_local_dispatch_tasks": _DDL[2],
         "impetus_local_dispatch_claimable": _DDL[3],
         "impetus_local_dispatch_terminals": _DDL[4],
+        "impetus_local_dispatch_cancellations": _DDL[5],
     }
     actual_sql = dict(
         connection.execute(
-            "SELECT name,sql FROM sqlite_master WHERE name IN (?,?,?,?)",
+            "SELECT name,sql FROM sqlite_master WHERE name IN (?,?,?,?,?)",
             tuple(expected_sql),
         )
     )
@@ -591,6 +705,12 @@ def _validate_shape(connection: sqlite3.Connection, path: Path) -> None:
             ("epoch", "INTEGER", 1, None, 0),
             ("claimant", "TEXT", 0, None, 0),
             ("outcome", "TEXT", 1, None, 0),
+        ],
+        "impetus_local_dispatch_cancellations": [
+            ("instance", "TEXT", 1, None, 1),
+            ("occurrence", "INTEGER", 1, None, 2),
+            ("history_position", "INTEGER", 1, None, 0),
+            ("invocation", "TEXT", 1, None, 0),
         ],
     }
     for table, expected in expected_columns.items():

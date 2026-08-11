@@ -132,6 +132,70 @@ Temporal-hosted Petri-net predecessor: external results enter durable history
 first, and the net advances deterministically from recorded history
 [ADR 0004, docs/project/briefing.md].
 
+## Lifecycle scopes
+
+A lifecycle scope is a named, explicit ownership boundary for one generation
+of process work. Its durable identity is exactly `(name, generation)`, where
+generation is a positive, monotonically increasing integer for that name.
+`ScopeOpened` activates one generation; `ScopeClosed` closes one exact active
+generation; and `ScopeReset` atomically closes that generation and opens its
+immediate successor. There is no intermediate unscoped state during reset
+[DR 2026-08-11 history-first-lifecycle-scopes].
+
+Lifecycle order is canonical append order, never `instant`. Closing records
+carry the complete exact set of scoped queue-entry identities discarded and
+in-flight firing occurrences cancelled at their append position. Replay MUST
+refuse an omitted, additional, or differently scoped identity rather than
+repairing it. Equal-valued tokens remain distinct queue occurrences, so cleanup
+removes exactly the listed entries. Consumed firing inputs stay consumed;
+close/reset performs no implicit restoration. Any compensation is a later,
+explicit domain fact.
+
+Scope provenance propagates from scoped ingress or scoped queued tokens into
+the firing occurrence, its produced queue entries, and an Activity request.
+The firing `occurrence` remains the owner of same-generation execution:
+generation identity never replaces invocation correlation or idempotency.
+Lifecycle scope values contain only name and generation; credentials, clients,
+closures, Activities, Engines, and other live capabilities are forbidden.
+
+Canonical close/reset MUST commit before any cancellation instruction becomes
+visible to Dispatch. History is the business truth; cancellation is a
+recoverable operational projection that Dispatch repairs from History after a
+restart. Cancellation fences future accepted execution and terminal delivery,
+but cannot prove that an ambiguous external effect did not already happen.
+Pending custody may be retired, claimed/running custody is fenced, and an
+already terminal custody state is observed; none of these dispositions changes
+the canonical close. Providers unable to install a recoverable fence MUST be
+refused before closing a scope that has an in-flight Activity.
+
+An Activity terminal already committed before close is projection-pending, not
+cancellable. Its deterministic projection MUST complete before the generation
+can close or reset; recovery therefore loads and reconciles projection before
+attempting lifecycle closure.
+
+The first terminal Activity fact still wins. Exact redelivery of an already
+accepted terminal is acknowledged and a conflicting value fails loud. A
+terminal arriving after its generation was closed is recorded as
+`ActivityTerminalQuarantined` and cannot alter that generation. An identified
+delivery proven to target a closed generation is recorded as
+`ScopedDeliveryDropped`, acknowledged, and never fired. A delivery carrying
+only a scope name, or an exact generation the History cannot prove open or
+closed, is recorded as `ScopedDeliveryQuarantined`; it is never silently
+retargeted to the current generation. Exact duplicate disposition is
+acknowledged, while conflicting identity reuse fails loud.
+
+Quarantine is a durable audit disposition, not an operational reprocessing
+queue. Petrus supplies no generic release, retarget, or retry operation for a
+quarantined ingress or terminal; a host inspects History and performs explicit
+domain reconciliation when required.
+
+Canonical records without lifecycle or queue-entry provenance retain their
+established schema-4 encoding. Lifecycle records and records carrying
+lifecycle or queue-entry provenance use schema 5. Each record has exactly one
+canonical schema spelling. Schema-4 and schema-5 records may interleave in one
+History without a log-wide migration. Existing unscoped behavior and
+value-level APIs remain unchanged.
+
 ## Deterministic records vs activity records
 
 The canonical log distinguishes — within one unified history, not as separate

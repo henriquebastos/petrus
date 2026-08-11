@@ -38,6 +38,11 @@ tokens; `status`; integer `watermark`; ordered `in_flight`; source/key-sorted
 its transition, binding selections, invocation/result, and exactly one phase:
 `pure_pending`, `activity_pending`, or `projection_pending`.
 
+Protocol-v1 `current` does not add an `active_scopes` projection. A scope-aware
+consumer derives active generations by folding the complete canonical History
+prefix through `frontier`; it must not infer them from token values or select a
+generation by name alone.
+
 Snapshot status is current-only and may evaluate the current pure completion
 declaration. Authoritative historical status and enabledness are unavailable;
 neither may be inferred by re-executing historical declarations.
@@ -50,7 +55,12 @@ integer. A page returns dense zero-based positions in `[after, next)`, where
 uses the last confirmed `next`; `after == frontier` is an empty page. Negative,
 boolean, non-integer, future cursors and non-positive/boolean/non-integer limits
 are refused, never clamped. Each nested `record` is the unchanged canonical
-History schema-4 encoding.
+History record encoding. The enclosing observation protocol remains version 1;
+each record independently retains its canonical History schema: ordinary
+records without lifecycle or queue-occurrence provenance use schema 4, while
+lifecycle-scope and provenance-bearing records use schema 5. A page may
+therefore contain interleaved schema-4 and schema-5 records without changing
+positions, cursors, or the frontier.
 
 A cursor inside one append batch is an explanatory record prefix, not a claim
 that the prefix was an externally observable atomic runtime state. Historical

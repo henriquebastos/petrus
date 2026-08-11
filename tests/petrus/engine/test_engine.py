@@ -8,7 +8,7 @@ import pytest
 
 import petrus.engine as engine_module
 from petrus.motus.activity import ActivityDeclaration, ActivityInvocation
-from petrus.motus.dispatch import InMemoryDispatch, InlineDispatch
+from petrus.motus.dispatch import CancellationDisposition, InMemoryDispatch, InlineDispatch
 from petrus.engine import Delivery, Engine, choose_conservative, choose_throughput
 from petrus.impetus.history import (
     ActivityCompleted,
@@ -17,6 +17,9 @@ from petrus.impetus.history import (
     ExternalEventDelivered,
     FiringCompleted,
     InstanceCreated,
+    ScopeClosed,
+    ScopeReset,
+    ActivityTerminalQuarantined,
     TokensInitialized,
 )
 from petrus.impetus.history_store import InMemoryHistoryStore
@@ -78,7 +81,9 @@ class TestNeutralEngineSurface:
         assert not inspect.isabstract(Engine)
         assert {name for name in Engine.__dict__ if not name.startswith("_")} == {
             "advance",
+            "active_scopes",
             "close",
+            "close_scope",
             "create",
             "deliver",
             "history_page",
@@ -86,9 +91,11 @@ class TestNeutralEngineSurface:
             "load",
             "marking",
             "records",
+            "reset_scope",
             "seal",
             "snapshot",
             "status",
+            "open_scope",
             "wait",
         }
         assert not hasattr(Engine, "queue_for")
@@ -240,6 +247,288 @@ class TestNeutralEngineSurface:
         assert engine.marking.place(OUTPUT) == (Token("External", 1), Token("External", 2))
         engine.close()
 
+
+class TestLifecycleScopes:
+    @staticmethod
+    def net() -> Net:
+        return Net(
+            places=[Place(A), Place(B)],
+            transitions=[Transition(SOURCE), Transition(T, handler="bridge")],
+            arcs=[Arc(SOURCE, A), Arc(A, T), Arc(T, B)],
+        )
+
+    @staticmethod
+    def create(history=None, dispatch=None) -> tuple[Engine, InMemoryDispatch]:
+        custody = dispatch or InMemoryDispatch()
+        return (
+            Engine.create(
+                TestLifecycleScopes.net(),
+                "scoped-engine",
+                history=history if history is not None else InMemoryHistoryStore(),
+                dispatch=custody,
+                handlers={"bridge": Bridge()},
+            ),
+            custody,
+        )
+
+    def test_close_commits_before_retiring_pending_dispatch_and_late_terminal_is_quarantined(self):
+        engine, dispatch = self.create()
+        scope = engine.open_scope("draft")
+        engine.deliver(SOURCE, Token("Input", 3), identity="draft-3", scope=scope)
+        assert engine.advance().ready is True
+        [occurrence] = dispatch.pending
+
+        closure = engine.close_scope(scope)
+
+        assert closure.cancelled == (occurrence,)
+        assert dispatch.pending == {}
+        close_position = next(
+            index for index, record in enumerate(engine.records, start=1) if isinstance(record, ScopeClosed)
+        )
+        assert dispatch._cancelled[occurrence].history_position == close_position
+        dispatch.complete(occurrence, {"value": 3})
+        engine.advance()
+        assert isinstance(engine.records[-1], ActivityTerminalQuarantined)
+        assert engine.records[-1].occurrence == occurrence
+
+    def test_restart_acknowledges_exact_ended_terminal_redelivery_and_refuses_conflict(self):
+        history = InMemoryHistoryStore()
+        engine, dispatch = self.create(history=history)
+        scope = engine.open_scope("draft")
+        engine.deliver(SOURCE, Token("Input", 3), identity="draft-3", scope=scope)
+        engine.advance()
+        [occurrence] = dispatch.pending
+        dispatch.complete(occurrence, {"value": 3})
+        engine.advance()
+        engine.close()
+
+        class RedeliveryDispatch:
+            def __init__(self):
+                self.reports = [(occurrence, {"value": 3})]
+
+            def dispatch(self, occurrence, invocation):
+                raise AssertionError((occurrence, invocation))
+
+            def collect(self):
+                reports = tuple(self.reports)
+                self.reports.clear()
+                return reports
+
+        redelivery = RedeliveryDispatch()
+        resumed = Engine.load(
+            self.net(),
+            "scoped-engine",
+            history=history,
+            dispatch=redelivery,
+            handlers={"bridge": Bridge()},
+        )
+        before = history.records
+
+        resumed.advance()
+
+        assert history.records == before
+        redelivery.reports.append((occurrence, {"value": 4}))
+        with pytest.raises(ValueError, match="different result.*operational conflict"):
+            resumed.advance()
+
+    def test_restart_acknowledges_exact_quarantined_terminal_and_refuses_conflict(self):
+        history = InMemoryHistoryStore()
+        engine, dispatch = self.create(history=history)
+        scope = engine.open_scope("draft")
+        engine.deliver(SOURCE, Token("Input", 3), identity="draft-3", scope=scope)
+        engine.advance()
+        [occurrence] = dispatch.pending
+        engine.close_scope(scope)
+        engine.close()
+
+        class RedeliveryDispatch(InMemoryDispatch):
+            def __init__(self):
+                super().__init__()
+                self.reports = [(occurrence, {"value": 3})]
+
+            def collect(self):
+                reports = tuple(self.reports)
+                self.reports.clear()
+                return reports
+
+        redelivery = RedeliveryDispatch()
+        resumed = Engine.load(
+            self.net(),
+            "scoped-engine",
+            history=history,
+            dispatch=redelivery,
+            handlers={"bridge": Bridge()},
+        )
+        resumed.advance()
+        before = history.records
+        redelivery.reports.append((occurrence, {"value": 3}))
+
+        resumed.advance()
+
+        assert history.records == before
+        redelivery.reports.append((occurrence, {"value": 4}))
+        with pytest.raises(ValueError, match="conflicting terminal activity report"):
+            resumed.advance()
+
+    def test_reset_is_one_canonical_record_with_no_unscoped_generation_gap(self):
+        engine, dispatch = self.create()
+        first = engine.open_scope("draft")
+        engine.deliver(SOURCE, Token("Input", 3), identity="draft-3", scope=first)
+        engine.advance()
+        before = len(engine.records)
+
+        second = engine.reset_scope(first)
+
+        assert second.name == first.name and second.generation == first.generation + 1
+        assert engine.active_scopes == {"draft": second}
+        assert len(engine.records) == before + 1
+        assert isinstance(engine.records[-1], ScopeReset)
+        assert dispatch.pending == {}
+
+    def test_restart_repairs_a_committed_cancellation_instruction_idempotently(self):
+        history = InMemoryHistoryStore()
+        engine, _ = self.create(history=history)
+        scope = engine.open_scope("draft")
+        engine.deliver(SOURCE, Token("Input", 3), identity="draft-3", scope=scope)
+        engine.advance()
+        closure = engine.close_scope(scope)
+        engine.close()
+
+        class RecordingDispatch(InMemoryDispatch):
+            def __init__(self):
+                super().__init__()
+                self.instructions = []
+
+            def cancel(self, instruction):
+                self.instructions.append(instruction)
+                return super().cancel(instruction)
+
+        repaired = RecordingDispatch()
+        resumed = Engine.load(
+            self.net(),
+            "scoped-engine",
+            history=history,
+            dispatch=repaired,
+            handlers={"bridge": Bridge()},
+        )
+
+        resumed.advance()
+
+        assert [instruction.occurrence for instruction in repaired.instructions] == list(closure.cancelled)
+        assert repaired.cancel(repaired.instructions[0]) is CancellationDisposition.ACKNOWLEDGED
+
+    @pytest.mark.parametrize("operation", ["close", "reset"])
+    def test_post_commit_cancellation_failure_poisoning_is_repaired_after_restart(self, operation):
+        class FailingDispatch(InMemoryDispatch):
+            def cancel(self, instruction):
+                raise RuntimeError(f"injected {operation} cancellation failure")
+
+        history = InMemoryHistoryStore()
+        engine, dispatch = self.create(history=history, dispatch=FailingDispatch())
+        scope = engine.open_scope("draft")
+        engine.deliver(SOURCE, Token("Input", 3), identity="draft-3", scope=scope)
+        engine.advance()
+        [occurrence] = dispatch.pending
+
+        with pytest.raises(RuntimeError, match=f"injected {operation} cancellation failure"):
+            getattr(engine, f"{operation}_scope")(scope)
+
+        terminal = history.records[-1]
+        assert isinstance(terminal, ScopeClosed if operation == "close" else ScopeReset)
+        assert terminal.cancelled == (occurrence,)
+
+        class RecordingDispatch(InMemoryDispatch):
+            def __init__(self):
+                super().__init__()
+                self.instructions = []
+
+            def cancel(self, instruction):
+                self.instructions.append(instruction)
+                return super().cancel(instruction)
+
+        repaired = RecordingDispatch()
+        resumed = Engine.load(
+            self.net(),
+            "scoped-engine",
+            history=history,
+            dispatch=repaired,
+            handlers={"bridge": Bridge()},
+        )
+        resumed.advance()
+
+        assert [instruction.occurrence for instruction in repaired.instructions] == [occurrence]
+        if operation == "reset":
+            assert resumed.active_scopes == {"draft": terminal.opened}
+
+    def test_scope_close_append_failure_never_notifies_dispatch(self):
+        class RefusingHistory(InMemoryHistoryStore):
+            def append(self, record):
+                if isinstance(record, ScopeClosed):
+                    raise OSError("close refused")
+                super().append(record)
+
+        class RecordingDispatch(InMemoryDispatch):
+            instructions = []
+
+            def cancel(self, instruction):
+                self.instructions.append(instruction)
+                return super().cancel(instruction)
+
+        dispatch = RecordingDispatch()
+        engine, _ = self.create(history=RefusingHistory(), dispatch=dispatch)
+        scope = engine.open_scope("draft")
+        engine.deliver(SOURCE, Token("Input", 3), identity="draft-3", scope=scope)
+        engine.advance()
+
+        with pytest.raises(OSError, match="close refused"):
+            engine.close_scope(scope)
+
+        assert dispatch.instructions == []
+
+    def test_unsupported_dispatch_is_refused_before_canonical_close(self):
+        class LegacyDispatch:
+            def __init__(self):
+                self.pending = []
+
+            def dispatch(self, occurrence, invocation):
+                self.pending.append((occurrence, invocation))
+
+            def collect(self):
+                return ()
+
+        history = InMemoryHistoryStore()
+        engine, _ = self.create(history=history, dispatch=LegacyDispatch())
+        scope = engine.open_scope("draft")
+        engine.deliver(SOURCE, Token("Input", 3), identity="draft-3", scope=scope)
+        engine.advance()
+        before = len(history)
+
+        with pytest.raises(TypeError, match="does not implement.*cancellation"):
+            engine.close_scope(scope)
+
+        assert len(history) == before
+
+    def test_sensor_delivery_preserves_exact_scope_provenance(self):
+        holder = []
+        engine = Engine.create(
+            self.net(),
+            "scoped-sensor",
+            history=InMemoryHistoryStore(),
+            dispatch=InMemoryDispatch(),
+            handlers={"bridge": Bridge()},
+            sensor=lambda: tuple(holder),
+        )
+        scope = engine.open_scope("draft")
+        holder.append(Delivery(SOURCE, Token("Input", 3), identity="sensor-3", scope=scope))
+
+        engine.advance()
+
+        assert engine.marking == Marking({A: (Token("Input", 3),)})
+        engine.close_scope(scope)
+        assert not engine.marking
+
+
+class TestNeutralEngineSurfaceContinued:
     def test_direct_identifier_delivery_enables_a_separate_fetch_activity(self):
         fetched = NetPath("fetched")
         fetch = NetPath("fetch")

@@ -96,6 +96,16 @@ independent, and possible without the handler code present. Derived views
 (current marking, and a four-valued instance **status**: RUNNING / AWAITING /
 COMPLETED / STUCK) are rebuildable projections, never the canonical truth.
 
+An explicit **lifecycle scope** `(name, generation)` can own queued token
+occurrences and firing occurrences. Canonical open/close/reset records make
+generation replacement replayable: close discards exact queued occurrences,
+reset atomically closes N and opens N+1, and consumed inputs are never restored
+implicitly. History commits this business truth before Dispatch installs
+recoverable operational cancellation fences. Proven-closed ingress is
+acknowledged and dropped; uncertain-generation ingress and late terminal
+reports are quarantined rather than silently retargeted. Append order—not
+timestamps—decides every lifecycle race.
+
 ## An Instance is isolated durable state
 
 Many Instances of one definition run independently, each with its own marking,

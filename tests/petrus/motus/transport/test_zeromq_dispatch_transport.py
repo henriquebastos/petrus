@@ -20,6 +20,7 @@ import zmq.auth
 
 import petrus.motus.transport.zeromq as zeromq
 from petrus.motus.activity import ActivityFailure, ActivityInvocation, ExecutionPolicy, _OMITTED
+from petrus.motus.dispatch import CancellationDisposition, CancellationInstruction
 from petrus.motus.dispatch.local import LocalDispatch, LocalWorkerDispatch
 from petrus.motus.transport.zeromq import (
     AsyncZeroMQWorkerAccess,
@@ -191,6 +192,44 @@ def test_async_ipc_direct_claim_heartbeat_completion_fencing_and_idempotent_clos
         asyncio.run(exercise())
         assert dispatch.collect() == ((1, {"done": True}),)
     finally:
+        running.close()
+
+
+def test_sync_and_async_transport_clients_observe_lifecycle_cancellation_fences(tmp_path: Path) -> None:
+    path = tmp_path / "dispatch.sqlite3"
+    endpoint = f"ipc://{tmp_path}/cancel-dispatch.sock"
+    call = invocation()
+    dispatch = LocalDispatch(path, instance="cancelled")
+    dispatch.dispatch(1, call)
+    dispatch.dispatch(2, call)
+    running = RunningServer(ZeroMQDispatchServer.local(endpoint, path, allowed_queues=("default",)))
+    client = ZeroMQWorkerDispatch(running.endpoint, worker_id="sync")
+
+    async def exercise_async() -> None:
+        access = await AsyncZeroMQWorkerAccess.create(running.endpoint, worker_id="async")
+        try:
+            attempt = await access.claim(0)
+            assert attempt is not None
+            occurrence = json.loads(attempt.attempt_id)[1]
+            assert dispatch.cancel(CancellationInstruction(occurrence, call, 12)) is CancellationDisposition.FENCED
+            with pytest.raises(ValueError, match="stale Activity attempt"):
+                await access.heartbeat(0, attempt)
+            await access.complete(0, attempt, {"client": "async", "effect": "ambiguous"})
+        finally:
+            await access.close()
+
+    try:
+        attempt = client.claim()
+        assert attempt is not None
+        occurrence = json.loads(attempt.attempt_id)[1]
+        assert dispatch.cancel(CancellationInstruction(occurrence, call, 11)) is CancellationDisposition.FENCED
+        with pytest.raises(ValueError, match="stale Activity attempt"):
+            client.heartbeat(attempt)
+        client.complete(attempt, {"client": "sync", "effect": "ambiguous"})
+        asyncio.run(exercise_async())
+        assert {outcome["client"] for _, outcome in dispatch.collect()} == {"sync", "async"}
+    finally:
+        client.close()
         running.close()
 
 

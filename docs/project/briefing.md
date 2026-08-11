@@ -22,6 +22,16 @@ retaining an ordinary default mapping. Synchronous hosts may pump bounded
 immediately available work; multi-Instance scheduling and wake indexing remain
 host lifecycle responsibilities.
 
+First-class lifecycle scopes let a host canonically open, close, or atomically
+reset one exact `(name, generation)` across queued token occurrences and
+in-flight Activities. History append order resolves lifecycle races and records
+exact cleanup; Dispatch installs recoverable cancellation fences only after the
+canonical close/reset commits. Proven-closed scoped ingress is acknowledged and
+dropped, uncertain-generation ingress and late terminal reports are
+quarantined, and existing unscoped behavior remains the default. Scope values
+carry identity and provenance only—not credentials, clients, closures,
+Activities, Engines, or scheduling authority.
+
 CV10.DS1–DS4 qualified one Episode/operation-owned Gondolin territory lifecycle
 through hermetic Codex A3 runtime-protocol evidence, host-local Inline Activity
 execution, a real Local Worker process-loss/replacement route with host-stored
@@ -47,6 +57,9 @@ A2 Local host lifecycle, not authenticated Pi/model/provider execution.
   Petri-agnostic Activities, where external effects live.
 - Impetus semantics are independent of Dispatch. Motus preserves operational
   custody and reports outcomes; external effects are at-least-once.
+- Canonical lifecycle close/reset is business truth and precedes operational
+  cancellation. A cancellation fence prevents future accepted execution but
+  cannot deny an already ambiguous external effect.
 - Petrus is a composable library and runtime, not a framework that owns an
   application's lifecycle.
 - The specification and golden traces are language-neutral; Python is the

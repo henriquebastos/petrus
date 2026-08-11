@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 import time
 from dataclasses import replace
 from multiprocessing import get_context
@@ -12,11 +13,25 @@ from pathlib import Path
 import pytest
 
 from petrus.motus.activity import ActivityFailure, ActivityInvocation, ExecutionPolicy
-from petrus.motus.dispatch import ActivityAttempt, Dispatch, LocalDispatch, LocalWorkerDispatch
+from petrus.motus.dispatch import (
+    ActivityAttempt,
+    CancellationDisposition,
+    CancellationInstruction,
+    Dispatch,
+    LocalDispatch,
+    LocalWorkerDispatch,
+)
 from petrus.engine import Engine
-from petrus.impetus.history import ActivityCompleted, ActivityRequested, FiringCompleted, TokensInitialized
+from petrus.impetus.history import (
+    ActivityCompleted,
+    ActivityRequested,
+    ActivityTerminalQuarantined,
+    FiringCompleted,
+    TokensInitialized,
+)
 from petrus.impetus.history_store import JsonlHistoryStore, SqliteHistoryStore
 from petrus.impetus.petrinet import Arc, Marking, Net, NetPath, Place, Token, Transition
+from petrus.motus.worker import Worker
 
 
 def invocation(
@@ -228,7 +243,7 @@ def test_v1_schema_migrates_pending_active_and_terminal_custody_without_losing_f
     done = ActivityAttempt('["one",3]', "1", "done", "default", call, None, "one")
     LocalWorkerDispatch(path, _claimant="done").fail(done, "broken")
     with sqlite3.connect(path) as connection:
-        assert connection.execute("SELECT version FROM impetus_local_dispatch_schema").fetchone() == (2,)
+        assert connection.execute("SELECT version FROM impetus_local_dispatch_schema").fetchone() == (3,)
         policy = json.loads(
             connection.execute("SELECT invocation FROM impetus_local_dispatch_tasks WHERE occurrence=1").fetchone()[0]
         )["policy"]
@@ -242,6 +257,105 @@ def test_v1_schema_migrates_pending_active_and_terminal_custody_without_losing_f
         "start_to_close",
         "schedule_to_close",
     }
+
+
+def test_v2_schema_migrates_to_durable_cancellation_tombstones(tmp_path: Path) -> None:
+    path = tmp_path / "dispatch.db"
+    dispatch = LocalDispatch(path, instance="one")
+    dispatch.dispatch(1, invocation())
+    with sqlite3.connect(path) as connection:
+        connection.execute("DROP TABLE impetus_local_dispatch_cancellations")
+        connection.execute("UPDATE impetus_local_dispatch_schema SET version=2")
+
+    resumed = LocalDispatch(path, instance="one")
+
+    assert resumed.cancel(CancellationInstruction(1, invocation(), 17)) is CancellationDisposition.RETIRED
+    assert LocalWorkerDispatch(path, _claimant="worker").claim() is None
+    with sqlite3.connect(path) as connection:
+        assert connection.execute("SELECT version FROM impetus_local_dispatch_schema").fetchone() == (3,)
+        assert connection.execute(
+            "SELECT occurrence,history_position FROM impetus_local_dispatch_cancellations"
+        ).fetchall() == [(1, 17)]
+
+
+def test_pending_and_absent_cancellation_are_durable_idempotent_tombstones(tmp_path: Path) -> None:
+    path = tmp_path / "dispatch.db"
+    dispatch = LocalDispatch(path, instance="one")
+    call = invocation()
+    dispatch.dispatch(1, call)
+
+    pending = CancellationInstruction(1, call, 11)
+    absent = CancellationInstruction(2, call, 12)
+    assert dispatch.cancel(pending) is CancellationDisposition.RETIRED
+    assert dispatch.cancel(absent) is CancellationDisposition.TOMBSTONED
+    assert dispatch.cancel(pending) is CancellationDisposition.ACKNOWLEDGED
+
+    # Recovery publication cannot resurrect either exact logical invocation.
+    LocalDispatch(path, instance="one").dispatch(1, call)
+    LocalDispatch(path, instance="one").dispatch(2, call)
+    assert LocalWorkerDispatch(path, _claimant="worker").claim() is None
+    with pytest.raises(ValueError, match="cancellation conflict"):
+        dispatch.cancel(CancellationInstruction(1, call, 99))
+
+
+def test_claimed_cancellation_fences_heartbeat_and_transports_exact_late_terminal(tmp_path: Path) -> None:
+    path = tmp_path / "dispatch.db"
+    dispatch = LocalDispatch(path, instance="one")
+    call = invocation()
+    dispatch.dispatch(1, call)
+    custody = LocalWorkerDispatch(path, _claimant="worker")
+    attempt = require_claim(custody)
+
+    assert dispatch.cancel(CancellationInstruction(1, call, 11)) is CancellationDisposition.FENCED
+    with pytest.raises(ValueError, match="stale"):
+        custody.heartbeat(attempt)
+
+    late = {"effect": "may-have-happened"}
+    custody.complete(attempt, late)
+    custody.complete(attempt, late)
+    with pytest.raises(ValueError, match="conflicting terminal report"):
+        custody.complete(attempt, {"effect": "different"})
+    assert dispatch.collect() == ((1, late),)
+    assert LocalWorkerDispatch(path, _claimant="other").claim() is None
+
+
+def test_running_cancellation_fences_future_custody_and_reports_ambiguous_effect_for_quarantine(tmp_path: Path) -> None:
+    path = tmp_path / "dispatch.db"
+    dispatch = LocalDispatch(path, instance="one")
+    call = invocation()
+    dispatch.dispatch(1, call)
+    entered = threading.Event()
+    release = threading.Event()
+
+    def work(invocation, *, context):
+        entered.set()
+        assert release.wait(5)
+        return {"effect": "may-have-happened"}
+
+    worker = Worker(dispatch.worker(worker_id="worker"), {"work": work})
+    driving = threading.Thread(target=lambda: worker.run_available(limit=1))
+    driving.start()
+    assert entered.wait(5)
+
+    assert dispatch.cancel(CancellationInstruction(1, call, 11)) is CancellationDisposition.FENCED
+    release.set()
+    driving.join(5)
+
+    assert not driving.is_alive()
+    assert dispatch.collect() == ((1, {"effect": "may-have-happened"}),)
+    assert LocalWorkerDispatch(path, _claimant="other").claim() is None
+
+
+def test_terminal_before_cancellation_is_reported_as_terminal_not_erased(tmp_path: Path) -> None:
+    path = tmp_path / "dispatch.db"
+    dispatch = LocalDispatch(path, instance="one")
+    call = invocation()
+    dispatch.dispatch(1, call)
+    custody = LocalWorkerDispatch(path, _claimant="worker")
+    custody.complete(require_claim(custody), {"done": True})
+
+    assert dispatch.cancel(CancellationInstruction(1, call, 11)) is CancellationDisposition.TERMINAL
+    assert dispatch.collect() == ((1, {"done": True}),)
 
 
 def test_current_version_foreign_shape_and_invalid_custody_states_are_refused(tmp_path: Path) -> None:
@@ -664,6 +778,40 @@ def test_engine_reconciles_canonical_request_missing_from_local_custody(tmp_path
     )
     assert poison.prepared == 0
     assert LocalWorkerDispatch(tmp_path / "dispatch.db", _claimant="other").claim() is None
+
+
+def test_engine_close_fences_claimed_local_attempt_and_canonically_quarantines_its_late_result(
+    tmp_path: Path,
+) -> None:
+    source, ready, work, done = map(NetPath, ("source", "ready", "work", "done"))
+    net = Net(
+        places=[Place(ready), Place(done)],
+        transitions=[Transition(source), Transition(work, handler="activity")],
+        arcs=[Arc(source, ready), Arc(ready, work), Arc(work, done)],
+    )
+    history = JsonlHistoryStore(tmp_path / "history.jsonl")
+    dispatch = LocalDispatch(tmp_path / "dispatch.db", instance="scoped-local")
+    engine = Engine.create(
+        net,
+        "scoped-local",
+        history=history,
+        dispatch=dispatch,
+        handlers={"activity": _CountingActivity()},
+    )
+    scope = engine.open_scope("draft")
+    engine.deliver(source, Token("Input", 7), identity="draft-7", scope=scope)
+    engine.advance()
+    custody = LocalWorkerDispatch(dispatch.path, _claimant="worker")
+    attempt = require_claim(custody)
+
+    engine.close_scope(scope)
+    custody.complete(attempt, {"effect": "ambiguous"})
+    engine.advance()
+
+    quarantined = [record for record in engine.records if isinstance(record, ActivityTerminalQuarantined)]
+    assert len(quarantined) == 1
+    assert quarantined[0].occurrence == json.loads(attempt.attempt_id)[1]
+    assert not engine.marking
 
 
 def test_engine_recollects_terminal_result_after_canonical_acceptance_refusal(tmp_path: Path) -> None:

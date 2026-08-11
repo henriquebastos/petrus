@@ -30,13 +30,22 @@ from petrus.engine._coordination import (
 from petrus.motus.activity import ActivityDeclaration
 from petrus.impetus.binding import ActivityHandler
 from petrus.motus.dispatch import Dispatch
-from petrus.impetus.history import Record
+from petrus.impetus.history import Record, ScopeReset
 from petrus.impetus.history_store import HistoryStore
 from petrus.impetus.observation import history_page as _history_page
 from petrus.impetus.observation import snapshot as _snapshot
-from petrus.impetus.instance import FiringOccurrence, FiringOutcome, Instance, PriorAcknowledgement, Status
+from petrus.impetus.instance import (
+    FiringOccurrence,
+    FiringOutcome,
+    Instance,
+    PriorAcknowledgement,
+    ScopeClosure,
+    ScopedDeliveryAcknowledgement,
+    Status,
+)
 from petrus.impetus.petrinet import Instant, Marking, Net, NetPath, Token
 from petrus.impetus.selection import SelectionPipeline, SelectionPolicy
+from petrus.impetus.scope import LifecycleScope
 
 _ENGINE_CONSTRUCTION = object()
 
@@ -336,6 +345,11 @@ class Engine:
         return self._read(lambda: self._instance.in_flight, allow_reentry=True)
 
     @property
+    def active_scopes(self) -> Mapping[str, LifecycleScope]:
+        """The exact active lifecycle generation per name."""
+        return self._read(lambda: self._instance.active_scopes, allow_reentry=True)
+
+    @property
     def records(self) -> tuple[Record, ...]:
         """The canonical History records, never an append-capable handle."""
         return self._read(lambda: self._instance.history.records, allow_reentry=True)
@@ -363,16 +377,72 @@ class Engine:
         return False
 
     def deliver(
-        self, source: NetPath | str, tokens: Token | Sequence[Token], *, identity: str | None = None
-    ) -> FiringOutcome | PriorAcknowledgement:
+        self,
+        source: NetPath | str,
+        tokens: Token | Sequence[Token],
+        *,
+        identity: str | None = None,
+        scope: LifecycleScope | str | None = None,
+    ) -> FiringOutcome | PriorAcknowledgement | ScopedDeliveryAcknowledgement:
         """Land one external delivery and commit its complete fact set."""
 
-        def door() -> FiringOutcome | PriorAcknowledgement:
-            landed = self._instance.deliver(source, tokens, at=self._clock.now(), identity=identity)
+        def door() -> FiringOutcome | PriorAcknowledgement | ScopedDeliveryAcknowledgement:
+            landed = self._instance.deliver(source, tokens, at=self._clock.now(), identity=identity, scope=scope)
             self._committed()
             return landed
 
         return self._guarded(door)
+
+    def open_scope(self, name: str) -> LifecycleScope:
+        """Open and commit the next lifecycle generation for ``name``."""
+
+        def door() -> LifecycleScope:
+            scope = self._instance.open_scope(name, at=self._clock.now())
+            self._committed()
+            return scope
+
+        return self._guarded(door)
+
+    def close_scope(self, scope: LifecycleScope) -> ScopeClosure:
+        """Commit exact cleanup, then install recoverable Dispatch cancellation fences."""
+
+        def door() -> ScopeClosure:
+            self._require_scope_cancellation(scope)
+            closure = self._instance.close_scope(scope, at=self._clock.now())
+            history_position = len(self._instance.history)
+            self._committed()  # canonical close is visible before any cancellation instruction
+            self._coordinator.cancel(closure, history_position)
+            self._committed()  # joined providers durably publish their operational fences
+            return closure
+
+        return self._guarded(door)
+
+    def reset_scope(self, scope: LifecycleScope) -> LifecycleScope:
+        """Atomically close ``scope`` and open its successor, then fence cancelled custody."""
+
+        def door() -> LifecycleScope:
+            self._require_scope_cancellation(scope)
+            opened = self._instance.reset_scope(scope, at=self._clock.now())
+            history_position = len(self._instance.history)
+            record = self._instance.history.records[-1]
+            assert isinstance(record, ScopeReset)
+            closure = ScopeClosure(record.closed, record.discarded, record.cancelled)
+            self._committed()  # reset commits whole before operational cancellation
+            self._coordinator.cancel(closure, history_position)
+            self._committed()
+            return opened
+
+        return self._guarded(door)
+
+    def _require_scope_cancellation(self, scope: LifecycleScope) -> None:
+        needs_cancellation = any(
+            occurrence.scope == scope and occurrence.invocation is not None for occurrence in self._instance.in_flight
+        )
+        if needs_cancellation and not self._coordinator.supports_cancellation:
+            raise TypeError(
+                "cannot close lifecycle scope with in-flight Activities: this Dispatch does not implement "
+                "the recoverable cancellation extension"
+            )
 
     def seal(self, source: NetPath | str) -> None:
         """Close a source's default delivery registration and commit it."""

@@ -19,6 +19,7 @@ import pytest
 
 # Internal imports
 from petrus.impetus.petrinet import Token, TokenNotPresent, TokenQueue
+from petrus.impetus.scope import LifecycleScope
 
 
 class TestDeposit:
@@ -161,6 +162,15 @@ class TestValueSemantics:
     def test_construction_from_pairs_round_trips(self):
         queue = TokenQueue([(Token("A"), 1), (Token("B"), 2)])
         assert queue == TokenQueue().deposit(Token("A"), 1).deposit(Token("B"), 2)
+
+    def test_durable_provenance_does_not_change_the_established_public_value_or_repr_surface(self):
+        token = Token("A")
+        enriched = TokenQueue([(token, 1, 17, LifecycleScope("draft", 2))])
+
+        assert enriched == TokenQueue([(token, 1)])
+        assert repr(enriched) == "TokenQueue([(Token('A', None), 1)])"
+        assert enriched.identities == (17,)
+        assert enriched.scopes == (LifecycleScope("draft", 2),)
 
     def test_a_time_blind_queue_records_no_instants(self):
         # The marking's spelling: queue work on the token half alone, every

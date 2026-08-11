@@ -60,12 +60,19 @@ from typing import Protocol
 import petrus.telemetry as telemetry
 from petrus.motus.activity import ActivityFailure
 from petrus.impetus.binding import ActivityHandler
-from petrus.motus.dispatch import Dispatch
+from petrus.motus.dispatch import (
+    CancellableDispatch,
+    CancellationDisposition,
+    CancellationInstruction,
+    Dispatch,
+)
 from petrus.impetus.petrinet import Binding, Selection
-from petrus.impetus.instance import FiringOccurrence, FiringOutcome
+from petrus.impetus.instance import FiringOccurrence, FiringOutcome, ScopeClosure
 from petrus.impetus.petrinet import Token
 from petrus.impetus.instance import Instance
 from petrus.impetus.petrinet import Instant, NetPath
+from petrus.impetus.history import replay_cancellation_positions
+from petrus.impetus.scope import LifecycleScope
 from petrus.impetus.selection import (
     SelectionPipeline,
     SelectionPolicy,
@@ -140,6 +147,7 @@ class Delivery:
     source: NetPath
     tokens: tuple[Token, ...]
     identity: str | None = None
+    scope: LifecycleScope | str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "source", NetPath(self.source))
@@ -149,6 +157,8 @@ class Delivery:
             )
         tokens = (self.tokens,) if isinstance(self.tokens, Token) else tuple(self.tokens)
         object.__setattr__(self, "tokens", tokens)
+        if self.scope is not None and not isinstance(self.scope, (LifecycleScope, str)):
+            raise TypeError("delivery scope must be a LifecycleScope, name string, or None")
 
 
 # A sensor: a nonblocking local ingress adapter for the Coordinator. Each
@@ -488,7 +498,18 @@ class Coordinator:
         # acknowledgement door judges.
         self._arrived: list[tuple[int, object]] = []
         self._deliveries: list[Delivery] = []
-        self._dispatched: dict[int, FiringOccurrence] = {}
+        # Every canonical Activity occurrence is resolvable here, including
+        # ended occurrences rebuilt after restart. Dispatch redelivery may
+        # therefore reach Instance's exact acknowledge-or-conflict terminal
+        # door without granting an old result any path back into live state.
+        self._dispatched: dict[int, FiringOccurrence] = dict(instance.activity_occurrences)
+        if any(occurrence.invocation is not None for occurrence in instance.cancelled) and not isinstance(
+            dispatch, CancellableDispatch
+        ):
+            raise TypeError(
+                "cannot load lifecycle-cancelled Activities with this Dispatch: it does not implement "
+                "the recoverable cancellation extension"
+            )
         self._reconciled = False
         self._previous: Action | None = None
         self._log = _driver_log(instance)
@@ -556,6 +577,7 @@ class Coordinator:
         any action is offered, and both phases belong to the one component
         allowed to mutate the instance.
         """
+        self._reconcile_cancellations()
         in_flight = self.instance.in_flight
         pending = {occurrence.id for occurrence in self.instance.projection_pending}
         for occurrence in in_flight:
@@ -582,6 +604,13 @@ class Coordinator:
         for occurrence in in_flight:
             if occurrence.invocation is None:
                 firings.append(_complete_pure(self.instance, occurrence, self._clock, span))
+
+    def _reconcile_cancellations(self) -> None:
+        """Repair canonical close/reset instructions before republishing live outbox work."""
+        positions = replay_cancellation_positions(self.instance.history)
+        for occurrence in self.instance.cancelled:
+            if occurrence.invocation is not None:
+                self._cancel(occurrence, positions[occurrence.id])
 
     # Complexity exception: reviewed as one ordered observation/action projection.
     def _observe(self) -> Snapshot:  # noqa: C901
@@ -713,7 +742,11 @@ class Coordinator:
             case AcceptDelivery(delivery=delivery):
                 self._deliveries.remove(delivery)
                 landed = self.instance.deliver(
-                    delivery.source, delivery.tokens, at=self._clock.now(), identity=delivery.identity
+                    delivery.source,
+                    delivery.tokens,
+                    at=self._clock.now(),
+                    identity=delivery.identity,
+                    scope=delivery.scope,
                 )
                 if isinstance(landed, FiringOutcome):
                     firings.append(landed)
@@ -754,6 +787,40 @@ class Coordinator:
         """Invoke the joined-transaction commit point, when one was supplied — the one home of when a driven fact set is whole."""
         if self._commit is not None:
             self._commit()
+
+    @property
+    def supports_cancellation(self) -> bool:
+        """Whether this composition can fence lifecycle-cancelled Activities."""
+        return isinstance(self._dispatch, CancellableDispatch)
+
+    def cancel(self, closure: ScopeClosure, history_position: int) -> tuple[CancellationDisposition, ...]:
+        """Install exact operational fences after the caller committed the canonical close/reset."""
+        cancelled = {occurrence.id: occurrence for occurrence in self.instance.cancelled}
+        dispositions = []
+        for occurrence_id in closure.cancelled:
+            occurrence = cancelled[occurrence_id]
+            if occurrence.invocation is not None:
+                dispositions.append(self._cancel(occurrence, history_position))
+        return tuple(dispositions)
+
+    def _cancel(self, occurrence: FiringOccurrence, history_position: int) -> CancellationDisposition:
+        if not isinstance(self._dispatch, CancellableDispatch):
+            raise TypeError(
+                "cannot cancel lifecycle-scoped Activity: this Dispatch does not implement the recoverable "
+                "cancellation extension"
+            )
+        assert occurrence.invocation is not None
+        self._dispatched[occurrence.id] = occurrence
+        disposition = self._dispatch.cancel(
+            CancellationInstruction(occurrence.id, occurrence.invocation, history_position)
+        )
+        self._log.emit(
+            "activity_cancelled",
+            occurrence=occurrence.id,
+            history_position=history_position,
+            disposition=disposition.value,
+        )
+        return disposition
 
     def _install_selection(self, proposal: SelectionProposal) -> None:
         """Install a proposal only at the durability boundary that earned it."""

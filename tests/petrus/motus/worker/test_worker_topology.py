@@ -37,7 +37,7 @@ from petrus.motus.activity import ActivityDeclaration, ActivityInvocation, Execu
 from petrus.motus.dispatch.absurd import AbsurdDispatch, AbsurdWorkerDispatch, encode_invocation
 from petrus.engine import DriveOutcome, Engine
 from petrus.engine.absurd import create_engine, load_engine
-from petrus.impetus.history import ActivityCompleted, ActivityRequested, CandidateSelected, InstanceCreated
+from petrus.impetus.history import ActivityCompleted, ActivityRequested, CandidateSelected, InstanceCreated, ScopeClosed
 from petrus.impetus.history.codec import encode_record
 from petrus.impetus.history_store.postgres import PostgresHistoryStore
 from petrus.impetus.instance import Instance, Status
@@ -248,6 +248,35 @@ class TestEndToEnd:
         assert [(record.occurrence, record.result) for record in completed] == [
             (requested[0].occurrence, f"sparked {issue}")
         ]
+
+
+class TestLifecycleScopeCancellation:
+    def test_engine_close_commits_history_then_absurd_tombstone_and_restart_repairs(self, fixture_db):
+        instance = f"scope-{uuid4().hex[:10]}"
+        issue = f"goose-{uuid4().hex[:6]}"
+        session = open_session(fixture_db, instance)
+        scope = session.open_scope("pr-lifecycle")
+        session.deliver(INGRESS, Token(ISSUE, {"id": issue}), identity=f"issue-{issue}", scope=scope)
+        assert advance_until_blocked(session).waiting
+        request = next(record for record in session.records if isinstance(record, ActivityRequested))
+
+        closure = session.close_scope(scope)
+
+        assert closure.cancelled == (request.occurrence,)
+        assert isinstance(session.records[-1], ScopeClosed)
+        key = f"{instance}:occurrence-{request.occurrence}"
+        with psycopg.connect(fixture_db, autocommit=True) as probe:
+            assert probe.execute(
+                f"SELECT state FROM absurd.t_{CAPABILITY} WHERE idempotency_key = %s", (key,)
+            ).fetchone() == ("cancelled",)
+        close_session(session)
+
+        resumed = open_session(fixture_db, instance, load=True)
+        assert resumed.advance().waiting is False
+        with psycopg.connect(fixture_db, autocommit=True) as probe:
+            assert probe.execute(
+                f"SELECT count(*) FROM absurd.t_{CAPABILITY} WHERE idempotency_key = %s", (key,)
+            ).fetchone() == (1,)
 
 
 class TestWorkerKill:
@@ -560,15 +589,19 @@ class TestAbsurdProviderEngineConstruction:
 
     def test_provider_returns_the_concrete_engine_with_only_universal_doors(self, fixture_db):
         assert {name for name in Engine.__dict__ if not name.startswith("_")} == {
+            "active_scopes",
             "advance",
             "close",
+            "close_scope",
             "create",
             "deliver",
             "history_page",
             "in_flight",
             "load",
             "marking",
+            "open_scope",
             "records",
+            "reset_scope",
             "seal",
             "snapshot",
             "status",
