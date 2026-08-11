@@ -6,8 +6,21 @@ from dataclasses import dataclass
 
 import pytest
 
+import petrus.impetus.dsl as impetus_dsl
 from petrus.impetus.instance import Instance
-from petrus.impetus.petrinet import ANONYMOUS, Arc, ArcMode, Cel, Delay, Marking, NetPath, Place, Token, Transition
+from petrus.impetus.petrinet import (
+    ANONYMOUS,
+    Arc,
+    ArcMode,
+    Binding,
+    Cel,
+    Delay,
+    Marking,
+    NetPath,
+    Place,
+    Token,
+    Transition,
+)
 from petrus.impetus.dsl import (
     ArcSpec,
     BuiltNet,
@@ -22,12 +35,18 @@ from petrus.impetus.dsl import (
     direct,
     petri_guard,
     petri_handler,
+    typed_guard,
 )
 
 
 @dataclass(frozen=True)
 class Order:
     amount: int
+
+
+@dataclass(frozen=True)
+class Config:
+    limit: int
 
 
 @dataclass(frozen=True)
@@ -356,6 +375,73 @@ def test_direct_and_callable_guard_lower_after_place_colors_and_execute_by_decla
     assert set(built.handlers) == {built.net.handler_uri(abs(transition))}
     assert set(built.guards) == set(built.net.guard_uris(abs(transition)))
     assert instance.marking == Marking({abs(receipt): (Token("Receipt", {"total": 5}),)})
+
+
+def test_typed_guard_uses_a_custom_converter_for_every_selected_input_and_stays_anonymous():
+    decoded = []
+
+    class RecordingConverter:
+        def decode(self, value, annotation):
+            decoded.append((value, annotation))
+            if annotation is Order:
+                return Order(int(value["amount"]))
+            if annotation is Config:
+                return Config(int(value["limit"]))
+            raise AssertionError(f"unexpected annotation {annotation!r}")
+
+        def encode(self, value, annotation):
+            raise AssertionError("guards do not encode payloads")
+
+    @typed_guard(converter=RecordingConverter())
+    def within_limit(order: Order, config: Config) -> bool:
+        return order.amount <= config.limit
+
+    net = NetSpec("custom-guard")
+    pending = net.place(net.p.pending, color=Order)
+    configuration = net.place(net.p.configuration, color=Config)
+    transition = net.transition(net.t.review, guards=within_limit)
+    pending >> transition
+    configuration >> arc.read() >> transition
+    built = net.build()
+    binding = Binding(
+        abs(transition),
+        ((abs(pending), (Token("Order", {"amount": "4"}),)),),
+        ((abs(configuration), (Token("Config", {"limit": "5"}),)),),
+    )
+
+    [guard] = built.guards.values()
+    declaration = built.net.transitions[abs(transition)].guards[0]
+
+    assert guard(binding) is True
+    assert decoded == [
+        ({"amount": "4"}, Order),
+        ({"limit": "5"}, Config),
+    ]
+    assert declaration == ANONYMOUS
+    assert declaration.display_name == "within_limit"
+    assert [str(uri) for uri in built.guards] == ["transition:/review#guard:$0"]
+    assert "typed_guard" in impetus_dsl.__all__
+
+
+def test_typed_guard_factory_preserves_the_exact_bool_result_contract():
+    def truthy(order: Order) -> bool:
+        return "yes"
+
+    specification = typed_guard(truthy)
+    net = NetSpec("exact-bool")
+    pending = net.place(net.p.pending, color=Order)
+    transition = net.transition(net.t.review, guards=specification)
+    pending >> transition
+    built = net.build()
+    binding = Binding(
+        abs(transition),
+        ((abs(pending), (Token("Order", {"amount": 4}),)),),
+        (),
+    )
+
+    [guard] = built.guards.values()
+    with pytest.raises(ValueError, match="must return bool, got str"):
+        guard(binding)
 
 
 def test_scalar_and_mixed_guard_forms_preserve_authored_order_and_absolute_positions():

@@ -116,6 +116,21 @@ def direct(
     return declare if implementation is None else declare(implementation)
 
 
+def typed_guard(
+    implementation=None,
+    *,
+    converter: PayloadConverter = DataclassPayloadConverter(),
+):
+    """Mark a pure typed predicate with an explicit payload converter."""
+
+    def declare(function) -> GuardSpec:
+        if not callable(function):
+            raise TypeError(f"typed_guard requires a callable, got {function!r}")
+        return GuardSpec(_GuardFlavor.TYPED, function, converter)
+
+    return declare if implementation is None else declare(implementation)
+
+
 def petri_guard(implementation: Guard) -> GuardSpec:
     """Bind an existing Petri-aware guard through the authored net."""
     if not callable(implementation):
@@ -862,4 +877,5 @@ __all__ = [
     "direct",
     "petri_guard",
     "petri_handler",
+    "typed_guard",
 ]

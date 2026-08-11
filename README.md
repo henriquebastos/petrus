@@ -77,7 +77,7 @@ supported status.
 language-neutral Petrinet Kernel schema:
 
 ```python
-from petrus.impetus.dsl import NetBuilder, NetSpec, arc, direct
+from petrus.impetus.dsl import NetBuilder, NetSpec, arc, direct, typed_guard
 
 @direct
 def approve(request: "Request") -> "ApprovedRequest":
@@ -96,6 +96,12 @@ built = NetBuilder(net).build()
 `Net`. `@direct` marks a pure local transformation. External effects use the
 separate `@activity` contract. Filters and guards are pure, while handlers
 bridge Petri-aware bindings to Petri-agnostic Activities.
+
+An ordinary callable guard uses `DataclassPayloadConverter`. When typed guard
+inputs need another hydration contract, use `typed_guard(function,
+converter=...)` or `@typed_guard(converter=...)` with any `PayloadConverter`.
+The converter decodes each selected typed input; the predicate must still
+return an exact `bool`.
 
 ## Graphviz
 

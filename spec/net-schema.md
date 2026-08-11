@@ -369,16 +369,20 @@ rejected because one item access cannot silently introduce several scopes.
 `direct(...)` or `@direct` marks a pure typed transformation for local
 execution and preserves concise `handler=function` transition spelling. An
 ordinary callable in `guards` is a pure typed predicate by DSL rule; no guard
-decorator is required. Named strings and inline `Cel` remain direct guard
-declarations, a scalar guard normalizes to a one-element tuple, and mixed
-tuples retain authored order. Existing low-level `Binding` callables use the
-advanced `petri_handler(...)` and `petri_guard(...)` escape hatches rather than
-being confused with typed domain functions. External work remains an Activity
-and may be declared by name for late host binding. Callable specifications
-lower to anonymous canonical declarations only after `Net` has validated
-topology and resolved place colors. `BuiltNet` keeps the resulting code in
-immutable declaration-URI-keyed handler and guard maps, never in canonical
-`Transition` values [DR 2026-07-28
+decorator is required, and it uses `DataclassPayloadConverter`. The public
+`typed_guard(function, converter=...)` or `@typed_guard(converter=...)` form
+selects another `PayloadConverter` without changing typed arc matching: each
+selected typed input is decoded through that converter, and the predicate must
+return an exact `bool`. Named strings and inline `Cel` remain direct guard
+declarations, a scalar guard normalizes to a one-element tuple, and mixed tuples
+retain authored order. Existing low-level `Binding` callables use the advanced
+`petri_handler(...)` and `petri_guard(...)` escape hatches rather than being
+confused with typed domain functions. External work remains an Activity and may
+be declared by name for late host binding. Callable specifications lower to
+anonymous canonical declarations only after `Net` has validated topology and
+resolved place colors. `BuiltNet` keeps the resulting code in immutable
+declaration-URI-keyed handler and guard maps, never in canonical `Transition`
+values [DR 2026-07-28
 transition-behavior-declarations-have-occurrence-identities].
 
 ### Python Graphviz presentation
