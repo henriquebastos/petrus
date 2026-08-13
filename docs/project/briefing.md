@@ -46,6 +46,13 @@ of work that was active when its host died.
 CV16 remains complete at one deliberately narrow support boundary: scripted Pi
 A2 Local host lifecycle, not authenticated Pi/model/provider execution.
 
+The current developer-experience inquiry is progressive disclosure over that
+full-power runtime: one readable flow file should be enough to compile,
+inspect, validate, and reach honest first motion, while lower-level APIs remain
+available and canonical semantics stay visible. ES-004 organizes this as a
+candidate adoption Value and uses Hamsterdan-scale orchestration as the pressure
+test. It authorizes no runtime simplification or delivery work by itself.
+
 ## Architecture premises
 
 - One durable Instance owns one marking, writer, and append-only canonical

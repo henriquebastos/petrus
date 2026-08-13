@@ -37,6 +37,18 @@ Transitions decouple from side-effect implementations through named symbols and 
 
 Defaults are permissive: untyped places hold any token, arcs left untyped after place-color resolution admit anything, and flow just flows through the default passthrough handler. A place may declare its ordinary token domain once; flattening compiles that color onto otherwise-untyped incident arcs. Explicit arc colors still narrow heterogeneous places. Types, filters, weights, and guards shape flow but are never declaration duties. Correctness is enforced by the instantiation-time validation run, not a static type ceremony. Impetus is not a pure-Petri-net environment; it is Petri-net infrastructure for a runtime, and it does not presume what people will do with it.
 
+### Progressive disclosure, not semantic reduction
+
+The common path should make one readable flow file enough to compile, inspect,
+validate, and put a process into first motion. Application clients, agent
+machinery, credentials, persistence, and placement compose behind or beside
+that flow instead of overwhelming it. Convenience is a frontend over the same
+canonical Net, History, Activity, and authority model—not a second runtime or
+an implicit call-stack workflow. Every generated topology remains inspectable,
+and advanced authors may descend deliberately to the lower-level Petrus APIs
+without losing validation or replay. Lower cognitive cost before lowering
+capability.
+
 ### Useful with zero agents
 
 The runtime must remain fully valuable running only deterministic code and humans. Nothing in the core may assume a transition is agentic. Agents are for judgment; deterministic work is code.
