@@ -1,6 +1,7 @@
 ---
 code: ES-003
-status: Candidate
+status: Paused
+status_reason: Source grounding and a Value hypothesis are preserved; Experiment 1 is deliberately deferred and promotion evidence does not yet exist.
 opened: 2026-08-13
 related:
   - CV16
@@ -22,6 +23,23 @@ The motivating hunch is sound but needs one correction: Harness is not a
 system with no privileged core. It is a small Cordis microkernel plus a
 configuration-driven tree in which almost every **product capability** is a
 reversibly mounted component.
+
+## Current exploration state
+
+Source grounding and the first Agenticus fit analysis are complete. The story
+has formed a candidate around **owned, inspectable Agenticus installations**,
+but it is paused before the first experiment and has not crossed into Delivery.
+The candidate shape is deliberately preserved at two levels:
+
+- a potential Value/CV promise for installation authors; and
+- a first disposable technical experiment that can test the mechanism without
+  creating that promise.
+
+The complete future-execution surface is the
+[Customer Value candidate and exploration execution brief](future-execution-brief.md).
+It contains the value hypothesis, architecture options, settled constraints,
+experiment sequence, promotion gate, possible roadmap decomposition, and exact
+resume route. This index remains the source-grounded architecture analysis.
 
 ## Research baseline
 
@@ -283,35 +301,27 @@ Harness or Cordis source needs to be copied.
 6. Moving the composition substrate into Impetus or Motus, or making either
    depend on Agenticus.
 
-## Candidate formed: mounted Agenticus installation
+## Candidate formed: owned, inspectable Agenticus installations
 
-The evidence supports a bounded **Technical Story candidate**, not a general
-plugin platform:
+The evidence supports a possible **Value/CV candidate**, while the first
+learning move remains a disposable technical experiment:
 
-> Prove that one exact Agenticus `ResolutionSnapshot` can materialize through
-> host-registered typed factories into an inspectable, authority-aware mount
-> whose partial startup rolls back and whose close settles every owned
-> collaborator, without changing an active Episode when the Catalog changes.
+> Let an installation author select an exact compatible Agenticus composition,
+> inspect why it is or is not ready, mount its executable runtime under one
+> authority-aware lifecycle boundary, and obtain an honest cleanup outcome—
+> without recreating provider-specific bootstrap, rollback, and close logic in
+> every host.
 
-A disposable design experiment should use only the supported scripted Pi A2
-Local host lifecycle and test these discriminating behaviors:
+The first experiment should **not** make every descriptor executable. It should
+compare mount granularity and begin with the smallest likely fit: one exact
+runtime-profile composer that accepts an already selected immutable snapshot.
+Only repeated evidence across profiles may justify component-level factories.
 
-1. resolution succeeds before any authority is requested;
-2. only factories matching the exact selected descriptors can mount;
-3. a later factory failure withdraws all earlier owned effects in reverse
-   order;
-4. close reports verified or unverified aggregate cleanup without hiding
-   uncertainty;
-5. inspection exposes source, descriptor, entry, dependency, state, and live
-   incarnation but no credential, client, closure, or raw provider object;
-6. disabling/replacing a Catalog entry blocks or changes **future** mounts but
-   neither mutates nor hot-reloads the active Episode snapshot; and
-7. the existing direct `compose_pi_a2_scripted_runtime` route remains unchanged
-   until the experiment demonstrates less host code and no weaker invariant.
-
-Out of scope are package installation, config-file syntax, HMR, provider
-ranking, a universal service locator, live-provider qualification, and public
-API naming. Those decisions would be premature before one mount proves useful.
+The [future-execution brief](future-execution-brief.md) defines the
+discriminating behaviors, alternatives, falsifiers, staged experiments,
+Customer Value promotion gate, candidate Delivery Stories, and exclusions.
+No package installation, config-file syntax, HMR, provider ranking, universal
+service locator, live-provider qualification, or public API naming is implied.
 
 ## Verification
 
@@ -333,5 +343,8 @@ copy Harness's “everything” slogan or Loader. It should explore Cordis's
 **owned reversible mount** as the missing executable complement to Agenticus's
 already stronger descriptor, authority, and immutable-resolution model.
 
-The candidate remains in Exploration until the Navigator chooses whether to
-promote it. No roadmap item or implementation commitment has been created.
+The candidate shape is now documented deeply enough to execute later, but the
+story is paused in Exploration until Experiment 1 is reactivated. Its evidence
+must return the story to the Candidate Gate before the recommended promotion
+decision. No roadmap item, Customer Value promise, public API, or
+implementation commitment has been created.
