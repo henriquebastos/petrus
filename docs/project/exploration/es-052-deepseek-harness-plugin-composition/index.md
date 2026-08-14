@@ -8,27 +8,30 @@ related:
   - docs/project/decisions/records/2026-08-03T0430Z-installations-own-authority-agenticus-owns-machinery.md
 research_source:
   - https://github.com/deepseek-ai/deepseek-harness/tree/47f943859bef60e4160492346772ded9b24f765a
+  - https://github.com/cordiverse/paper/tree/948a07b369c62adb3b12e102458be5c18dfb69b9
 ---
 
-# DeepSeek Harness plugin composition
+# DeepSeek Harness and Cordis composition
 
 ## Inquiry
 
 What does DeepSeek Harness actually mean by making every product capability a
-plugin, and which parts of that architecture should Agenticus copy, adapt, or
-reject without weakening installation-owned authority, immutable Episode
-resolution, canonical History, or provider-specific honesty?
+plugin, what does the upstream Cordis paper claim for spatiotemporal
+composition, and which parts should Agenticus copy, adapt, or reject without
+weakening installation-owned authority, immutable Episode resolution,
+canonical History, or provider-specific honesty?
 
 The motivating hunch is sound but needs one correction: Harness is not a
 system with no privileged core. It is a small Cordis microkernel plus a
 configuration-driven tree in which almost every **product capability** is a
-reversibly mounted component.
+lifecycle-owned component.
 
 ## Current exploration state
 
-Source grounding and the first Agenticus fit analysis are complete. The story
-has formed a candidate around **owned, inspectable Agenticus installations**,
-but it is paused before the first experiment and has not crossed into Delivery.
+Harness and upstream Cordis source grounding plus the first Agenticus/Petrus
+fit analysis are complete. The story has formed a candidate around **owned,
+inspectable Agenticus installations**, but it is paused before the first
+experiment and has not crossed into Delivery.
 The candidate shape is deliberately preserved at two levels:
 
 - a potential Value/CV promise for installation authors; and
@@ -54,9 +57,29 @@ resume route. This index remains the source-grounded architecture analysis.
   [`vendor/README.md`](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/vendor/README.md#L1-L50),
   the [root license](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/LICENSE),
   and the [Cordis license](https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/vendor/cordis/LICENSE).
+- `[D]` The upstream Cordis design paper was inspected independently at
+  [`cordiverse/paper@948a07b`](https://github.com/cordiverse/paper/tree/948a07b369c62adb3b12e102458be5c18dfb69b9),
+  the head of `main` on 2026-08-14. The repository contains the
+  [paper](https://github.com/cordiverse/paper/blob/948a07b369c62adb3b12e102458be5c18dfb69b9/paper.pdf),
+  a short [README](https://github.com/cordiverse/paper/blob/948a07b369c62adb3b12e102458be5c18dfb69b9/README.md),
+  and `.gitattributes`; it contains no explicit license file at this revision.
+  The README identifies the PDF as an actively revised preprint dated
+  2026-08-13. This exploration may analyze and cite it, but the repository is
+  not a source-reuse license. Any future use of paper text or artifacts needs
+  a fresh provenance and permission review.
+- `[D]` The paper is *A Programming Paradigm for Spatiotemporal
+  Composability*, by Yifan Shi, Wei Zhang, and Tianyi Cui (Peking University
+  and DeepSeek-AI). Page references below use PDF page numbers from that pinned
+  revision. The paper does not mention Petrus; every Petrus relation below is
+  this exploration's explicitly marked **Petrus reading**, not an author claim.
 - `[E]` Petrus's focused Agenticus catalog, profile, and Pi A2 host suites were
   executed against the current source after this comparison was written. The
   result is recorded under Verification.
+
+Evidence labels follow project house style: `[D]` marks a direct
+source-verified claim and `[E]` marks observed Petrus code or executed evidence.
+**Petrus reading** marks synthesis from that evidence rather than a claim made
+by the paper.
 
 ## How Harness makes product capabilities plugins
 
@@ -185,6 +208,123 @@ The lesson is both positive and cautionary: flexible export inference makes
 plugins convenient, but only real composition tests observe the actual
 loader/topology contract.
 
+## What the upstream Cordis paper adds
+
+The vendored implementation explains **how** Harness composes plugins. The
+paper explains the more general **why**, states the formal assumptions, and
+draws boundaries that are easy to miss by reading source alone.
+
+### 1. The target is spatiotemporal composition, not “pluginization”
+
+`[D]` The paper names two independent requirements (section 1.1, PDF p. 4):
+
+- **temporal composability** — withdrawing a component reverts the resource
+  allocations, registrations, and state mutations that the runtime tracked for
+  it; and
+- **spatial composability** — a component declares dependencies and the
+  runtime reacts as their providers appear, disappear, or change.
+
+It models the first with **revertible effects**, context transformations paired
+with runtime-tracked inverses, and the second with **reactive coeffects**,
+observations whose changes can activate, deactivate, or leave a component
+unchanged (sections 1.3 and 3, PDF pp. 6–26). The shared “context” is the
+in-process state against which those mechanisms operate. **Petrus reading:**
+this is evidence for a host-local composition substrate; it is not evidence
+for turning all Agenticus concepts into one generic plugin type.
+
+### 2. Component and Fiber separate declaration from incarnation
+
+`[D]` A Cordis component is a triple of dependencies, provisions, and an
+effect. A Fiber is one live instantiation with a parent, coeffect observations,
+retirement state, and lifecycle (`Inactive`, `Reloading`, `Active`, or
+`Unloading`) (sections 4.1–4.3, PDF pp. 28–37). Dependencies resolve to
+**provider Fiber identity**, not merely an equal provided value: replacing one
+provider with another therefore changes the target and re-evaluates its
+dependents (section 4.2, PDF pp. 30–31; section 5.1.3, PDF pp. 59–60).
+
+**Petrus reading:** This supports ES-052's distinction between
+descriptor/registration identity and mount incarnation. It also gives a
+precise test for future readiness: provider identity changes matter even if
+the new provider reports the same capabilities. Agenticus must not copy the
+resulting live rebinding for an active Episode; its immutable
+`ResolutionSnapshot` makes provider replacement an explicit successor
+composition.
+
+### 3. Withdrawal is dependency-aware and asynchronous
+
+`[D]` Cordis deactivates dependents before withdrawing a provider and lets
+consumers retain access while their own teardown runs. Once an asynchronous
+reconciliation iteration starts, it is allowed to land rather than being
+discarded; the provider waits for dependent drainage before disposing (section
+4.3, PDF pp. 34–37; section 5.1.3, PDF p. 60). The paper proves that consumers
+start only after dependencies are provided and providers outlive consumers
+during withdrawal under its transition rules (section 4.4.3, PDF pp. 45–47).
+
+**Petrus reading:** Dependent-first drainage is stronger guidance than a flat
+reverse stack alone. An Agenticus mount experiment should model an
+ownership/dependency tree, close admission before drainage, and withdraw
+children before providers. It must still keep existing Attachment, Hands,
+Motus, and provider-specific settlement protocols as the sources of truth for
+whether cleanup was verified.
+
+### 4. “Revertible” has a strict system boundary
+
+`[D]` Cordis can track an acquisition such as opening a descriptor because a
+corresponding close can remove it. A write or send that crosses the system
+boundary is an **emission**, modeled as not changing the tracked context and
+therefore neither automatically tracked nor recovered (section 6.1, PDF pp.
+67–68). Withholding output until commit or issuing a later compensation are
+possible application strategies; they are not evidence that the emission was
+undone. The implementation also cannot prove that an author-provided inverse
+is correct; supplying a lawful inverse remains the component author's
+obligation (section 5.1.1, PDF p. 56).
+
+**Petrus reading:** This is the most important semantic bridge. A future mount
+may roll back **composition acquisitions** that it owns—registrations, local
+stores, leases with verified release, listeners, tasks, or child mounts. It may
+never call an Agenticus external `Effect`, an Activity result, or a canonical
+History record “rolled back.” Petrus records observed work and later
+compensation as new facts; an uncertain provider effect stays uncertain.
+
+### 5. The theory is conditional, not a blanket correctness result
+
+`[D]` Cordis's whole-system progress argument assumes finite Fibers, bounded
+iterators, and an acyclic precedence relation. Its confluence result assumes
+pairwise-independent steps, provision-total components, quiescence, and no
+failed Fiber; failure is explicitly excluded as a genuine divergence source
+(sections 4.4.4–4.4.5, PDF pp. 47–53). Independence is defined by commuting
+transformations whose inverses remain undisturbed, relaxed through
+observational equivalence over coeffect values (sections 3.1.3 and 3.3.2, PDF
+pp. 15–17 and 23–26).
+
+**Petrus reading:** These results justify testing permutations of independent
+mount effects, but they do not prove Petrus replay determinism, exactly-once
+effects, or safe recovery after failure. Cordis converges an in-memory
+composition topology under assumptions; Impetus reconstructs one durable
+process from a serialized canonical History. The two properties should remain
+separately named and tested.
+
+### 6. Cordis deliberately leaves hard ecosystem concerns open
+
+- `[D]` Dependency keys provide capability-style access control, not a
+  malicious-code sandbox. Real sandboxing requires an execution boundary such
+  as another runtime, process, or container (section 6.3, PDF pp. 69–70).
+- `[D]` A dependency cycle leaves its components inactive. The suggested
+  remedy is decomposition into unidirectional integration components, with
+  acknowledged component/configuration growth (section 6.5, PDF pp. 71–72).
+- `[D]` Dependency linking is by key identity. Interface drift, collisions,
+  and unified structural/versioned compatibility remain open problems
+  (section 6.6, PDF pp. 72–73).
+- `[D]` Koishi is presented as existence-and-adoption evidence, not a
+  quantitative evaluation (section 5.3, PDF p. 67). Self-evolving agent
+  harnesses are named as a compelling **future validation** setting, especially
+  for rapid replacement and changing topology; the paper does not claim that
+  this use case has been validated (conclusion, PDF p. 79).
+
+These limits make Agenticus's existing versioned exact requirements,
+installation authority, Motus isolation, immutable resolution, and honest
+external-effect evidence complementary rather than redundant.
+
 ## Agenticus today
 
 Agenticus already has a stronger **semantic plan** than Cordis:
@@ -236,19 +376,94 @@ cleanup. Reusing those names or merging those truths would be a category
 error: Cordis-style mount state is operational host state, not canonical
 Petrus History.
 
+Petrus also has stronger semantics exactly where Cordis draws its system
+boundary:
+
+- `[E]` Impetus History is one durable append-only, uncompacted process truth;
+  projections are rebuildable and never replace it
+  ([`event-history.md`](../../../../spec/event-history.md#the-canonical-log-is-uncompacted)).
+- `[E]` Closing a first-class lifecycle scope removes exact queued work and
+  fences in-flight execution, but consumed input is not restored and
+  compensation is a later explicit fact. A fence cannot prove that an
+  ambiguous external effect did not happen
+  ([`event-history.md`](../../../../spec/event-history.md#lifecycle-scopes)).
+- `[E]` Activities freeze a request before execution and a terminal fact before
+  deterministic projection. Replay observes those facts and does not rerun the
+  external side effect
+  ([`firing-semantics.md`](../../../../spec/firing-semantics.md#firing-pipeline)).
+- `[E]` Agenticus external Effects perform lookup before one fenced execution
+  and report indeterminate or already-applied evidence rather than blindly
+  retrying an uncertain response
+  ([`effect/gateway.py`](../../../../src/petrus/agenticus/effect/gateway.py#L1-L105)).
+- `[E]` Episode Attachment settlement closes admission, drains current calls,
+  discards staged workspace effects, exports evidence, and consumes provider
+  settlement. Unverified settlement becomes fail-closed uncertain custody
+  rather than nominal success
+  ([`attachment/episode.py`](../../../../src/petrus/agenticus/attachment/episode.py#L263-L362)).
+
+These are not alternatives to Cordis's lifecycle machinery. They define the
+doors through which a composition owner must operate.
+
+## Concept mapping: Cordis to Petrus
+
+Shared vocabulary is dangerous here. The following map names the useful
+analogy and its stopping point.
+
+| Cordis paper concept | Closest useful Petrus relation | What may transfer | False equivalence to reject |
+| --- | --- | --- | --- |
+| Context | Host-local Agenticus composition environment | A bounded place to resolve dependencies and register owned cleanup | An Impetus Instance, canonical History, Activity execution context, ambient authority bag, or global service locator |
+| Component (`dependencies`, `provision`, `effect`) | Typed exact-profile composer registration associated with descriptors | Separate declaration from live materialization; declare provisions and requirements | Making a `CapabilityDescriptor` executable or reducing Connection, Hands, Territory, and Effect to one component type |
+| Fiber | One process-scoped mount incarnation | Parent/child ownership, provider identity, lifecycle, inspection, and deterministic withdrawal | Episode, Thread, Turn, territory lease, provider session, or durable firing occurrence |
+| Revertible effect | Tracked composition acquisition with a verified cleanup obligation | Register cleanup immediately after each successful acquisition; unwind partial construction | Agenticus external `Effect`, Motus Activity, token movement, or an operation that can always be undone |
+| Reactive coeffect | Future-plan readiness observed from registrations/providers | Recompute detached readiness when exact provider identity changes | Mutating an accepted `ResolutionSnapshot` or hot-rebinding active Episodes |
+| Provider target | Exact registration plus live incarnation identity | Treat equal capabilities from a replacement incarnation as a real topology change | Treating equivalent values or descriptor names as the same authority/resource owner |
+| Parent/child hierarchy | Mount ownership tree over profile-owned collaborators | Dependents drain before providers; parent close recursively owns children | Security principal hierarchy, Petri subnet hierarchy, or implicit authority inheritance |
+| Isolation realm | Host-selected composition visibility scope | Prevent accidental dependency visibility and duplicate provision inside a composition | Process/container isolation or protection from malicious code |
+| Event/reactive notification | Operational lifecycle observation | Trigger readiness reconciliation and detached diagnostics | A canonical process event, Petri transition, external event ingress, or durable History record |
+| Transaction/rollback | Construction transaction over tracked, internal acquisitions | Clean partial startup and preserve the original failure plus cleanup evidence | Database atomicity across providers, History rollback, exactly-once emission, or denial of an ambiguous external effect |
+| Async inertia | Drain-and-settle protocol already started | Let a teardown iteration land; close admission and await dependents | Assuming cancellation retracts provider work already in flight |
+| Quiescent confluence | Permutation property for independent composition effects | Property-test stable results under independent registration/acquisition order | Impetus deterministic replay or convergence in the presence of failure and external effects |
+| Dynamic replacement/HMR | Explicit successor composition | Use replacement pressure to test identity and cleanup boundaries | Transparent active-Episode migration or provider substitution |
+| Key-based linking | Agenticus compatibility requirements | Keep declarative dependencies and inspect missing providers | Regressing from exact kind/name/version/capabilities to unversioned strings |
+
+### Relation by Petrus ownership boundary
+
+- **Impetus:** no Cordis mechanism should enter Petri enabledness, firing,
+  token semantics, or canonical History. Impetus lifecycle scopes remain
+  durable work generations, not plugin scopes.
+- **Motus:** territory creation/destruction and Activity custody remain
+  provider-neutral execution responsibilities. A mount may own a Motus lease
+  obligation through public contracts but cannot redefine whether destruction
+  was verified.
+- **Agenticus:** this is the plausible home for a reusable, optional
+  composition owner because Agenticus already connects installation-selected
+  descriptors to runtime profiles, Connection custody, Hands, Attachments, and
+  Effects.
+- **Installation/host:** authority, provider enablement, product policy,
+  support claims, process lifecycle, and UX stay outside Petrus machinery. A
+  Cordis-like composition context cannot silently absorb them.
+
+**Petrus reading:** The resulting architecture is not “Petrus becomes Cordis.”
+It is “Agenticus may borrow Cordis's local composition algebra while Petrus
+keeps its durable process and external-effect semantics.”
+
 ## Comparative fit
 
-| Concern | Harness | Agenticus | Reading |
+| Concern | Harness/Cordis | Agenticus/Petrus | Reading |
 | --- | --- | --- | --- |
 | Dependency contract | Live string-key service presence | Versioned typed exact requirements | Keep Agenticus semantics |
 | Selection | Availability activates dependents | Host explicitly selects; Catalog never substitutes | Keep Agenticus policy |
 | Active-plan stability | Provider change reloads dependent Fiber | Episode snapshot and operation route are immutable | Never hot-rebind an active Episode |
 | Executable ownership | Fiber owns all mount effects | Host composer manually owns collaborators | Learn from Fiber |
+| Withdrawal order | Dependents drain before provider disposal | Attachments and hosts use explicit ordered cleanup | Test a dependency tree; retain domain settlement truth |
+| Reversibility boundary | Tracked acquisitions have inverses; external emissions do not | Internal cleanup plus append-only facts and uncertain external Effects | Adopt the boundary; never market universal rollback |
 | Authority | Trusted ambient Node process | Installation-owned authority, custody, grants, fences | Never replace with injection |
 | Composition data | Layered entry tree with stable IDs | Static profiles and host Python tuples | Add inspectability before configurability |
 | Contribution semantics | Domain registries above Cordis | Typed Agenticus concepts and provider protocols | Share lifecycle, not one registry policy |
 | Failure | Failed/Pending plus rollback and disposal | Bounded protocol codes and verified/unverified cleanup | Adapt rollback to fail-closed settlement |
 | Durable truth | Configuration/runtime topology | History, snapshots, custody, route stores | Mount graph remains non-canonical operational state |
+| Convergence | Quiescent confluence under independence and no failure | Deterministic reconstruction from serialized History | Keep properties and proofs separate |
+| Isolation | Dependency visibility; sandbox explicitly out of scope | Motus territories plus host/provider boundaries | Do not call dependency injection a sandbox |
 
 ## Copy, adapt, reject
 
@@ -268,6 +483,15 @@ Petrus History.
    credentials or executable handles.
 5. **Real composition tests.** Test the public installation path, not only
    factories and adapters constructed directly.
+6. **Provider-identity-aware readiness.** Treat a provider incarnation change
+   as a topology change even when its descriptor or provided value compares
+   equal.
+7. **Dependent-first withdrawal.** Close admission, drain consumers, then
+   release providers; do not assume a flat cleanup stack captures every
+   dependency.
+8. **Explicit effect boundary.** Classify each owned action as a tracked local
+   acquisition, borrowed capability, or external emission before assigning any
+   rollback claim.
 
 These ideas should be independently implemented in Petrus vocabulary. No
 Harness or Cordis source needs to be copied.
@@ -287,6 +511,16 @@ Harness or Cordis source needs to be copied.
    provider.
 5. Keep mount topology operational and rebuildable. Only accepted domain facts
    cross existing Impetus/Motus durability boundaries.
+6. Replace author-asserted “inverse succeeded” with the strongest available
+   domain cleanup evidence. Cleanup callbacks may initiate withdrawal, but a
+   mount reports clean only when the owning provider contract verifies it.
+7. Replace Cordis's indefinite inactivity for cycles or missing mandatory
+   dependencies with a bounded, inspectable preflight result. A supported
+   installation must fail clearly rather than wait forever for an impossible
+   topology.
+8. Use effect-order independence as a property-test target only for actions
+   declared independent. Serialize exclusive authority, custody, provider
+   emission, and canonical History through their existing owners.
 
 ### Reject
 
@@ -300,6 +534,12 @@ Harness or Cordis source needs to be copied.
    “plugin.” Their distinct domain contracts are valuable.
 6. Moving the composition substrate into Impetus or Motus, or making either
    depend on Agenticus.
+7. Calling dependency visibility a sandbox or granting authority merely
+   because a component declares a requirement.
+8. Calling component disposal a rollback of canonical History, Activities, or
+   externally visible Agenticus Effects.
+9. Importing Cordis's key-only compatibility, inactive dependency cycles, or
+   failure-free confluence assumptions into Agenticus's support claims.
 
 ## Candidate formed: owned, inspectable Agenticus installations
 
@@ -315,7 +555,11 @@ learning move remains a disposable technical experiment:
 The first experiment should **not** make every descriptor executable. It should
 compare mount granularity and begin with the smallest likely fit: one exact
 runtime-profile composer that accepts an already selected immutable snapshot.
-Only repeated evidence across profiles may justify component-level factories.
+Within that disposable model it should test a small ownership tree rather than
+only a flat cleanup list: provider identity changes, dependent-first drainage,
+partial acquisition rollback, and an explicitly non-revertible external
+emission. Only repeated evidence across profiles may justify component-level
+factories.
 
 The [future-execution brief](future-execution-brief.md) defines the
 discriminating behaviors, alternatives, falsifiers, staged experiments,
@@ -328,20 +572,29 @@ service locator, live-provider qualification, or public API naming is implied.
 - `[D]` `git ls-remote https://github.com/deepseek-ai/deepseek-harness.git HEAD
   refs/heads/master` pinned the researched source at
   `47f943859bef60e4160492346772ded9b24f765a`.
+- `[D]` `git clone`, exact checkout, repository-tree inspection, and PDF review
+  pinned `cordiverse/paper` at
+  `948a07b369c62adb3b12e102458be5c18dfb69b9`; the title/authors, preprint
+  warning, formal assumptions, system-boundary limits, and absence of an
+  explicit repository license were checked against that revision.
 - `[E]` `UV_FROZEN=1 uv run pytest -q
   tests/petrus/agenticus/catalog/test_resolution.py
   tests/petrus/agenticus/runtime/test_profiles.py
   tests/petrus/agenticus/runtime/test_pi_a2_host.py` passed all 102 tests in
-  4.47 seconds.
+  2.12 seconds.
 - `[E]` Every relative Markdown link in this artifact resolves in the current
   source tree, and `git diff --check` reports no whitespace errors.
 
 ## Disposition
 
 The original hunch is confirmed with a narrower center: Agenticus should not
-copy Harness's “everything” slogan or Loader. It should explore Cordis's
-**owned reversible mount** as the missing executable complement to Agenticus's
-already stronger descriptor, authority, and immutable-resolution model.
+copy Harness's “everything” slogan or Loader. The upstream Cordis paper
+strengthens the case for exploring an **owned, dependency-aware mount** as the
+missing executable complement to Agenticus's already stronger descriptor,
+authority, and immutable-resolution model. Its own limits also require a more
+careful phrase than “reversible mount”: only tracked composition acquisitions
+are candidates for reversal; external emissions, durable History, and
+uncertain provider outcomes are not.
 
 The candidate shape is now documented deeply enough to execute later, but the
 story is paused in Exploration until Experiment 1 is reactivated. Its evidence

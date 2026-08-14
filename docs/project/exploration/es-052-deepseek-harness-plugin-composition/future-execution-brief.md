@@ -5,7 +5,7 @@
 This document is the durable restart surface for ES-052. It preserves enough
 product, architecture, experiment, and delivery shape that a future Driver can
 resume the inquiry without reconstructing this conversation or repeating the
-DeepSeek Harness analysis.
+DeepSeek Harness and upstream Cordis paper analyses.
 
 Read this brief after the [source-grounded exploration](index.md). Before
 changing production code, also re-read:
@@ -58,6 +58,18 @@ dependency-aware Fiber that owns everything one mount contributes and retracts
 those effects together. Its product capabilities are replaceable because
 their executable lifetime, dependencies, and cleanup share a common substrate.
 
+The upstream Cordis paper makes that mechanism more precise. It calls the two
+goals temporal composability (tracked acquisitions can be withdrawn) and
+spatial composability (dependency topology is declared and reactive). One live
+Fiber records provider incarnation identity, drains dependents before providers,
+and owns cleanup for tracked context transformations. The same paper bounds
+the claim: external writes/sends are emissions outside automatic recovery;
+inverse correctness is an author obligation; dependency visibility is not a
+sandbox; key compatibility/versioning remains open; and confluence assumes
+independent steps, quiescence, and no failed Fiber. Self-evolving agent
+harnesses are proposed as future validation, not presented as established
+evidence.
+
 Agenticus already has the stronger semantic and authority model:
 
 - typed, versioned descriptors and requirements;
@@ -72,6 +84,12 @@ Agenticus already has the stronger semantic and authority model:
 What Agenticus does not yet generalize is the executable passage after exact
 resolution. Today a host-specific composition root creates storage, custody,
 adapters, providers, ledgers, rollback, and close ordering by hand.
+
+The paper therefore strengthens the same attractor rather than creating a
+second candidate: Agenticus may need an operational composition owner, while
+Petrus's append-only History, Petri causality, immutable Episode plans,
+provider-specific cleanup evidence, and external-effect uncertainty remain the
+governing semantics.
 
 ### Tension
 
@@ -238,8 +256,9 @@ These are current project truths, not experiment variables.
 
 ### Lifecycle and recovery
 
-14. Partial startup owns deterministic rollback of everything acquired before
-    failure.
+14. Partial startup deterministically attempts withdrawal of every owned
+    acquisition completed before failure and records the resulting cleanup
+    evidence.
 15. Close does not claim more than collaborators prove. Cleanup uncertainty is
     represented explicitly and prevents a clean verdict.
 16. An active Episode is never transparently rebound. Replacement requires an
@@ -248,15 +267,27 @@ These are current project truths, not experiment variables.
     process-scoped mount incarnation and fences.
 18. No generic mount can manufacture exactly-once execution from at-least-once
     external effects.
+19. Every composed capability is classified as **owned acquisition**,
+    **borrowed capability**, or **external emission**. Only owned acquisitions
+    receive mount cleanup obligations; borrowed capabilities are not closed by
+    the mount, and external emissions are never described as automatically
+    reversed.
+20. Dependency withdrawal is dependent-first. A provider remains available
+    while admitted consumers drain, then its own cleanup runs. Flat
+    reverse-registration order is acceptable only where the dependency graph
+    proves it equivalent.
+21. A cleanup callback initiating without error is not proof of cleanup.
+    Verified/uncertain judgment comes from the existing domain/provider
+    contract, and independent cleanup attempts continue after one failure.
 
 ### Product and support
 
-19. Descriptor/catalog presence, factory registration, installation probing,
+22. Descriptor/catalog presence, factory registration, installation probing,
     and support status are separate facts.
-20. The first production-facing route remains the supported scripted Pi A2
+23. The first production-facing route remains the supported scripted Pi A2
     Local lifecycle. Existing experimental/qualification-only labels do not
     widen because a mount exists.
-21. Petrus remains a composable library. The host calls plan/mount/close; the
+24. Petrus remains a composable library. The host calls plan/mount/close; the
     substrate does not seize the host's event loop, process, or configuration
     system.
 
@@ -287,6 +318,42 @@ host policy and registrations
 The mount does not replace Catalog, Episode Attachment, Hands, Connection
 custody, Motus territory, or provider adapters. It owns their composition and
 operational lifetime for one approved installation plan.
+
+### Three lifecycle zones
+
+The Cordis paper makes one additional boundary mandatory. “Rollback” is too
+coarse unless the operation is classified first:
+
+| Zone | Examples | Required semantics |
+| --- | --- | --- |
+| Plan/preflight | Descriptor compatibility, provenance, provider readiness | Detached and authority-free; no cleanup needed |
+| Composition acquisition | Child mounts, listeners, local stores, registrations, explicitly owned leases | Register cleanup immediately; on failure withdraw dependents first and preserve verified/uncertain evidence |
+| Domain execution/emission | Activity invocation, provider mutation, message/send, accepted History fact | Existing custody, fencing, idempotency, terminal, and compensation semantics; never silently “rolled back” by the mount |
+
+A collaborator can move between the first two classifications only through an
+explicit mount act. Nothing moves from the emission zone back into a tracked
+composition acquisition merely because one Fiber or mount initiated it.
+
+### Candidate ownership topology
+
+The disposable model should represent a small tree, not start with a general
+dependency-injection framework:
+
+```text
+mount incarnation (exact snapshot + registration + provider identity)
+├── borrowed host authority                 [never mount-closed]
+├── owned provider/runtime acquisition
+│   ├── owned child registration/task
+│   └── borrowed domain gateway             [domain settlement owns truth]
+└── detached inspection projection
+```
+
+Construction records an owned cleanup only after acquisition succeeds.
+Withdrawal first closes admission, then drains and disposes dependents, and
+finally asks providers to settle. Independent siblings should all receive a
+cleanup attempt even if one fails. The terminal mount report aggregates the
+strongest honest evidence; it does not turn callback completion into verified
+provider cleanup.
 
 ### Candidate identities
 
@@ -327,7 +394,8 @@ closing ───────────────▶ closed-clean | closed-u
 Required semantic points:
 
 - `blocked` is a pre-authority planning result, not a half-started runtime;
-- failed startup withdraws every effect acquired by that mount attempt;
+- every owned acquisition completed before startup failure receives its
+  cleanup attempt and the result remains honest about uncertainty;
 - close can be retried or re-observed without minting a second clean claim;
 - cleanup uncertainty is terminal evidence, not a warning that an ordinary
   replacement may ignore; and
@@ -426,6 +494,25 @@ describe Agenticus.
 installation author, or the change is adequately described as local
 refactoring/refinement.
 
+### H7 — A small ownership tree is enough
+
+**Hypothesis:** parent/child ownership plus explicit provider identity is
+sufficient to guarantee dependent-first withdrawal without introducing a
+general reactive runtime.
+
+**Falsified when:** correct teardown requires hidden service lookup, arbitrary
+graph mutation, or a scheduler that duplicates Impetus/Motus responsibilities.
+
+### H8 — Internal reversal and external recovery remain separable
+
+**Hypothesis:** the mount can provide useful partial-construction rollback while
+classifying Activities and provider Effects as non-revertible domain
+executions governed by their current evidence protocols.
+
+**Falsified when:** a generic cleanup result must erase or reinterpret History,
+claim an ambiguous emission did not occur, or flatten verified and uncertain
+provider settlement into one status.
+
 ## Experiment program
 
 Every experiment remains under ES-052 until promotion. Disposable code, test
@@ -439,9 +526,13 @@ untracked spike branch is authoritative evidence.
 **Question:** what does Harness actually make pluggable, what remains kernel,
 and where does that pattern fit or conflict with Agenticus?
 
-**Result:** the reusable center is lifecycle-owned reversible composition.
-Agenticus should retain typed exact resolution and authority fences rather than
-copy Cordis injection or Loader behavior. See [the main exploration](index.md).
+**Result:** the reusable center is lifecycle-owned, dependency-aware
+composition.
+The upstream paper refines this to dependency-aware ownership of **tracked
+acquisitions**, not reversal of external emissions. Agenticus should retain
+typed exact resolution, authority fences, History, and provider cleanup
+evidence rather than copy Cordis injection or Loader behavior. See [the main
+exploration](index.md).
 
 ### Experiment 1 — Disposable exact-profile mount model
 
@@ -456,19 +547,36 @@ composers and inert resources. Do not edit Agenticus production APIs yet.
 1. exact selected snapshot maps to one and only one registration;
 2. unregistered, disabled, incompatible, stale, or ambiguous plans fail before
    authority acquisition;
-3. acquisition order is explicit and cleanup runs in reverse ownership order;
-4. failure at every acquisition position leaves either a proven-clean or
+3. a provider incarnation change is visible even when descriptor and provided
+   values remain equal, but never mutates an active snapshot;
+4. every collaborator is explicitly classified as owned, borrowed, or an
+   external emission boundary;
+5. acquisition order is explicit, admission closes before drainage, and
+   dependents withdraw before their providers;
+6. failure at every acquisition position leaves either a proven-clean or
    explicit unverified result;
-5. cleanup exceptions do not prevent later independent cleanup attempts;
-6. close is idempotent and returns the same bounded terminal judgment;
-7. inspection values are detached, immutable, deterministic, and secret-free;
-8. changing the Catalog after mount changes future resolution only; and
-9. two simultaneous mount incarnations cannot accidentally share mutable
+7. a cleanup callback that returns unverified evidence does not become clean
+   merely because the callback completed;
+8. cleanup exceptions do not prevent later independent cleanup attempts;
+9. borrowed collaborators are never closed by the mount;
+10. one fake external emission remains an observed/uncertain domain outcome
+    after mount close and is never labeled reversed;
+11. close is idempotent and returns the same bounded terminal judgment;
+12. inspection values are detached, immutable, deterministic, and secret-free;
+13. changing the Catalog after mount changes future resolution only;
+14. cycles and mandatory missing dependencies produce bounded blocked reports
+    instead of permanent hidden inactivity;
+15. independent sibling acquisition/withdrawal permutations produce
+    observationally equivalent terminal reports while dependent order remains
+    fixed; and
+16. two simultaneous mount incarnations cannot accidentally share mutable
    ownership unless the host explicitly registered a shared collaborator.
 
 **Pass condition:** the model has one clear responsibility—own materialization
 and withdrawal of an exact plan—and its generic code contains no Pi, provider,
 credential, Hands-tool, Motus-private, or host-application branching.
+Independent composition actions may commute, but no test should infer replay
+determinism or failure confluence from that result.
 
 **Stop condition:** if generic code cannot own meaningful rollback or inspection
 without learning profile internals, reject the mount abstraction or narrow it
@@ -516,9 +624,13 @@ conflict with Agenticus snapshot and authority semantics.
 - registration disabled before planning;
 - registration disabled after planning but before mount;
 - registration changed after mount;
+- provider incarnation replaced with an equal descriptor/provided value;
 - attempted replacement while an Episode is active;
+- dependency cycle or missing mandatory provider at preflight;
 - startup failure before and after authority materialization;
+- provider withdrawal while a dependent is draining;
 - child cleanup verified, refused, raised, or timed out;
+- external Effect outcome indeterminate while mount close proceeds;
 - close called concurrently or repeatedly;
 - process restart with a prior active/uncertain incarnation;
 - same descriptor identity registered with conflicting composer provenance;
@@ -566,7 +678,10 @@ A promotion-quality evidence package should include:
 
 - exact tests for each state transition and failure position;
 - property/permutation tests for deterministic registration, resolution, and
-  cleanup ordering where appropriate;
+  observationally equivalent independent cleanup ordering where appropriate;
+- dependency-order tests proving dependents drain before providers;
+- owned/borrowed/emission classification fixtures, including an external
+  outcome that mount close does not reinterpret;
 - real public composition tests, not only direct factory unit tests;
 - one inspectable plan/readiness report fixture with secret-field denial tests;
 - one complete supported scripted Pi A2 operation route;
@@ -594,7 +709,9 @@ Value outcome. It should not claim value from green unit tests alone.
    path.
 5. The candidate can name one public capability promise without claiming a
    plugin ecosystem or unsupported providers.
-6. The smallest Delivery boundaries and concrete validation routes are clear.
+6. Experiment evidence proves that composition-acquisition rollback never
+   broadens History, Activity, external Effect, or cleanup-certainty claims.
+7. The smallest Delivery boundaries and concrete validation routes are clear.
 
 Promotion is still a Navigator decision after these conditions are met.
 
@@ -621,6 +738,7 @@ Promotion is still a Navigator decision after these conditions are met.
 - meaningful authority requires ambient context or bypassing existing fences;
 - mount state competes with canonical History or custody;
 - active snapshots cannot remain immutable;
+- useful mount cleanup requires claiming that external emissions were undone;
 - cleanup cannot be generalized honestly; or
 - no second composition or host benefits.
 
@@ -673,7 +791,7 @@ No dynamic plugin ecosystem or wider provider support is implied.
 ### Candidate Technical Stories
 
 - typed host registration and exact-profile composer contract;
-- deterministic mount ownership and rollback state machine;
+- deterministic mount ownership and construction-withdrawal state machine;
 - detached plan/readiness/mount inspection values;
 - authority-safe composition context without a service locator;
 - parity fixture between direct and mounted Pi A2 routes;
@@ -718,6 +836,19 @@ These remain real decisions for experiments, not gaps to fill by assumption:
     provider profile?
 14. Is external package discovery ever a user need, or only architectural
     fascination from the Harness comparison?
+15. Is a strict ownership tree sufficient, or does a real profile contain
+    shared/exclusive dependencies that require a bounded directed acyclic
+    graph? Cycles must be reported, not left inactive indefinitely.
+16. Which provider-incarnation identity can readiness observe without placing
+    a live object in the portable descriptor or snapshot?
+17. Can all composition actions be classified as owned, borrowed, or emission,
+    or is a fourth category needed for transferred custody? If so, which domain
+    contract proves the transfer?
+18. Which cleanup outcomes are universally `verified`/`unverified`, and which
+    provider-specific dispositions must remain intact in nested reports?
+19. Does reactivity need a background reconciler at all, or can explicit host
+    plan/mount/close calls provide the useful value with less framework
+    ownership?
 
 ## Risk register
 
@@ -731,17 +862,23 @@ These remain real decisions for experiments, not gaps to fill by assumption:
 | Silent support expansion | Registered composer is read as supported provider | Preserve support matrix and qualification gates independently |
 | Hidden hot reload | Catalog update mutates active work | Pin snapshot and reject replacement until explicit settlement |
 | Cleanup optimism | reverse disposal logs an error but reports closed | Aggregate verified/unverified evidence and fail closed |
+| Rollback overclaim | external emission or History fact is described as reverted | Classify actions before mount; test an indeterminate emission through close |
+| Teardown inversion | provider closes while consumers still need it to drain | Encode ownership dependencies and test dependent-first withdrawal |
+| Reactive-runtime creep | readiness starts a background scheduler or mutates active work | Prefer explicit host operations; keep observations detached and future-facing |
+| Formal-assumption drift | Cordis confluence is cited as proof under failure or external effects | Record assumptions; test only independent local composition permutations |
+| Vocabulary collision | Context, Effect, Scope, Event, or transaction is mistaken for an existing Petrus concept | Use Petrus-specific names and document the semantic boundary in public contracts |
 | Loader topology gaps | direct factory tests pass while real composition fails | Require real registration → resolution → mount tests |
 | API/name bloat | many new generic types appear before one route proves value | Keep experiment vocabulary provisional and production surface minimal |
 | Packaging distraction | entry points, overlays, signing, or marketplace precede lifecycle proof | Defer Experiment 5 |
-| License drift | Cordis implementation is translated without attribution | Independently implement; review MIT provenance before any copied code |
+| License drift | Cordis implementation or paper text is translated without a valid reuse basis | Independently implement; review Harness's MIT provenance and the paper repository's lack of an explicit license at the pinned revision before any copied material |
 
 ## Carry Forward Notes
 
 Preserve these implementation-relevant findings if the candidate promotes:
 
-1. The Harness pattern worth carrying is **live dependency topology plus
-   Fiber-owned reversible effects**, not npm or export-shape inference.
+1. The Harness/Cordis pattern worth carrying is **provider-identity-aware
+   dependency topology plus Fiber-owned tracked acquisitions**, not npm,
+   export-shape inference, or a universal rollback claim.
 2. Agenticus `Catalog` and `ResolutionSnapshot` are already more expressive for
    compatibility and safer for active work than Cordis string injection.
 3. Cordis provider replacement reloads dependents; Agenticus must instead pin
@@ -763,6 +900,18 @@ Preserve these implementation-relevant findings if the candidate promotes:
 10. Clean architectural reimplementation needs no Harness source copy. Any
     substantial source reuse requires MIT notice/provenance review for both
     Cordis/Shigma and DeepSeek modifications.
+11. The upstream paper repository is a changing preprint and has no explicit
+    license at the pinned revision. Cite its claims, re-check newer versions
+    deliberately, and do not treat it as an implementation reuse grant.
+12. Cordis's inverse is author-supplied and cannot recover external emissions.
+    Agenticus should trust provider cleanup only to the degree its existing
+    evidence contract verifies it.
+13. Provider identity—not merely equal descriptor/value—is the useful trigger
+    for future readiness; it is not permission to mutate active Episodes.
+14. Dependent-first withdrawal is a distinct invariant from LIFO cleanup. Test
+    both where a profile mixes dependency edges and independent siblings.
+15. Cordis confluence excludes failure and depends on independence and
+    quiescence. Never cite it as Impetus replay or external-effect safety.
 
 ## Exact resume route
 
@@ -784,16 +933,23 @@ When this exploration is reactivated:
    designing the experiment. The historical baseline was 102 passing tests on
    2026-08-13; test count is not a future target, but changed failures or
    contracts are evidence.
-6. Use the pinned DeepSeek commit for historical claims. Inspect newer Harness
-   only if the inquiry explicitly asks how its architecture evolved; do not
-   silently rewrite the original evidence baseline.
-7. Render a new Plan Checkpoint for **Experiment 1 only**. Keep its code and
+6. Use the pinned DeepSeek commit and pinned Cordis paper commit
+   `948a07b369c62adb3b12e102458be5c18dfb69b9` for historical claims. The paper
+   is an actively revised preprint; inspect a newer version only as a clearly
+   separated evolution check and never silently rewrite the baseline.
+7. Re-read Impetus event-History lifecycle scope and firing semantics before
+   using “context,” “event,” “effect,” “scope,” “transaction,” “rollback,” or
+   “replay” in the experiment. Preserve their Petrus meanings.
+8. Render a new Plan Checkpoint for **Experiment 1 only**. Keep its code and
    fixtures inside the Exploration until the learning result supports
    production work.
-8. Compare exact-profile composer, grouped bundle, and status quo. Do not begin
+9. Compare exact-profile composer, grouped bundle, and status quo. Do not begin
    with per-descriptor factories.
-9. Record experiment observations, refutations, and disposition in ES-052.
-10. Return to the Promotion Gate. Create roadmap files only after explicit
+10. Include the owned/borrowed/emission classification, provider-incarnation
+    change, dependent-first drainage, unverified inverse, cycle, and
+    non-revertible emission probes in Experiment 1.
+11. Record experiment observations, refutations, and disposition in ES-052.
+12. Return to the Promotion Gate. Create roadmap files only after explicit
     Navigator promotion.
 
 ## Reactivation triggers
