@@ -3,10 +3,10 @@ date: 2026-08-13T20:50:38Z
 author: Amp
 kind: milestone
 related:
-  - ES-003
+  - ES-052
   - CV16
 verification:
-  - ES-003 future-execution brief local links and status metadata checked
+  - ES-052 future-execution brief local links and status metadata checked
   - git diff --check
 ---
 
@@ -14,7 +14,7 @@ verification:
 
 ## What changed
 
-Deepened ES-003 from an architecture comparison into a restartable Exploration
+Deepened ES-052 from an architecture comparison into a restartable Exploration
 candidate. The new future-execution brief records the installation-author job,
 Customer Value hypothesis, observable outcomes, settled constraints, mount
 granularity alternatives, architecture and lifecycle hypotheses, falsifiers,
@@ -39,7 +39,7 @@ the executable grounding for the source comparison.
 
 ## Follow-up
 
-ES-003 is paused in Exploration. Its next movement is reactivation into
+ES-052 is paused in Exploration. Its next movement is reactivation into
 Experiment 1's disposable exact-profile mount model; that evidence determines
 whether it returns to the Candidate Gate. No CV, Delivery Story, API, or
 implementation has been created.

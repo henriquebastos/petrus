@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document is the durable restart surface for ES-003. It preserves enough
+This document is the durable restart surface for ES-052. It preserves enough
 product, architecture, experiment, and delivery shape that a future Driver can
 resume the inquiry without reconstructing this conversation or repeating the
 DeepSeek Harness analysis.
@@ -21,7 +21,7 @@ remains a Navigator decision.
 
 ## Classification recommendation
 
-Keep ES-003 paused in Exploration with a formed
+Keep ES-052 paused in Exploration with a formed
 **Value/Capability Value hypothesis using a Customer Value framing**. Do not
 create a CV folder or code yet. Reactivation begins with Experiment 1; the
 result determines whether the story returns to the Candidate Gate.
@@ -428,7 +428,7 @@ refactoring/refinement.
 
 ## Experiment program
 
-Every experiment remains under ES-003 until promotion. Disposable code, test
+Every experiment remains under ES-052 until promotion. Disposable code, test
 fixtures, reports, and conclusions must be committed with the Exploration; no
 untracked spike branch is authoritative evidence.
 
@@ -770,7 +770,7 @@ When this exploration is reactivated:
 
 1. Read project instructions, current briefing, product principles, and this
    ES in the normal Ariad orientation order.
-2. Confirm ES-003 is still `Paused` and that no later decision or roadmap
+2. Confirm ES-052 is still `Paused` and that no later decision or roadmap
    item superseded it.
 3. Read current CV16 status and Agenticus support matrix. Do not infer that
    additional profiles became supported.
@@ -792,13 +792,13 @@ When this exploration is reactivated:
    production work.
 8. Compare exact-profile composer, grouped bundle, and status quo. Do not begin
    with per-descriptor factories.
-9. Record experiment observations, refutations, and disposition in ES-003.
+9. Record experiment observations, refutations, and disposition in ES-052.
 10. Return to the Promotion Gate. Create roadmap files only after explicit
     Navigator promotion.
 
 ## Reactivation triggers
 
-Bring ES-003 back into attention when any of these occurs:
+Bring ES-052 back into attention when any of these occurs:
 
 - a second Agenticus profile or installation repeats acquire/rollback/close
   machinery;

@@ -5,7 +5,7 @@ status: Done
 status_reason: History-first lifecycle scopes are implemented, independently reviewed, and release-qualified across Local and pinned Absurd providers
 updated: 2026-08-11
 related:
-  - ES-002
+  - ES-051
   - docs/project/decisions/records/2026-08-11T0101Z-history-first-lifecycle-scopes.md
 ---
 

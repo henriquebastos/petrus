@@ -5,7 +5,7 @@ decided: 2026-08-11
 deciders:
   - Hamsterdan Navigator approval, adopted under Petrus checkpoint policy
 related:
-  - ES-002
+  - ES-051
   - CV8.DS6
   - docs/project/decisions/records/2026-08-10T0555Z-one-logical-activity-execution-owns-durable-operational-retries.md
   - docs/project/decisions/records/2026-08-10T1200Z-instance-identity-scopes-shared-activity-resolution.md

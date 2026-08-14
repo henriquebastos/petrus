@@ -3,7 +3,7 @@ date: 2026-08-13T20:37:04Z
 author: Amp
 kind: milestone
 related:
-  - ES-003
+  - ES-052
   - CV16
 verification:
   - git ls-remote pinned deepseek-ai/deepseek-harness master at 47f943859bef60e4160492346772ded9b24f765a
@@ -14,7 +14,7 @@ verification:
 
 ## What changed
 
-Created ES-003 as a source-grounded architecture comparison of DeepSeek
+Created ES-052 as a source-grounded architecture comparison of DeepSeek
 Harness's Cordis plugin tree and Petrus Agenticus's descriptor, Catalog,
 authority, profile, adapter, and host-composition boundaries. The exploration
 separates mechanisms worth copying, constraints requiring adaptation, and
@@ -34,13 +34,13 @@ injection.
 
 The external source was pinned before claims were recorded. Focused local tests
 were then run over the exact Agenticus contracts used by the comparison: 102
-tests passed in 4.47 seconds. All relative Markdown links in ES-003 resolve and
-`git diff --check` reports no whitespace errors. ES-003 contains per-claim
+tests passed in 4.47 seconds. All relative Markdown links in ES-052 resolve and
+`git diff --check` reports no whitespace errors. ES-052 contains per-claim
 provenance, confidence boundaries, permanent source links, and the proposed
 discriminating experiment.
 
 ## Follow-up
 
-ES-003 remains a candidate in Exploration. Promotion would require Navigator
+ES-052 remains a candidate in Exploration. Promotion would require Navigator
 direction and a bounded Technical Story; no implementation or roadmap promise
 was created by this milestone.

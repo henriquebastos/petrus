@@ -1,5 +1,5 @@
 ---
-code: ES-003
+code: ES-052
 status: Paused
 status_reason: Source grounding and a Value hypothesis are preserved; Experiment 1 is deliberately deferred and promotion evidence does not yet exist.
 opened: 2026-08-13
