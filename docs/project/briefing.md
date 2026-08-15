@@ -49,7 +49,7 @@ A2 Local host lifecycle, not authenticated Pi/model/provider execution.
 The current developer-experience inquiry is progressive disclosure over that
 full-power runtime: one readable flow file should be enough to compile,
 inspect, validate, and reach honest first motion, while lower-level APIs remain
-available and canonical semantics stay visible. ES-004 organizes this as a
+available and canonical semantics stay visible. ES-056 organizes this as a
 candidate adoption Value and uses Hamsterdan-scale orchestration as the pressure
 test. It authorizes no runtime simplification or delivery work by itself.
 

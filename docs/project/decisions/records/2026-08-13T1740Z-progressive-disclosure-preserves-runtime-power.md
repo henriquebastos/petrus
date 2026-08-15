@@ -6,8 +6,8 @@ deciders:
   - henrique (Navigator)
 supersedes:
 related:
-  - ES-003
-  - ES-004
+  - ES-055
+  - ES-056
   - docs/product/principles.md
   - docs/project/decisions/records/2026-07-28T0133Z-python-dsl-compiles-authored-specifications-to-canonical-nets.md
   - docs/project/decisions/records/2026-08-03T2130Z-flat-json-is-the-canonical-net-definition-interchange.md
@@ -93,7 +93,7 @@ that semantic price.
   adoption Value may compose them without reopening their semantic decisions.
 - This ruling does not select a concrete authoring syntax, runner owner,
   default storage profile, presentation protocol, or Agenticus convenience
-  API. ES-004 owns that cohesive candidate map.
+  API. ES-056 owns that cohesive candidate map.
 - No runtime, roadmap, or release implementation is authorized by this record.
 
 ## Review Trigger

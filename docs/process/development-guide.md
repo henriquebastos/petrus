@@ -183,8 +183,19 @@ Use one file per durable artifact when the surface may be edited by multiple peo
 - Decision records live in `docs/project/decisions/records/` and use `status` for open or decided lifecycle state.
 - Debt items in the Technical Debt Ledger live in `docs/project/debt/items/`.
 - Roadmap items own their current `status` in frontmatter or in their own file, not in a central table.
+- Exploratory Stories own state in `docs/project/exploration/es-<code>-<slug>/`.
+  Their `ES-<N>` codes use the monotonic allocation contract in the
+  [Exploration index](../project/exploration/index.md): previously allocated codes through
+  `ES-049` remain reserved, codes are never reused, and the index's one
+  `next_code` coordination field advances in the same commit as a new story.
 
 Index files explain structure, naming, and templates. They should not maintain complete lists of every artifact unless this project explicitly accepts that coordination cost.
+
+The Exploration `next_code` field is an explicit exception to the default
+against central mutable state. It is one mechanically checked allocation
+coordinate, not a status registry or complete story list; story directories
+remain authoritative. This small coordination cost prevents a pruned or
+partially retained history from silently restarting the namespace.
 
 Prefer status metadata over directory moves for lifecycle state. Directory moves are acceptable for archival or deliberate reorganization, but state should remain explicit in the artifact so links and history stay understandable.
 

@@ -5,7 +5,7 @@ decided: 2026-08-10
 deciders:
   - Driver recommendation, accepted under project checkpoint policy
 related:
-  - ES-001
+  - ES-050
   - CV8
   - docs/project/decisions/records/2026-08-10T0555Z-one-logical-activity-execution-owns-durable-operational-retries.md
 ---

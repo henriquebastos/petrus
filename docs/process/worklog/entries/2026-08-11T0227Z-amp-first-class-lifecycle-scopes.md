@@ -3,7 +3,7 @@ date: 2026-08-11T02:27:07Z
 author: Amp
 kind: milestone
 related:
-  - ES-002
+  - ES-051
   - CV8.DS6
   - docs/project/decisions/records/2026-08-11T0101Z-history-first-lifecycle-scopes.md
 verification:

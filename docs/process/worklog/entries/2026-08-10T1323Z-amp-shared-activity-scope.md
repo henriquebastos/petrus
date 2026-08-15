@@ -3,7 +3,7 @@ date: 2026-08-10T13:23:33Z
 author: Amp
 kind: milestone
 related:
-  - ES-001
+  - ES-050
   - CV8
   - docs/project/decisions/records/2026-08-10T1200Z-instance-identity-scopes-shared-activity-resolution.md
 verification:
