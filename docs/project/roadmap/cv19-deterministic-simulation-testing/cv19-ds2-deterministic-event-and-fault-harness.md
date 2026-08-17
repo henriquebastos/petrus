@@ -1,8 +1,8 @@
 ---
 code: CV19.DS2
 level: Delivery Story
-status: Blocked
-status_reason: Petrus and Hamsterdan agree on the generic executor/profile boundary; implementation awaits Navigator acceptance of the shipped petrus.testing.dst compatibility surface
+status: Active
+status_reason: The supported petrus.testing.dst compatibility surface is accepted; the smallest generic World and public-Engine profile vertical slice is in implementation
 updated: 2026-08-17
 related:
   - index.md

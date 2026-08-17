@@ -1,7 +1,7 @@
 ---
-status: Open
+status: Decided
 raised: 2026-08-17
-decided:
+decided: 2026-08-17
 deciders:
   - henrique (Navigator)
 supersedes:
@@ -29,9 +29,7 @@ mutable runtime handles would violate maintained-host ownership boundaries.
 
 ## Decision
 
-Pending.
-
-**Driver recommendation:** accept the supported test-kit boundary. Keep it
+Ship the supported test-kit boundary. Keep it
 separate from both the public `petrus.simulation` product contract and DS1's
 internal `petrus-dst-scenario` version 1 proof. Export only the strict generic
 contracts from their defining module, with no Petrus-root re-exports.

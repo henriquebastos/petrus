@@ -2,7 +2,7 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 is Done and the cross-project DS2 architecture is agreed; DS2 awaits Navigator disposition of the proposed supported petrus.testing.dst surface
+status_reason: CV19.DS1 is Done and the supported cross-project petrus.testing.dst boundary is accepted; DS2's smallest executable vertical slice is in implementation
 updated: 2026-08-17
 related:
   - ../../../../src/petrus/simulation.py
@@ -76,9 +76,8 @@ The existing `petrus.simulation` `implementation-free-v1` profile is a public,
 portable product contract with its own bounds. CV19 does not silently broaden,
 rename, or break it. DS1's DST proof remains internal to `tests/dst`. Petrus
 and Hamsterdan have agreed on a separate generic test-kit boundary under the
-proposed `petrus.testing.dst` defining module; shipping that supported
-cross-project surface remains explicit Navigator acceptance work rather than a
-silent promotion of the DS1 proof.
+accepted `petrus.testing.dst` defining module. This is a supported
+cross-project test surface, not a silent promotion of the DS1 proof.
 
 ## Correctness contract
 
@@ -137,8 +136,8 @@ the minimized expanded scenario becomes the durable regression fixture.
 2. [CV19.DS2 — Deterministic event and fault harness](cv19-ds2-deterministic-event-and-fault-harness.md)
    runs production Engine/Coordinator behavior under one bounded logical event
    scheduler with faulting adapters and crash reconstruction. Its generic
-   executor/profile design is agreed with Hamsterdan CV18; implementation is
-   blocked on acceptance of the proposed supported test-kit surface.
+   executor/profile design and supported test-kit surface are accepted;
+   implementation is active.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)
    adds broad and targeted workload generation, independent models/checkers,
    shrinking, semantic coverage, and durable replay fixtures.
