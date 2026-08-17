@@ -1,7 +1,7 @@
 # Deterministic Simulation Testing
 
-**Status:** CV19 correctness contract; the first implementation profile is
-planned, not yet shipped.
+**Status:** CV19 correctness contract. The strict version-1 artifact and one
+projection-recovery replay are shipped; the general DS2 harness is planned.
 
 This document owns Petrus's deterministic simulation testing (DST) contract.
 DST drives the production `Engine`, `Coordinator`, `Instance`, `HistoryStore`,
@@ -10,10 +10,11 @@ recorded semantics after every accepted event. It is not a second engine, an
 application runtime, or a provider emulator.
 
 The first implementation profile is named `engine-coordinator-v1`. The strict
-scenario and replay artifact which pin that profile are owned by
+scenario and replay artifact which pin that profile are specified by
+[`dst-scenario-v1`](dst-scenario-v1.md) and tracked by
 [CV19.DS1.TS2](../project/roadmap/cv19-deterministic-simulation-testing/cv19-ds1-ts2-strict-scenario-replay-contract.md).
-This document freezes the profile's correctness obligations before the schema
-or harness is built.
+This document was frozen before implementation and remains the authority for
+the strict schema and later general harness.
 
 ## Evidence language
 
@@ -218,6 +219,7 @@ disables it. An unbounded/permanent failure is inadmissible in a fair suffix.
 | `ack_refuse` | after `delivery_accepted`, `activity_terminal_frozen`, or durable quarantine, before collaborator acknowledgement | Durable fact remains and the same item may redeliver. |
 | `process_crash` | after any named durable cut and at `external_effect` | All live runtime/collaborator wrapper objects are discarded; only configured durable/script facts survive. |
 | `history_unreadable` | before `restart` | Construction/load refuses loud; no safety or liveness claim is made beyond retained failure evidence. |
+| `projection_raise` | after `activity_terminal_frozen`, before projection records commit | A registered deterministic test-application projection raises the strict recorded error; the frozen terminal remains authoritative for fresh-load projection-only recovery. |
 
 Fault adapters wrap the existing collaborator contract and may only refuse,
 delay, duplicate, or crash at these cuts. They may not edit records, markings,

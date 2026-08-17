@@ -1,8 +1,8 @@
 ---
 code: CV19.DS1.US1
 level: User Story
-status: Planned
-status_reason: Future Drivers do not yet have a concise conditional route to the accepted correctness sketch and DST workflow
+status: Active
+status_reason: TS1 and TS2 now provide the focused contract and concrete replay route that project guidance must retrieve conditionally
 updated: 2026-08-17
 related:
   - index.md

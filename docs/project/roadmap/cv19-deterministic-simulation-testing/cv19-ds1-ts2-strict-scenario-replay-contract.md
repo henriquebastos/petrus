@@ -1,13 +1,16 @@
 ---
 code: CV19.DS1.TS2
 level: Technical Story
-status: Planned
-status_reason: The strict-data scenario/replay artifact and fixture have not yet been implemented
+status: Done
+status_reason: Version 1 now refuses non-strict artifacts and deterministically replays the retained projection-crash scenario through fresh production Engines
 updated: 2026-08-17
 related:
   - index.md
   - cv19-ds1-correctness-and-simulation-contract.md
   - cv19-ds1-ts1-runtime-correctness-inventory.md
+  - ../../../process/dst-scenario-v1.md
+  - ../../../../scripts/dst_replay.py
+  - ../../../../tests/dst/fixtures/projection-crash-recovery-v1.json
 ---
 
 # CV19.DS1.TS2 — Strict scenario and replay contract
@@ -44,6 +47,35 @@ contract instead of relying on a seed, closures, or live runtime objects.
 - Run exact positive and negative contract tests.
 - Run the existing equivalent Coordinator and durable-backend crash nodes.
 - Demonstrate the exact fixture replay command from a fresh test process.
+
+## Delivered Evidence
+
+- [`dst-scenario-v1`](../../../process/dst-scenario-v1.md) specifies the
+  internal `engine-coordinator-v1` strict JSON contract. Its Pydantic owner
+  rejects duplicate keys, non-finite numbers, unknown fields or vocabulary,
+  implicit coercion, unsupported versions/profiles, invalid fault cuts,
+  incoherent crash/restart order, duplicate marking places, and profile-bound
+  violations before constructing runtime objects.
+- The retained
+  [`projection-crash-recovery-v1.json`](../../../../tests/dst/fixtures/projection-crash-recovery-v1.json)
+  carries commit/runtime/dependency/property/shrink provenance, explicit
+  limits, an expanded six-step schedule, the named terminal-frozen cut, and
+  exact step/final expectations as data only. Live collaborators are selected
+  by a digest-pinned replay-side application catalog entry, never serialized.
+- `UV_FROZEN=1 uv run python scripts/replay-dst-scenario.py
+  tests/dst/fixtures/projection-crash-recovery-v1.json` emitted one stable
+  passing result twice: nine exact History record kinds, terminal `done`
+  marking, no in-flight or pending Activity, one projection after restart,
+  and zero re-prepare or redispatch.
+- The focused contract/replay suite passed **17 tests**. Six equivalent
+  production crash-window nodes passed across Engine, Coordinator, Activity
+  integration, JSONL, and SQLite History routes.
+- The repository-required `scripts/check full` route passed lint, formatting,
+  production type checking, ast-grep, and **2,198 tests**. Local CV19 Markdown
+  links and `git diff --check` also passed.
+- No public `petrus.simulation` or `implementation-free-v1` source, spec,
+  fixture, or result contract changed. General scheduling, fault adapters,
+  generation, and campaign operations remain owned by DS2–DS4.
 
 ## Out of Scope
 

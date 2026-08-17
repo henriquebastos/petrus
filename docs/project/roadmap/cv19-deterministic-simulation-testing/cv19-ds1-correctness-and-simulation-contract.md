@@ -2,7 +2,7 @@
 code: CV19.DS1
 level: Delivery Story
 status: Active
-status_reason: TS1 established the runtime correctness owner without a harness blocker; TS2 is now freezing and replay-validating the strict data contract
+status_reason: TS1 and TS2 froze the correctness and strict replay contracts; US1 is now routing future correctness-sensitive work to them
 updated: 2026-08-17
 related:
   - index.md
@@ -61,11 +61,11 @@ property testing, fault injection, and full system simulation.
    dispositions, coverage, ownership, and compatibility to current production
    seams and executable evidence.
 2. [CV19.DS1.TS2 — Strict scenario and replay contract](cv19-ds1-ts2-strict-scenario-replay-contract.md)
-   is active. It specifies the versioned strict-data artifact and proves one
+   is Done. It specifies the versioned strict-data artifact and proves one
    existing projection-crash recovery route fits and replays from data alone.
 3. [CV19.DS1.US1 — Complex-system correctness guidance](cv19-ds1-us1-complex-system-correctness-guidance.md)
-   gives future Drivers one conditional route and focused correctness-sketch
-   template without adding another delivery lifecycle.
+   is active. It gives future Drivers one conditional route and focused
+   correctness-sketch template without adding another delivery lifecycle.
 
 ## Acceptance / Done condition
 

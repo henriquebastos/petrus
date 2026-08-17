@@ -1,0 +1,226 @@
+{
+  "format": "petrus-dst-scenario",
+  "version": 1,
+  "profile": "engine-coordinator-v1",
+  "scenario_id": "projection-crash-recovery-v1",
+  "origin": {
+    "seed": 1729,
+    "petrus_commit": "2361f3d169121f1fea07998aec38e1257fdc65e2",
+    "runtime": {
+      "implementation": "CPython",
+      "version": "3.14.7"
+    },
+    "dependencies": [
+      {
+        "name": "petrus",
+        "version": "0.0.0"
+      },
+      {
+        "name": "pydantic",
+        "version": "2.13.4"
+      },
+      {
+        "name": "pytest",
+        "version": "9.1.1"
+      }
+    ],
+    "property": "S4-terminal-before-projection",
+    "shrink": {
+      "parent_scenario_id": null,
+      "steps": 0
+    }
+  },
+  "application": {
+    "profile": "projection-recovery-v1",
+    "definition_digest": "sha256:b5846b801927f8e5a01920229d139682b79fb5fbdbc3d284767855e88dfb46f3"
+  },
+  "limits": {
+    "events": 6,
+    "faults": 1,
+    "crash_restart_pairs": 1,
+    "actions_per_drive": 1,
+    "total_actions": 3,
+    "logical_instant": 0,
+    "history_records": 9,
+    "history_payload_bytes": 4194304,
+    "retained_tokens": 1,
+    "retained_token_bytes": 4194304,
+    "pending_outcomes": 1,
+    "in_flight_activities": 1,
+    "artifact_bytes": 4194304,
+    "watchdog_seconds": 30
+  },
+  "initial": {
+    "instance_id": "dst-projection-recovery-v1",
+    "instant": 0,
+    "marking": [
+      {
+        "place": "input",
+        "tokens": [
+          {
+            "color": "Input",
+            "data": 3
+          }
+        ]
+      }
+    ]
+  },
+  "schedule": [
+    {
+      "position": 0,
+      "event": {
+        "kind": "drive",
+        "max_actions": 1
+      },
+      "faults": [],
+      "expect": {
+        "disposition": "applied",
+        "history_frontier": 6,
+        "error": null
+      }
+    },
+    {
+      "position": 1,
+      "event": {
+        "kind": "dispatch_terminal",
+        "occurrence": 1,
+        "outcome": "completed",
+        "value": {
+          "value": 3
+        }
+      },
+      "faults": [],
+      "expect": {
+        "disposition": "applied",
+        "history_frontier": 6,
+        "error": null
+      }
+    },
+    {
+      "position": 2,
+      "event": {
+        "kind": "drive",
+        "max_actions": 1
+      },
+      "faults": [
+        {
+          "kind": "projection_raise",
+          "cut": "activity_terminal_frozen",
+          "count": 1,
+          "error": "dst projection fault"
+        }
+      ],
+      "expect": {
+        "disposition": "refused_expected",
+        "history_frontier": 7,
+        "error": "dst projection fault"
+      }
+    },
+    {
+      "position": 3,
+      "event": {
+        "kind": "crash",
+        "cut": "activity_terminal_frozen"
+      },
+      "faults": [],
+      "expect": {
+        "disposition": "applied",
+        "history_frontier": 7,
+        "error": null
+      }
+    },
+    {
+      "position": 4,
+      "event": {
+        "kind": "restart"
+      },
+      "faults": [],
+      "expect": {
+        "disposition": "applied",
+        "history_frontier": 7,
+        "error": null
+      }
+    },
+    {
+      "position": 5,
+      "event": {
+        "kind": "drive",
+        "max_actions": 1
+      },
+      "faults": [],
+      "expect": {
+        "disposition": "applied",
+        "history_frontier": 9,
+        "error": null
+      }
+    }
+  ],
+  "expected": {
+    "disposition": "terminal",
+    "history_record_types": [
+      "InstanceCreated",
+      "TokensInitialized",
+      "CandidateSelected",
+      "FiringBegun",
+      "TokensConsumed",
+      "ActivityRequested",
+      "ActivityCompleted",
+      "TokensProduced",
+      "FiringCompleted"
+    ],
+    "snapshot": {
+      "marking": [
+        {
+          "place": "done",
+          "tokens": [
+            {
+              "color": "Done",
+              "data": {
+                "value": 3
+              }
+            }
+          ]
+        }
+      ],
+      "status": "terminated",
+      "watermark": 0,
+      "in_flight": []
+    },
+    "observations": [
+      {
+        "name": "prepared_before_crash",
+        "value": 1
+      },
+      {
+        "name": "projected_before_crash",
+        "value": 1
+      },
+      {
+        "name": "prepared_after_restart",
+        "value": 0
+      },
+      {
+        "name": "projected_after_restart",
+        "value": 1
+      },
+      {
+        "name": "dispatch_pending_after_restart",
+        "value": 0
+      }
+    ],
+    "checks": [
+      {
+        "property": "S1-replay-agreement",
+        "outcome": "pass"
+      },
+      {
+        "property": "S3-stable-invocation",
+        "outcome": "pass"
+      },
+      {
+        "property": "S4-terminal-before-projection",
+        "outcome": "pass"
+      }
+    ]
+  }
+}
