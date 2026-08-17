@@ -33,6 +33,15 @@ and no live provider or multi-host support is claimed.
   lifecycle. Live-provider profiles remain qualification-only or unsupported.
 - CV17–CV18: hosted bounded simulation and portable canonical Net definitions.
 
+## Planned Values
+
+- [CV19 — Deterministic simulation testing](cv19-deterministic-simulation-testing/index.md):
+  turn Petrus's replayable History, injected clock and Dispatch seams, bounded
+  simulation, property tests, and explicit crash-cut evidence into a seeded,
+  replayable fault-simulation discipline over production runtime logic. Petrus
+  owns the reusable substrate; applications such as Hamsterdan own their domain
+  models and provider fault worlds.
+
 Application-specific and site-operation plans are not part of this source
 tree.
 
