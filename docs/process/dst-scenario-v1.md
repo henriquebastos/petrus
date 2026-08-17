@@ -33,6 +33,32 @@ file handle, or another live object. `application.profile` locates fresh
 repository-owned construction code and `application.definition_digest`
 prevents that code from silently changing beneath a retained fixture.
 
+## Authoring is executable; replay is data
+
+This artifact is the expanded replay and failure-retention format, not the
+primary human authoring language. DS2 scenarios are ordinary pytest programs
+over a test-owned `World` composition root and an imperative `Timeline`
+facade. Authors may use Python control flow, helpers, local values, and pytest
+assertions to tell a complex story. Every operation that can change simulated
+execution must still cross the Timeline, which records its normalized event,
+fault activation, logical ordering, bound consumption, disposition, and
+observation into this strict-data shape.
+
+The Timeline may provide debugger-like, bounded `run_until` checkpoints. The
+authoring predicate or callback is never serialized: the journal expands the
+individual drive/events that actually occurred and records the named
+checkpoint observation. Replay consumes those expanded choices directly and
+does not execute the originating pytest scenario, callback, or PRNG.
+
+The World owns deterministic time, identities, ordering, scripted external
+truth, and construction of the real production runtime. A simulated process
+crash discards every runtime-generation object and rebuilds through production
+load/reconcile doors; only strict initial configuration, modeled external
+facts, and the normalized journal may survive or reconstruct the test world.
+Application projects may wrap the generic Timeline in domain verbs, but those
+verbs must lower to Petrus-owned normalized events rather than importing
+application policy into Petrus.
+
 ## Top-level shape
 
 | Field | Exact shape and meaning |
