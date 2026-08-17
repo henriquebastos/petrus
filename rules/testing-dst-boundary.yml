@@ -1,0 +1,12 @@
+id: testing-dst-boundary
+language: python
+severity: error
+message: The supported testing kernel must remain runtime-neutral and cannot import Petrus product or private runtime modules.
+files:
+  - src/petrus/testing/**/*.py
+rule:
+  any:
+    - kind: import_statement
+      regex: '(^import\s+|,\s*)petrus(?:\.|\s|,|$)'
+    - kind: import_from_statement
+      regex: '^from petrus(?:\.|\s)'

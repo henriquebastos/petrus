@@ -2,7 +2,7 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 is Done and the supported cross-project petrus.testing.dst boundary is accepted; DS2's smallest executable vertical slice is in implementation
+status_reason: CV19.DS1 is Done and DS2's supported petrus.testing.dst/v1 executable-world vertical slice is implemented; broader DS2 fault/bound/failure-retention work remains active
 updated: 2026-08-17
 related:
   - ../../../../src/petrus/simulation.py
@@ -136,8 +136,10 @@ the minimized expanded scenario becomes the durable regression fixture.
 2. [CV19.DS2 — Deterministic event and fault harness](cv19-ds2-deterministic-event-and-fault-harness.md)
    runs production Engine/Coordinator behavior under one bounded logical event
    scheduler with faulting adapters and crash reconstruction. Its generic
-   executor/profile design and supported test-kit surface are accepted;
-   implementation is active.
+   executor/profile design and supported test-kit surface are accepted. The
+   first public-Engine crash/recovery slice and strict world replay are
+   implemented; seeded choices, the broader fault/cut matrix, remaining
+   bounds, and interpreter-failure retention keep DS2 active.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)
    adds broad and targeted workload generation, independent models/checkers,
    shrinking, semantic coverage, and durable replay fixtures.
@@ -189,8 +191,8 @@ and real-backend/process routes each retain their own evidence and limits.
 - Reimplementing production logic inside the simulator.
 - Tiger Style's Zig-specific no-allocation rule, zero-dependency policy, blanket
   recursion ban, or numeric assertion/function-size rules.
-- A package-support or public-API claim for DST infrastructure before a later
-  explicit decision.
+- Additional package-support or API compatibility claims for DST
+  infrastructure without an explicit accepted decision and version identity.
 
 ## Grounding and cautions
 

@@ -1,0 +1,10 @@
+id: testing-dst-boundary
+valid:
+  - import hashlib
+  - from pydantic import BaseModel
+invalid:
+  - import petrus
+  - import petrus.engine
+  - import os, petrus.impetus
+  - from petrus import Engine
+  - from petrus.engine import Engine

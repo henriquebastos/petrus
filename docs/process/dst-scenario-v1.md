@@ -26,13 +26,14 @@ interpretation, or widened profile ceiling requires an explicit compatibility
 decision and a version or profile change. A new application profile may be
 registered under the same scenario profile when it preserves this envelope.
 
-DS2's proposed generic cross-project World/profile protocol does not preserve
+DS2's supported generic cross-project World/profile protocol does not preserve
 this envelope: it adds normalized application commands, opaque runtime
 generations, scheduled follow-up proposals, checker manifests, and explicit
 abrupt-drop semantics. It therefore cannot be represented as another version 1
 application profile. The current `engine-coordinator-v1` proof remains
-replayable unchanged; any generic artifact has a new explicit format or version
-and separately pinned test-kit API compatibility.
+replayable unchanged. The accepted generic contract is specified separately by
+[`dst-world-v1`](dst-world-v1.md), with its own artifact format and pinned
+test-kit API compatibility.
 
 The artifact is data only. JSON values may contain null, booleans, strict
 numbers, strings, arrays, and string-keyed objects. It cannot contain a Python

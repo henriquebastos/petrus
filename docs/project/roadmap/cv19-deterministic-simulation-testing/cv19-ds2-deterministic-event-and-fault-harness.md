@@ -2,12 +2,13 @@
 code: CV19.DS2
 level: Delivery Story
 status: Active
-status_reason: The supported petrus.testing.dst compatibility surface is accepted; the smallest generic World and public-Engine profile vertical slice is in implementation
+status_reason: The accepted petrus.testing.dst/v1 kernel and public-Engine crash/recovery vertical slice are implemented; DS2 remains active for seeded choices, broader cuts/adapters/bounds, and interpreter-failure retention
 updated: 2026-08-17
 related:
   - index.md
   - cv19-ds1-correctness-and-simulation-contract.md
   - ../../decisions/records/2026-08-17T2249Z-ship-a-supported-cross-project-dst-test-kit.md
+  - ../../../process/dst-world-v1.md
 ---
 
 # CV19.DS2 — Deterministic event and fault harness
@@ -171,6 +172,80 @@ format rather than silently widening that fixture contract.
    DS2 seam must be added or isolated in a killable process.
 5. DS3 generators and shrinkers emit the same normalized commands after the
    vertical profiles prove the interpreter and replay path.
+
+## Implemented vertical slice
+
+The first accepted slice now ships under the supported defining module
+`petrus.testing.dst` with API identity `petrus.testing.dst/v1`. Its distinct
+strict artifact is `petrus-dst-world` version 1; DS1's
+`petrus-dst-scenario` version 1 remains byte-for-byte unchanged.
+
+The slice proves one executable pytest World/Timeline story through the real
+public Engine surface:
+
+1. create a fresh Engine generation and run until an Activity is pending;
+2. activate the profile-validated `projection.raise` fault at the named
+   `activity_terminal_frozen` cut;
+3. accept the terminal result and observe the frozen terminal plus refused
+   projection;
+4. revoke the Timeline, abruptly drop the generation without semantic
+   settlement, and reject stale use;
+5. construct a fresh Engine/History/Dispatch/handler graph through `load`;
+6. enter the fair phase and converge through projection-only recovery; and
+7. generate and replay the same 15 expanded operations with exact checker
+   entries, journal digest, and ending disposition.
+
+All authored support and retained evidence live together under `tests/dst/`.
+The application profile returns detached follow-up proposals; only the World
+validates, orders, journals, and executes them. Checkers consume detached
+History-derived observations after legal atomic boundaries and fresh load.
+The production module has no Coordinator, Engine, or mutable runtime-handle
+export and no Petrus-root re-export.
+
+Focused evidence includes strict profile/fault validation, constructor cleanup,
+all generic budget classes, total queue ordering, logical-time advancement,
+fair-phase interference refusal, pending-work refusal for every authored
+ending, stale-generation rejection, strict JSON/artifact refusal, exact
+registry/digest matching, same-interpreter replay, and deterministic replay
+CLI output.
+
+### Acceptance assessment after the slice
+
+| Done condition | Slice result |
+| --- | --- |
+| 1. Accepted defining-module compatibility surface | Met by the accepted decision, `petrus.testing.dst/v1`, exact identities, no root/private exports, and [`dst-world-v1`](../../../process/dst-world-v1.md). |
+| 2. Imperative story emits replay data | Met by `tests/dst/engine_world.py` and the retained world fixture. |
+| 3. Same-interpreter replay agreement | Met for the projection refusal/crash/recovery story, including exact operations, checker observations, disposition, and journal digest. |
+| 4. Seeded repeatability | Partial: deterministic stable IDs and total ordering are proved, but explicit separable seeded choice streams remain. |
+| 5. Abrupt generation reconstruction | Met for the public-Engine profile, including revoke-before-drop and stale Timeline refusal. |
+| 6. Named cuts before/after durable acceptance | Partial: one terminal-frozen projection cut is proved; the broader pre/post-acceptance matrix remains. |
+| 7. Complete bounds | Partial: action, queue, logical-time/advance, reload, predicate, and artifact limits are executable; profile-retained-data and wall-clock watchdog qualification remain. |
+| 8. Checker cadence and fair draining | Met for the vertical slice; broader independent S1–S8 checker coverage belongs to the remaining DS2/DS3 work. |
+| 9. Hermetic real-runtime execution | Met for the vertical slice: no credentials, providers, network sleeps, or substitute Petrus semantics. |
+| 10. Repository gates | Met for this slice: focused DST, full, and both release-order suites pass. |
+
+Version 1 artifacts intentionally retain only authored endings. Live budget
+and checker failures are explicit, but the format refuses to claim replay for
+an interpreter failure whose attempted operation is not yet serialized.
+Failure-attempt retention requires an explicit artifact evolution before DS2
+can close; it is not hidden as a passing replay.
+
+### Executed evidence
+
+- `UV_FROZEN=1 uv run pytest -q tests/dst` — 45 passed.
+- `UV_FROZEN=1 uv run python -m tests.dst.replay_world
+  tests/dst/fixtures/projection-crash-recovery-world-v1.json` — `pass`,
+  `converged`, 15 operations, 25 journal entries, digest
+  `sha256:609247836dae1f306b34e5d7308901c10f95db2207fa0e583c446d98354cab74`.
+- `scripts/check full` — 2,226 passed.
+- `scripts/check release` — default order 2,226 passed; additional fixed order
+  2,226 passed with 17 intentionally deselected by the release profile.
+- `UV_FROZEN=1 uv run ast-grep test --skip-snapshot-tests` — all 19
+  architectural rule fixtures passed, including the runtime-neutral supported
+  test-kit boundary.
+- `UV_FROZEN=1 uv build --out-dir /tmp/petrus-dst-dist` plus wheel listing —
+  built the sdist and wheel and confirmed both `petrus/testing/__init__.py` and
+  `petrus/testing/dst.py` are packaged.
 
 ## Acceptance / Done condition
 
