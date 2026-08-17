@@ -1,12 +1,13 @@
 ---
 code: CV19.DS1.TS1
 level: Technical Story
-status: Active
-status_reason: Runtime seams and correctness obligations are being traced to production code, decisions, and executable evidence
+status: Done
+status_reason: The focused DST owner now freezes evidence-graded seams, cuts, properties, taxonomies, bounds, coverage, and compatibility without finding a DS2 blocker
 updated: 2026-08-17
 related:
   - index.md
   - cv19-ds1-correctness-and-simulation-contract.md
+  - ../../../process/deterministic-simulation-testing.md
 ---
 
 # CV19.DS1.TS1 — Runtime correctness inventory
@@ -47,6 +48,34 @@ matter, and what every bounded run must check.
   randomness, sleeps, task scheduling, and provider calls.
 - Check every retained claim against executable evidence or an authoritative
   decision and grade its provenance.
+
+## Delivered Evidence
+
+- [`docs/process/deterministic-simulation-testing.md`](../../../process/deterministic-simulation-testing.md)
+  is the focused owner. It distinguishes existing test, hosted simulation,
+  DST replay/campaign, and real-adapter evidence; classifies controlled and
+  external nondeterminism; and freezes the initial durable cuts, executable
+  safety/fair-liveness properties, event/fault vocabulary, dispositions,
+  bounds, semantic coverage, and qualification split.
+- The inventory found no Engine/Coordinator semantic nondeterminism blocker
+  for DS2 when the profile supplies instance identity and logical time, pins
+  built-in deterministic policies, scripts existing Dispatch/History doors,
+  and drives production actions explicitly. It also states the stop rule if
+  implementation discovers a bypassing choice.
+- The `implementation-free-v1` public result profile remains unchanged and is
+  explicitly separate from the planned internal `engine-coordinator-v1` DST
+  scenario profile.
+- The evidence-focused test route passed **481 tests** across hosted
+  simulation, Engine/Coordinator, identity, ingress, replay properties,
+  timers, selection, History backends, Activity integration, Local/ZeroMQ,
+  and hermetic Gondolin behavior. One explicitly real-Gondolin acceptance test
+  skipped because its SDK module and image were not configured; TS1 makes no
+  real-provider qualification claim.
+- The repository-required `scripts/check full` route passed lint, formatting,
+  production type checking, ast-grep, and **2,181 tests** with no skips in the
+  routine profile.
+- Every local Markdown link in the CV19 roadmap and focused owner resolved, and
+  `git diff --check` passed.
 
 ## Out of Scope
 

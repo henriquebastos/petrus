@@ -2,7 +2,7 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 is defining the correctness, scenario, replay, and Driver-guidance contract before harness implementation
+status_reason: CV19.DS1.TS1 froze the evidence-backed correctness boundary; TS2 is defining and replay-validating the strict scenario artifact
 updated: 2026-08-17
 related:
   - ../../../../src/petrus/simulation.py
@@ -127,9 +127,9 @@ the minimized expanded scenario becomes the durable regression fixture.
 ## Delivery
 
 1. [CV19.DS1 — Correctness and simulation contract](cv19-ds1-correctness-and-simulation-contract.md)
-   is active. Its three bounded children inventory runtime correctness seams,
-   establish a strict scenario/replay contract, and route conditional
-   complex-system guidance before a broad harness is built.
+   is active. Its runtime inventory is Done; the strict scenario/replay
+   contract is active, after which it routes conditional complex-system
+   guidance before a broad harness is built.
 2. [CV19.DS2 — Deterministic event and fault harness](cv19-ds2-deterministic-event-and-fault-harness.md)
    runs production Engine/Coordinator behavior under one bounded logical event
    scheduler with faulting adapters and crash reconstruction.
