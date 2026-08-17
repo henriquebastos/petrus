@@ -1,11 +1,14 @@
 ---
 code: CV19.DS1
 level: Delivery Story
-status: Planned
-status_reason: The reusable DST contract, ownership boundaries, and project guidance have not yet been frozen
+status: Active
+status_reason: TS1 is inventorying runtime seams and correctness obligations before the scenario contract and Driver guidance are finalized
 updated: 2026-08-17
 related:
   - index.md
+  - cv19-ds1-ts1-runtime-correctness-inventory.md
+  - cv19-ds1-ts2-strict-scenario-replay-contract.md
+  - cv19-ds1-us1-complex-system-correctness-guidance.md
 ---
 
 # CV19.DS1 — Correctness and simulation contract
@@ -48,6 +51,19 @@ property testing, fault injection, and full system simulation.
 - Name Python-specific invariant policy: production correctness must not depend
   on removable `assert` statements, while test-only assertions and Hypothesis
   invariants remain appropriate.
+
+## Delivery
+
+1. [CV19.DS1.TS1 — Runtime correctness inventory](cv19-ds1-ts1-runtime-correctness-inventory.md)
+   maps nondeterminism, durable cuts, safety/liveness, events, faults, bounds,
+   dispositions, coverage, ownership, and compatibility to current production
+   seams and executable evidence.
+2. [CV19.DS1.TS2 — Strict scenario and replay contract](cv19-ds1-ts2-strict-scenario-replay-contract.md)
+   specifies the versioned strict-data artifact and proves one existing
+   projection-crash recovery route fits and replays from data alone.
+3. [CV19.DS1.US1 — Complex-system correctness guidance](cv19-ds1-us1-complex-system-correctness-guidance.md)
+   gives future Drivers one conditional route and focused correctness-sketch
+   template without adding another delivery lifecycle.
 
 ## Acceptance / Done condition
 

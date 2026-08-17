@@ -1,8 +1,8 @@
 ---
 code: CV19
 level: Value
-status: Planned
-status_reason: Petrus has deterministic semantic and crash-recovery foundations, but no unified seeded event-and-fault simulator or campaign discipline yet
+status: Active
+status_reason: CV19.DS1 is defining the correctness, scenario, replay, and Driver-guidance contract before harness implementation
 updated: 2026-08-17
 related:
   - ../../../../src/petrus/simulation.py
@@ -127,9 +127,9 @@ the minimized expanded scenario becomes the durable regression fixture.
 ## Delivery
 
 1. [CV19.DS1 — Correctness and simulation contract](cv19-ds1-correctness-and-simulation-contract.md)
-   inventories nondeterminism and durable boundaries, freezes safety/liveness,
-   fault taxonomy, bounds, scenario/replay form, and project-level agent
-   guidance before a broad harness is built.
+   is active. Its three bounded children inventory runtime correctness seams,
+   establish a strict scenario/replay contract, and route conditional
+   complex-system guidance before a broad harness is built.
 2. [CV19.DS2 — Deterministic event and fault harness](cv19-ds2-deterministic-event-and-fault-harness.md)
    runs production Engine/Coordinator behavior under one bounded logical event
    scheduler with faulting adapters and crash reconstruction.
