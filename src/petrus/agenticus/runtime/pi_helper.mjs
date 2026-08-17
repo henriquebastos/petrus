@@ -138,7 +138,10 @@ try {
         [start.provider,start.model,start.prompt,start.cwd,start.root,start.session_id].some(x=>typeof x!=="string"||!x) ||
         (apiMode&&(typeof start.api_key!=="string"||!start.api_key)) || (nativeMode&&(typeof start.auth!=="string"||!start.auth)) ||
         !path.isAbsolute(start.cwd) || !path.isAbsolute(start.root) || !crypto.randomUUID ||
-        Object.keys(start.schemas).sort().join() !== [...METHODS].sort().join()) throw new Error("protocol");
+        !start.schemas || Array.isArray(start.schemas) || typeof start.schemas!=="object" ||
+        !Object.keys(start.schemas).length || Object.keys(start.schemas).some(method=>!METHODS.includes(method))){
+      reader.close();throw new Error("protocol");
+    }
     maxFrame=start.limits.frame;
     const root=fs.realpathSync(start.root);
     const ownedDir = name => { const p=path.join(root,name); fs.mkdirSync(p,{mode:0o700}); return p; };
@@ -177,7 +180,7 @@ try {
       manager=sdk.SessionManager.create(start.cwd,sessionDir,{id:start.session_id});
     }
     let calls=0;
-    const customTools=METHODS.map(method=>sdk.defineTool({name:method,label:method,description:"Agenticus workspace capability",parameters:start.schemas[method],execute:async(toolCallId,params,signal)=>{
+    const customTools=Object.keys(start.schemas).map(method=>sdk.defineTool({name:method,label:method,description:"Agenticus workspace capability",parameters:start.schemas[method],execute:async(toolCallId,params,signal)=>{
       if(stopping||++calls>start.limits.tools) throw new Error("aborted");
       const encoded=JSON.stringify(params); if(Buffer.byteLength(encoded)>8192) throw new Error("input");
       if(typeof toolCallId!=="string"||!toolCallId||Buffer.byteLength(toolCallId)>128||waiting.has(toolCallId))throw new Error("input");

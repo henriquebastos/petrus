@@ -761,7 +761,7 @@ def test_helper_syntax_and_exact_hands_bounds() -> None:
     assert subprocess.run(("node", "--check", str(helper)), capture_output=True, check=False).returncode == 0
     source = helper.read_text()
     assert "maxItems:4" in source and "maxLength:64" in source
-    assert "maxLength:8" in source and "maxLength:256" in source
+    assert "maxLength:8" in source and "maxLength:1024" in source
 
 
 @pytest.mark.qualification_installation

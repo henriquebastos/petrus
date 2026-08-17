@@ -595,6 +595,9 @@ class _SubprocessClient:
         self._config, self._inv, self._prior = config, invocation, prior
         if (api_key is None) == (native_auth is None):
             raise RuntimeProtocolError("credential-invalid")
+        grant = invocation.attachment.grants().current()
+        if grant is None or grant.grant_epoch != invocation.grant_epoch:
+            raise RuntimeProtocolError("grant-mismatch")
         env = {"HOME": str(private_root), "PATH": str(Path(node).parent), "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"}
         try:
             self._process = subprocess.Popen(
@@ -622,7 +625,7 @@ class _SubprocessClient:
             "root": str(private_root),
             "session_id": session_id,
             "session": base64.b64encode(prior.session_jsonl).decode() if prior else None,
-            "schemas": _SCHEMAS,
+            "schemas": {method.value: _SCHEMAS[method.value] for method in ToolMethod if method in grant.capabilities},
             "limits": {
                 "frame": config.max_frame_bytes,
                 "output": config.max_output_bytes,

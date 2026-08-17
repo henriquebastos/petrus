@@ -1036,6 +1036,7 @@ def test_package_source_versions_node_syntax_and_credential_free_probe_shape() -
     assert app.PI_APPLICATION_SOURCE_COMMIT == native.PI_SDK_SOURCE_COMMIT
     helper = Path(app.__file__).with_name("pi_application_helper.mjs")
     assert subprocess.run(("node", "--check", str(helper)), capture_output=True, check=False).returncode == 0
+    assert "maxLength:1024" in helper.read_text()
 
 
 @pytest.mark.qualification_installation

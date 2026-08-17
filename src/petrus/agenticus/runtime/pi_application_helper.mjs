@@ -10,7 +10,7 @@ const SCHEMAS={
   workspace_read:{type:"object",properties:{path:{type:"string",minLength:1,maxLength:64}},required:["path"],additionalProperties:false},
   workspace_search:{type:"object",properties:{query:{type:"string",minLength:1,maxLength:64},path:{type:"string",minLength:1,maxLength:64}},required:["query","path"],additionalProperties:false},
   workspace_shell:{type:"object",properties:{argv:{type:"array",minItems:1,maxItems:4,items:{type:"string",minLength:1,maxLength:64}},cwd:{type:"string",minLength:1,maxLength:8}},required:["argv","cwd"],additionalProperties:false},
-  workspace_write:{type:"object",properties:{path:{type:"string",minLength:1,maxLength:64},content:{type:"string",maxLength:256}},required:["path","content"],additionalProperties:false},
+  workspace_write:{type:"object",properties:{path:{type:"string",minLength:1,maxLength:64},content:{type:"string",maxLength:1024}},required:["path","content"],additionalProperties:false},
   workspace_test:{type:"object",properties:{},additionalProperties:false},
 };
 let frameLimit=16*1024*1024,eventLimit=10000,eventCount=0;
