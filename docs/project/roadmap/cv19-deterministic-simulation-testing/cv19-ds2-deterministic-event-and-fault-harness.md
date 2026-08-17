@@ -1,12 +1,13 @@
 ---
 code: CV19.DS2
 level: Delivery Story
-status: Planned
-status_reason: Production Engine and Coordinator logic do not yet run under one seeded logical event-and-fault scheduler
+status: Blocked
+status_reason: Petrus and Hamsterdan agree on the generic executor/profile boundary; implementation awaits Navigator acceptance of the shipped petrus.testing.dst compatibility surface
 updated: 2026-08-17
 related:
   - index.md
   - cv19-ds1-correctness-and-simulation-contract.md
+  - ../../decisions/records/2026-08-17T2249Z-ship-a-supported-cross-project-dst-test-kit.md
 ---
 
 # CV19.DS2 — Deterministic event and fault harness
@@ -21,11 +22,15 @@ failure without executing the original Python scenario.
 
 ## Scope
 
-- Add a test-owned `World` as the composition root for deterministic logical
-  time, identities, event ordering, modeled collaborator truth, runtime
-  construction, diagnostics, and strict journal production. It constructs and
-  drives real Engine/Coordinator/Instance objects rather than mirroring their
-  decisions.
+- Subject to the linked compatibility decision, add a pytest-independent
+  defining module under `petrus.testing.dst`, with no Petrus-root re-exports.
+  It is an outer test host over registered scenario profiles, not another
+  Petrus semantic runtime.
+- Add a generic `World` as the composition root for deterministic logical
+  time, identities, total event ordering, bounded scheduling, fault
+  activation, diagnostics, checker cadence, and strict journal production.
+  A profile owns each opaque runtime generation; the World does not assume
+  that a generation contains one Engine or any other particular runtime graph.
 - Add an imperative `Timeline` authoring facade for delivery, time, Activity
   outcomes, lifecycle, faults, crash/restart, inspection, and bounded
   debugger-like `run_until` checkpoints. Scenarios remain ordinary pytest code
@@ -42,7 +47,10 @@ failure without executing the original Python scenario.
   choices, generated identifiers, and event ordering. Keep these streams
   separable enough that adding observability does not silently alter every
   choice.
-- Drive the production Engine/Coordinator doors for:
+- Add a Petrus-owned profile which drives production behavior only through
+  public Engine doors. It does not export or retain a private Coordinator,
+  mutable Instance, History, or Dispatch handle for application consumers.
+  That profile covers:
   - identified source deliveries and redelivery;
   - timer observation and maturation;
   - candidate selection and firing;
@@ -62,28 +70,135 @@ failure without executing the original Python scenario.
 - Serialize every expanded authored or generated run and replay it without
   consulting the original Python scenario or PRNG.
 
+## Cross-project compatibility contract
+
+Petrus CV19 and Hamsterdan CV18 use one architecture at different abstraction
+layers. The following is their joint design; it does not by itself approve the
+new supported package surface.
+
+| Owner | Responsibility |
+| --- | --- |
+| Petrus DST kernel | Clock, stable ids, total queue order, normalized interpreter, bounds, named cuts, fair-phase control, generation revocation, checker cadence, journal, artifacts, replay, and dispositions. |
+| Petrus Engine profile | The vertical Petrus implementation through public Engine create/load/advance/deliver/scope/records/snapshot/close doors only. |
+| Application profile | Complete opaque host-generation composition, simulated provider truth and effects, boundary-faithful adapters, application command validation, detached observations, external-world reconstruction, and abrupt-drop implementation. |
+| Application Timeline | Domain verbs and named debugger-like checkpoints which lower to the same normalized interpreter. |
+| Application oracle/checkers | Expected authority, effects, and readiness derived independently from authored external facts rather than Petrus topology or host folds. |
+| DS3 generator/shrinker | Production and minimization of the same normalized commands and fair schedules, never a second executor. |
+
+There is exactly one executor. Hand-authored Timeline calls, generated
+schedules, and artifact replay all submit normalized commands to that
+interpreter. Imperative Python is an authoring frontend only. Python callbacks
+and predicates do not enter artifacts; the commands executed while reaching a
+named checkpoint, scheduler choices, observations, checker outcomes, and final
+disposition do.
+
+### Profile and scheduling boundary
+
+A registered profile has an exact identity, profile version, and implementation
+digest. It owns an opaque generation and provides strict operations equivalent
+to `validate`, `create`, `load`, `apply`, `observe`, abrupt `drop`, and graceful
+`close`. The exact Python spellings remain an implementation detail until the
+package decision is accepted.
+
+- `create` and `load` return the opaque generation plus detached strict
+  proposals for any initially eligible work. They do not secretly execute or
+  enqueue that work.
+- `ScenarioContext` may expose deterministic clock reads, stable id allocation,
+  active fault evaluation, and instrumentation. It cannot schedule work,
+  recursively enter the interpreter, or expose private runtime objects.
+- `apply` performs one profile-defined atomic operation and returns detached
+  strict values plus zero or more `ScheduledCommand` proposals. The World
+  validates every proposal, assigns sequence and tie order, checks bounds,
+  journals it, and alone decides when it executes.
+- Application-defined command names, payloads, observations, and eligible
+  actions are validated by the profile. The kernel never learns provider or
+  readiness semantics.
+- Observations and apply results contain detached strict data only. They cannot
+  retain a generation or another mutable host object.
+
+Checkers run after every accepted atomic interpreter action or event and after
+every successful fresh load, never in the middle of a profile operation. They
+receive detached observations and modeled world facts rather than a live
+generation. Checker identity, version, and digest form an explicit manifest in
+the artifact.
+
+### Runtime generations and lifecycle
+
+Graceful shutdown and simulated process crash are different operations:
+
+- `close` is graceful final cleanup and may perform the settlement promised by
+  the production host contract;
+- `drop` is best-effort disposal of volatile resources with **no semantic
+  settlement**; and
+- the World revokes the current generation before invoking `drop`, rejects
+  stale-generation use, and reconstructs only through the registered `load`
+  factory from retained configuration, durable stores, and modeled external
+  truth.
+
+The generic contract prescribes these observable semantics, not whether an
+application implements abrupt loss through a killable process or a narrow
+application-owned resource-drop seam.
+
+### Fairness and replay
+
+Entering a fair phase is an explicit journaled operation. The World may not
+indefinitely withhold an eligible delivery, Activity, or timer action after
+that point, but it can schedule only actions the profile reports eligible.
+Fairness cannot invent a provider response or human decision.
+
+The expanded schedule is authoritative; a seed is provenance. Test-kit API
+compatibility, artifact schema version, profile identity/digest, and checker
+manifest/digests are separate pins and fail closed by default. DS1's
+`petrus-dst-scenario` version 1 and `engine-coordinator-v1` proof remain
+unchanged. The generic kernel uses a new explicit artifact/profile version or
+format rather than silently widening that fixture contract.
+
+## Delivery sequence
+
+1. Record Navigator disposition of the linked compatibility decision before
+   promising a shipped test-kit surface.
+2. Implement the smallest Petrus vertical slice: authored Timeline command →
+   normalized interpreter; deterministic named `run_until`; one named cut;
+   generation revoke and abrupt drop; fresh public-Engine load; stale-use
+   refusal; checker cadence; strict expanded artifact; and replay through the
+   identical interpreter with the same normalized outcome and disposition.
+3. Obtain Petrus acceptance of that supported seam before Hamsterdan updates
+   its normal Petrus Git pin. Hamsterdan must not consume Petrus `tests/dst` or
+   local-only code.
+4. Hamsterdan then implements its opaque HostService profile, independent
+   readiness oracle, and one real-host vertical scenario. Its current graceful
+   `HostService.close()` is not an abrupt crash door; that application-owned
+   DS2 seam must be added or isolated in a killable process.
+5. DS3 generators and shrinkers emit the same normalized commands after the
+   vertical profiles prove the interpreter and replay path.
+
 ## Acceptance / Done condition
 
-1. One focused scenario reads as an imperative World/Timeline pytest story,
+1. Any supported test-kit surface has an accepted compatibility decision,
+   defining-module imports, an explicit API compatibility declaration, and no
+   root re-exports or private Coordinator/runtime-handle escape hatch.
+2. One focused scenario reads as an imperative World/Timeline pytest story,
    runs in the ordinary gate, and emits the same normalized expanded schedule
    consumed by its data-only replay.
-2. Replaying the same expanded scenario at the same commit produces the same
+3. Replaying the same expanded scenario at the same commit produces the same
    accepted History, snapshots, checker observations, terminal disposition,
    and failure location.
-3. Two fresh seeded runs with the same profile produce the same expanded
+4. Two fresh seeded runs with the same profile produce the same expanded
    scenario, while replay remains authoritative if future code changes PRNG
    consumption.
-4. A process crash discards all declared volatile objects and resumes only
-   through production load/reconcile paths; the test cannot retain a hidden
-   live Instance or Coordinator.
-5. Faults can target named semantic cuts before and after durable acceptance,
+5. A process crash revokes the old generation before abrupt disposal, performs
+   no graceful settlement, rejects stale use, discards all declared volatile
+   objects, and resumes only through production load/reconcile paths.
+6. Faults can target named semantic cuts before and after durable acceptance,
    not arbitrary implementation line numbers.
-6. Every run and `run_until` checkpoint is bounded by events, actions, logical
+7. Every run and `run_until` checkpoint is bounded by events, actions, logical
    time, retained data, pending work, and wall-clock test budget, and reports
    which bound ended it.
-7. The harness runs without credentials, real providers, network sleeps, or a
+8. Checkers execute at every legal atomic boundary and fresh load over detached
+   data, and a fair phase drains only profile-declared eligible work.
+9. The harness runs without credentials, real providers, network sleeps, or a
    second implementation of Petrus semantics.
-8. Existing simulation, unit, integration, full, and release gates remain green.
+10. Existing simulation, unit, integration, full, and release gates remain green.
 
 ## Driver QA and evidence plan
 
@@ -108,4 +223,5 @@ failure without executing the original Python scenario.
 - Fidelity claims for real databases, kernels, sockets, or hardware.
 - Simulated arbitrary byte corruption before a concrete Petrus property and
   adapter contract justify it.
-- Public API stability for harness internals.
+- Public API stability for implementation details outside the accepted
+  defining-module contract.
