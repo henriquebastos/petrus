@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from scripts.dst_replay import APPLICATION_DIGEST, FORMAT, PROFILE, VERSION, load_scenario, replay_scenario
+from tests.dst.replay import APPLICATION_DIGEST, FORMAT, PROFILE, VERSION, load_scenario, replay_scenario
 
 
 FIXTURE = Path("tests/dst/fixtures/projection-crash-recovery-v1.json")
@@ -67,7 +67,7 @@ def test_projection_crash_fixture_replays_through_fresh_production_engines() -> 
 
 
 def test_replay_command_emits_one_strict_passing_result() -> None:
-    command = [sys.executable, "scripts/replay-dst-scenario.py", str(FIXTURE)]
+    command = [sys.executable, "-m", "tests.dst.replay", str(FIXTURE)]
     completed = subprocess.run(
         command,
         check=True,

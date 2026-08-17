@@ -7,7 +7,7 @@ This document specifies the strict, portable replay artifact for the
 `engine-coordinator-v1` deterministic simulation testing profile defined by
 the [DST correctness owner](deterministic-simulation-testing.md). The Python
 contract and the first narrow replay application live in
-[`scripts/dst_replay.py`](../../scripts/dst_replay.py).
+[`tests/dst/replay.py`](../../tests/dst/replay.py).
 
 ## Identity and evolution
 
@@ -125,7 +125,7 @@ string-or-null `error`. The closed kinds are:
 
 Only `projection_raise` carries a non-null `error`. Every other fault requires
 null. The allowed kind/cut combinations are exactly those in
-[`ScenarioFault.allowed_cut`](../../scripts/dst_replay.py); the source and
+[`ScenarioFault.allowed_cut`](../../tests/dst/replay.py); the source and
 correctness table change together. Counts across a schedule may not exceed
 `limits.faults`. Crash and restart events pair and alternate from a live
 initial runtime.
@@ -173,7 +173,7 @@ encodes the existing regression where:
 Run it from the repository root:
 
 ```bash
-UV_FROZEN=1 uv run python scripts/replay-dst-scenario.py \
+UV_FROZEN=1 uv run python -m tests.dst.replay \
   tests/dst/fixtures/projection-crash-recovery-v1.json
 ```
 

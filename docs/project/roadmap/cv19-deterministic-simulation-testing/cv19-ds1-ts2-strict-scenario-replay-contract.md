@@ -9,7 +9,7 @@ related:
   - cv19-ds1-correctness-and-simulation-contract.md
   - cv19-ds1-ts1-runtime-correctness-inventory.md
   - ../../../process/dst-scenario-v1.md
-  - ../../../../scripts/dst_replay.py
+  - ../../../../tests/dst/replay.py
   - ../../../../tests/dst/fixtures/projection-crash-recovery-v1.json
 ---
 
@@ -62,7 +62,7 @@ contract instead of relying on a seed, closures, or live runtime objects.
   limits, an expanded six-step schedule, the named terminal-frozen cut, and
   exact step/final expectations as data only. Live collaborators are selected
   by a digest-pinned replay-side application catalog entry, never serialized.
-- `UV_FROZEN=1 uv run python scripts/replay-dst-scenario.py
+- `UV_FROZEN=1 uv run python -m tests.dst.replay
   tests/dst/fixtures/projection-crash-recovery-v1.json` emitted one stable
   passing result twice: nine exact History record kinds, terminal `done`
   marking, no in-flight or pending Activity, one projection after restart,

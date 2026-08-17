@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 from dataclasses import dataclass
@@ -711,3 +712,16 @@ def replay_scenario(scenario: ScenarioArtifact) -> ReplayReport:
             observations=observations,
             checks=expected_checks,
         )
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("scenario", type=Path, help="strict petrus-dst-scenario JSON artifact")
+    arguments = parser.parse_args()
+    report = replay_scenario(load_scenario(arguments.scenario))
+    print(json.dumps(report.as_dict(), allow_nan=False, separators=(",", ":"), sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
