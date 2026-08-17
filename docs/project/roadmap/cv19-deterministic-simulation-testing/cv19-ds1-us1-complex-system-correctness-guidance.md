@@ -1,14 +1,17 @@
 ---
 code: CV19.DS1.US1
 level: User Story
-status: Active
-status_reason: TS1 and TS2 now provide the focused contract and concrete replay route that project guidance must retrieve conditionally
+status: Done
+status_reason: Both project entry points now conditionally route correctness-sensitive work to one complete sketch and replay workflow without burdening ordinary work
 updated: 2026-08-17
 related:
   - index.md
   - cv19-ds1-correctness-and-simulation-contract.md
   - cv19-ds1-ts1-runtime-correctness-inventory.md
   - cv19-ds1-ts2-strict-scenario-replay-contract.md
+  - ../../../../AGENTS.md
+  - ../../../process/development-guide.md
+  - ../../../process/deterministic-simulation-testing.md
 ---
 
 # CV19.DS1.US1 — Complex-system correctness guidance
@@ -46,6 +49,21 @@ statements, while tests and Hypothesis invariants may use assertions.
 - Follow only the new concise route from `AGENTS.md` and confirm it reaches the
   complete contract and replay command.
 - Run documentation/coherence checks and the repository-required full gate.
+
+## Delivered Evidence
+
+- `AGENTS.md` and the local development guide each add one concise conditional
+  route for durable, concurrent, stateful, or externally effectful work. Both
+  point to the same focused DST owner and explicitly avoid a second lifecycle
+  or mandatory artifact for ordinary work.
+- The focused owner now carries the seven-part correctness sketch,
+  replay-before-fix flow, minimized-scenario promotion rules, and the explicit
+  production/test distinction for Python `assert`.
+- A progressive-retrieval probe followed both entry points through the focused
+  owner to the strict scenario contract and concrete replay command. The
+  repository-wide local Markdown link scan and `git diff --check` passed.
+- The repository-required `scripts/check full` route passed lint, formatting,
+  production type checking, ast-grep, and **2,198 tests**.
 
 ## Out of Scope
 

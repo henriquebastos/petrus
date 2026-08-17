@@ -91,6 +91,19 @@ Use the smallest feedback loop that can disprove the change, then widen confiden
 they can omit relevant tests and therefore are not final evidence. Final
 focused evidence names explicit files or node IDs before `scripts/check full`.
 
+## Correctness-Sensitive Work
+
+When work changes durable, concurrent, stateful, or externally effectful
+behavior, follow the correctness-sketch, replay-before-fix, and regression
+promotion guidance in
+[`deterministic-simulation-testing.md`](deterministic-simulation-testing.md).
+This is a conditional planning and evidence route inside the existing Ariad
+lifecycle, not a second lifecycle or a mandatory artifact for ordinary work.
+
+Production correctness must not depend on Python `assert`: use explicit
+validation, refusal, or failure behavior because optimized Python may remove
+assertions. Tests, including Hypothesis invariants, may use `assert`.
+
 Each pytest worker that needs PostgreSQL owns one session-scoped ephemeral
 container on a Docker-assigned loopback port. This isolates mutable schemas
 across parallel workers while retaining the pinned image, tmpfs storage, and

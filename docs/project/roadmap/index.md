@@ -36,7 +36,9 @@ and no live provider or multi-host support is claimed.
 ## Planned Values
 
 - [CV19 — Deterministic simulation testing](cv19-deterministic-simulation-testing/index.md):
-  turn Petrus's replayable History, injected clock and Dispatch seams, bounded
+  DS1 has frozen the correctness and strict replay contracts and proved one
+  production projection-crash recovery from portable data. DS2 is next: turn
+  Petrus's replayable History, injected clock and Dispatch seams, bounded
   simulation, property tests, and explicit crash-cut evidence into a seeded,
   replayable fault-simulation discipline over production runtime logic. Petrus
   owns the reusable substrate; applications such as Hamsterdan own their domain

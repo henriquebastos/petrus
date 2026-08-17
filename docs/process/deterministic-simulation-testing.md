@@ -16,6 +16,55 @@ scenario and replay artifact which pin that profile are specified by
 This document was frozen before implementation and remains the authority for
 the strict schema and later general harness.
 
+## Driver route for correctness-sensitive work
+
+Use this route only when a change is durable, concurrent, stateful, or
+externally effectful. Ordinary work gains no additional artifact or lifecycle.
+Before implementing a non-trivial qualifying change, put this compact
+correctness sketch in the work's existing plan or owning roadmap artifact:
+
+1. **Authoritative state** — name the durable or live owner and what can be
+   reconstructed.
+2. **Safety invariants** — state what must never become observable.
+3. **Liveness assumptions** — name the fair environment under which progress
+   is required and the external waits that suspend the claim.
+4. **Bounds and overflow** — bound work, queues, retries, payloads, time, and
+   retained state that the change can grow; name each exhaustion,
+   backpressure, refusal, or quarantine behavior.
+5. **Nondeterministic inputs** — list time, identities, scheduling, delivery,
+   storage outcomes, provider outcomes, and randomness; identify the owned
+   seam or explicit exclusion for each.
+6. **Consequential crash cuts** — name the before/after durable boundaries
+   where interruption could change authority, duplication, loss, or recovery.
+7. **Independent judgment** — name the checker or exact model that can judge
+   recorded behavior independently of the implementation, or state why one is
+   impractical and what weaker evidence substitutes for it.
+
+The sketch scales to risk and reuses the story's existing surfaces; do not
+create a correctness document merely to copy this list. If the work changes
+the shared DST profile, update this owner and the strict artifact contract
+together.
+
+For a replayable defect, reproduce before fixing: run the exact retained
+scenario or smallest existing crash/property node, preserve its expanded
+schedule and failing observation, then change the production owner rather than
+special-casing the fixture. After the fix, replay from fresh runtime objects,
+run the focused real-boundary nodes whose claims matter, and compare the same
+property and durable facts.
+
+Promote a counterexample to `tests/dst/fixtures/` only after minimizing it
+without removing the failing property or consequential cut. Retain strict
+profile/version, commit/runtime/dependency provenance, original seed, shrink
+lineage, expanded schedule, bounds, and exact expectations; pair it with an
+ordinary deterministic replay test. Generated shrinking remains DS3-owned,
+and promoting an internal artifact does not change the public
+`implementation-free-v1` contract.
+
+Production correctness must never depend on Python `assert`, which optimized
+Python may remove. Use explicit validation, refusal, or failure paths for
+runtime obligations. Test assertions and Hypothesis invariants remain the
+appropriate way to state executable test expectations.
+
 ## Evidence language
 
 - **[E] executable evidence** — the cited test or probe has exercised the

@@ -1,8 +1,8 @@
 ---
 code: CV19.DS1
 level: Delivery Story
-status: Active
-status_reason: TS1 and TS2 froze the correctness and strict replay contracts; US1 is now routing future correctness-sensitive work to them
+status: Done
+status_reason: The evidence-backed correctness owner, strict replay artifact, concrete production replay, and conditional Driver guidance now satisfy the DS1 contract
 updated: 2026-08-17
 related:
   - index.md
@@ -64,7 +64,7 @@ property testing, fault injection, and full system simulation.
    is Done. It specifies the versioned strict-data artifact and proves one
    existing projection-crash recovery route fits and replays from data alone.
 3. [CV19.DS1.US1 — Complex-system correctness guidance](cv19-ds1-us1-complex-system-correctness-guidance.md)
-   is active. It gives future Drivers one conditional route and focused
+   is Done. It gives future Drivers one conditional route and focused
    correctness-sketch template without adding another delivery lifecycle.
 
 ## Acceptance / Done condition
@@ -93,6 +93,27 @@ property testing, fault injection, and full system simulation.
   scheduling, and provider calls that bypass an owned seam.
 - Run documentation/coherence checks and the smallest relevant existing tests;
   this story does not claim a working simulator.
+
+## Delivered evidence
+
+- The focused DST owner maps controlled and external nondeterminism, durable
+  cuts, eight safety properties, fair convergence, closed events/faults,
+  bounds, dispositions, semantic coverage, and simulated/real qualification
+  without finding a DS2 ownership-seam blocker.
+- The strict internal scenario contract retains complete provenance, bounds,
+  expanded steps, cut-addressed faults, and exact expectations as JSON data.
+  One six-step projection-crash fixture replays through fresh production
+  Engines to nine exact History records without redispatch or re-prepare.
+- Conditional project guidance now routes only correctness-sensitive work to a
+  seven-part sketch and replay-before-fix/promotion flow; ordinary work keeps
+  the existing Ariad lifecycle unchanged.
+- Across DS1 checkpoints, focused runtime evidence, exact crash-window parity
+  nodes, strict positive/negative contract tests, concrete replay, local link
+  checks, and the repository-required full gate passed. The final full gate
+  passed all static checks and **2,198 tests**.
+- `implementation-free-v1` remains byte-compatible and unchanged. DS1 adds no
+  public package/API claim, second engine, general scheduler, provider model,
+  or real-boundary qualification claim.
 
 ## Out of scope
 

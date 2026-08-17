@@ -42,6 +42,9 @@ If a listed file does not exist, continue with the available context and mention
 - Read relevant code and documentation before changing files.
 - Preserve coherence between process, project, and product.
 - For non-trivial work, plan before implementation.
+- When work changes durable, concurrent, stateful, or externally effectful
+  behavior, follow the conditional correctness-sketch and replay guidance in
+  `docs/process/deterministic-simulation-testing.md`.
 - Use tests for behavior changes when practical.
 - Execute the concrete validation route for user-visible or product-visible work and report the evidence.
 - Update documentation in the same cycle as the change.
