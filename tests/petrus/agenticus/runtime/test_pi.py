@@ -38,7 +38,7 @@ from petrus.agenticus.connection.custody import (
 from petrus.agenticus.connection.key import KeyContext, KeyErasureEvidence
 from petrus.agenticus.connection.materialization import MaterializedState, PrivateFileMaterializer
 from petrus.agenticus.connection.storage import SqliteConnectionStorage, StorageError
-from petrus.agenticus.hands.contract import ToolMethod, ToolResult
+from petrus.agenticus.hands.contract import RejectionCategory, ToolMethod, ToolResult
 from petrus.agenticus.hands.workspace import MotusWorkspaceAdapter
 from petrus.agenticus.runtime.installation import InstalledComponent, RuntimeInstallation
 from petrus.agenticus.runtime.operation import RuntimeCleanupDisposition, RuntimeProtocolError
@@ -373,7 +373,16 @@ class Rig:
         if profile == "cc-patch-subscription":
             self.adapter._cc_patch_entrypoint = "/fake/pi-cc-patch/index.ts"
 
-    def invocation(self, name: str, *, continuation=None, selected=None, deadline=None):
+    def invocation(
+        self,
+        name: str,
+        *,
+        continuation=None,
+        selected=None,
+        deadline=None,
+        capabilities: tuple[ToolMethod, ...] | None = None,
+        max_calls: int = 16,
+    ):
         provider = LocalProcessEnvironment()
         source = self.root / f"source-{name}"
         source.mkdir()
@@ -399,12 +408,13 @@ class Rig:
             deadline=time.monotonic() + (20 if self.profile != "api-key" else 5) if deadline is None else deadline,
         )
         gateway = attachment.gateway(MotusWorkspaceAdapter(provider, binding.execution, test_command=("/bin/true",)))
+        admitted = tuple(ToolMethod) if capabilities is None else capabilities
         grant = attachment.grants().open(
-            tuple(ToolMethod),
-            writable_paths=("output.txt",),
-            allowed_argv=(("/bin/true",),),
+            admitted,
+            writable_paths=("output.txt",) if ToolMethod.WORKSPACE_WRITE in admitted else (),
+            allowed_argv=(("/bin/true",),) if ToolMethod.WORKSPACE_SHELL in admitted else (),
             deadline=attachment.deadline,
-            max_calls=16,
+            max_calls=max_calls,
         )
         return pi.PiRuntimeInvocation(
             name,
@@ -685,6 +695,181 @@ def test_private_node_helper_routes_the_provider_tool_identity_through_hands(
     assert evidence[0].call_id == "provider-tool-call"
     assert evidence[0].method is ToolMethod.WORKSPACE_READ
     assert invocation.gateway.counters().adapter_entries == 1
+    assert client.close()
+    shutil.rmtree(private_root)
+
+
+@pytest.mark.parametrize(
+    ("capabilities", "resumed"),
+    [
+        ((ToolMethod.WORKSPACE_READ, ToolMethod.WORKSPACE_SEARCH), False),
+        ((ToolMethod.WORKSPACE_READ, ToolMethod.WORKSPACE_SEARCH), True),
+        ((ToolMethod.WORKSPACE_READ, ToolMethod.WORKSPACE_SEARCH, ToolMethod.WORKSPACE_WRITE), False),
+        ((ToolMethod.WORKSPACE_READ, ToolMethod.WORKSPACE_SEARCH, ToolMethod.WORKSPACE_WRITE), True),
+    ],
+)
+def test_private_node_helper_advertises_only_the_fresh_or_resumed_operations_current_grant(
+    tmp_path: Path, capabilities: tuple[ToolMethod, ...], resumed: bool
+) -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node is required for the private helper protocol test")
+    rig = Rig(tmp_path)
+    invocation, _ = rig.invocation("filtered-tools", capabilities=capabilities)
+    private_root = rig.adapter._config.runtime_root / "filtered-tools-operation"
+    sdk = tmp_path / "filtered-tools-sdk.mjs"
+    expected = ",".join(method.value for method in capabilities)
+    sdk.write_text(
+        FRAMED_TOOL_SDK.replace(
+            "  const state={messages:[]}; const listeners=[];",
+            f"  if(options.customTools.map(value=>value.name).join()!=='{expected}') "
+            "throw new Error('advertisement');\n"
+            "  const state={messages:[]}; const listeners=[];",
+        )
+    )
+    prior = (
+        pi.PiContinuationPayloadV1(
+            SESSION,
+            pi._working_binding(rig.adapter._config.working_directory),
+            session(),
+        )
+        if resumed
+        else None
+    )
+    client = framed_tool_client(node, sdk, private_root, rig, invocation, prior)
+
+    assert tuple(client._start["schemas"]) == tuple(method.value for method in capabilities)
+    result = client.run(invocation.gateway, invocation, lambda: True, time.monotonic() + 3)
+
+    assert result.candidate is not None
+    assert not resumed or result.candidate.session_id == SESSION
+    assert invocation.gateway.evidence()[0].method is ToolMethod.WORKSPACE_READ
+    assert client.close()
+    shutil.rmtree(private_root)
+
+
+def test_private_client_keeps_gateway_authoritative_for_a_forged_known_tool(tmp_path: Path) -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node is required for the private helper protocol test")
+    rig = Rig(tmp_path)
+    invocation, _ = rig.invocation(
+        "forged-known-tool",
+        capabilities=(ToolMethod.WORKSPACE_READ,),
+        max_calls=1,
+    )
+    private_root = rig.adapter._config.runtime_root / "forged-known-tool-operation"
+    private_root.mkdir(mode=0o700)
+    helper = tmp_path / "forged-known-tool-helper.mjs"
+    helper.write_text(
+        """
+import readline from "node:readline";
+const reader=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
+const send=value=>process.stdout.write(JSON.stringify(value)+"\\n");
+let start;
+reader.on("line",line=>{
+  const frame=JSON.parse(line);
+  if(!start){
+    start=frame;send({type:"ready"});
+    send({type:"tool_call",id:"forged",method:"workspace_test",params:{}});return;
+  }
+  if(frame.type!=="tool_result")throw new Error("protocol");
+  if(frame.id==="forged"){
+    if(frame.result.ok||frame.result.error?.category!=="capability")throw new Error("authority");
+    send({type:"tool_call",id:"allowed",method:"workspace_read",params:{path:"marker.txt"}});return;
+  }
+  if(frame.id!=="allowed"||!frame.result.ok||!frame.result.data?.content?.includes("marker"))
+    throw new Error("read");
+  const body=Buffer.from(JSON.stringify({type:"session",version:3,id:start.session_id})+"\\n").toString("base64");
+  const complete={type:"complete",session_id:start.session_id,text:"answer",session:body};
+  process.stdout.write(JSON.stringify(complete)+"\\n",()=>process.exit(0));reader.close();
+});
+"""
+    )
+    client = pi._SubprocessClient(
+        node=node,
+        sdk_entrypoint="/ignored",
+        helper=helper,
+        private_root=private_root,
+        config=rig.adapter._config,
+        invocation=invocation,
+        prior=None,
+        api_key=KEY.decode(),
+        native_auth=None,
+        extension=None,
+    )
+
+    result = client.run(invocation.gateway, invocation, lambda: True, time.monotonic() + 3)
+
+    assert result.candidate is not None and result.candidate.text == "answer"
+    evidence = invocation.gateway.evidence()
+    assert [(item.method, item.ok, item.category) for item in evidence] == [
+        (ToolMethod.WORKSPACE_TEST, False, RejectionCategory.CAPABILITY),
+        (ToolMethod.WORKSPACE_READ, True, None),
+    ]
+    assert invocation.gateway.counters().adapter_entries == 1
+    assert client.close()
+    shutil.rmtree(private_root)
+
+
+def test_private_client_keeps_unknown_tools_outside_the_closed_protocol(tmp_path: Path) -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node is required for the private helper protocol test")
+    rig = Rig(tmp_path)
+    invocation, _ = rig.invocation("forged-unknown-tool", capabilities=(ToolMethod.WORKSPACE_READ,))
+    private_root = rig.adapter._config.runtime_root / "forged-unknown-tool-operation"
+    private_root.mkdir(mode=0o700)
+    helper = tmp_path / "forged-unknown-tool-helper.mjs"
+    helper.write_text(
+        """
+import readline from "node:readline";
+const reader=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
+const send=value=>process.stdout.write(JSON.stringify(value)+"\\n");
+reader.once("line",()=>{
+  send({type:"ready"});
+  send({type:"tool_call",id:"unknown",method:"future_tool",params:{}});
+});
+"""
+    )
+    client = pi._SubprocessClient(
+        node=node,
+        sdk_entrypoint="/ignored",
+        helper=helper,
+        private_root=private_root,
+        config=rig.adapter._config,
+        invocation=invocation,
+        prior=None,
+        api_key=KEY.decode(),
+        native_auth=None,
+        extension=None,
+    )
+
+    with pytest.raises(RuntimeProtocolError, match="malformed-tool-call"):
+        client.run(invocation.gateway, invocation, lambda: True, time.monotonic() + 3)
+    assert not invocation.gateway.evidence()
+    assert client.close()
+    shutil.rmtree(private_root)
+
+
+@pytest.mark.parametrize("schemas", [{}, {"future_tool": {}}])
+def test_private_node_helper_rejects_empty_or_unknown_advertised_tool_sets(
+    tmp_path: Path, schemas: dict[str, object]
+) -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node is required for the private helper protocol test")
+    rig = Rig(tmp_path)
+    invocation, _ = rig.invocation("invalid-tools")
+    private_root = rig.adapter._config.runtime_root / "invalid-tools-operation"
+    sdk = tmp_path / "invalid-tools-sdk.mjs"
+    sdk.write_text(FRAMED_TOOL_SDK)
+    client = framed_tool_client(node, sdk, private_root, rig, invocation)
+    client._start["schemas"] = schemas
+
+    with pytest.raises(RuntimeProtocolError, match="protocol-failed"):
+        client.run(invocation.gateway, invocation, lambda: True, time.monotonic() + 3)
+    assert not invocation.gateway.evidence()
     assert client.close()
     shutil.rmtree(private_root)
 
@@ -1290,6 +1475,38 @@ def test_subscription_spawn_failure_releases_before_activation(tmp_path: Path) -
 
     assert result.outcome is TurnOutcome.FAILED and result.accepted_appends == 0
     assert [kind for kind, _ in rig.custody.records] == ["materialize", "release"]
+
+
+def test_helper_construction_refuses_a_grant_replaced_after_initial_validation(tmp_path: Path) -> None:
+    rig = Rig(tmp_path)
+    invocation, attachment = rig.invocation("replaced-grant", capabilities=(ToolMethod.WORKSPACE_READ,))
+
+    class ReplacingFactory:
+        def create(self, **arguments):
+            attachment.grants().open(
+                [ToolMethod.WORKSPACE_READ],
+                deadline=attachment.deadline,
+                max_calls=1,
+            )
+            return pi._SubprocessClient(
+                helper=Path(pi.__file__).with_name("pi_helper.mjs"),
+                **arguments,
+            )
+
+    rig.adapter._factory = ReplacingFactory()
+    operation = rig.adapter.start(invocation)
+
+    result = operation.wait(3)
+
+    assert (result.outcome, result.accepted_appends, result.termination_code) == (
+        TurnOutcome.FAILED,
+        0,
+        "grant-mismatch",
+    )
+    assert [kind for kind, _ in rig.custody.records] == ["materialize", "release"]
+    assert operation.close().disposition is RuntimeCleanupDisposition.CLEAN
+    assert not tuple(rig.adapter._config.runtime_root.iterdir())
+    assert attachment.settle().settlement.verified
 
 
 def test_cc_patch_lane_rejects_native_subscription_descriptor_before_authority(tmp_path: Path) -> None:

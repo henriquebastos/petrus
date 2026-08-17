@@ -90,6 +90,19 @@ def test_unknown_malformed_and_bounds_are_safe() -> None:
     assert canary not in repr(malformed.value)
 
 
+def test_workspace_write_accepts_exact_1024_character_boundary() -> None:
+    assert MAX_CONTENT_CHARS == 1024
+    parsed = parse_tool_request(request("workspace_write", {"path": "x", "content": "x" * 1024}))
+    assert parsed.params.content == "x" * 1024
+
+    with pytest.raises(ToolRequestRejected) as oversized:
+        parse_tool_request(request("workspace_write", {"path": "x", "content": "x" * 1025}))
+    assert oversized.value.category is RejectionCategory.WRITE
+    with pytest.raises(ToolRequestRejected) as nul:
+        parse_tool_request(request("workspace_write", {"path": "x", "content": "x\0y"}))
+    assert nul.value.category is RejectionCategory.SCHEMA
+
+
 def test_grants_are_exact_finite_monotonic_and_budgeted() -> None:
     ledger = GrantLedger("attachment-1", 1)
     first = ledger.open(
