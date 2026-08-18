@@ -398,8 +398,9 @@ public Absurd Engine provider against disposable PostgreSQL. Two qualify the
 pinned commit-refusal and task-spawn-failure paths through the begin+spawn
 commit-or-vanish boundary. A third loses the joined transaction's
 acknowledgement after acceptance and proves that fresh load retains exactly one
-semantic begin and task. A fourth uses a real Absurd Worker to accept one
-terminal, refuses the later projection commit, and proves fresh-load projection
+semantic begin and task. A fourth uses a real Absurd Worker, loses the accepted
+terminal commit's acknowledgement, and proves projection-only recovery. A fifth
+refuses the later projection commit and proves the same fresh-load projection
 without another Worker completion or handler preparation. They do not simulate
 or claim PostgreSQL power loss, transport, or provider-wide fidelity.
 
