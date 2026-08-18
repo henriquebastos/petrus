@@ -159,6 +159,38 @@ The route returns `outcome: "pass"`, `converged`, 14 operations, 24 journal
 entries including 9 checker evaluations, and digest
 `sha256:63301ff867ae1c9950d0307e9ad74952e4c10105e3d60d24cd00a5e0496f733a`.
 
+### Joined begin-transaction commit refusal
+
+[`joined-begin-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-begin-commit-refusal-world-v3.json)
+uses the public `petrus.engine.absurd` provider over disposable PostgreSQL.
+Unlike the split Dispatch-refusal profile, Absurd places
+`CandidateSelected`, the firing prefix, `ActivityRequested`, and task spawn in
+one joined transaction. A connection-boundary adapter refuses that commit
+before acceptance; production Engine rollback and poison handling run
+unchanged. Independent PostgreSQL observations then find only the two-record
+construction prefix and no Absurd queue task.
+
+The World revokes and drops the poisoned generation. Fresh public provider
+load reconstructs the original marking, prepares the candidate again because
+no invocation was ever durable, and accepts exactly one four-record begin plus
+one pending task. The checker continuously equates durable candidate, firing,
+request, and task counts with the adapter's accepted joined-transaction ledger
+and rejects a phantom post-rollback task. The scenario ends in the legitimate
+external wait for a Worker result; it does not invent one.
+
+This profile is real-boundary qualification, not a claim that the generic
+World simulates PostgreSQL or Absurd. Its data-only concrete replay route uses
+the ordinary pytest PostgreSQL harness:
+
+```bash
+UV_FROZEN=1 uv run pytest -q \
+  tests/dst/test_joined_world.py::test_retained_joined_begin_fixture_replays_without_the_authored_scenario
+```
+
+The route returns `outcome: "pass"`, `external_wait`, 9 operations, 16 journal
+entries including 6 checker evaluations, and digest
+`sha256:0b2129eaf3802d174a5526f5e32b0e6de8f923cd2d8ce3e05bd89c2904c930c7`.
+
 ### Lifecycle reset and late terminal
 
 [`lifecycle-reset-late-terminal-world-v3.json`](../../tests/dst/fixtures/lifecycle-reset-late-terminal-world-v3.json)
@@ -329,8 +361,10 @@ and digest
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. The broader delivery, Dispatch, lifecycle, and transaction fault
-matrix remains in CV19.DS2. Version 4 subsequently adds profile-retained-data
+generator. The joined-begin profile now proves the first real joined-transaction
+commit refusal without widening the World contract; the broader delivery,
+Dispatch, lifecycle, and transaction fault matrix remains in CV19.DS2. Version
+4 subsequently adds profile-retained-data
 and hidden-pending-work bounds without changing version 3 replay, and runner v1
 contains complete Worlds under a separate wall-clock process budget. Stateful
 generation, shrinking, broad independent models/checkers, and semantic

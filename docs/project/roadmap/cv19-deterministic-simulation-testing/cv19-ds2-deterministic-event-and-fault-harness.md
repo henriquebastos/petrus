@@ -2,7 +2,7 @@
 code: CV19.DS2
 level: Delivery Story
 status: Active
-status_reason: Dispatch request and lifecycle-cancellation refusals now replay through crash with exact repair; DS2 remains active for the broader transaction cut matrix
+status_reason: Split Dispatch request/cancellation refusals and the real joined begin-commit refusal now replay through crash with exact repair; DS2 remains active for the broader transaction cut matrix
 updated: 2026-08-18
 related:
   - index.md
@@ -375,6 +375,26 @@ The eleventh exact profile proves cancellation refusal after the reset fence:
 6. replay 19 operations and 32 journal entries, including 12 independent
    checker evaluations, exactly.
 
+A separately identified real-provider profile proves the joined begin
+transaction without exposing the private Engine resource seam:
+
+1. construct through public `petrus.engine.absurd.create_engine` over a
+   disposable PostgreSQL database and activate one connection-boundary commit
+   refusal at `activity_requested`;
+2. let production prepare `CandidateSelected`, the firing prefix,
+   `ActivityRequested`, and the Absurd task spawn in one transaction, then
+   refuse before the connection accepts it;
+3. observe through an independent PostgreSQL connection that only construction
+   remains durable and no task exists, while the live Engine is poisoned;
+4. revoke and abruptly drop that generation, then construct a fresh public
+   provider generation through `load_engine`;
+5. prove the uncommitted selection/invocation was not installed: production
+   prepares anew from the prior marking and commits exactly one begin plus one
+   pending task; and
+6. replay the retained 9 operations and 16 journal entries, including 6
+   independent checker evaluations, exactly, ending in the legitimate
+   external wait for a Worker result.
+
 The twelfth exact profile proves generic retained-resource and hidden-pending-work
 accounting across a production Engine crash:
 
@@ -437,15 +457,15 @@ seeded Engine scenario whose replay never consults the PRNG.
 | Done condition | Slice result |
 | --- | --- |
 | 1. Accepted defining-module compatibility surface | Met by the accepted decision, current `petrus.testing.dst/v4`, explicit v1-v3 constants/models, exact identities, no root/private exports, and the versioned [`dst-world-v4`](../../../process/dst-world-v4.md), [`dst-world-v3`](../../../process/dst-world-v3.md), [`dst-world-v2`](../../../process/dst-world-v2.md), and [`dst-world-v1`](../../../process/dst-world-v1.md) contracts. |
-| 2. Imperative story emits replay data | Met by the executable profiles under `tests/dst/` and retained projection, pre/post-commit History, Dispatch request/cancellation refusal, ingress-redelivery, delayed-terminal, lifecycle-race, timer-recovery, zero/delayed retry-exhaustion, terminal-recollection, and resource-bound fixtures. |
-| 3. Same-interpreter replay agreement | Met for all thirteen public-Engine crash/recovery stories plus the retained resource-overage failure, including exact operations, resource/checker observations, dispositions, and journal digests. |
+| 2. Imperative story emits replay data | Met by the executable profiles under `tests/dst/` and retained projection, pre/post-commit History, split Dispatch request/cancellation refusal, joined begin rollback, ingress-redelivery, delayed-terminal, lifecycle-race, timer-recovery, zero/delayed retry-exhaustion, terminal-recollection, and resource-bound fixtures. |
+| 3. Same-interpreter replay agreement | Met for all fourteen public-Engine/provider crash/recovery stories plus the retained resource-overage failure, including exact operations, resource/checker observations, dispositions, and journal digests. |
 | 4. Seeded repeatability | Met: two fresh seed-1729 Engine runs produce the same expanded artifact; workload, fault, identifier, and event-order streams are independently pinned, and replay ignores changed seed provenance. |
 | 5. Abrupt generation reconstruction | Met for the public-Engine profile, including revoke-before-drop and stale Timeline refusal. |
-| 6. Named cuts before/after durable acceptance | Partial: paired pre-commit refusal/post-commit acknowledgement-loss History cuts, Dispatch refusal after a durable request and durable lifecycle fence, identified ingress redelivery, delayed external completion, lifecycle and timer reconstruction, zero- and nonzero-backoff LocalDispatch retry reconstruction/exhaustion, and provider-terminal custody before Engine collection are proved; the broader transaction matrix remains. |
+| 6. Named cuts before/after durable acceptance | Partial: paired pre-commit refusal/post-commit acknowledgement-loss History cuts, split Dispatch refusal after a durable request and lifecycle fence, joined begin+spawn commit rollback, identified ingress redelivery, delayed external completion, lifecycle and timer reconstruction, zero- and nonzero-backoff LocalDispatch retry reconstruction/exhaustion, and provider-terminal custody before Engine collection are proved; the broader transaction matrix remains. |
 | 7. Complete bounds | Met for the generic harness: action, queue, logical-time/advance, reload, predicate, artifact, profile-retained-data, hidden-pending-work, process-progress, and wall-clock limits are executable and identify the ending bound. |
 | 8. Checker cadence and fair draining | Met for the vertical slice; broader independent S1–S8 checker coverage belongs to the remaining DS2/DS3 work. |
-| 9. Hermetic real-runtime execution | Met for the vertical slice: no credentials, providers, network sleeps, or substitute Petrus semantics. |
-| 10. Repository gates | Met: focused DST and project tests pass, and the current full and release gates pass all 2,292 tests in both release orders with 17 expected serial qualification deselections. |
+| 9. Hermetic real-runtime execution | Met for the provider-neutral vertical slice: no credentials, external providers, network sleeps, or substitute Petrus semantics. The joined profile is separately identified real-boundary qualification against disposable PostgreSQL/Absurd and claims only that composition's transaction contract. |
+| 10. Repository gates | Met: focused DST and project tests pass, and the current full and release gates pass all 2,295 tests in both release orders with 17 expected serial qualification deselections. |
 
 Version 1 artifacts intentionally retain only authored endings. Version 2
 removes that format limit: it preserves one exact terminal failed attempt plus
@@ -476,8 +496,8 @@ deterministic `FailureOperation` for a killed call.
 
 ### Executed evidence
 
-- `UV_FROZEN=1 uv run pytest -q tests/dst` — 105 passed.
-- `UV_FROZEN=1 uv run pytest -q tests/dst tests/project` — 134 passed.
+- `UV_FROZEN=1 uv run pytest -q tests/dst` — 108 passed.
+- `UV_FROZEN=1 uv run pytest -q tests/dst tests/project` — 137 passed.
 - `UV_FROZEN=1 uv run pytest -q tests/dst/test_process_runner.py` — 3 passed;
   the public-Engine process run returned and replayed its unchanged 14-operation
   / 39-journal-entry v4 artifact, while the deliberate SIGTERM-resistant hang
@@ -544,6 +564,11 @@ deterministic `FailureOperation` for a killed call.
   `quiescent`, 19 operations, 32 journal entries including 12 checker
   evaluations, and digest
   `sha256:0b4ccbadb61d020c28ea3f330fbd2a7bf27b1af9157db2a375e25f6bcbb3da69`.
+- `UV_FROZEN=1 uv run pytest -q
+  tests/dst/test_joined_world.py::test_retained_joined_begin_fixture_replays_without_the_authored_scenario`
+  returned `pass` / `external_wait`, 9 operations, 16 journal entries including
+  6 checker evaluations, and digest
+  `sha256:0b2129eaf3802d174a5526f5e32b0e6de8f923cd2d8ce3e05bd89c2904c930c7`.
 - The same replay route over `resource-bounded-recovery-world-v4.json`
   returned `pass` / `converged`, 14 operations, 39 journal entries, and digest
   `sha256:0e1ffac28729a33fe7bb19e4ec52869c150a6a5e8312018419be53c4f2d69baf`.
@@ -551,8 +576,8 @@ deterministic `FailureOperation` for a killed call.
   returned `pass` / `budget_exhausted`, 3 operations, 10 journal entries, and
   digest
   `sha256:845e62259ae1e18b1ab92f1a2f5c16b1757cea29181bda6e6cd767ce0857b451`.
-- `scripts/check full` — 2,292 passed.
-- `scripts/check release` — 2,292 passed in both the four-worker and fixed-order
+- `scripts/check full` — 2,295 passed.
+- `scripts/check release` — 2,295 passed in both the four-worker and fixed-order
   serial runs; the serial run reported 17 expected qualification deselections.
 - `UV_FROZEN=1 uv run ast-grep test --skip-snapshot-tests` — all 19
   architectural rule fixtures passed, including the runtime-neutral supported
@@ -585,8 +610,10 @@ deterministic `FailureOperation` for a killed call.
    which bound ended it.
 8. Checkers execute at every legal atomic boundary and fresh load over detached
    data, and a fair phase drains only profile-declared eligible work.
-9. The harness runs without credentials, real providers, network sleeps, or a
-   second implementation of Petrus semantics.
+9. The provider-neutral harness runs without credentials, external providers,
+   network sleeps, or a second implementation of Petrus semantics; any
+   provider-backed qualification is named separately with its exact substrate
+   and weaker claim.
 10. Existing simulation, unit, integration, full, and release gates remain green.
 
 ## Driver QA and evidence plan
@@ -610,7 +637,8 @@ deterministic `FailureOperation` for a killed call.
   serialization of Python source, closures, callbacks, and assertions.
 - Application-domain World truth or business verbs. Applications may compose
   those over the Petrus Timeline without moving their policy into Petrus.
-- Fidelity claims for real databases, kernels, sockets, or hardware.
+- Broad fidelity claims for real databases, kernels, sockets, or hardware; the
+  joined profile claims only the induced public-provider transaction boundary.
 - Simulated arbitrary byte corruption before a concrete Petrus property and
   adapter contract justify it.
 - Public API stability for implementation details outside the accepted
