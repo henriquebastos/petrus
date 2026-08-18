@@ -2,7 +2,7 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 is Done and DS2 now proves split request/cancellation refusal plus joined begin rollback/acknowledgement loss and joined terminal acknowledgement-loss/projection recovery over real Absurd/PostgreSQL in addition to bounded World v4, process containment, and LocalDispatch provider time; broader cuts and DS3–DS4 remain active
+status_reason: CV19.DS1 is Done and DS2 now proves split request/cancellation refusal plus joined begin, terminal, projection, and lifecycle-cancellation recovery over real Absurd/PostgreSQL in addition to bounded World v4, process containment, and LocalDispatch provider time; broader cuts and DS3–DS4 remain active
 updated: 2026-08-18
 related:
   - ../../../../src/petrus/simulation.py
@@ -179,7 +179,10 @@ the minimized expanded scenario becomes the durable regression fixture.
    Absurd Worker, loses the accepted terminal commit's acknowledgement, and
    proves projection-only recovery. A fifth refuses the later projection commit
    and proves the same fresh-load projection without another Worker completion
-   or handler preparation. The broader fault/cut matrix keeps DS2 active.
+   or handler preparation. A sixth commits `ScopeReset`, refuses the separate
+   real Absurd cancellation-tombstone commit, then proves fresh-load repair and
+   stale-Worker fencing without a semantic terminal or projection. The broader
+   fault/cut matrix keeps DS2 active.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)
    adds broad and targeted workload generation, independent models/checkers,
    shrinking, semantic coverage, and durable replay fixtures.
