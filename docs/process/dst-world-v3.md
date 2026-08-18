@@ -236,6 +236,25 @@ The retained route returns `outcome: "pass"`, `quarantined`, 22 operations, 35
 journal entries including 12 checker evaluations, and digest
 `sha256:339da88d51c682641b7e8fc8fbf8964622c2c031dd6c373f327b94464e26a6c1`.
 
+### Lifecycle cancellation-refusal reconstruction
+
+[`lifecycle-cancellation-refusal-world-v3.json`](../../tests/dst/fixtures/lifecycle-cancellation-refusal-world-v3.json)
+targets the public Dispatch cancellation door after `ScopeReset` has committed.
+The first generation retains the exact cancellation instruction but refuses
+custody, leaving the live Engine poisoned while canonical History already owns
+generation 2. The World revokes and drops that generation without settlement.
+
+Fresh `Engine.load` reconstructs the reset and submits the byte-equivalent
+occurrence, Activity invocation, policy, correlation, idempotency, and History
+position to a new Dispatch. The reset remains terminal authority; the accepted
+tombstone proves operational repair before the authored late delivery. The
+cancelled result never becomes an ordinary terminal or projection. The
+independent checker derives lifecycle and terminal bounds from authored facts
+and rejects changed repair instructions. The retained
+route returns `outcome: "pass"`, `quiescent`, 19 operations, 32 journal entries
+including 12 checker evaluations, and digest
+`sha256:0b4ccbadb61d020c28ea3f330fbd2a7bf27b1af9157db2a375e25f6bcbb3da69`.
+
 ### LocalDispatch successful-terminal recollection
 
 [`local-terminal-redelivery-world-v3.json`](../../tests/dst/fixtures/local-terminal-redelivery-world-v3.json)

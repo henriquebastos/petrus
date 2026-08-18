@@ -22,7 +22,12 @@ from tests.dst.engine_world import (
     ResourceBoundedEngineProfile,
     TerminalRefusalChecker,
 )
-from tests.dst.lifecycle_world import LifecycleAuthorityChecker, LifecycleEngineProfile
+from tests.dst.lifecycle_world import (
+    CancellationAuthorityChecker,
+    LifecycleAuthorityChecker,
+    LifecycleCancellationRefusalProfile,
+    LifecycleEngineProfile,
+)
 from tests.dst.retry_world import (
     DelayedRetryAuthorityChecker,
     DelayedRetryEngineProfile,
@@ -44,6 +49,9 @@ def replay_path(path: Path):
         registry.register_profile(HistoryAckLossEngineProfile(Path(directory) / "history-ack-loss.jsonl"))
         registry.register_profile(HistoryRefusalEngineProfile(Path(directory) / "history-refusal.jsonl"))
         registry.register_profile(ResourceBoundedEngineProfile(Path(directory) / "resource-history.jsonl"))
+        registry.register_profile(
+            LifecycleCancellationRefusalProfile(Path(directory) / "lifecycle-cancellation-history.jsonl")
+        )
         registry.register_profile(LifecycleEngineProfile(Path(directory) / "lifecycle-history.jsonl"))
         registry.register_profile(
             DelayedRetryEngineProfile(
@@ -65,6 +73,7 @@ def replay_path(path: Path):
         )
         registry.register_profile(TimerEngineProfile(Path(directory) / "timer-history.jsonl"))
         registry.register_checker(AcceptedCommitAuthorityChecker())
+        registry.register_checker(CancellationAuthorityChecker())
         registry.register_checker(CommitAuthorityChecker())
         registry.register_checker(DelayedAuthorityChecker())
         registry.register_checker(DeliveryAuthorityChecker())

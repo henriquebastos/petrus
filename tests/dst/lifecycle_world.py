@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import ClassVar, cast
 
@@ -20,7 +20,7 @@ from petrus.impetus.history import (
 from petrus.impetus.history_store import JsonlHistoryStore
 from petrus.impetus.petrinet import Arc, Net, NetPath, Place, Token, Transition
 from petrus.motus.activity import ActivityInvocation
-from petrus.motus.dispatch import InMemoryDispatch
+from petrus.motus.dispatch import CancellationDisposition, CancellationInstruction, InMemoryDispatch
 from petrus.testing.dst import (
     ActionDisposition,
     ApplyResult,
@@ -30,6 +30,7 @@ from petrus.testing.dst import (
     Command,
     Disposition,
     Fault,
+    FaultDisposition,
     GenerationStart,
     Observation,
     ObservationRequest,
@@ -47,6 +48,7 @@ DONE = NetPath("done")
 PROJECT = NetPath("project")
 INSTANCE_ID = "dst-world-lifecycle-race"
 SCENARIO_ID = "lifecycle-reset-late-terminal-world-v3"
+CANCELLATION_SCENARIO_ID = "lifecycle-cancellation-refusal-world-v3"
 SCOPE_NAME = "draft"
 
 PROFILE_DEFINITION = {
@@ -91,6 +93,40 @@ CHECKER_IDENTITY = CheckerIdentity(
         }
     ),
 )
+CANCELLATION_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.lifecycle-cancellation-refusal",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": PROFILE_DEFINITION["commands"],
+            "fault": {
+                "disposition": "refuse",
+                "name": "dispatch.refuse-cancellation",
+                "target": "scope_fenced",
+            },
+            "instance": INSTANCE_ID,
+            "observations": [
+                "cancellation-refused",
+                "cancellation-repaired",
+                "engine.cancellation-authority",
+                "terminal-quarantined",
+            ],
+        }
+    ),
+)
+CANCELLATION_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.cancellation-authority",
+    version=1,
+    digest=digest_json(
+        {
+            "properties": [
+                "a canonical reset exists before cancellation is attempted",
+                "fresh load repeats the byte-equivalent cancellation instruction",
+                "the reset fence authorizes late-terminal quarantine independently of cancellation custody",
+            ]
+        }
+    ),
+)
 WORLD_BUDGET = Budget(
     actions=40,
     queued_commands=8,
@@ -126,6 +162,45 @@ class ProjectionBridge:
         return {DONE: (Token("Done", result),)}
 
 
+def _cancellation_view(instruction: CancellationInstruction) -> dict[str, JsonValue]:
+    invocation = instruction.invocation
+    return cast(
+        dict[str, JsonValue],
+        {
+            "activity": invocation.activity,
+            "correlation": invocation.correlation,
+            "history_position": instruction.history_position,
+            "idempotency": invocation.idempotency,
+            "input": invocation.input,
+            "occurrence": instruction.occurrence,
+            "policy": asdict(invocation.policy),
+        },
+    )
+
+
+class RefusingCancellationDispatch(InMemoryDispatch):
+    """One-shot refusal at the recoverable cancellation contract."""
+
+    def __init__(self, attempts: list[dict[str, JsonValue]]) -> None:
+        super().__init__()
+        self._attempts = attempts
+        self._refusal: str | None = None
+
+    def refuse_next_cancellation(self, message: str) -> None:
+        self._refusal = message
+
+    def cancel(self, instruction: CancellationInstruction) -> CancellationDisposition:
+        attempt = _cancellation_view(instruction)
+        if self._refusal is not None:
+            message = self._refusal
+            self._refusal = None
+            self._attempts.append({"accepted": False, "disposition": None, **attempt})
+            raise OSError(message)
+        disposition = super().cancel(instruction)
+        self._attempts.append({"accepted": True, "disposition": disposition.value, **attempt})
+        return disposition
+
+
 class WorldClock:
     def __init__(self, context: ScenarioContext):
         self.context = context
@@ -144,6 +219,7 @@ class LifecycleGeneration:
     dispatch: InMemoryDispatch
     bridge: ProjectionBridge
     drives: int = 0
+    poisoned: bool = False
 
 
 class LifecycleEngineProfile:
@@ -322,7 +398,7 @@ class LifecycleEngineProfile:
 
     def _generation(self, context: ScenarioContext, *, load: bool) -> LifecycleGeneration:
         history = JsonlHistoryStore(self.history_path)
-        dispatch = InMemoryDispatch()
+        dispatch = self._dispatch()
         bridge = ProjectionBridge()
         factory = Engine.load if load else Engine.create
         engine = factory(
@@ -335,15 +411,25 @@ class LifecycleEngineProfile:
         )
         return LifecycleGeneration(engine, history, dispatch, bridge)
 
+    def _dispatch(self) -> InMemoryDispatch:
+        return InMemoryDispatch()
+
     def _observation_state(self, generation: LifecycleGeneration) -> dict[str, JsonValue]:
         records = generation.history.records
         record_types = [type(record).__name__ for record in records]
+        if generation.poisoned:
+            active_scopes: dict[str, int] = {}
+            for record in records:
+                if isinstance(record, ScopeOpened):
+                    active_scopes[record.scope.name] = record.scope.generation
+                elif isinstance(record, ScopeReset):
+                    active_scopes[record.opened.name] = record.opened.generation
+        else:
+            active_scopes = {name: scope.generation for name, scope in sorted(generation.engine.active_scopes.items())}
         return cast(
             dict[str, JsonValue],
             {
-                "active_scopes": {
-                    name: scope.generation for name, scope in sorted(generation.engine.active_scopes.items())
-                },
+                "active_scopes": active_scopes,
                 "authored_scope_generation": self.scope_generation,
                 "authored_scope_opens": self.scope_opens,
                 "authored_scope_resets": self.scope_resets,
@@ -356,6 +442,7 @@ class LifecycleEngineProfile:
                 "drives": generation.drives,
                 "frontier": len(records),
                 "pending": sorted(generation.dispatch.pending),
+                "poisoned": generation.poisoned,
                 "quarantined_occurrences": [
                     record.occurrence for record in records if isinstance(record, ActivityTerminalQuarantined)
                 ],
@@ -389,6 +476,97 @@ class LifecycleEngineProfile:
             instant=context.now(),
             command=Command(profile=self.identity, name=name, payload=payload),
         )
+
+
+class LifecycleCancellationRefusalProfile(LifecycleEngineProfile):
+    """Reset commits before refused cancellation and fresh-load repair."""
+
+    identity = CANCELLATION_PROFILE_IDENTITY
+    _debug_fields = (
+        "active_scopes",
+        "bridge",
+        "cancellation_attempts",
+        "drives",
+        "frontier",
+        "pending",
+        "poisoned",
+        "quarantined_occurrences",
+        "record_types",
+        "scope_resets",
+    )
+    observation_fields = {
+        "activity-requested": LifecycleEngineProfile.observation_fields["activity-requested"],
+        "cancellation-refused": _debug_fields,
+        "cancellation-repaired": _debug_fields,
+        "engine.cancellation-authority": (
+            *LifecycleEngineProfile.observation_fields["engine.lifecycle-authority"],
+            "cancellation_attempts",
+        ),
+        "terminal-quarantined": _debug_fields,
+    }
+
+    def __init__(self, history_path: Path):
+        super().__init__(history_path)
+        self.cancellation_attempts: list[dict[str, JsonValue]] = []
+
+    def validate_fault(self, fault: Fault) -> Fault:
+        if (
+            fault.name != "dispatch.refuse-cancellation"
+            or fault.target != "scope_fenced"
+            or fault.disposition != FaultDisposition.REFUSE.value
+            or type(fault.payload) is not dict
+            or set(fault.payload) != {"message"}
+            or not isinstance(fault.payload["message"], str)
+        ):
+            raise ValueError("unsupported lifecycle cancellation-refusal fault")
+        return fault
+
+    def apply(
+        self,
+        generation: LifecycleGeneration,
+        command: Command,
+        context: ScenarioContext,
+    ) -> ApplyResult:
+        if command.name != "scope.reset":
+            return super().apply(generation, command, context)
+
+        expected: str | None = None
+        for fault in context.faults("scope_fenced"):
+            if fault.name != "dispatch.refuse-cancellation" or type(fault.payload) is not dict:
+                raise ValueError(f"unsupported lifecycle cancellation-refusal fault {fault.name!r}")
+            message = fault.payload.get("message")
+            if not isinstance(message, str):
+                raise ValueError("dispatch.refuse-cancellation message must be a string")
+            dispatch = generation.dispatch
+            if not isinstance(dispatch, RefusingCancellationDispatch):
+                raise TypeError("cancellation-refusal profile requires its faulting Dispatch")
+            dispatch.refuse_next_cancellation(message)
+            expected = message
+
+        try:
+            return super().apply(generation, command, context)
+        except OSError as error:
+            if expected is None or str(error) != expected:
+                raise
+            reset = generation.history.records[-1]
+            if not isinstance(reset, ScopeReset):
+                raise AssertionError("cancellation refusal occurred before canonical ScopeReset") from error
+            generation.poisoned = True
+            self.scope_resets += 1
+            self.scope_generation = reset.opened.generation
+            return ApplyResult(
+                disposition=ActionDisposition.REFUSED_EXPECTED.value,
+                value={"error": str(error), "frontier": len(generation.history)},
+                scheduled=[],
+            )
+
+    def _dispatch(self) -> InMemoryDispatch:
+        return RefusingCancellationDispatch(self.cancellation_attempts)
+
+    def _observation_state(self, generation: LifecycleGeneration) -> dict[str, JsonValue]:
+        state = super()._observation_state(generation)
+        state["cancellation_attempts"] = self.cancellation_attempts
+        return state
 
 
 class LifecycleAuthorityChecker:
@@ -433,6 +611,49 @@ class LifecycleAuthorityChecker:
                 "canonical_scope_opens": canonical_opens,
                 "canonical_scope_resets": canonical_resets,
                 "firing_completed": projections,
+                "terminal_quarantined": quarantined,
+            },
+        )
+
+
+class CancellationAuthorityChecker:
+    """Independently require exact reset-fence repair before quarantine."""
+
+    identity = CANCELLATION_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.cancellation-authority", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        lifecycle = LifecycleAuthorityChecker().check(observation)
+        value = cast(dict[str, JsonValue], observation.value)
+        attempts = cast(list[dict[str, JsonValue]], value["cancellation_attempts"])
+        records = cast(list[JsonValue], value["record_types"])
+        acceptances = [cast(bool, attempt["accepted"]) for attempt in attempts]
+        dispositions = [attempt["disposition"] for attempt in attempts]
+        instructions = [
+            {name: field for name, field in attempt.items() if name not in {"accepted", "disposition"}}
+            for attempt in attempts
+        ]
+        instruction_stable = not instructions or all(instruction == instructions[0] for instruction in instructions)
+        resets = records.count(ScopeReset.__name__)
+        quarantined = records.count(ActivityTerminalQuarantined.__name__)
+        passed = (
+            lifecycle.passed
+            and len(attempts) <= 2
+            and acceptances == [False, True][: len(acceptances)]
+            and dispositions == [None, "tombstoned"][: len(dispositions)]
+            and instruction_stable
+            and (not attempts or resets == 1)
+            and (not quarantined or resets == 1)
+        )
+        return CheckResult(
+            passed=passed,
+            detail={
+                "accepted_cancellations": acceptances.count(True),
+                "cancellation_acceptances": acceptances,
+                "cancellation_dispositions": dispositions,
+                "canonical_scope_resets": resets,
+                "instruction_stable": instruction_stable,
+                "lifecycle_authority": lifecycle.passed,
                 "terminal_quarantined": quarantined,
             },
         )
@@ -507,6 +728,89 @@ def build_lifecycle_artifact(history_path: Path) -> ScenarioArtifactV3:
     world, _ = execute_lifecycle_story(history_path)
     try:
         artifact = world.artifact(SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_lifecycle_cancellation_story(
+    history_path: Path,
+) -> tuple[World, LifecycleCancellationRefusalProfile]:
+    """Commit reset, refuse cancellation, crash, repair, and quarantine."""
+
+    profile = LifecycleCancellationRefusalProfile(history_path)
+    world = World(profile, WORLD_BUDGET, checkers=(CancellationAuthorityChecker(),))
+    timeline = world.timeline()
+
+    timeline.command("scope.open", {"name": SCOPE_NAME})
+    timeline.command(
+        "source.deliver",
+        {"identity": "draft-input-3", "scope": SCOPE_NAME, "value": 3},
+    )
+    timeline.run_until(
+        "activity-requested",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["pending"] == [2],
+    )
+
+    timeline.activate_fault(
+        "dispatch.refuse-cancellation",
+        "scope_fenced",
+        disposition=FaultDisposition.REFUSE,
+        payload={"message": "dst cancellation acceptance refused"},
+    )
+    timeline.command("scope.reset", {"name": SCOPE_NAME})
+    refused = timeline.observe("cancellation-refused")
+    refused_value = cast(dict[str, JsonValue], refused.value)
+    assert refused_value["active_scopes"] == {SCOPE_NAME: 2}
+    assert refused_value["pending"] == [2]
+    assert refused_value["poisoned"] is True
+    assert refused_value["scope_resets"] == [{"closed": 1, "opened": 2}]
+    [failed] = cast(list[dict[str, JsonValue]], refused_value["cancellation_attempts"])
+    assert failed["accepted"] is False
+    assert failed["history_position"] == refused_value["frontier"]
+
+    timeline.crash("scope_fenced")
+    world.restart()
+    timeline = world.timeline()
+    repaired = timeline.run_until(
+        "cancellation-repaired",
+        lambda observation: (
+            len(
+                cast(list[dict[str, JsonValue]], cast(dict[str, JsonValue], observation.value)["cancellation_attempts"])
+            )
+            == 2
+        ),
+    )
+    repaired_value = cast(dict[str, JsonValue], repaired.value)
+    assert repaired_value["active_scopes"] == {SCOPE_NAME: 2}
+    assert repaired_value["pending"] == []
+    assert repaired_value["poisoned"] is False
+    failed, accepted = cast(list[dict[str, JsonValue]], repaired_value["cancellation_attempts"])
+    assert accepted == {
+        "accepted": True,
+        "disposition": "tombstoned",
+        **{name: value for name, value in failed.items() if name not in {"accepted", "disposition"}},
+    }
+
+    timeline.command("activity.complete", {"occurrence": 2, "result": {"value": 3}})
+    quarantined = timeline.run_until(
+        "terminal-quarantined",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["quarantined_occurrences"] == [2],
+    )
+    quarantined_value = cast(dict[str, JsonValue], quarantined.value)
+    assert quarantined_value["bridge"] == {"prepared": 0, "projected": 0}
+    assert quarantined_value["record_types"].count(ActivityTerminalQuarantined.__name__) == 1
+
+    timeline.begin_fair()
+    timeline.finish(Disposition.QUIESCENT)
+    return world, profile
+
+
+def build_lifecycle_cancellation_artifact(history_path: Path) -> ScenarioArtifactV3:
+    world, _ = execute_lifecycle_cancellation_story(history_path)
+    try:
+        artifact = world.artifact(CANCELLATION_SCENARIO_ID)
         assert isinstance(artifact, ScenarioArtifactV3)
         return artifact
     finally:
