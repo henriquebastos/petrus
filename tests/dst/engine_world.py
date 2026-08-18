@@ -55,6 +55,7 @@ SEEDED_SCENARIO_ID = "seeded-projection-crash-recovery-world-v3"
 SCENARIO_SEED = 1729
 HISTORY_REFUSAL_SCENARIO_ID = "history-refusal-crash-recovery-world-v3"
 HISTORY_ACK_LOSS_SCENARIO_ID = "history-ack-loss-recovery-world-v3"
+DISPATCH_REFUSAL_SCENARIO_ID = "dispatch-refusal-crash-recovery-world-v3"
 INVARIANT_FAILURE_SCENARIO_ID = "terminal-checker-failure-world-v2"
 BUDGET_FAILURE_SCENARIO_ID = "action-budget-exhaustion-world-v2"
 RESOURCE_SCENARIO_ID = "resource-bounded-recovery-world-v4"
@@ -152,6 +153,28 @@ HISTORY_ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
         }
     ),
 )
+DISPATCH_REFUSAL_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.dispatch-refusal-recovery",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": ["engine.complete", "engine.drive"],
+            "fault": {
+                "disposition": "refuse",
+                "name": "dispatch.refuse",
+                "target": "activity_requested",
+            },
+            "instance": INSTANCE_ID,
+            "observations": [
+                "dispatch-refused",
+                "dispatch-recovered",
+                "engine.dispatch-authority",
+                "terminal",
+            ],
+            "property": "one frozen invocation is redispatched without re-preparation",
+        }
+    ),
+)
 CHECKER_IDENTITY = CheckerIdentity(
     name="petrus.engine.history-order",
     version=1,
@@ -186,6 +209,19 @@ ACCEPTED_COMMIT_AUTHORITY_CHECKER_IDENTITY = CheckerIdentity(
                 "a post-commit acknowledgement loss implies one durable terminal, "
                 "which remains bounded by authored terminal delivery"
             )
+        }
+    ),
+)
+DISPATCH_AUTHORITY_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.dispatch-authority",
+    version=1,
+    digest=digest_json(
+        {
+            "properties": [
+                "dispatch follows one canonical Activity request",
+                "refused custody leaves no accepted terminal authority",
+                "reload republishes the byte-equivalent invocation without prepare",
+            ]
         }
     ),
 )
@@ -250,6 +286,55 @@ class ProjectionBridge:
         if self.projection_error is not None:
             raise RuntimeError(self.projection_error)
         return {DONE: (Token("Done", result),)}
+
+
+class DispatchRefusalBridge(ProjectionBridge):
+    """Production handler instrumentation spanning fresh Engine generations."""
+
+    def __init__(self, prepared: Callable[[], None]) -> None:
+        super().__init__()
+        self._prepared = prepared
+
+    def prepare(self, binding) -> ActivityInvocation:
+        invocation = super().prepare(binding)
+        self._prepared()
+        return invocation
+
+
+def _invocation_view(occurrence: int, invocation: ActivityInvocation) -> dict[str, JsonValue]:
+    return cast(
+        dict[str, JsonValue],
+        {
+            "activity": invocation.activity,
+            "correlation": invocation.correlation,
+            "idempotency": invocation.idempotency,
+            "input": invocation.input,
+            "occurrence": occurrence,
+            "policy": asdict(invocation.policy),
+        },
+    )
+
+
+class RefusingInMemoryDispatch(InMemoryDispatch):
+    """One-shot refusal at the public Dispatch acceptance door."""
+
+    def __init__(self, attempts: list[dict[str, JsonValue]]) -> None:
+        super().__init__()
+        self._attempts = attempts
+        self._refusal: str | None = None
+
+    def refuse_next(self, message: str) -> None:
+        self._refusal = message
+
+    def dispatch(self, occurrence: int, invocation: ActivityInvocation) -> None:
+        attempt = _invocation_view(occurrence, invocation)
+        if self._refusal is not None:
+            message = self._refusal
+            self._refusal = None
+            self._attempts.append({"accepted": False, **attempt})
+            raise OSError(message)
+        super().dispatch(occurrence, invocation)
+        self._attempts.append({"accepted": True, **attempt})
 
 
 class WorldClock:
@@ -385,8 +470,8 @@ class EngineProfile:
 
     def create(self, context: ScenarioContext) -> GenerationStart[EngineGeneration]:
         history = self._history(context)
-        dispatch = InMemoryDispatch()
-        bridge = ProjectionBridge()
+        dispatch = self._dispatch()
+        bridge = self._bridge()
         engine = Engine.create(
             application_net(),
             INSTANCE_ID,
@@ -401,8 +486,8 @@ class EngineProfile:
 
     def load(self, context: ScenarioContext) -> GenerationStart[EngineGeneration]:
         history = self._history(context)
-        dispatch = InMemoryDispatch()
-        bridge = ProjectionBridge()
+        dispatch = self._dispatch()
+        bridge = self._bridge()
         engine = Engine.load(
             application_net(),
             INSTANCE_ID,
@@ -536,6 +621,12 @@ class EngineProfile:
     def _history(self, context: ScenarioContext) -> HistoryStore:
         del context
         return JsonlHistoryStore(self.history_path)
+
+    def _dispatch(self) -> InMemoryDispatch:
+        return InMemoryDispatch()
+
+    def _bridge(self) -> ProjectionBridge:
+        return ProjectionBridge()
 
     def _terminal_ready(self) -> None:
         pass
@@ -766,6 +857,92 @@ class HistoryAckLossEngineProfile(EngineProfile):
         return tuple(expected)
 
 
+class DispatchRefusalEngineProfile(EngineProfile):
+    """Public-Engine profile refusing custody after the canonical request commits."""
+
+    identity = DISPATCH_REFUSAL_PROFILE_IDENTITY
+    _debug_fields = (
+        "bridge",
+        "dispatch_attempts",
+        "frontier",
+        "marking",
+        "pending",
+        "pending_invocations",
+        "prepare_calls",
+        "record_types",
+        "status",
+    )
+    observation_fields = {
+        "dispatch-refused": _debug_fields,
+        "dispatch-recovered": _debug_fields,
+        "engine.dispatch-authority": (
+            "dispatch_attempts",
+            "prepare_calls",
+            "record_types",
+        ),
+        "terminal": _debug_fields,
+    }
+
+    def __init__(self, history_path: Path):
+        super().__init__(history_path)
+        self.dispatch_attempts: list[dict[str, JsonValue]] = []
+        self.prepare_calls = 0
+
+    def validate_fault(self, fault: Fault) -> Fault:
+        if (
+            fault.name != "dispatch.refuse"
+            or fault.target != "activity_requested"
+            or fault.disposition != FaultDisposition.REFUSE.value
+            or type(fault.payload) is not dict
+            or set(fault.payload) != {"message"}
+            or not isinstance(fault.payload["message"], str)
+        ):
+            raise ValueError("unsupported Dispatch-refusal Engine profile fault")
+        return fault
+
+    def create(self, context: ScenarioContext) -> GenerationStart[EngineGeneration]:
+        started = super().create(context)
+        return GenerationStart(started.generation, ())
+
+    def _dispatch(self) -> InMemoryDispatch:
+        return RefusingInMemoryDispatch(self.dispatch_attempts)
+
+    def _bridge(self) -> ProjectionBridge:
+        return DispatchRefusalBridge(self._prepared)
+
+    def _prepared(self) -> None:
+        self.prepare_calls += 1
+
+    def _observation_state(self, generation: EngineGeneration) -> dict[str, JsonValue]:
+        state = super()._observation_state(generation)
+        state.update(
+            {
+                "dispatch_attempts": self.dispatch_attempts,
+                "prepare_calls": self.prepare_calls,
+            }
+        )
+        return state
+
+    def _configure_faults(
+        self, generation: EngineGeneration, context: ScenarioContext
+    ) -> tuple[tuple[type[Exception], str], ...]:
+        expected = []
+        for fault in context.faults("activity_requested"):
+            if fault.name != "dispatch.refuse" or fault.disposition != FaultDisposition.REFUSE.value:
+                raise ValueError(f"unsupported Dispatch-refusal fault {fault.name!r}")
+            if type(fault.payload) is not dict or set(fault.payload) != {"message"}:
+                raise ValueError("dispatch.refuse requires an exact message payload")
+            message = fault.payload["message"]
+            if not isinstance(message, str):
+                raise ValueError("dispatch.refuse message must be a string")
+            dispatch = generation.dispatch
+            if not isinstance(dispatch, RefusingInMemoryDispatch):
+                raise TypeError("Dispatch-refusal profile requires its faulting adapter")
+            dispatch.refuse_next(message)
+            expected.append((OSError, message))
+        return tuple(expected)
+
+
 class EngineHistoryChecker:
     """Independent ordering checker over detached canonical record names."""
 
@@ -839,6 +1016,53 @@ class AcceptedCommitAuthorityChecker:
                 "firing_completed": projected,
                 "terminal_ack_losses": ack_losses,
                 "terminal_deliveries": deliveries,
+            },
+        )
+
+
+class DispatchAuthorityChecker:
+    """Independently bound canonical request, custody, and terminal authority."""
+
+    identity = DISPATCH_AUTHORITY_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.dispatch-authority", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        value = cast(dict[str, JsonValue], observation.value)
+        attempts = cast(list[dict[str, JsonValue]], value["dispatch_attempts"])
+        prepare_calls = cast(int, value["prepare_calls"])
+        records = cast(list[JsonValue], value["record_types"])
+        requested = records.count(ActivityRequested.__name__)
+        completed = records.count(ActivityCompleted.__name__) + records.count(ActivityFailed.__name__)
+        projected = records.count(FiringCompleted.__name__)
+        acceptances = [cast(bool, attempt["accepted"]) for attempt in attempts]
+        invocation_views = [
+            {name: field for name, field in attempt.items() if name != "accepted"} for attempt in attempts
+        ]
+        invocation_stable = not invocation_views or all(
+            invocation == invocation_views[0] for invocation in invocation_views
+        )
+        accepted_limit = acceptances.count(True)
+        passed = (
+            len(attempts) <= 2
+            and acceptances == [False, True][: len(acceptances)]
+            and invocation_stable
+            and requested <= 1
+            and (not attempts or requested == 1)
+            and prepare_calls <= 1
+            and (requested == 0 or prepare_calls == 1)
+            and completed <= accepted_limit
+            and projected <= completed <= 1
+        )
+        return CheckResult(
+            passed=passed,
+            detail={
+                "accepted_dispatches": accepted_limit,
+                "activity_requested": requested,
+                "activity_terminals": completed,
+                "dispatch_acceptances": acceptances,
+                "firing_completed": projected,
+                "invocation_stable": invocation_stable,
+                "prepare_calls": prepare_calls,
             },
         )
 
@@ -1144,6 +1368,72 @@ def build_history_ack_loss_artifact(history_path: Path) -> ScenarioArtifactV3:
     world, _ = execute_history_ack_loss_story(history_path)
     try:
         artifact = world.artifact(HISTORY_ACK_LOSS_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_dispatch_refusal_story(
+    history_path: Path,
+) -> tuple[World, DispatchRefusalEngineProfile]:
+    """Refuse initial Dispatch custody, crash, redispatch, and converge."""
+
+    profile = DispatchRefusalEngineProfile(history_path)
+    world = World(profile, WORLD_BUDGET, checkers=(DispatchAuthorityChecker(),))
+    timeline = world.timeline()
+
+    timeline.activate_fault(
+        "dispatch.refuse",
+        "activity_requested",
+        disposition=FaultDisposition.REFUSE,
+        payload={"message": "dst Dispatch acceptance refused"},
+    )
+    timeline.command("engine.drive", {})
+    refused = timeline.observe("dispatch-refused")
+    refused_value = cast(dict[str, JsonValue], refused.value)
+    assert refused_value["frontier"] == 6
+    assert refused_value["pending"] == []
+    assert refused_value["prepare_calls"] == 1
+    [refused_attempt] = cast(list[dict[str, JsonValue]], refused_value["dispatch_attempts"])
+    assert refused_attempt["accepted"] is False
+    assert refused_value["status"] == "poisoned"
+
+    timeline.crash("activity_requested")
+    world.restart()
+    timeline = world.timeline()
+    recovered = timeline.run_until(
+        "dispatch-recovered",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["pending"] == [1],
+    )
+    recovered_value = cast(dict[str, JsonValue], recovered.value)
+    assert recovered_value["frontier"] == 6
+    assert recovered_value["prepare_calls"] == 1
+    assert recovered_value["bridge"] == {"prepared": 0, "projected": 0}
+    refused, accepted = cast(list[dict[str, JsonValue]], recovered_value["dispatch_attempts"])
+    assert accepted == {"accepted": True, **{name: value for name, value in refused.items() if name != "accepted"}}
+    assert recovered_value["pending_invocations"] == [
+        {name: value for name, value in accepted.items() if name != "accepted"}
+    ]
+
+    timeline.command("engine.complete", {"occurrence": 1, "result": {"value": 3}})
+    timeline.begin_fair()
+    terminal = timeline.run_until(
+        "terminal",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["status"] == "terminated",
+    )
+    terminal_value = cast(dict[str, JsonValue], terminal.value)
+    assert terminal_value["frontier"] == 9
+    assert terminal_value["prepare_calls"] == 1
+    assert terminal_value["marking"] == [{"place": "done", "tokens": [{"color": "Done", "data": {"value": 3}}]}]
+    timeline.finish(Disposition.CONVERGED)
+    return world, profile
+
+
+def build_dispatch_refusal_artifact(history_path: Path) -> ScenarioArtifactV3:
+    world, _ = execute_dispatch_refusal_story(history_path)
+    try:
+        artifact = world.artifact(DISPATCH_REFUSAL_SCENARIO_ID)
         assert isinstance(artifact, ScenarioArtifactV3)
         return artifact
     finally:

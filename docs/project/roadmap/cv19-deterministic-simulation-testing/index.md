@@ -2,7 +2,7 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 is Done and DS2 now ships bounded World v4, process containment, and deterministic LocalDispatch provider time; broader fault adapters and DS3–DS4 remain active
+status_reason: CV19.DS1 is Done and DS2 now proves deterministic Dispatch-refusal reconstruction in addition to bounded World v4, process containment, and LocalDispatch provider time; broader cuts and DS3–DS4 remain active
 updated: 2026-08-18
 related:
   - ../../../../src/petrus/simulation.py
@@ -164,8 +164,11 @@ the minimized expanded scenario becomes the durable regression fixture.
    generation. A delayed-terminal profile reconstructs modeled external truth
    after volatile queue loss and delivers once at the authored logical instant.
    A post-commit History profile loses an acknowledgement after durable terminal
-   acceptance and recovers projection without redelivery. The broader fault/cut
-   matrix keeps DS2 active.
+   acceptance and recovers projection without redelivery. A Dispatch-refusal
+   profile now proves the paired outbox boundary: `ActivityRequested` commits
+   before refused custody, and fresh load republishes the byte-equivalent
+   invocation without another `prepare`. The broader fault/cut matrix keeps DS2
+   active.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)
    adds broad and targeted workload generation, independent models/checkers,
    shrinking, semantic coverage, and durable replay fixtures.

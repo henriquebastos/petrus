@@ -13,6 +13,8 @@ from tests.dst.delivery_world import DeliveryAuthorityChecker, DeliveryEnginePro
 from tests.dst.engine_world import (
     AcceptedCommitAuthorityChecker,
     CommitAuthorityChecker,
+    DispatchAuthorityChecker,
+    DispatchRefusalEngineProfile,
     EngineHistoryChecker,
     EngineProfile,
     HistoryAckLossEngineProfile,
@@ -37,6 +39,7 @@ def replay_path(path: Path):
         registry = ScenarioRegistry()
         registry.register_profile(DelayedEngineProfile(Path(directory) / "delayed-history.jsonl"))
         registry.register_profile(DeliveryEngineProfile(Path(directory) / "delivery-history.jsonl"))
+        registry.register_profile(DispatchRefusalEngineProfile(Path(directory) / "dispatch-refusal-history.jsonl"))
         registry.register_profile(EngineProfile(Path(directory) / "projection-history.jsonl"))
         registry.register_profile(HistoryAckLossEngineProfile(Path(directory) / "history-ack-loss.jsonl"))
         registry.register_profile(HistoryRefusalEngineProfile(Path(directory) / "history-refusal.jsonl"))
@@ -65,6 +68,7 @@ def replay_path(path: Path):
         registry.register_checker(CommitAuthorityChecker())
         registry.register_checker(DelayedAuthorityChecker())
         registry.register_checker(DeliveryAuthorityChecker())
+        registry.register_checker(DispatchAuthorityChecker())
         registry.register_checker(DelayedRetryAuthorityChecker())
         registry.register_checker(EngineHistoryChecker())
         registry.register_checker(LifecycleAuthorityChecker())

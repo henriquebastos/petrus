@@ -135,6 +135,30 @@ The route returns `outcome: "pass"`, `converged`, 19 operations, 31 journal
 entries including 11 checker evaluations, and digest
 `sha256:d8a9dec14dc40dc5a27afeaec9028ac37646695e22ff75bee2ce7f2c0f06aff1`.
 
+### Dispatch acceptance refusal
+
+[`dispatch-refusal-crash-recovery-world-v3.json`](../../tests/dst/fixtures/dispatch-refusal-crash-recovery-world-v3.json)
+targets the existing public `Dispatch.dispatch` contract after the production
+Engine has committed `ActivityRequested`. The test adapter refuses custody,
+and the profile observes six canonical records, no pending Dispatch work, and
+a poisoned live Engine. Abrupt process loss then discards the generation.
+
+Fresh `Engine.load` reconstructs the outstanding Activity solely from History
+and republishes the byte-equivalent occurrence, activity, input, execution
+policy, correlation, and idempotency through a new Dispatch. The total handler
+`prepare` count remains one. An independent checker continuously bounds
+terminal authority by accepted Dispatch attempts and rejects re-preparation or
+a changed invocation.
+
+```bash
+UV_FROZEN=1 uv run python -m tests.dst.replay_world \
+  tests/dst/fixtures/dispatch-refusal-crash-recovery-world-v3.json
+```
+
+The route returns `outcome: "pass"`, `converged`, 14 operations, 24 journal
+entries including 9 checker evaluations, and digest
+`sha256:63301ff867ae1c9950d0307e9ad74952e4c10105e3d60d24cd00a5e0496f733a`.
+
 ### Lifecycle reset and late terminal
 
 [`lifecycle-reset-late-terminal-world-v3.json`](../../tests/dst/fixtures/lifecycle-reset-late-terminal-world-v3.json)
