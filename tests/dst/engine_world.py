@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Iterator
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -19,6 +20,7 @@ from petrus.testing.dst import (
     ActionDisposition,
     ApplyResult,
     Budget,
+    BudgetV4,
     BudgetExhausted,
     CheckResult,
     CheckerIdentity,
@@ -32,7 +34,9 @@ from petrus.testing.dst import (
     Observation,
     ObservationRequest,
     ProfileIdentity,
+    ResourceUsage,
     ScenarioArtifact,
+    ScenarioArtifactV3,
     ScenarioContext,
     ScheduledCommand,
     Timeline,
@@ -52,6 +56,8 @@ HISTORY_REFUSAL_SCENARIO_ID = "history-refusal-crash-recovery-world-v3"
 HISTORY_ACK_LOSS_SCENARIO_ID = "history-ack-loss-recovery-world-v3"
 INVARIANT_FAILURE_SCENARIO_ID = "terminal-checker-failure-world-v2"
 BUDGET_FAILURE_SCENARIO_ID = "action-budget-exhaustion-world-v2"
+RESOURCE_SCENARIO_ID = "resource-bounded-recovery-world-v4"
+RESOURCE_BUDGET_FAILURE_SCENARIO_ID = "history-record-budget-exhaustion-world-v4"
 
 PROFILE_DEFINITION = {
     "commands": ["engine.complete", "engine.drive"],
@@ -73,6 +79,25 @@ PROFILE_IDENTITY = ProfileIdentity(
     name="petrus.engine.projection-recovery",
     version=1,
     digest=digest_json(PROFILE_DEFINITION),
+)
+RESOURCE_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.resource-bounded-recovery",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": ["engine.complete", "engine.drive"],
+            "instance": INSTANCE_ID,
+            "observations": ["activity-requested", "engine.safety", "terminal"],
+            "resources": [
+                "pending.dispatch",
+                "pending.in_flight",
+                "retained.history_bytes",
+                "retained.history_records",
+                "retained.marking_bytes",
+                "retained.marking_tokens",
+            ],
+        }
+    ),
 )
 HISTORY_REFUSAL_PROFILE_IDENTITY = ProfileIdentity(
     name="petrus.engine.history-refusal-recovery",
@@ -177,6 +202,26 @@ WORLD_BUDGET = Budget(
     predicate_polls=16,
     artifact_bytes=262_144,
 )
+
+
+def resource_world_budget(*, history_records: int = 16) -> BudgetV4:
+    return BudgetV4(
+        actions=32,
+        queued_commands=8,
+        timer_advances=0,
+        logical_instant=0,
+        reloads=1,
+        predicate_polls=16,
+        artifact_bytes=262_144,
+        profile_resources={
+            "pending.dispatch": 4,
+            "pending.in_flight": 4,
+            "retained.history_bytes": 65_536,
+            "retained.history_records": history_records,
+            "retained.marking_bytes": 8_192,
+            "retained.marking_tokens": 16,
+        },
+    )
 
 
 def application_net() -> Net:
@@ -511,6 +556,44 @@ class EngineProfile:
         return tuple(expected)
 
 
+class ResourceBoundedEngineProfile(EngineProfile):
+    """Public-Engine profile with complete detached retained/pending gauges."""
+
+    identity = RESOURCE_PROFILE_IDENTITY
+
+    def validate_fault(self, fault: Fault) -> Fault:
+        del fault
+        raise ValueError("resource-bounded public-Engine profile does not accept faults")
+
+    def resource_usage(self, generation: EngineGeneration | None) -> ResourceUsage:
+        history = JsonlHistoryStore(self.history_path) if generation is None else generation.history
+        history_bytes = self.history_path.stat().st_size if self.history_path.exists() else 0
+        if generation is None:
+            marking: list[JsonValue] = []
+            in_flight: list[JsonValue] = []
+            dispatch_pending = 0
+        else:
+            current = generation.engine.snapshot()["current"]
+            assert isinstance(current, dict)
+            marking = cast(list[JsonValue], current["marking"])
+            in_flight = cast(list[JsonValue], current["in_flight"])
+            dispatch_pending = len(generation.dispatch.pending)
+        marking_bytes = len(json.dumps(marking, allow_nan=False, separators=(",", ":"), sort_keys=True).encode())
+        marking_tokens = sum(
+            len(cast(list[JsonValue], cast(dict[str, JsonValue], entry)["tokens"])) for entry in marking
+        )
+        return ResourceUsage(
+            values={
+                "pending.dispatch": dispatch_pending,
+                "pending.in_flight": len(in_flight),
+                "retained.history_bytes": history_bytes,
+                "retained.history_records": len(history),
+                "retained.marking_bytes": marking_bytes,
+                "retained.marking_tokens": marking_tokens,
+            }
+        )
+
+
 class HistoryRefusalEngineProfile(EngineProfile):
     """Public-Engine profile with one unambiguously pre-commit terminal cut."""
 
@@ -827,18 +910,88 @@ def execute_projection_story(history_path: Path, *, seed: int | None = None) -> 
     return world, profile, stale
 
 
-def build_projection_artifact(history_path: Path) -> ScenarioArtifact:
+def build_projection_artifact(history_path: Path) -> ScenarioArtifactV3:
     world, _, _ = execute_projection_story(history_path)
     try:
-        return world.artifact(SCENARIO_ID)
+        artifact = world.artifact(SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
     finally:
         world.close()
 
 
-def build_seeded_projection_artifact(history_path: Path) -> ScenarioArtifact:
+def build_seeded_projection_artifact(history_path: Path) -> ScenarioArtifactV3:
     world, _, _ = execute_projection_story(history_path, seed=SCENARIO_SEED)
     try:
-        return world.artifact(SEEDED_SCENARIO_ID)
+        artifact = world.artifact(SEEDED_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_resource_bounded_story(history_path: Path) -> tuple[World, ResourceBoundedEngineProfile]:
+    """Bound retained resources across abrupt public-Engine reconstruction."""
+
+    profile = ResourceBoundedEngineProfile(history_path)
+    world = World(profile, resource_world_budget(), checkers=(EngineHistoryChecker(),))
+    timeline = world.timeline()
+    requested = timeline.run_until(
+        "activity-requested",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["pending"] == [1],
+    )
+    assert cast(dict[str, JsonValue], requested.value)["frontier"] == 6
+
+    timeline.crash("activity_request_durable")
+    world.restart()
+    timeline = world.timeline()
+    recovered = timeline.run_until(
+        "activity-requested",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["pending"] == [1],
+    )
+    assert cast(dict[str, JsonValue], recovered.value)["frontier"] == 6
+
+    timeline.command("engine.complete", {"occurrence": 1, "result": {"value": 3}})
+    timeline.begin_fair()
+    terminal = timeline.run_until(
+        "terminal",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["status"] == "terminated",
+    )
+    assert cast(dict[str, JsonValue], terminal.value)["frontier"] == 9
+    timeline.finish(Disposition.CONVERGED)
+    return world, profile
+
+
+def build_resource_bounded_artifact(history_path: Path) -> ScenarioArtifact:
+    world, _ = execute_resource_bounded_story(history_path)
+    try:
+        artifact = world.artifact(RESOURCE_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifact)
+        return artifact
+    finally:
+        world.close()
+
+
+def build_resource_budget_failure_artifact(history_path: Path) -> ScenarioArtifact:
+    profile = ResourceBoundedEngineProfile(history_path)
+    world = World(
+        profile,
+        resource_world_budget(history_records=5),
+        checkers=(EngineHistoryChecker(),),
+    )
+    try:
+        try:
+            world.timeline().run_until(
+                "activity-requested",
+                lambda observation: cast(dict[str, JsonValue], observation.value)["pending"] == [1],
+            )
+        except BudgetExhausted:
+            pass
+        else:
+            raise AssertionError("the deliberate History-record resource budget did not exhaust")
+        artifact = world.artifact(RESOURCE_BUDGET_FAILURE_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifact)
+        return artifact
     finally:
         world.close()
 
@@ -923,10 +1076,12 @@ def execute_history_refusal_story(
     return world, profile, stale
 
 
-def build_history_refusal_artifact(history_path: Path) -> ScenarioArtifact:
+def build_history_refusal_artifact(history_path: Path) -> ScenarioArtifactV3:
     world, _, _ = execute_history_refusal_story(history_path)
     try:
-        return world.artifact(HISTORY_REFUSAL_SCENARIO_ID)
+        artifact = world.artifact(HISTORY_REFUSAL_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
     finally:
         world.close()
 
@@ -979,15 +1134,17 @@ def execute_history_ack_loss_story(
     return world, profile
 
 
-def build_history_ack_loss_artifact(history_path: Path) -> ScenarioArtifact:
+def build_history_ack_loss_artifact(history_path: Path) -> ScenarioArtifactV3:
     world, _ = execute_history_ack_loss_story(history_path)
     try:
-        return world.artifact(HISTORY_ACK_LOSS_SCENARIO_ID)
+        artifact = world.artifact(HISTORY_ACK_LOSS_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
     finally:
         world.close()
 
 
-def build_invariant_failure_artifact(history_path: Path) -> ScenarioArtifact:
+def build_invariant_failure_artifact(history_path: Path) -> ScenarioArtifactV3:
     profile = EngineProfile(history_path)
     world = World(
         profile,
@@ -1007,12 +1164,14 @@ def build_invariant_failure_artifact(history_path: Path) -> ScenarioArtifact:
             pass
         else:
             raise AssertionError("the deliberate terminal checker did not reject the Engine boundary")
-        return world.artifact(INVARIANT_FAILURE_SCENARIO_ID)
+        artifact = world.artifact(INVARIANT_FAILURE_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
     finally:
         world.close()
 
 
-def build_budget_failure_artifact(history_path: Path) -> ScenarioArtifact:
+def build_budget_failure_artifact(history_path: Path) -> ScenarioArtifactV3:
     profile = EngineProfile(history_path)
     budget = Budget(
         actions=1,
@@ -1033,6 +1192,8 @@ def build_budget_failure_artifact(history_path: Path) -> ScenarioArtifact:
             pass
         else:
             raise AssertionError("the deliberate action budget did not exhaust")
-        return world.artifact(BUDGET_FAILURE_SCENARIO_ID)
+        artifact = world.artifact(BUDGET_FAILURE_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
     finally:
         world.close()

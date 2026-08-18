@@ -27,7 +27,7 @@ from petrus.testing.dst import (
     Observation,
     ObservationRequest,
     ProfileIdentity,
-    ScenarioArtifact,
+    ScenarioArtifactV3,
     ScenarioContext,
     ScheduledCommand,
     World,
@@ -714,10 +714,12 @@ def execute_retry_story(history_path: Path, dispatch_path: Path) -> tuple[World,
     return world, profile
 
 
-def build_retry_artifact(history_path: Path, dispatch_path: Path) -> ScenarioArtifact:
+def build_retry_artifact(history_path: Path, dispatch_path: Path) -> ScenarioArtifactV3:
     world, _ = execute_retry_story(history_path, dispatch_path)
     try:
-        return world.artifact(SCENARIO_ID)
+        artifact = world.artifact(SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
     finally:
         world.close()
 
@@ -772,9 +774,11 @@ def execute_terminal_story(history_path: Path, dispatch_path: Path) -> tuple[Wor
     return world, profile
 
 
-def build_terminal_artifact(history_path: Path, dispatch_path: Path) -> ScenarioArtifact:
+def build_terminal_artifact(history_path: Path, dispatch_path: Path) -> ScenarioArtifactV3:
     world, _ = execute_terminal_story(history_path, dispatch_path)
     try:
-        return world.artifact(TERMINAL_SCENARIO_ID)
+        artifact = world.artifact(TERMINAL_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
     finally:
         world.close()

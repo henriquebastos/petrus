@@ -12,7 +12,9 @@ an identified-ingress profile proves source redelivery and identity conflict
 recovery. A delayed external-terminal profile proves volatile queue loss,
 external-truth reconstruction, and logical-time delivery. Broader fault
 adapters now include paired pre-commit refusal and post-commit acknowledgement
-loss. Bounds, generation, and campaign qualification remain.
+loss. Version 4 adds deterministic profile-retained-data and hidden-pending-work
+accounting; wall-clock process containment, generation, and campaign
+qualification remain.
 
 This document owns Petrus's deterministic simulation testing (DST) contract.
 DST drives the production `Engine`, `Coordinator`, `Instance`, `HistoryStore`,
@@ -25,10 +27,11 @@ The strict scenario and replay artifact which pin that profile are specified by
 [`dst-scenario-v1`](dst-scenario-v1.md) and tracked by
 [CV19.DS1.TS2](../project/roadmap/cv19-deterministic-simulation-testing/cv19-ds1-ts2-strict-scenario-replay-contract.md).
 The separately accepted supported kernel and its current artifact are specified
-by [`dst-world-v3`](dst-world-v3.md); versions 1 and 2 remain supported for
-strict decode and replay under [`dst-world-v1`](dst-world-v1.md) and
-[`dst-world-v2`](dst-world-v2.md). This document remains the authority for the
-cross-profile correctness properties, cuts, bounds, and evidence limits.
+by [`dst-world-v4`](dst-world-v4.md); versions 1 through 3 remain supported for
+strict decode and replay under [`dst-world-v1`](dst-world-v1.md),
+[`dst-world-v2`](dst-world-v2.md), and [`dst-world-v3`](dst-world-v3.md). This
+document remains the authority for the cross-profile correctness properties,
+cuts, bounds, and evidence limits.
 
 ## Driver route for correctness-sensitive work
 
@@ -115,12 +118,13 @@ The existing hosted simulation profile and result contract remain unchanged:
 - `engine-coordinator-v1` is an internal DST scenario/replay profile. It may
   exercise handlers and a scripted `Dispatch`, but it does not add fields,
   interpretations, or capabilities to `implementation-free-v1`.
-- `petrus.testing.dst/v3` is the current supported cross-project **test-kit**
+- `petrus.testing.dst/v4` is the current supported cross-project **test-kit**
   API with a distinct `petrus-dst-world` artifact. Its compatibility contract
-  is [`dst-world-v3`](dst-world-v3.md); strict version 1 and 2 decode/replay
-  remain supported by [`dst-world-v1`](dst-world-v1.md) and
-  [`dst-world-v2`](dst-world-v2.md). None is a hosted-simulation product API or
-  re-exported from the Petrus package root.
+  is [`dst-world-v4`](dst-world-v4.md); strict version 1 through 3 decode/replay
+  remain supported by [`dst-world-v1`](dst-world-v1.md),
+  [`dst-world-v2`](dst-world-v2.md), and [`dst-world-v3`](dst-world-v3.md). None
+  is a hosted-simulation product API or re-exported from the Petrus package
+  root.
 - A supported test-kit API is not implied by an internal replay fixture. Every
   future profile still requires an exact identity/digest, and any new supported
   surface requires its own compatibility decision.
@@ -318,11 +322,14 @@ choose smaller values; these `engine-coordinator-v1` ceilings are absolute:
 | Wall-clock watchdog per replay | 30 seconds |
 
 The History/token ceilings align with `implementation-free-v1`, and the time
-ceiling aligns with Motus's provider-neutral duration maximum. The watchdog is
-a harness-failure guard, never a simulated timeout. Crossing a semantic
-ceiling produces `bounded_exhaustion`; crossing the artifact size or watchdog
-ceiling produces `harness_failure` because no trustworthy replay artifact can
-be completed.
+ceiling aligns with Motus's provider-neutral duration maximum. Version 4 lets
+each exact profile map these retained and pending ceilings to named gauges and
+replays an overage as `budget_exhausted`. The watchdog is a harness-failure
+guard, never a simulated timeout, and is not yet implemented: it requires the
+process-isolated acknowledged-prefix runner specified as remaining DS2 work in
+[`dst-world-v4`](dst-world-v4.md). Crossing its eventual ceiling cannot be
+fabricated as a deterministic artifact failure for a call which never
+returned.
 
 Every scheduled event has one of these terminal application dispositions:
 `applied`, `idempotent`, `refused_expected`, `quarantined`,

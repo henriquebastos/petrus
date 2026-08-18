@@ -27,7 +27,7 @@ from petrus.testing.dst import (
     Observation,
     ObservationRequest,
     ProfileIdentity,
-    ScenarioArtifact,
+    ScenarioArtifactV3,
     ScenarioContext,
     World,
     digest_json,
@@ -378,9 +378,11 @@ def execute_delivery_story(history_path: Path) -> tuple[World, DeliveryEnginePro
     return world, profile
 
 
-def build_delivery_artifact(history_path: Path) -> ScenarioArtifact:
+def build_delivery_artifact(history_path: Path) -> ScenarioArtifactV3:
     world, _ = execute_delivery_story(history_path)
     try:
-        return world.artifact(SCENARIO_ID)
+        artifact = world.artifact(SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
     finally:
         world.close()

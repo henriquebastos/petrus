@@ -17,6 +17,7 @@ from tests.dst.engine_world import (
     EngineProfile,
     HistoryAckLossEngineProfile,
     HistoryRefusalEngineProfile,
+    ResourceBoundedEngineProfile,
     TerminalRefusalChecker,
 )
 from tests.dst.lifecycle_world import LifecycleAuthorityChecker, LifecycleEngineProfile
@@ -37,6 +38,7 @@ def replay_path(path: Path):
         registry.register_profile(EngineProfile(Path(directory) / "projection-history.jsonl"))
         registry.register_profile(HistoryAckLossEngineProfile(Path(directory) / "history-ack-loss.jsonl"))
         registry.register_profile(HistoryRefusalEngineProfile(Path(directory) / "history-refusal.jsonl"))
+        registry.register_profile(ResourceBoundedEngineProfile(Path(directory) / "resource-history.jsonl"))
         registry.register_profile(LifecycleEngineProfile(Path(directory) / "lifecycle-history.jsonl"))
         registry.register_profile(
             RetryEngineProfile(

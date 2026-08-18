@@ -1,6 +1,6 @@
 # DST executable World version 1
 
-**Status:** Supported legacy cross-project test-kit contract. Version 3 is the
+**Status:** Supported legacy cross-project test-kit contract. Version 4 is the
 current artifact-authoring contract; version 1 decode and replay remain
 supported unchanged. This is not a Petrus runtime product API and is not
 re-exported from the `petrus` package root.
@@ -9,8 +9,9 @@ This document specifies the `petrus.testing.dst/v1` defining-module contract
 and its `petrus-dst-world` version 1 expanded replay artifact. The accepted
 [test-kit decision](../project/decisions/records/2026-08-17T2249Z-ship-a-supported-cross-project-dst-test-kit.md)
 owns the compatibility promise; the broader correctness obligations remain in
-the [DST owner](deterministic-simulation-testing.md). New scenarios use the
-[`petrus.testing.dst/v3` contract](dst-world-v3.md).
+the [DST owner](deterministic-simulation-testing.md). New scenarios which
+account for profile-owned retained state use the
+[`petrus.testing.dst/v4` contract](dst-world-v4.md).
 
 The test kit is an executor around application-owned runtime generations. It
 does not implement Petri-net semantics, readiness semantics, provider truth,

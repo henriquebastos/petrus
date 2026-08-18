@@ -1,6 +1,6 @@
 # DST executable World version 2
 
-**Status:** Supported legacy cross-project test-kit contract. Version 3 is the
+**Status:** Supported legacy cross-project test-kit contract. Version 4 is the
 current artifact-authoring contract; version 2 decode and replay remain
 supported unchanged. This is not a Petrus runtime product API and is not
 re-exported from the `petrus` package root.
@@ -12,7 +12,8 @@ failure retention requires a new strict shape. Version 1 artifacts and replay
 results remain byte-compatible and replay through the same current
 interpreter.
 
-New scenarios use the [`petrus.testing.dst/v3` contract](dst-world-v3.md).
+New scenarios which account for profile-owned retained state use the
+[`petrus.testing.dst/v4` contract](dst-world-v4.md).
 
 The [test-kit decision](../project/decisions/records/2026-08-17T2249Z-ship-a-supported-cross-project-dst-test-kit.md)
 continues to own the support boundary. Profiles still own opaque application
@@ -148,6 +149,7 @@ retained failure.
 
 Version 2 removes the failed-case replay blocker for generated schedules and
 shrinking. It does not itself generate or shrink a schedule. Broader
-pre/post-durable fault adapters, remaining profile-retained-data/watchdog
-bounds, generated semantic coverage, and real-boundary qualification remain
-owned by CV19.DS2–DS4.
+pre/post-durable fault adapters, wall-clock watchdog containment, generated
+semantic coverage, and real-boundary qualification remain owned by CV19.DS2–DS4.
+Version 4 subsequently adds profile-retained-data and hidden-pending-work
+bounds without changing version 2 replay.

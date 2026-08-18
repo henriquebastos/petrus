@@ -19,11 +19,13 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator, m
 
 LEGACY_API_COMPATIBILITY = "petrus.testing.dst/v1"
 PREVIOUS_API_COMPATIBILITY = "petrus.testing.dst/v2"
-API_COMPATIBILITY = "petrus.testing.dst/v3"
+SEEDED_API_COMPATIBILITY = "petrus.testing.dst/v3"
+API_COMPATIBILITY = "petrus.testing.dst/v4"
 ARTIFACT_FORMAT = "petrus-dst-world"
 LEGACY_ARTIFACT_VERSION = 1
 PREVIOUS_ARTIFACT_VERSION = 2
-ARTIFACT_VERSION = 3
+SEEDED_ARTIFACT_VERSION = 3
+ARTIFACT_VERSION = 4
 RESULT_FORMAT = "petrus-dst-world-replay-result"
 RESULT_VERSION = 2
 MAX_ARTIFACT_BYTES = 4_194_304
@@ -275,7 +277,7 @@ class Fault(_StrictModel):
 
 
 class Budget(_StrictModel):
-    """All generic World limits required by the version-1 test-kit contract."""
+    """Generic World limits shared by the version 1 through 3 contracts."""
 
     actions: int = Field(ge=1, le=100_000)
     queued_commands: int = Field(ge=1, le=10_000)
@@ -284,6 +286,44 @@ class Budget(_StrictModel):
     reloads: int = Field(ge=0, le=1_000)
     predicate_polls: int = Field(ge=1, le=100_000)
     artifact_bytes: int = Field(ge=1, le=MAX_ARTIFACT_BYTES)
+
+
+def _resource_values(value: dict[str, int], subject: str) -> dict[str, int]:
+    for name, count in value.items():
+        if not _NAME.fullmatch(name):
+            raise ValueError(f"{subject} names must be normalized and non-empty")
+        if type(count) is not int or not 0 <= count <= _MAX_PORTABLE_INTEGER:
+            raise ValueError(f"{subject} values must be nonnegative JSON-portable integers")
+    return value
+
+
+class BudgetV4(_StrictModel):
+    """Version-4 limits including profile-defined retained and pending resources."""
+
+    actions: int = Field(ge=1, le=100_000)
+    queued_commands: int = Field(ge=1, le=10_000)
+    timer_advances: int = Field(ge=0, le=10_000)
+    logical_instant: int = Field(ge=0, le=2**53 - 1)
+    reloads: int = Field(ge=0, le=1_000)
+    predicate_polls: int = Field(ge=1, le=100_000)
+    artifact_bytes: int = Field(ge=1, le=MAX_ARTIFACT_BYTES)
+    profile_resources: dict[str, int]
+
+    @field_validator("profile_resources")
+    @classmethod
+    def valid_profile_resources(cls, value: dict[str, int]) -> dict[str, int]:
+        return _resource_values(value, "profile resource budget")
+
+
+class ResourceUsage(_StrictModel):
+    """One detached, side-effect-free sample of profile-owned resource gauges."""
+
+    values: dict[str, int]
+
+    @field_validator("values")
+    @classmethod
+    def valid_values(cls, value: dict[str, int]) -> dict[str, int]:
+        return _resource_values(value, "profile resource usage")
 
 
 class ScheduledCommand(_StrictModel):
@@ -386,6 +426,12 @@ class ScenarioProfile[GenerationT](Protocol):
     def drop(self, generation: GenerationT) -> None: ...
 
     def close(self, generation: GenerationT) -> None: ...
+
+
+class ResourceScenarioProfile[GenerationT](ScenarioProfile[GenerationT], Protocol):
+    """Version-4 profile which accounts for every retained and pending resource."""
+
+    def resource_usage(self, generation: GenerationT | None) -> ResourceUsage: ...
 
 
 class Checker(Protocol):
@@ -582,6 +628,7 @@ class JournalEntry(_StrictModel):
         "finish",
         "budget",
         "failure",
+        "resource",
     ]
     name: str
     value: JsonValue
@@ -735,11 +782,20 @@ class ScenarioArtifactV2(_FailureScenarioArtifact):
     api: Literal["petrus.testing.dst/v2"]
 
 
-class ScenarioArtifact(_FailureScenarioArtifact):
-    """Current artifact with exact operations and seeded discovery provenance."""
+class ScenarioArtifactV3(_FailureScenarioArtifact):
+    """Legacy version-3 artifact with seeded discovery provenance."""
 
     version: Literal[3]
     api: Literal["petrus.testing.dst/v3"]
+    origin: ChoiceProvenance | None
+
+
+class ScenarioArtifact(_FailureScenarioArtifact):
+    """Current artifact with deterministic profile-resource accounting."""
+
+    version: Literal[4]
+    api: Literal["petrus.testing.dst/v4"]
+    budget: BudgetV4
     origin: ChoiceProvenance | None
 
 
@@ -805,7 +861,7 @@ class RunUntilFailed(AssertionError):
         observation: Observation,
         pending: list[JsonValue],
         journal: tuple[JournalEntry, ...],
-        budget: Budget,
+        budget: Budget | BudgetV4,
     ):
         self.name = name
         self.disposition = disposition
@@ -898,7 +954,7 @@ class World:
     def __init__(
         self,
         profile: ScenarioProfile[object],
-        budget: Budget,
+        budget: Budget | BudgetV4,
         *,
         checkers: tuple[Checker, ...] = (),
         seed: int | None = None,
@@ -929,6 +985,7 @@ class World:
         self._fair = False
         self._disposition: Disposition | None = None
         try:
+            self._sample_resources(None, "before_create")
             started = self._invoke(self.profile.create, self._context)
             self._install_generation(started, loaded=False)
         except BaseException:
@@ -1023,6 +1080,7 @@ class World:
         self._operations.append(operation)
         self._record("command", validated.name, operation.model_dump(mode="json"))
         self._enqueue_all(result.scheduled, "profile")
+        self._sample_resources(self._generation, validated.name)
         self._evaluate_checkers(validated.name, position, self._generation, self._generation_id)
         return operation
 
@@ -1055,6 +1113,7 @@ class World:
         self._active_faults.append(_ActiveFault(validated))
         self._record("fault", validated.name, operation.model_dump(mode="json"))
         live, _ = self._live_generation()
+        self._sample_resources(live, f"fault:{validated.name}")
         self._evaluate_checkers(f"fault:{validated.name}", position, live, generation)
 
     def observe(self, request: ObservationRequest, *, generation: int, poll: bool = False) -> Observation:
@@ -1076,6 +1135,8 @@ class World:
         )
         self._operations.append(operation)
         self._record("observation", request.name, operation.model_dump(mode="json"))
+        live, _ = self._live_generation()
+        self._sample_resources(live, f"observe:{request.name}")
         return observation
 
     def crash(self, cut: str, *, generation: int) -> None:
@@ -1108,6 +1169,7 @@ class World:
         )
         self._operations.append(operation)
         self._record("crash", cut, operation.model_dump(mode="json"), generation=None)
+        self._sample_resources(None, f"crash:{cut}")
         self._record_checks(captured)
 
     def restart(self) -> int:
@@ -1128,6 +1190,7 @@ class World:
         operation = RestartOperation(kind="restart", position=position, instant=self.instant, generation=generation_id)
         self._operations.append(operation)
         self._record("loaded", self.profile.identity.name, operation.model_dump(mode="json"))
+        self._sample_resources(live, "load")
         self._evaluate_checkers("load", position, live, generation_id)
         return generation_id
 
@@ -1149,6 +1212,7 @@ class World:
         self._operations.append(operation)
         self._record("fair", "begin", operation.model_dump(mode="json"))
         live, _ = self._live_generation()
+        self._sample_resources(live, "begin_fair")
         self._evaluate_checkers("begin_fair", position, live, generation)
 
     def finish(self, disposition: Disposition, *, generation: int) -> None:
@@ -1181,29 +1245,47 @@ class World:
         self._operations.append(operation)
         self._disposition = disposition
         self._record("finish", disposition.value, operation.model_dump(mode="json"))
+        live, _ = self._live_generation()
+        self._sample_resources(live, f"finish:{disposition.value}")
 
-    def artifact(self, scenario_id: str) -> ScenarioArtifact:
+    def artifact(self, scenario_id: str) -> ScenarioArtifactV3 | ScenarioArtifact:
         if self._disposition is None:
             raise DstError("finish the DST World before producing an artifact")
         failures = [operation for operation in self._operations if isinstance(operation, FailureOperation)]
         failure = failures[-1].failure if failures else None
-        artifact = ScenarioArtifact(
-            format=ARTIFACT_FORMAT,
-            version=ARTIFACT_VERSION,
-            api=API_COMPATIBILITY,
-            scenario_id=scenario_id,
-            profile=self.profile.identity,
-            checkers=[checker.identity for checker in self.checkers],
-            budget=self.budget,
-            operations=list(self._operations),
-            origin=None if self._choices is None else self._choices.provenance(),
-            expected=ScenarioExpected(
-                disposition=self._disposition.value,
-                failure=failure,
-                checks=[entry for entry in self._journal if entry.kind == "check"],
-                journal_digest=_journal_digest(self._journal),
-            ),
+        expected = ScenarioExpected(
+            disposition=self._disposition.value,
+            failure=failure,
+            checks=[entry for entry in self._journal if entry.kind == "check"],
+            journal_digest=_journal_digest(self._journal),
         )
+        origin = None if self._choices is None else self._choices.provenance()
+        if isinstance(self.budget, BudgetV4):
+            artifact: ScenarioArtifactV3 | ScenarioArtifact = ScenarioArtifact(
+                format=ARTIFACT_FORMAT,
+                version=ARTIFACT_VERSION,
+                api=API_COMPATIBILITY,
+                scenario_id=scenario_id,
+                profile=self.profile.identity,
+                checkers=[checker.identity for checker in self.checkers],
+                budget=self.budget,
+                operations=list(self._operations),
+                origin=origin,
+                expected=expected,
+            )
+        else:
+            artifact = ScenarioArtifactV3(
+                format=ARTIFACT_FORMAT,
+                version=SEEDED_ARTIFACT_VERSION,
+                api=SEEDED_API_COMPATIBILITY,
+                scenario_id=scenario_id,
+                profile=self.profile.identity,
+                checkers=[checker.identity for checker in self.checkers],
+                budget=self.budget,
+                operations=list(self._operations),
+                origin=origin,
+                expected=expected,
+            )
         encode_artifact(artifact)
         return artifact
 
@@ -1244,6 +1326,7 @@ class World:
                 self.profile.identity.name,
                 {"scheduled": [entry.model_dump(mode="json") for entry in started.scheduled]},
             )
+            self._sample_resources(self._generation, "create")
             self._evaluate_checkers("create", 0, self._generation, self._generation_id)
 
     def _enqueue(self, scheduled: ScheduledCommand, source: _CommandSource) -> int:
@@ -1344,6 +1427,35 @@ class World:
     def _evaluate_checkers(self, trigger: str, sequence: int, generation: object, generation_id: int) -> None:
         self._record_checks(self._capture_checks(trigger, sequence, generation, generation_id))
 
+    def _sample_resources(self, generation: object | None, trigger: str) -> None:
+        if not isinstance(self.budget, BudgetV4):
+            return
+        door = getattr(self.profile, "resource_usage", None)
+        if not callable(door):
+            raise TypeError("a version-4 DST profile must define resource_usage")
+        usage = self._invoke(door, generation)
+        if not isinstance(usage, ResourceUsage):
+            raise TypeError("ScenarioProfile.resource_usage must return ResourceUsage")
+        expected = set(self.budget.profile_resources)
+        actual = set(usage.values)
+        if actual != expected:
+            missing = sorted(expected - actual)
+            additional = sorted(actual - expected)
+            raise ValueError(
+                "profile resource usage keys must exactly match its budget; "
+                f"missing={missing!r}, additional={additional!r}"
+            )
+        self._record(
+            "resource",
+            trigger,
+            {"usage": dict(sorted(usage.values.items()))},
+            generation=None if generation is None else ...,
+        )
+        exceeded = sorted(name for name, value in usage.values.items() if value > self.budget.profile_resources[name])
+        if exceeded:
+            name = exceeded[0]
+            self._exhaust(f"profile_resources:{name}", self.budget.profile_resources[name])
+
     def _record(self, kind: str, name: str, value: object, *, generation: int | None | object = ...) -> None:
         actual_generation = self._generation_id if generation is ... else cast(int | None, generation)
         self._journal.append(
@@ -1364,6 +1476,7 @@ class World:
                         "finish",
                         "budget",
                         "failure",
+                        "resource",
                     ],
                     kind,
                 ),
@@ -1527,7 +1640,7 @@ class Timeline:
         self._world.finish(disposition, generation=self.generation)
 
 
-type AnyScenarioArtifact = ScenarioArtifactV1 | ScenarioArtifactV2 | ScenarioArtifact
+type AnyScenarioArtifact = ScenarioArtifactV1 | ScenarioArtifactV2 | ScenarioArtifactV3 | ScenarioArtifact
 
 
 def encode_artifact(artifact: AnyScenarioArtifact) -> bytes:
@@ -1557,6 +1670,8 @@ def decode_artifact(payload: bytes) -> AnyScenarioArtifact:
         artifact: AnyScenarioArtifact = ScenarioArtifactV1.model_validate(value, strict=True)
     elif version == PREVIOUS_ARTIFACT_VERSION:
         artifact = ScenarioArtifactV2.model_validate(value, strict=True)
+    elif version == SEEDED_ARTIFACT_VERSION:
+        artifact = ScenarioArtifactV3.model_validate(value, strict=True)
     elif version == ARTIFACT_VERSION:
         artifact = ScenarioArtifact.model_validate(value, strict=True)
     else:
@@ -1764,6 +1879,8 @@ __all__ = [
     "LEGACY_ARTIFACT_VERSION",
     "PREVIOUS_API_COMPATIBILITY",
     "PREVIOUS_ARTIFACT_VERSION",
+    "SEEDED_API_COMPATIBILITY",
+    "SEEDED_ARTIFACT_VERSION",
     "RESULT_FORMAT",
     "RESULT_VERSION",
     "ActionDisposition",
@@ -1771,6 +1888,7 @@ __all__ = [
     "AnyScenarioArtifact",
     "ApplyResult",
     "Budget",
+    "BudgetV4",
     "BudgetExhausted",
     "BudgetFailure",
     "CheckResult",
@@ -1798,10 +1916,13 @@ __all__ = [
     "ReplayMismatch",
     "ReplayResult",
     "ReplayResultV1",
+    "ResourceScenarioProfile",
+    "ResourceUsage",
     "RunUntilFailed",
     "ScenarioArtifact",
     "ScenarioArtifactV1",
     "ScenarioArtifactV2",
+    "ScenarioArtifactV3",
     "ScenarioContext",
     "ScenarioProfile",
     "ScenarioRegistry",

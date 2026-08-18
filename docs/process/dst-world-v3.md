@@ -1,8 +1,9 @@
 # DST executable World version 3
 
-**Status:** Current supported cross-project test-kit contract. This is not a
-Petrus runtime product API and is not re-exported from the `petrus` package
-root.
+**Status:** Supported legacy cross-project test-kit contract. Version 4 is the
+current artifact-authoring contract; version 3 decode and replay remain
+supported unchanged. This is not a Petrus runtime product API and is not
+re-exported from the `petrus` package root.
 
 This document specifies `petrus.testing.dst/v3` and `petrus-dst-world`
 artifact version 3. It adds seeded discovery provenance to the exact operations
@@ -15,6 +16,9 @@ Versions 1 and 2 remain strict decode/replay contracts under
 [`dst-world-v1`](dst-world-v1.md) and [`dst-world-v2`](dst-world-v2.md). The
 [test-kit decision](../project/decisions/records/2026-08-17T2249Z-ship-a-supported-cross-project-dst-test-kit.md)
 continues to own the support boundary.
+
+New scenarios which account for profile-owned retained state use the
+[`petrus.testing.dst/v4` contract](dst-world-v4.md).
 
 ## Compatibility change
 
@@ -265,10 +269,11 @@ and digest
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
 generator. The broader delivery, Dispatch, delayed retry/provider-time,
-lifecycle, and transaction fault matrix plus the remaining
-profile-retained-data/watchdog bounds remain in CV19.DS2. Stateful generation,
-shrinking, broad independent models/checkers, and semantic coverage remain in
-DS3; campaign and real-boundary qualification remain in DS4.
+lifecycle, and transaction fault matrix plus wall-clock process containment
+remain in CV19.DS2. Version 4 subsequently adds profile-retained-data and
+hidden-pending-work bounds without changing version 3 replay. Stateful
+generation, shrinking, broad independent models/checkers, and semantic
+coverage remain in DS3; campaign and real-boundary qualification remain in DS4.
 
 Nonzero LocalDispatch retry time remains at an explicit compatibility
 boundary: SQLite is intentionally the provider clock and serialization

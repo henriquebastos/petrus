@@ -23,9 +23,12 @@ from petrus.testing.dst import (
     PREVIOUS_API_COMPATIBILITY,
     PREVIOUS_ARTIFACT_VERSION,
     RESULT_VERSION,
+    SEEDED_API_COMPATIBILITY,
+    SEEDED_ARTIFACT_VERSION,
     ActionDisposition,
     ApplyResult,
     Budget,
+    BudgetV4,
     BudgetExhausted,
     CheckResult,
     CheckerIdentity,
@@ -42,6 +45,7 @@ from petrus.testing.dst import (
     PendingWork,
     ProfileIdentity,
     ReplayMismatch,
+    ResourceUsage,
     RunUntilFailed,
     ScenarioRegistry,
     ScenarioArtifactV1,
@@ -209,6 +213,36 @@ class RaisingReservedExceptionProfile(QueueProfile):
         raise BudgetExhausted("profile-owned", 1)
 
 
+class ResourceQueueProfile(QueueProfile):
+    identity = ProfileIdentity(
+        name="petrus.testing.resource-queue-proof",
+        version=1,
+        digest=dst.digest_json(
+            {
+                "command": "queue.record",
+                "observation": "queue.state",
+                "resources": ["retained.values"],
+            }
+        ),
+    )
+
+    def resource_usage(self, generation: list[str] | None) -> ResourceUsage:
+        return ResourceUsage(values={"retained.values": 0 if generation is None else len(generation)})
+
+
+def resource_budget(limit: int) -> BudgetV4:
+    return BudgetV4(
+        actions=8,
+        queued_commands=2,
+        timer_advances=1,
+        logical_instant=5,
+        reloads=0,
+        predicate_polls=2,
+        artifact_bytes=65_536,
+        profile_resources={"retained.values": limit},
+    )
+
+
 def test_world_owns_stable_ids_total_tie_order_and_logical_time() -> None:
     budget = Budget(
         actions=4,
@@ -237,6 +271,77 @@ def test_world_owns_stable_ids_total_tie_order_and_logical_time() -> None:
     result = replay(artifact, registry)
     assert result.outcome == "pass"
     assert result.disposition == Disposition.QUIESCENT.value
+
+
+def test_version_four_accounts_for_profile_resources_and_replays_exactly() -> None:
+    world = World(ResourceQueueProfile(), resource_budget(2))
+    timeline = world.timeline()
+    try:
+        world.step()
+        world.step()
+        timeline.observe("queue.state")
+        timeline.finish(Disposition.QUIESCENT)
+        artifact = world.artifact("resource-bounded-queue-v4")
+    finally:
+        world.close()
+
+    assert artifact.version == ARTIFACT_VERSION
+    assert artifact.api == API_COMPATIBILITY
+    assert artifact.budget.profile_resources == {"retained.values": 2}
+    resource_entries = [entry for entry in world.journal if entry.kind == "resource"]
+    assert [entry.name for entry in resource_entries] == [
+        "before_create",
+        "create",
+        "queue.record",
+        "queue.record",
+        "observe:queue.state",
+        "finish:quiescent",
+    ]
+
+    registry = ScenarioRegistry()
+    registry.register_profile(ResourceQueueProfile())
+    result = replay(artifact, registry)
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.QUIESCENT.value
+
+
+def test_version_four_retains_the_accepted_operation_which_exceeds_a_profile_resource() -> None:
+    world = World(ResourceQueueProfile(), resource_budget(1))
+    try:
+        world.step()
+        with pytest.raises(BudgetExhausted, match="profile_resources:retained.values"):
+            world.step()
+        artifact = world.artifact("resource-budget-exhaustion-v4")
+    finally:
+        world.close()
+
+    failure = artifact.operations[-1]
+    assert artifact.expected.disposition == Disposition.BUDGET_EXHAUSTED.value
+    assert isinstance(failure, FailureOperation)
+    assert failure.accepted_operations == 1
+    assert failure.failure.kind == "budget_exhausted"
+    assert failure.failure.bound == "profile_resources:retained.values"
+    assert artifact.operations[-2].kind == "execute"
+
+    registry = ScenarioRegistry()
+    registry.register_profile(ResourceQueueProfile())
+    result = replay(artifact, registry)
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.BUDGET_EXHAUSTED.value
+    assert result.failure == artifact.expected.failure
+
+
+def test_version_four_requires_an_exact_stable_resource_key_set() -> None:
+    class IncompleteResourceProfile(ResourceQueueProfile):
+        def resource_usage(self, generation: list[str] | None) -> ResourceUsage:
+            del generation
+            return ResourceUsage(values={"retained.other": 0})
+
+    with pytest.raises(ValueError, match="missing=.*retained.values.*additional=.*retained.other"):
+        World(IncompleteResourceProfile(), resource_budget(2))
+
+    with pytest.raises(ValidationError, match="valid integer"):
+        resource_budget(True)  # type: ignore[arg-type]
 
 
 def test_predicate_poll_budget_ends_explicitly(tmp_path: Path) -> None:
@@ -464,12 +569,12 @@ def test_queue_reload_and_artifact_byte_budgets_end_explicitly() -> None:
         encode_artifact(artifact)
 
 
-def test_executable_story_generates_a_strict_version_three_artifact(tmp_path: Path) -> None:
+def test_executable_story_preserves_the_strict_version_three_artifact(tmp_path: Path) -> None:
     artifact = build_projection_artifact(tmp_path / "authored-history.jsonl")
 
     assert artifact.format == ARTIFACT_FORMAT
-    assert artifact.version == ARTIFACT_VERSION
-    assert artifact.api == API_COMPATIBILITY
+    assert artifact.version == SEEDED_ARTIFACT_VERSION
+    assert artifact.api == SEEDED_API_COMPATIBILITY
     assert artifact.scenario_id == SCENARIO_ID
     assert artifact.profile == PROFILE_IDENTITY
     assert artifact.checkers == [CHECKER_IDENTITY]
@@ -719,7 +824,7 @@ def test_failed_attempt_artifacts_are_exact_and_replayable(
     operations: int,
 ) -> None:
     artifact = build(tmp_path / f"author-{scenario_id}.jsonl")
-    assert artifact.version == ARTIFACT_VERSION
+    assert artifact.version == SEEDED_ARTIFACT_VERSION
     assert artifact.origin is None
     assert artifact.expected.disposition == disposition.value
     assert artifact.expected.failure is not None

@@ -2,7 +2,7 @@
 code: CV19.DS2
 level: Delivery Story
 status: Active
-status_reason: The accepted v3 World now proves paired pre/post-commit History cuts, identified ingress, delayed completion, lifecycle/timer reconstruction, and LocalDispatch custody; DS2 remains active for broader cuts/adapters/bounds
+status_reason: The accepted v4 World now also bounds profile-owned retained and pending resources while preserving v1-v3 replay; DS2 remains active for process watchdog containment and broader cuts/adapters
 updated: 2026-08-18
 related:
   - index.md
@@ -11,6 +11,7 @@ related:
   - ../../../process/dst-world-v1.md
   - ../../../process/dst-world-v2.md
   - ../../../process/dst-world-v3.md
+  - ../../../process/dst-world-v4.md
 ---
 
 # CV19.DS2 — Deterministic event and fault harness
@@ -178,10 +179,11 @@ format rather than silently widening that fixture contract.
 ## Implemented vertical slice
 
 The accepted kernel ships under the supported defining module
-`petrus.testing.dst`. The current API identity is `petrus.testing.dst/v3` and
-its current strict artifact is `petrus-dst-world` version 3. The loader and
-same interpreter retain strict version 1 and 2 decode/replay compatibility;
-DS1's `petrus-dst-scenario` version 1 remains byte-for-byte unchanged.
+`petrus.testing.dst`. The current API identity is `petrus.testing.dst/v4` and
+its current strict artifact is `petrus-dst-world` version 4. The loader and
+same interpreter retain strict version 1 through 3 decode/replay
+compatibility; DS1's `petrus-dst-scenario` version 1 remains byte-for-byte
+unchanged.
 
 The first executable pytest World/Timeline story proves the post-acceptance
 side of `activity_terminal_frozen` through the real public Engine surface:
@@ -321,6 +323,24 @@ The ninth exact profile proves post-commit History acknowledgement loss:
 5. replay 15 operations and 25 journal entries, including 9 independent checker
    evaluations, exactly.
 
+The tenth exact profile proves generic retained-resource and hidden-pending-work
+accounting across a production Engine crash:
+
+1. declare exact profile gauges for History records/bytes, marking
+   tokens/bytes, in-flight Activities, and Dispatch custody;
+2. sample the same complete detached key set before create and after every
+   accepted command, observation, crash/drop, fresh load, fair, and finish
+   boundary;
+3. abruptly drop a generation with one durable Activity request, measure the
+   retained History with all live-only gauges at zero, then reconstruct the
+   pending invocation through public `Engine.load` and drive doors;
+4. converge under inclusive resource ceilings and replay 14 operations and 39
+   journal entries exactly; and
+5. in a paired failure fixture, accept the first Engine drive, observe six
+   History records against a limit of five, retain that accepted operation plus
+   `profile_resources:retained.history_records`, and replay the exact 3-operation
+   / 10-journal-entry failure.
+
 All authored support and retained evidence live together under `tests/dst/`.
 The application profile returns detached follow-up proposals; only the World
 validates, orders, journals, and executes them. Checkers consume detached
@@ -348,16 +368,16 @@ seeded Engine scenario whose replay never consults the PRNG.
 
 | Done condition | Slice result |
 | --- | --- |
-| 1. Accepted defining-module compatibility surface | Met by the accepted decision, current `petrus.testing.dst/v3`, explicit v1/v2 constants/models, exact identities, no root/private exports, and the versioned [`dst-world-v3`](../../../process/dst-world-v3.md), [`dst-world-v2`](../../../process/dst-world-v2.md), and [`dst-world-v1`](../../../process/dst-world-v1.md) contracts. |
-| 2. Imperative story emits replay data | Met by the executable profiles under `tests/dst/` and retained projection, pre/post-commit History, ingress-redelivery, delayed-terminal, lifecycle-race, timer-recovery, retry-exhaustion, and terminal-recollection fixtures. |
-| 3. Same-interpreter replay agreement | Met for all nine public-Engine crash/recovery stories, including exact operations, checker observations, dispositions, and journal digests. |
+| 1. Accepted defining-module compatibility surface | Met by the accepted decision, current `petrus.testing.dst/v4`, explicit v1-v3 constants/models, exact identities, no root/private exports, and the versioned [`dst-world-v4`](../../../process/dst-world-v4.md), [`dst-world-v3`](../../../process/dst-world-v3.md), [`dst-world-v2`](../../../process/dst-world-v2.md), and [`dst-world-v1`](../../../process/dst-world-v1.md) contracts. |
+| 2. Imperative story emits replay data | Met by the executable profiles under `tests/dst/` and retained projection, pre/post-commit History, ingress-redelivery, delayed-terminal, lifecycle-race, timer-recovery, retry-exhaustion, terminal-recollection, and resource-bound fixtures. |
+| 3. Same-interpreter replay agreement | Met for all ten public-Engine crash/recovery stories plus the retained resource-overage failure, including exact operations, resource/checker observations, dispositions, and journal digests. |
 | 4. Seeded repeatability | Met: two fresh seed-1729 Engine runs produce the same expanded artifact; workload, fault, identifier, and event-order streams are independently pinned, and replay ignores changed seed provenance. |
 | 5. Abrupt generation reconstruction | Met for the public-Engine profile, including revoke-before-drop and stale Timeline refusal. |
 | 6. Named cuts before/after durable acceptance | Partial: paired pre-commit refusal/post-commit acknowledgement-loss History cuts, identified ingress redelivery, delayed external completion, lifecycle and timer reconstruction, zero-backoff LocalDispatch retry exhaustion, and provider-terminal custody before Engine collection are proved; the broader delivery, delayed retry, lifecycle, and transaction matrix remains. |
-| 7. Complete bounds | Partial: action, queue, logical-time/advance, reload, predicate, and artifact limits are executable; profile-retained-data and wall-clock watchdog qualification remain. |
+| 7. Complete bounds | Partial: action, queue, logical-time/advance, reload, predicate, artifact, profile-retained-data, and hidden-pending-work limits are executable; wall-clock process watchdog qualification remains. |
 | 8. Checker cadence and fair draining | Met for the vertical slice; broader independent S1–S8 checker coverage belongs to the remaining DS2/DS3 work. |
 | 9. Hermetic real-runtime execution | Met for the vertical slice: no credentials, providers, network sleeps, or substitute Petrus semantics. |
-| 10. Repository gates | Met for this slice: focused DST, full, and both release-order suites pass. |
+| 10. Repository gates | Met with a release-gate reservation: focused DST and the current full suite pass; an earlier release run passed both orders, while the latest release attempt exposed the unrelated existing Gondolin `/tmp/petrus-g-*` xdist race and its exact node passes in isolation. |
 
 Version 1 artifacts intentionally retain only authored endings. Version 2
 removes that format limit: it preserves one exact terminal failed attempt plus
@@ -374,9 +394,19 @@ Timeline/World doors, and replay constructs an unseeded World from the expanded
 operations. The replay-result schema therefore remains version 2 even though
 the authoring API and artifact are version 3.
 
+Version 4 adds exact profile-owned resource manifests without changing prior
+profiles or artifacts. `BudgetV4` limits strict named gauges returned by the
+side-effect-free `resource_usage(generation | None)` door. The World samples
+and journals them at legal boundaries, rejects changing key sets as profile
+contract errors, and deterministically retains the lexicographically first
+overage as a budget failure. A legacy `Budget` never invokes the new door and
+continues to author version 3. The wall-clock watchdog remains a distinct
+outer-process runner problem: a killed call cannot truthfully manufacture an
+ordinary deterministic `FailureOperation`.
+
 ### Executed evidence
 
-- `UV_FROZEN=1 uv run pytest -q tests/dst` — 85 passed.
+- `UV_FROZEN=1 uv run pytest -q tests/dst` — 92 passed.
 - `UV_FROZEN=1 uv run python -m tests.dst.replay_world
   tests/dst/fixtures/projection-crash-recovery-world-v1.json` — `pass`,
   `converged`, 15 operations, 25 journal entries, digest
@@ -425,13 +455,24 @@ the authoring API and artifact are version 3.
   returned `pass` / `converged`, 15 operations, 25 journal entries including 9
   checker evaluations, and digest
   `sha256:b69cd6760d3a1818f4cbfcc5f531d7ad3c970b0e383c5b5ba0abd62a0ff47c92`.
-- `scripts/check full` — 2,266 passed.
-- `scripts/check release` — default order 2,266 passed; additional fixed order
-  2,266 passed with 17 intentionally deselected by the release profile.
+- The same replay route over `resource-bounded-recovery-world-v4.json`
+  returned `pass` / `converged`, 14 operations, 39 journal entries, and digest
+  `sha256:0e1ffac28729a33fe7bb19e4ec52869c150a6a5e8312018419be53c4f2d69baf`.
+- The same replay route over `history-record-budget-exhaustion-world-v4.json`
+  returned `pass` / `budget_exhausted`, 3 operations, 10 journal entries, and
+  digest
+  `sha256:845e62259ae1e18b1ab92f1a2f5c16b1757cea29181bda6e6cd767ce0857b451`.
+- `scripts/check full` — 2,273 passed.
+- `scripts/check release` — one slice run passed 2,273 tests in both orders
+  (17 expected alternate-order deselections). The latest run stopped after
+  2,272 passed and the unrelated
+  `test_spawn_failure_removes_runtime_and_operation_directory` observed another
+  xdist worker's transient `/tmp/petrus-g-*` directory; its exact node then
+  passed in isolation and a fresh `scripts/check full` passed 2,273 tests.
 - `UV_FROZEN=1 uv run ast-grep test --skip-snapshot-tests` — all 19
   architectural rule fixtures passed, including the runtime-neutral supported
   test-kit boundary.
-- `UV_FROZEN=1 uv build --out-dir /tmp/petrus-dst-v3-dist` plus wheel listing —
+- `UV_FROZEN=1 uv build --out-dir /tmp/petrus-dst-v4-dist` plus wheel listing —
   built the sdist and wheel and confirmed both `petrus/testing/__init__.py` and
   `petrus/testing/dst.py` are packaged.
 

@@ -140,7 +140,9 @@ the minimized expanded scenario becomes the durable regression fixture.
    first public-Engine crash/recovery slice and strict world replay are
    implemented; version 2 retains exact action-budget/checker failures, and
    version 3 adds separable seeded authorities while replaying retained version
-   1 and 2 artifacts unchanged. Paired terminal-boundary profiles now prove a
+   1 and 2 artifacts unchanged. Version 4 adds exact profile-owned retained and
+   pending resource gauges while preserving version 1 through 3 replay. Paired
+   terminal-boundary profiles now prove a
    pre-commit History refusal beside post-commit projection recovery, and a
    lifecycle-reset profile proves crash reconstruction plus late-terminal
    quarantine/duplicate acknowledgement. A timer profile now proves loss and
@@ -156,7 +158,8 @@ the minimized expanded scenario becomes the durable regression fixture.
    after volatile queue loss and delivers once at the authored logical instant.
    A post-commit History profile loses an acknowledgement after durable terminal
    acceptance and recovers projection without redelivery. The broader fault/cut
-   matrix and remaining bounds keep DS2 active.
+   matrix, wall-clock process containment, and provider-time compatibility keep
+   DS2 active.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)
    adds broad and targeted workload generation, independent models/checkers,
    shrinking, semantic coverage, and durable replay fixtures.

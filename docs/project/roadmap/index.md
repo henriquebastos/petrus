@@ -37,12 +37,12 @@ and no live provider or multi-host support is claimed.
 
 - [CV19 — Deterministic simulation testing](cv19-deterministic-simulation-testing/index.md):
   DS1 has frozen the correctness and strict replay contracts and proved one
-  production projection-crash recovery from portable data. DS2 is next: turn
-  Petrus's replayable History, injected clock and Dispatch seams, bounded
-  simulation, property tests, and explicit crash-cut evidence into a seeded,
-  replayable fault-simulation discipline over production runtime logic. Petrus
+  production projection-crash recovery from portable data. DS2 is active: its
+  supported executable World now retains exact failures, seeded provenance,
+  public-Engine crash/cut replays, and versioned profile-resource bounds. Petrus
   owns the reusable substrate; applications such as Hamsterdan own their domain
-  models and provider fault worlds.
+  models and provider fault worlds. Process watchdog containment and broader
+  fault/provider-time qualification remain before DS2 closes.
 
 Application-specific and site-operation plans are not part of this source
 tree.
