@@ -20,8 +20,9 @@ Activity request commits. Real Absurd/PostgreSQL profiles additionally prove
 joined begin rollback and acknowledgement loss, paired completed-terminal
 refusal and acknowledgement loss, paired failed-terminal refusal and
 acknowledgement loss, paired projection refusal and acknowledgement loss,
-repair of a refused post-reset cancellation-tombstone transaction, and idempotent
-reconstruction after an accepted tombstone acknowledgement is lost.
+pre-fence reset refusal, repair of a refused post-reset cancellation-tombstone
+transaction, and idempotent reconstruction after an accepted tombstone
+acknowledgement is lost.
 Version 4 adds deterministic profile-retained-data and hidden-pending-work
 accounting, while outer runner version 1 adds process-isolated wall-clock
 containment with acknowledged-prefix diagnostics. Generation and campaign
@@ -205,7 +206,7 @@ not invent finer cuts inside a production atomic batch.
 | `activity_terminal_frozen` | `ActivityCompleted` or `ActivityFailed` is committed before result projection mutates the marking. Exactly one terminal family member may exist per occurrence; a refused terminal transaction accepts no canonical fact even when provider custody is already terminal. | Reload recollects a durable provider terminal after refusal or performs projection-only recovery after terminal acceptance; redelivery of the same terminal is idempotent and a conflicting terminal refuses loud. | [E: retained [`joined-terminal-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-terminal-commit-refusal-world-v3.json), [`joined-failure-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-failure-commit-refusal-world-v3.json), and [`joined-failure-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-failure-ack-loss-world-v3.json), `test_terminal_result_freezes_before_projection_failure_and_fresh_load_retries_projection_only` in [`test_engine.py`](../../tests/petrus/engine/test_engine.py), and kill-window tests in [`test_history_backends.py`](../../tests/petrus/impetus/history_store/test_history_backends.py)] |
 | `projection_committed` | Projection records complete the occurrence in one semantic batch; acceptance may precede loss of the commit acknowledgement. | Reload reproduces marking, status, occurrence indexes, and accepted identity without rerunning the handler or projecting again. | [E: retained [`joined-projection-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-projection-ack-loss-world-v3.json) and [`test_instance_replay_properties.py`](../../tests/petrus/impetus/instance/test_instance_replay_properties.py)] |
 | `semantic_batch_refused` | Encode/append/commit refusal leaves no accepted semantic batch. A joined transaction rollback poisons the live Engine until reload. | Discard live state and rebuild from durable History; memory must not outrun durability. | [E: transaction and poisoned-engine tests in [`test_engine.py`](../../tests/petrus/engine/test_engine.py); refusal tests in [`test_history_backends.py`](../../tests/petrus/impetus/history_store/test_history_backends.py)] |
-| `scope_fenced` | Close/reset semantic facts commit before best-effort Dispatch cancellation. The cancellation tombstone may itself commit before its acknowledgement is lost. | Reload/reconcile repairs an absent tombstone with the exact instruction or recognizes an accepted tombstone idempotently; late terminal delivery is quarantined or provider-fenced rather than projected across the fence. | [E: retained [`lifecycle-cancellation-refusal-world-v3.json`](../../tests/dst/fixtures/lifecycle-cancellation-refusal-world-v3.json), [`joined-cancellation-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-cancellation-commit-refusal-world-v3.json), and [`joined-cancellation-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-cancellation-ack-loss-world-v3.json), `test_close_commits_before_retiring_pending_dispatch_and_late_terminal_is_quarantined`, and `test_restart_repairs_a_committed_cancellation_instruction_idempotently` in [`test_engine.py`](../../tests/petrus/engine/test_engine.py)] |
+| `scope_fenced` | Close/reset semantic facts commit before best-effort Dispatch cancellation. The cancellation tombstone may itself commit before its acknowledgement is lost. | A refused reset creates no fence: reload retains the old generation and Worker authority. After an accepted fence, reload/reconcile repairs an absent tombstone or recognizes an accepted one idempotently; late terminal delivery is quarantined or provider-fenced rather than projected across the fence. | [E: retained [`joined-reset-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-reset-commit-refusal-world-v3.json), [`lifecycle-cancellation-refusal-world-v3.json`](../../tests/dst/fixtures/lifecycle-cancellation-refusal-world-v3.json), [`joined-cancellation-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-cancellation-commit-refusal-world-v3.json), and [`joined-cancellation-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-cancellation-ack-loss-world-v3.json), `test_close_commits_before_retiring_pending_dispatch_and_late_terminal_is_quarantined`, and `test_restart_repairs_a_committed_cancellation_instruction_idempotently` in [`test_engine.py`](../../tests/petrus/engine/test_engine.py)] |
 | `terminal_acknowledged` | Dispatch/provider custody is acknowledged only after Petrus accepts the terminal fact or durable quarantine disposition. | Crash before acknowledgement permits redelivery; repeated delivery cannot produce a second terminal or projection. | [E: redelivery tests in [`test_coordinator.py`](../../tests/petrus/engine/test_coordinator.py) and [`test_local_dispatch.py`](../../tests/petrus/motus/dispatch/test_local_dispatch.py)] |
 
 Backend posture remains explicit. SQLite and PostgreSQL provide transactional
@@ -412,13 +413,16 @@ records exactly one `FiringFailed` without recollecting provider custody. An
 eighth refuses the later projection commit and proves the same fresh-load
 projection without another Worker completion or handler preparation. A ninth
 loses the accepted projection commit's acknowledgement and proves fresh load
-preserves convergence without another projection. A tenth commits the
-canonical reset, refuses the separate real cancellation-tombstone transaction,
-then proves fresh-load repair and stale-Worker fencing. An eleventh loses the
-acknowledgement after that tombstone transaction commits, then proves fresh load
-recognizes the existing tombstone without a second custody mutation and again
-fences the stale Worker. They do not simulate or claim PostgreSQL power loss,
-transport, or provider-wide fidelity.
+preserves convergence without another projection. A tenth refuses the
+canonical `ScopeReset` commit, then proves fresh load retains lifecycle
+generation 1 and accepts the still-authoritative Worker result exactly once. An
+eleventh commits the canonical reset, refuses the separate real
+cancellation-tombstone transaction, then proves fresh-load repair and
+stale-Worker fencing. A twelfth loses the acknowledgement after that tombstone
+transaction commits, then proves fresh load recognizes the existing tombstone
+without a second custody mutation and again fences the stale Worker. They do
+not simulate or claim PostgreSQL power loss, transport, or provider-wide
+fidelity.
 
 ## Correctness position
 

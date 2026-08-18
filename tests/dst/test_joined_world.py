@@ -23,6 +23,7 @@ from tests.dst.joined_world import (
     FAILURE_REFUSAL_SCENARIO_ID,
     PROJECTION_ACK_LOSS_SCENARIO_ID,
     PROJECTION_SCENARIO_ID,
+    RESET_REFUSAL_SCENARIO_ID,
     SCENARIO_ID,
     TERMINAL_ACK_LOSS_SCENARIO_ID,
     TERMINAL_REFUSAL_SCENARIO_ID,
@@ -44,6 +45,8 @@ from tests.dst.joined_world import (
     JoinedAcceptedProjectionAuthorityChecker,
     JoinedProjectionAckLossProfile,
     JoinedProjectionProfile,
+    JoinedResetRefusalAuthorityChecker,
+    JoinedResetRefusalProfile,
     JoinedTerminalAuthorityChecker,
     JoinedTerminalAckLossProfile,
     JoinedTerminalRefusalProfile,
@@ -56,6 +59,7 @@ from tests.dst.joined_world import (
     build_joined_failure_refusal_artifact,
     build_joined_projection_ack_loss_artifact,
     build_joined_projection_artifact,
+    build_joined_reset_refusal_artifact,
     build_joined_terminal_ack_loss_artifact,
     build_joined_terminal_refusal_artifact,
 )
@@ -67,6 +71,7 @@ FAILURE_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-failure-ack-loss-worl
 FAILURE_REFUSAL_FIXTURE = Path("tests/dst/fixtures/joined-failure-commit-refusal-world-v3.json")
 PROJECTION_FIXTURE = Path("tests/dst/fixtures/joined-projection-commit-refusal-world-v3.json")
 PROJECTION_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-projection-ack-loss-world-v3.json")
+RESET_REFUSAL_FIXTURE = Path("tests/dst/fixtures/joined-reset-commit-refusal-world-v3.json")
 ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-begin-ack-loss-world-v3.json")
 TERMINAL_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-terminal-ack-loss-world-v3.json")
 TERMINAL_REFUSAL_FIXTURE = Path("tests/dst/fixtures/joined-terminal-commit-refusal-world-v3.json")
@@ -717,6 +722,99 @@ def test_joined_commit_checker_refuses_a_phantom_task_after_rollback() -> None:
     assert result.passed is False
     assert result.detail["accepted_joined_begins"] == 0
     assert result.detail["durable_tasks"] == 1
+
+
+def test_joined_reset_commit_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
+    with isolated_absurd_database(absurd_dsn) as authored_dsn:
+        artifact = build_joined_reset_refusal_artifact(authored_dsn)
+
+    assert artifact.scenario_id == RESET_REFUSAL_SCENARIO_ID
+    assert artifact.origin is None
+    assert encode_artifact(artifact) == RESET_REFUSAL_FIXTURE.read_bytes().rstrip(b"\n")
+
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedResetRefusalProfile(replay_dsn))
+        registry.register_checker(JoinedResetRefusalAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.version == RESULT_VERSION
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.QUIESCENT.value
+    assert result.operations == len(artifact.operations)
+
+
+def test_retained_joined_reset_refusal_replays_without_the_authored_scenario(absurd_dsn: str) -> None:
+    artifact = load_artifact(RESET_REFUSAL_FIXTURE)
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedResetRefusalProfile(replay_dsn))
+        registry.register_checker(JoinedResetRefusalAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.scenario_id == RESET_REFUSAL_SCENARIO_ID
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.QUIESCENT.value
+
+
+def test_joined_reset_checker_refuses_a_canonical_fence_after_refused_reset() -> None:
+    checker = JoinedResetRefusalAuthorityChecker()
+    observation = Observation(
+        name="engine.joined-reset-refusal-authority",
+        value={
+            "cancellation_refusals": 0,
+            "durable_tasks": [
+                {
+                    "idempotency": "dst-world-joined-begin-refusal:occurrence-2",
+                    "state": "running",
+                }
+            ],
+            "lifecycle_attempts": [{"accepted": False, "phase": "scope_reset", "record_types": ["ScopeReset"]}],
+            "prepare_calls": 1,
+            "record_types": [
+                "InstanceCreated",
+                "DeliveryRegistrationOpened",
+                "ScopeOpened",
+                "ExternalEventDelivered",
+                "FiringBegun",
+                "TokensProduced",
+                "FiringCompleted",
+                "CandidateSelected",
+                "FiringBegun",
+                "TokensConsumed",
+                "ActivityRequested",
+                "ScopeReset",
+            ],
+            "reset_refusals": 1,
+            "scope_opens": 1,
+            "scope_resets": 1,
+            "source_deliveries": 1,
+            "stale_worker_refusals": 0,
+            "transaction_attempts": [
+                {
+                    "accepted": True,
+                    "dispatch_attempted": False,
+                    "record_types": ["ExternalEventDelivered", "FiringBegun", "TokensProduced", "FiringCompleted"],
+                },
+                {
+                    "accepted": True,
+                    "dispatch_attempted": True,
+                    "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
+                },
+            ],
+            "worker_claims": 1,
+            "worker_completions": 0,
+        },
+        instant=0,
+        generation=1,
+        sequence=0,
+    )
+
+    result: CheckResult = checker.check(observation)
+
+    assert result.passed is False
+    assert result.detail["canonical_resets"] == 1
+    assert result.detail["reset_refusals"] == 1
 
 
 def test_joined_cancellation_commit_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
