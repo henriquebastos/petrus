@@ -8,7 +8,9 @@ late-terminal quarantine, and exact duplicate acknowledgement. Focused profiles
 also prove deterministic Engine timer reconstruction and zero-backoff
 LocalDispatch retry reconstruction/exhaustion. A complementary LocalDispatch
 profile proves successful-terminal custody and recollection across process loss;
-broader fault adapters, bounds, generation, and campaign qualification remain.
+an identified-ingress profile proves source redelivery and identity conflict
+recovery. Broader fault adapters, bounds, generation, and campaign
+qualification remain.
 
 This document owns Petrus's deterministic simulation testing (DST) contract.
 DST drives the production `Engine`, `Coordinator`, `Instance`, `HistoryStore`,

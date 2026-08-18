@@ -8,6 +8,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from petrus.testing.dst import ScenarioRegistry, load_artifact, replay
+from tests.dst.delivery_world import DeliveryAuthorityChecker, DeliveryEngineProfile
 from tests.dst.engine_world import (
     CommitAuthorityChecker,
     EngineHistoryChecker,
@@ -28,6 +29,7 @@ from tests.dst.timer_world import TimerAuthorityChecker, TimerEngineProfile
 def replay_path(path: Path):
     with TemporaryDirectory(prefix="petrus-dst-world-") as directory:
         registry = ScenarioRegistry()
+        registry.register_profile(DeliveryEngineProfile(Path(directory) / "delivery-history.jsonl"))
         registry.register_profile(EngineProfile(Path(directory) / "projection-history.jsonl"))
         registry.register_profile(HistoryRefusalEngineProfile(Path(directory) / "history-refusal.jsonl"))
         registry.register_profile(LifecycleEngineProfile(Path(directory) / "lifecycle-history.jsonl"))
@@ -45,6 +47,7 @@ def replay_path(path: Path):
         )
         registry.register_profile(TimerEngineProfile(Path(directory) / "timer-history.jsonl"))
         registry.register_checker(CommitAuthorityChecker())
+        registry.register_checker(DeliveryAuthorityChecker())
         registry.register_checker(EngineHistoryChecker())
         registry.register_checker(LifecycleAuthorityChecker())
         registry.register_checker(RetryAuthorityChecker())

@@ -209,6 +209,25 @@ returns `outcome: "pass"`, `converged`, 15 operations, 26 journal entries
 including 10 checker evaluations, and digest
 `sha256:ff332ce259e54320354ba2006e59053d4c5fb83488482de32081b8a5503ceab9`.
 
+### Identified source delivery and redelivery
+
+[`identified-delivery-redelivery-world-v3.json`](../../tests/dst/fixtures/identified-delivery-redelivery-world-v3.json)
+drives the public Engine source door with stable external identities. One
+delivery commits before process loss; a fresh `Engine.load` acknowledges its
+exact redelivery without another canonical fact. Equal data under a distinct
+identity remains a distinct delivery. Reusing the first identity for changed
+content is refused by production ingress and poisons that writing generation,
+so the World drops it and resumes only through a second public load.
+
+The checker independently derives accepted identities, expected dispositions,
+and output values from the authored delivery-attempt ledger, then compares
+them with detached canonical delivery records and the public marking. During
+the refused-command boundary, observations use the last legal detached marking
+plus the unchanged durable JSONL History; the poisoned Engine is never read or
+reused. The retained route returns `outcome: "pass"`, `external_wait`, 15
+operations, 26 journal entries including 10 checker evaluations, and digest
+`sha256:e0223b0e0dd5ce6ce964cb9a72e38a9370f7f6b8a38d9571cdc1179e9a03d8bc`.
+
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
@@ -217,3 +236,9 @@ lifecycle, and transaction fault matrix plus the remaining
 profile-retained-data/watchdog bounds remain in CV19.DS2. Stateful generation,
 shrinking, broad independent models/checkers, and semantic coverage remain in
 DS3; campaign and real-boundary qualification remain in DS4.
+
+Nonzero LocalDispatch retry time remains at an explicit compatibility
+boundary: SQLite is intentionally the provider clock and serialization
+authority, and no public deterministic provider-time seam currently exists.
+DST must not substitute the Engine clock, mutate private SQLite rows, or sleep;
+that route requires an accepted provider-time design before implementation.
