@@ -157,11 +157,63 @@ The route returns `outcome: "pass"`, `quiescent`, 22 operations, 36 journal
 entries including 13 checker evaluations, and digest
 `sha256:1719800ed00cfb705535b47b359d23988080b19a073f6247a995776ab7d9b194`.
 
+### Timer reconstruction
+
+[`timer-crash-recovery-world-v3.json`](../../tests/dst/fixtures/timer-crash-recovery-world-v3.json)
+uses a public-Engine profile with the World logical clock. The first generation
+returns deadline 5 and is dropped while that deadline exists only in the
+World's volatile queue. Fresh `Engine.load` reconstructs the same deadline
+from canonical History. The World then advances once to instant 5 and records
+exactly one `TimerMatured` plus one delayed firing.
+
+The independent checker rejects early or duplicate maturation and any delayed
+firing without its canonical maturation fact. The retained route returns
+`outcome: "pass"`, `converged`, 15 operations, 24 journal entries including 8
+checker evaluations, and digest
+`sha256:82460bacb8628c897a35e19883cb0f91e07bc1343cd5944ea22592c940fc8a69`.
+
+### LocalDispatch retry reconstruction
+
+[`retry-crash-exhaustion-world-v3.json`](../../tests/dst/fixtures/retry-crash-exhaustion-world-v3.json)
+composes the production SQLite LocalDispatch and Worker doors. A two-attempt
+Activity reports one classified zero-backoff retryable failure, the process is
+dropped, and a fresh Engine/LocalDispatch generation reclaims the same logical
+invocation at epoch 2 without another `prepare`. The second retryable failure
+exhausts the policy and records exactly one `ActivityFailed` plus
+`FiringFailed`, with no business projection.
+
+The profile deliberately claims only zero-backoff retry semantics; provider
+time, delayed backoff, and lease expiry remain separate. Its independent
+checker bounds terminal authority by authored failures and preserves logical
+invocation identity across epochs. The retained route returns `outcome:
+"pass"`, `quarantined`, 18 operations, 30 journal entries including 11 checker
+evaluations, and digest
+`sha256:8158a70525b02afd7fb705ddec9ffc62a66d8c4ec6c9c0872062d36a05402392`.
+
+### LocalDispatch successful-terminal recollection
+
+[`local-terminal-redelivery-world-v3.json`](../../tests/dst/fixtures/local-terminal-redelivery-world-v3.json)
+proves the complementary successful-terminal cut. The Worker durably reports
+one result to LocalDispatch, its exact duplicate is acknowledged, and a
+different report is refused while canonical History still ends at
+`ActivityRequested`. The process is then dropped before Engine collection.
+Fresh `Engine.load` republishes the recorded invocation without another
+`prepare`, recollects the durable terminal, and records one
+`ActivityCompleted` plus one `FiringCompleted` with the first result.
+
+The independent checker derives result authority and expected duplicate/
+conflict dispositions from the authored provider-report ledger, then compares
+that model with detached canonical History and marking observations. Claimant
+UUIDs and provider timestamps do not enter the artifact. The retained route
+returns `outcome: "pass"`, `converged`, 15 operations, 26 journal entries
+including 10 checker evaluations, and digest
+`sha256:ff332ce259e54320354ba2006e59053d4c5fb83488482de32081b8a5503ceab9`.
+
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. The broader delivery, Dispatch, timer/retry, lifecycle, and
-transaction fault matrix plus the remaining profile-retained-data/watchdog
-bounds remain in CV19.DS2. Stateful generation, shrinking, broad independent
-models/checkers, and semantic coverage remain in DS3; campaign and real-boundary
-qualification remain in DS4.
+generator. The broader delivery, Dispatch, delayed retry/provider-time,
+lifecycle, and transaction fault matrix plus the remaining
+profile-retained-data/watchdog bounds remain in CV19.DS2. Stateful generation,
+shrinking, broad independent models/checkers, and semantic coverage remain in
+DS3; campaign and real-boundary qualification remain in DS4.

@@ -1,4 +1,4 @@
-"""Public-Engine and LocalDispatch DST profile for retry reconstruction."""
+"""Public-Engine DST profiles over production LocalDispatch custody."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import ClassVar, cast
 from pydantic import JsonValue
 
 from petrus.engine import Engine
-from petrus.impetus.history import ActivityFailed, ActivityRequested, FiringCompleted, FiringFailed
+from petrus.impetus.history import ActivityCompleted, ActivityFailed, ActivityRequested, FiringCompleted, FiringFailed
 from petrus.impetus.history_store import JsonlHistoryStore
 from petrus.impetus.petrinet import Arc, Marking, Net, NetPath, Place, Token, Transition
 from petrus.motus.activity import ActivityFailure, ActivityInvocation, ExecutionPolicy
@@ -39,6 +39,7 @@ DONE = NetPath("done")
 WORK = NetPath("work")
 INSTANCE_ID = "dst-world-retry-recovery"
 SCENARIO_ID = "retry-crash-exhaustion-world-v3"
+TERMINAL_SCENARIO_ID = "local-terminal-redelivery-world-v3"
 
 PROFILE_DEFINITION = {
     "commands": {
@@ -71,6 +72,41 @@ CHECKER_IDENTITY = CheckerIdentity(
                 "retry claims preserve one logical invocation across exact epochs",
                 "a terminal Activity failure requires exhaustion of both authored attempts",
                 "retry exhaustion produces no business projection",
+            ]
+        }
+    ),
+)
+TERMINAL_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.local-dispatch-terminal",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": {
+                "engine.drive": [],
+                "worker.claim": [],
+                "worker.complete": ["result"],
+            },
+            "dispatch": "local",
+            "instance": INSTANCE_ID,
+            "policy": {"attempts": 2, "initial_interval": 0},
+            "observations": [
+                "engine.local-terminal-authority",
+                "local-terminal-converged",
+                "local-terminal-durable",
+                "local-terminal-requested",
+            ],
+        }
+    ),
+)
+TERMINAL_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.local-terminal-authority",
+    version=1,
+    digest=digest_json(
+        {
+            "properties": [
+                "the first accepted provider result remains authoritative",
+                "an exact provider report is idempotent and a conflicting report is refused",
+                "one durable provider result produces at most one canonical terminal and projection",
             ]
         }
     ),
@@ -404,6 +440,101 @@ class RetryEngineProfile:
         )
 
 
+class TerminalEngineProfile(RetryEngineProfile):
+    """Public Engine plus LocalDispatch terminal durability and redelivery."""
+
+    identity = TERMINAL_PROFILE_IDENTITY
+    _terminal_debug_fields = (
+        "accepted_results",
+        "attempts",
+        "bridge",
+        "drives",
+        "drops",
+        "frontier",
+        "in_flight",
+        "marking",
+        "record_types",
+        "status",
+        "terminal_reports",
+    )
+    observation_fields: ClassVar[dict[str, tuple[str, ...]]] = {
+        "engine.local-terminal-authority": (
+            "accepted_results",
+            "attempts",
+            "bridge",
+            "marking",
+            "record_types",
+            "status",
+            "terminal_reports",
+        ),
+        "local-terminal-converged": _terminal_debug_fields,
+        "local-terminal-durable": _terminal_debug_fields,
+        "local-terminal-requested": _terminal_debug_fields,
+    }
+
+    def __init__(self, history_path: Path, dispatch_path: Path):
+        super().__init__(history_path, dispatch_path)
+        self.accepted_results: list[JsonValue] = []
+        self.terminal_reports: list[dict[str, JsonValue]] = []
+
+    def validate(self, command: Command) -> Command:
+        if command.name in {"engine.drive", "worker.claim"}:
+            if command.payload != {}:
+                raise ValueError(f"{command.name} payload must be an empty object")
+            return command
+        if command.name == "worker.complete":
+            if type(command.payload) is not dict or set(command.payload) != {"result"}:
+                raise ValueError("worker.complete requires one exact result field")
+            return command
+        raise ValueError(f"unknown terminal Engine profile command {command.name!r}")
+
+    def validate_fault(self, fault: Fault) -> Fault:
+        raise ValueError(f"terminal Engine profile has no fault named {fault.name!r}")
+
+    def apply(
+        self,
+        generation: RetryGeneration,
+        command: Command,
+        context: ScenarioContext,
+    ) -> ApplyResult:
+        if command.name != "worker.complete":
+            return super().apply(generation, command, context)
+
+        worker = generation.worker
+        attempt = generation.attempt
+        if worker is None or attempt is None:
+            raise RuntimeError("worker.complete requires one claimed Activity attempt")
+        payload = cast(dict[str, JsonValue], command.payload)
+        result = payload["result"]
+        try:
+            worker.complete(attempt, result)
+        except ValueError as error:
+            if "conflicting terminal report" not in str(error):
+                raise
+            disposition = ActionDisposition.REFUSED_EXPECTED
+        else:
+            if not self.accepted_results:
+                self.accepted_results.append(result)
+                disposition = ActionDisposition.APPLIED
+            elif result == self.accepted_results[0]:
+                disposition = ActionDisposition.IDEMPOTENT
+            else:
+                raise AssertionError("LocalDispatch accepted a conflicting terminal report")
+        report = cast(dict[str, JsonValue], {"disposition": disposition.value, "result": result})
+        self.terminal_reports.append(report)
+        return ApplyResult(
+            disposition=disposition.value,
+            value={"frontier": len(generation.history), "report": report},
+            scheduled=[],
+        )
+
+    def _observation_state(self, generation: RetryGeneration) -> dict[str, JsonValue]:
+        state = super()._observation_state(generation)
+        state["accepted_results"] = self.accepted_results
+        state["terminal_reports"] = self.terminal_reports
+        return state
+
+
 class RetryAuthorityChecker:
     """Independent retry and terminal bounds from authored provider facts."""
 
@@ -449,6 +580,77 @@ class RetryAuthorityChecker:
                 "firing_completed": projected,
                 "firing_failed": firing_failed,
                 "invocation_stable": invocation_stable,
+            },
+        )
+
+
+class TerminalAuthorityChecker:
+    """Judge canonical terminal projection from authored provider reports."""
+
+    identity = TERMINAL_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.local-terminal-authority", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        value = cast(dict[str, JsonValue], observation.value)
+        reports = cast(list[dict[str, JsonValue]], value["terminal_reports"])
+        accepted_results = cast(list[JsonValue], value["accepted_results"])
+        attempts = cast(list[dict[str, JsonValue]], value["attempts"])
+        records = cast(list[JsonValue], value["record_types"])
+        bridge = cast(dict[str, JsonValue], value["bridge"])
+        marking = cast(list[dict[str, JsonValue]], value["marking"])
+
+        authority: list[JsonValue] = []
+        expected_dispositions: list[str] = []
+        for report in reports:
+            result = report["result"]
+            if not authority:
+                authority.append(result)
+                expected_dispositions.append(ActionDisposition.APPLIED.value)
+            elif result == authority[0]:
+                expected_dispositions.append(ActionDisposition.IDEMPOTENT.value)
+            else:
+                expected_dispositions.append(ActionDisposition.REFUSED_EXPECTED.value)
+
+        reported_dispositions = [cast(str, report["disposition"]) for report in reports]
+        requested = records.count(ActivityRequested.__name__)
+        completed = records.count(ActivityCompleted.__name__)
+        firing_completed = records.count(FiringCompleted.__name__)
+        activity_failed = records.count(ActivityFailed.__name__)
+        firing_failed = records.count(FiringFailed.__name__)
+        attempt_epochs = [attempt["epoch"] for attempt in attempts]
+        projected_results = [
+            token["data"]
+            for place in marking
+            if place["place"] == str(DONE)
+            for token in cast(list[dict[str, JsonValue]], place["tokens"])
+        ]
+        terminal_limit = 1 if authority else 0
+        expected_projection = authority if firing_completed else []
+        passed = (
+            requested <= 1
+            and attempt_epochs in ([], [1])
+            and reported_dispositions == expected_dispositions
+            and accepted_results == authority
+            and completed <= terminal_limit
+            and firing_completed == completed
+            and activity_failed == firing_failed == 0
+            and bridge["projected"] == firing_completed
+            and projected_results == expected_projection
+        )
+        return CheckResult(
+            passed=passed,
+            detail={
+                "accepted_results": accepted_results,
+                "activity_completed": completed,
+                "activity_failed": activity_failed,
+                "activity_requested": requested,
+                "attempt_epochs": attempt_epochs,
+                "expected_dispositions": expected_dispositions,
+                "firing_completed": firing_completed,
+                "firing_failed": firing_failed,
+                "projected_results": projected_results,
+                "reported_dispositions": reported_dispositions,
+                "terminal_limit": terminal_limit,
             },
         )
 
@@ -516,5 +718,63 @@ def build_retry_artifact(history_path: Path, dispatch_path: Path) -> ScenarioArt
     world, _ = execute_retry_story(history_path, dispatch_path)
     try:
         return world.artifact(SCENARIO_ID)
+    finally:
+        world.close()
+
+
+def execute_terminal_story(history_path: Path, dispatch_path: Path) -> tuple[World, TerminalEngineProfile]:
+    """Retain one terminal, refuse ambiguity, crash before collect, and recover."""
+
+    profile = TerminalEngineProfile(history_path, dispatch_path)
+    world = World(profile, WORLD_BUDGET, checkers=(TerminalAuthorityChecker(),))
+    timeline = world.timeline()
+
+    requested = timeline.run_until(
+        "local-terminal-requested",
+        lambda observation: ActivityRequested.__name__ in cast(dict[str, JsonValue], observation.value)["record_types"],
+    )
+    requested_value = cast(dict[str, JsonValue], requested.value)
+    assert requested_value["bridge"] == {"prepared": 1, "projected": 0}
+
+    claim = timeline.command("worker.claim", {})
+    attempt = cast(dict[str, JsonValue], claim.value)["attempt"]
+    assert isinstance(attempt, dict)
+    assert attempt["epoch"] == 1
+
+    terminal = {"value": 6}
+    accepted = timeline.command("worker.complete", {"result": terminal})
+    duplicate = timeline.command("worker.complete", {"result": terminal})
+    conflict = timeline.command("worker.complete", {"result": {"value": 7}})
+    assert accepted.disposition == ActionDisposition.APPLIED.value
+    assert duplicate.disposition == ActionDisposition.IDEMPOTENT.value
+    assert conflict.disposition == ActionDisposition.REFUSED_EXPECTED.value
+
+    durable = timeline.observe("local-terminal-durable")
+    durable_value = cast(dict[str, JsonValue], durable.value)
+    assert durable_value["accepted_results"] == [terminal]
+    assert ActivityCompleted.__name__ not in durable_value["record_types"]
+    assert durable_value["bridge"] == {"prepared": 1, "projected": 0}
+
+    timeline.crash("local_terminal_durable_before_collect")
+    world.restart()
+    timeline = world.timeline()
+    timeline.begin_fair()
+    converged = timeline.run_until(
+        "local-terminal-converged",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["status"] == "terminated",
+    )
+    converged_value = cast(dict[str, JsonValue], converged.value)
+    records = cast(list[JsonValue], converged_value["record_types"])
+    assert records.count(ActivityCompleted.__name__) == records.count(FiringCompleted.__name__) == 1
+    assert converged_value["bridge"] == {"prepared": 0, "projected": 1}
+    assert converged_value["marking"] == [{"place": str(DONE), "tokens": [{"color": "Done", "data": terminal}]}]
+    timeline.finish(Disposition.CONVERGED)
+    return world, profile
+
+
+def build_terminal_artifact(history_path: Path, dispatch_path: Path) -> ScenarioArtifact:
+    world, _ = execute_terminal_story(history_path, dispatch_path)
+    try:
+        return world.artifact(TERMINAL_SCENARIO_ID)
     finally:
         world.close()

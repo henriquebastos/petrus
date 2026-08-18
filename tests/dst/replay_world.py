@@ -16,7 +16,12 @@ from tests.dst.engine_world import (
     TerminalRefusalChecker,
 )
 from tests.dst.lifecycle_world import LifecycleAuthorityChecker, LifecycleEngineProfile
-from tests.dst.retry_world import RetryAuthorityChecker, RetryEngineProfile
+from tests.dst.retry_world import (
+    RetryAuthorityChecker,
+    RetryEngineProfile,
+    TerminalAuthorityChecker,
+    TerminalEngineProfile,
+)
 from tests.dst.timer_world import TimerAuthorityChecker, TimerEngineProfile
 
 
@@ -32,11 +37,18 @@ def replay_path(path: Path):
                 Path(directory) / "retry-dispatch.db",
             )
         )
+        registry.register_profile(
+            TerminalEngineProfile(
+                Path(directory) / "terminal-history.jsonl",
+                Path(directory) / "terminal-dispatch.db",
+            )
+        )
         registry.register_profile(TimerEngineProfile(Path(directory) / "timer-history.jsonl"))
         registry.register_checker(CommitAuthorityChecker())
         registry.register_checker(EngineHistoryChecker())
         registry.register_checker(LifecycleAuthorityChecker())
         registry.register_checker(RetryAuthorityChecker())
+        registry.register_checker(TerminalAuthorityChecker())
         registry.register_checker(TerminalRefusalChecker())
         registry.register_checker(TimerAuthorityChecker())
         return replay(load_artifact(path), registry)
