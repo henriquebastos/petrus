@@ -15,14 +15,18 @@ from petrus.testing.dst import (
     replay,
 )
 from tests.dst.joined_world import (
+    DISPATCH_SCENARIO_ID,
     SCENARIO_ID,
     JoinedBeginProfile,
     JoinedCommitAuthorityChecker,
+    JoinedDispatchProfile,
     build_joined_begin_artifact,
+    build_joined_dispatch_artifact,
 )
 from tests.dst.postgres_support import isolated_absurd_database
 
 FIXTURE = Path("tests/dst/fixtures/joined-begin-commit-refusal-world-v3.json")
+DISPATCH_FIXTURE = Path("tests/dst/fixtures/joined-dispatch-refusal-world-v3.json")
 
 
 def test_joined_begin_commit_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
@@ -54,6 +58,39 @@ def test_retained_joined_begin_fixture_replays_without_the_authored_scenario(abs
         result = replay(artifact, registry)
 
     assert result.scenario_id == SCENARIO_ID
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.EXTERNAL_WAIT.value
+
+
+def test_joined_dispatch_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
+    with isolated_absurd_database(absurd_dsn) as authored_dsn:
+        artifact = build_joined_dispatch_artifact(authored_dsn)
+
+    assert artifact.scenario_id == DISPATCH_SCENARIO_ID
+    assert artifact.origin is None
+    assert encode_artifact(artifact) == DISPATCH_FIXTURE.read_bytes().rstrip(b"\n")
+
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedDispatchProfile(replay_dsn))
+        registry.register_checker(JoinedCommitAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.version == RESULT_VERSION
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.EXTERNAL_WAIT.value
+    assert result.operations == len(artifact.operations)
+
+
+def test_retained_joined_dispatch_fixture_replays_without_the_authored_scenario(absurd_dsn: str) -> None:
+    artifact = load_artifact(DISPATCH_FIXTURE)
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedDispatchProfile(replay_dsn))
+        registry.register_checker(JoinedCommitAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.scenario_id == DISPATCH_SCENARIO_ID
     assert result.outcome == "pass"
     assert result.disposition == Disposition.EXTERNAL_WAIT.value
 

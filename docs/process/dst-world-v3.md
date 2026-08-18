@@ -191,6 +191,30 @@ The route returns `outcome: "pass"`, `external_wait`, 9 operations, 16 journal
 entries including 6 checker evaluations, and digest
 `sha256:0b2129eaf3802d174a5526f5e32b0e6de8f923cd2d8ce3e05bd89c2904c930c7`.
 
+### Joined Dispatch refusal before commit
+
+[`joined-dispatch-refusal-world-v3.json`](../../tests/dst/fixtures/joined-dispatch-refusal-world-v3.json)
+uses a separate profile identity over the same public Absurd/PostgreSQL
+composition. Its one-shot adapter raises at the provider's task-spawn call,
+after production has prepared the four semantic begin records but before task
+insertion or transaction commit. Production rollback again leaves only the
+construction prefix and no task, but this cut proves the Dispatch-failure path
+rather than a refused commit acknowledgement.
+
+After abrupt drop, fresh public provider load prepares from the original
+marking and commits exactly one begin plus one pending task. The same detached
+transaction-authority checker rejects partial prefixes and phantom tasks; the
+scenario again stops at the legitimate external wait for a Worker result.
+
+```bash
+UV_FROZEN=1 uv run pytest -q \
+  tests/dst/test_joined_world.py::test_retained_joined_dispatch_fixture_replays_without_the_authored_scenario
+```
+
+The route returns `outcome: "pass"`, `external_wait`, 9 operations, 16 journal
+entries including 6 checker evaluations, and digest
+`sha256:e9bc6574670b3c2d55c8659c3ba9b0bea826544502bd174cd4d5885577483a7a`.
+
 ### Lifecycle reset and late terminal
 
 [`lifecycle-reset-late-terminal-world-v3.json`](../../tests/dst/fixtures/lifecycle-reset-late-terminal-world-v3.json)
@@ -361,10 +385,10 @@ and digest
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. The joined-begin profile now proves the first real joined-transaction
-commit refusal without widening the World contract; the broader delivery,
-Dispatch, lifecycle, and transaction fault matrix remains in CV19.DS2. Version
-4 subsequently adds profile-retained-data
+generator. Paired joined-begin profiles now prove real joined-transaction
+commit refusal and pre-commit task-spawn failure without widening the World
+contract; the broader delivery, Dispatch, lifecycle, and transaction fault
+matrix remains in CV19.DS2. Version 4 subsequently adds profile-retained-data
 and hidden-pending-work bounds without changing version 3 replay, and runner v1
 contains complete Worlds under a separate wall-clock process budget. Stateful
 generation, shrinking, broad independent models/checkers, and semantic

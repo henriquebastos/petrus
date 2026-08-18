@@ -44,6 +44,7 @@ PROJECT = NetPath("project")
 INSTANCE_ID = "dst-world-joined-begin-refusal"
 QUEUE = "dst_joined_begin"
 SCENARIO_ID = "joined-begin-commit-refusal-world-v3"
+DISPATCH_SCENARIO_ID = "joined-dispatch-refusal-world-v3"
 
 PROFILE_IDENTITY = ProfileIdentity(
     name="petrus.engine.joined-begin-commit-refusal",
@@ -64,6 +65,29 @@ PROFILE_IDENTITY = ProfileIdentity(
             ],
             "provider": "petrus.engine.absurd",
             "property": "joined semantic begin and Dispatch spawn commit or vanish together",
+            "queue": QUEUE,
+        }
+    ),
+)
+DISPATCH_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.joined-dispatch-refusal",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": ["engine.drive"],
+            "fault": {
+                "disposition": "refuse",
+                "name": "dispatch.refuse",
+                "target": "activity_requested",
+            },
+            "instance": INSTANCE_ID,
+            "observations": [
+                "engine.joined-commit-authority",
+                "joined-dispatch-recovered",
+                "joined-dispatch-refused",
+            ],
+            "provider": "petrus.engine.absurd",
+            "property": "failed joined Dispatch spawn rolls back the uncommitted semantic begin",
             "queue": QUEUE,
         }
     ),
@@ -110,16 +134,24 @@ class JoinedBridge:
         return {DONE: (Token("Done", result),)}
 
 
-class CommitRefusingConnection:
-    """One provider connection which records and may refuse a joined begin commit."""
+class JoinedFaultConnection:
+    """One provider connection which records and may refuse a joined begin boundary."""
 
-    def __init__(self, delegate, attempts: list[dict[str, JsonValue]], refused: Callable[[], None]) -> None:
+    def __init__(
+        self,
+        delegate,
+        attempts: list[dict[str, JsonValue]],
+        commit_refused: Callable[[], None],
+        dispatch_refused: Callable[[], None],
+    ) -> None:
         self._delegate = delegate
         self._attempts = attempts
-        self._refused = refused
+        self._commit_refused = commit_refused
+        self._dispatch_refused = dispatch_refused
         self._record_types: list[str] = []
         self._dispatch_attempted = False
-        self._refusal: str | None = None
+        self._commit_refusal: str | None = None
+        self._dispatch_refusal: str | None = None
 
     def __getattr__(self, name: str):
         return getattr(self._delegate, name)
@@ -129,6 +161,17 @@ class CommitRefusingConnection:
         return self._delegate.autocommit
 
     def execute(self, query, params=None):
+        spawning = isinstance(query, str) and query.startswith(
+            "SELECT task_id, run_id, attempt, created FROM absurd.spawn_task"
+        )
+        if spawning:
+            self._dispatch_attempted = True
+            if self._dispatch_refusal is not None:
+                message = self._dispatch_refusal
+                self._dispatch_refusal = None
+                self._attempts.append(self._attempt(False))
+                self._dispatch_refused()
+                raise OSError(message)
         cursor = self._delegate.execute(query, params)
         if (
             isinstance(query, str)
@@ -138,24 +181,25 @@ class CommitRefusingConnection:
             and isinstance(params[2], str)
         ):
             self._record_types.append(params[2])
-        if isinstance(query, str) and query.startswith(
-            "SELECT task_id, run_id, attempt, created FROM absurd.spawn_task"
-        ):
-            self._dispatch_attempted = True
         return cursor
 
     def refuse_activity_request_commit(self, message: str) -> None:
-        if self._refusal is not None:
+        if self._commit_refusal is not None:
             raise RuntimeError("joined commit refusal is already armed")
-        self._refusal = message
+        self._commit_refusal = message
+
+    def refuse_activity_request_dispatch(self, message: str) -> None:
+        if self._dispatch_refusal is not None:
+            raise RuntimeError("joined Dispatch refusal is already armed")
+        self._dispatch_refusal = message
 
     def commit(self) -> None:
         joined_begin = ActivityRequested.__name__ in self._record_types
-        if joined_begin and self._refusal is not None:
-            message = self._refusal
-            self._refusal = None
+        if joined_begin and self._commit_refusal is not None:
+            message = self._commit_refusal
+            self._commit_refusal = None
             self._attempts.append(self._attempt(False))
-            self._refused()
+            self._commit_refused()
             raise OSError(message)
         self._delegate.commit()
         if joined_begin:
@@ -186,7 +230,7 @@ class CommitRefusingConnection:
 @dataclass
 class JoinedGeneration:
     engine: Engine
-    connection: CommitRefusingConnection
+    connection: JoinedFaultConnection
     poisoned: bool = False
 
 
@@ -194,12 +238,17 @@ class JoinedBeginProfile:
     """Public Absurd-Engine profile around one exact joined begin transaction."""
 
     identity = PROFILE_IDENTITY
+    fault_name = "history.commit-refuse"
+    refused_observation = "joined-begin-refused"
+    recovered_observation = "joined-begin-recovered"
+    refusal_field = "commit_refusals"
 
     def __init__(self, dsn: str) -> None:
         self.dsn = dsn
         self.transaction_attempts: list[dict[str, JsonValue]] = []
         self.prepare_calls = 0
         self.commit_refusals = 0
+        self.dispatch_refusals = 0
         self.drops = 0
         self.closes = 0
 
@@ -210,14 +259,14 @@ class JoinedBeginProfile:
 
     def validate_fault(self, fault: Fault) -> Fault:
         if (
-            fault.name != "history.commit-refuse"
+            fault.name != self.fault_name
             or fault.target != "activity_requested"
             or fault.disposition != FaultDisposition.REFUSE.value
             or type(fault.payload) is not dict
             or set(fault.payload) != {"message"}
             or not isinstance(fault.payload["message"], str)
         ):
-            raise ValueError("unsupported joined-begin commit fault")
+            raise ValueError(f"unsupported joined-begin fault for {self.identity.name}")
         return fault
 
     def create(self, context: ScenarioContext) -> GenerationStart[JoinedGeneration]:
@@ -269,8 +318,8 @@ class JoinedBeginProfile:
         del context
         if request.name not in {
             "engine.joined-commit-authority",
-            "joined-begin-refused",
-            "joined-begin-recovered",
+            self.refused_observation,
+            self.recovered_observation,
         }:
             raise ValueError(f"unknown joined-begin observation {request.name!r}")
         if request.payload not in (None, {}):
@@ -285,7 +334,7 @@ class JoinedBeginProfile:
             )
         else:
             fields = (
-                "commit_refusals",
+                self.refusal_field,
                 "drops",
                 "durable_tasks",
                 "frontier",
@@ -306,7 +355,12 @@ class JoinedBeginProfile:
 
     def _open(self, *, create: bool) -> JoinedGeneration:
         authority = psycopg.connect(self.dsn, autocommit=False)
-        connection = CommitRefusingConnection(authority, self.transaction_attempts, self._commit_refused)
+        connection = JoinedFaultConnection(
+            authority,
+            self.transaction_attempts,
+            self._commit_refused,
+            self._dispatch_refused,
+        )
         listener = psycopg.connect(self.dsn, autocommit=True)
         bridge = JoinedBridge(self._prepared)
         opener = create_engine if create else load_engine
@@ -348,6 +402,7 @@ class JoinedBeginProfile:
             dict[str, JsonValue],
             {
                 "commit_refusals": self.commit_refusals,
+                "dispatch_refusals": self.dispatch_refusals,
                 "drops": self.drops,
                 "durable_tasks": tasks,
                 "frontier": len(records),
@@ -361,16 +416,19 @@ class JoinedBeginProfile:
     def _configure_faults(self, generation: JoinedGeneration, context: ScenarioContext) -> tuple[str, ...]:
         expected = []
         for fault in context.faults("activity_requested"):
-            if fault.name != "history.commit-refuse" or fault.disposition != FaultDisposition.REFUSE.value:
+            if fault.name != self.fault_name or fault.disposition != FaultDisposition.REFUSE.value:
                 raise ValueError(f"unsupported joined-begin fault {fault.name!r}")
             if type(fault.payload) is not dict or set(fault.payload) != {"message"}:
-                raise ValueError("history.commit-refuse requires an exact message payload")
+                raise ValueError(f"{self.fault_name} requires an exact message payload")
             message = fault.payload["message"]
             if not isinstance(message, str):
-                raise ValueError("history.commit-refuse message must be a string")
-            generation.connection.refuse_activity_request_commit(message)
+                raise ValueError(f"{self.fault_name} message must be a string")
+            self._arm_refusal(generation, message)
             expected.append(message)
         return tuple(expected)
+
+    def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
+        generation.connection.refuse_activity_request_commit(message)
 
     def _frontier(self) -> int:
         with psycopg.connect(self.dsn, autocommit=True) as probe:
@@ -387,6 +445,22 @@ class JoinedBeginProfile:
 
     def _commit_refused(self) -> None:
         self.commit_refusals += 1
+
+    def _dispatch_refused(self) -> None:
+        self.dispatch_refusals += 1
+
+
+class JoinedDispatchProfile(JoinedBeginProfile):
+    """Public Absurd-Engine profile refusing task spawn inside a joined begin."""
+
+    identity = DISPATCH_PROFILE_IDENTITY
+    fault_name = "dispatch.refuse"
+    refused_observation = "joined-dispatch-refused"
+    recovered_observation = "joined-dispatch-recovered"
+    refusal_field = "dispatch_refusals"
+
+    def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
+        generation.connection.refuse_activity_request_dispatch(message)
 
 
 class JoinedCommitAuthorityChecker:
@@ -498,6 +572,73 @@ def build_joined_begin_artifact(dsn: str) -> ScenarioArtifactV3:
     world, _, _ = execute_joined_begin_story(dsn)
     try:
         artifact = world.artifact(SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_joined_dispatch_story(dsn: str) -> tuple[World, JoinedDispatchProfile, Timeline]:
+    """Refuse one joined task spawn, drop, reload, and begin exactly once."""
+
+    profile = JoinedDispatchProfile(dsn)
+    world = World(profile, WORLD_BUDGET, checkers=(JoinedCommitAuthorityChecker(),))
+    timeline = world.timeline()
+
+    timeline.activate_fault(
+        "dispatch.refuse",
+        "activity_requested",
+        disposition=FaultDisposition.REFUSE,
+        payload={"message": "dst joined Dispatch spawn refused"},
+    )
+    timeline.command("engine.drive", {})
+    refused = timeline.observe("joined-dispatch-refused")
+    refused_value = cast(dict[str, JsonValue], refused.value)
+    assert refused_value["frontier"] == 2
+    assert refused_value["record_types"] == ["InstanceCreated", "TokensInitialized"]
+    assert refused_value["durable_tasks"] == []
+    assert refused_value["prepare_calls"] == refused_value["dispatch_refusals"] == 1
+    assert refused_value["status"] == "poisoned"
+
+    stale = timeline
+    timeline.crash("joined_dispatch_refused")
+    world.restart()
+    timeline = world.timeline()
+    recovered = timeline.run_until(
+        "joined-dispatch-recovered",
+        lambda observation: len(cast(dict[str, JsonValue], observation.value)["durable_tasks"]) == 1,
+    )
+    recovered_value = cast(dict[str, JsonValue], recovered.value)
+    assert recovered_value["frontier"] == 6
+    assert recovered_value["record_types"] == [
+        "InstanceCreated",
+        "TokensInitialized",
+        "CandidateSelected",
+        "FiringBegun",
+        "TokensConsumed",
+        "ActivityRequested",
+    ]
+    assert recovered_value["prepare_calls"] == 2
+    assert recovered_value["transaction_attempts"] == [
+        {
+            "accepted": False,
+            "dispatch_attempted": True,
+            "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
+        },
+        {
+            "accepted": True,
+            "dispatch_attempted": True,
+            "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
+        },
+    ]
+    timeline.finish(Disposition.EXTERNAL_WAIT)
+    return world, profile, stale
+
+
+def build_joined_dispatch_artifact(dsn: str) -> ScenarioArtifactV3:
+    world, _, _ = execute_joined_dispatch_story(dsn)
+    try:
+        artifact = world.artifact(DISPATCH_SCENARIO_ID)
         assert isinstance(artifact, ScenarioArtifactV3)
         return artifact
     finally:
