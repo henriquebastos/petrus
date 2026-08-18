@@ -48,6 +48,7 @@ QUEUE = "dst_joined_begin"
 SCENARIO_ID = "joined-begin-commit-refusal-world-v3"
 DISPATCH_SCENARIO_ID = "joined-dispatch-refusal-world-v3"
 PROJECTION_SCENARIO_ID = "joined-projection-commit-refusal-world-v3"
+ACK_LOSS_SCENARIO_ID = "joined-begin-ack-loss-world-v3"
 
 PROFILE_IDENTITY = ProfileIdentity(
     name="petrus.engine.joined-begin-commit-refusal",
@@ -118,6 +119,29 @@ PROJECTION_PROFILE_IDENTITY = ProfileIdentity(
         }
     ),
 )
+ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.joined-begin-ack-loss",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": ["engine.drive"],
+            "fault": {
+                "disposition": "raise",
+                "name": "history.lose-ack",
+                "target": "activity_requested_committed",
+            },
+            "instance": INSTANCE_ID,
+            "observations": [
+                "engine.joined-accepted-begin-authority",
+                "joined-begin-ack-lost",
+                "joined-begin-ack-recovered",
+            ],
+            "provider": "petrus.engine.absurd",
+            "property": "an accepted joined begin survives loss of its commit acknowledgement",
+            "queue": QUEUE,
+        }
+    ),
+)
 CHECKER_IDENTITY = CheckerIdentity(
     name="petrus.engine.joined-commit-authority",
     version=1,
@@ -134,6 +158,13 @@ PROJECTION_CHECKER_IDENTITY = CheckerIdentity(
                 "worker completion bounds one frozen terminal; accepted projection transactions bound one projection"
             )
         }
+    ),
+)
+ACK_LOSS_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.joined-accepted-begin-authority",
+    version=1,
+    digest=digest_json(
+        {"property": ("an acknowledged-lost begin has exactly one accepted semantic prefix and one durable task")}
     ),
 )
 WORLD_BUDGET = Budget(
@@ -181,17 +212,20 @@ class JoinedFaultConnection:
         commit_refused: Callable[[], None],
         dispatch_refused: Callable[[], None],
         projection_refused: Callable[[], None],
+        commit_ack_lost: Callable[[], None],
     ) -> None:
         self._delegate = delegate
         self._attempts = attempts
         self._commit_refused = commit_refused
         self._dispatch_refused = dispatch_refused
         self._projection_refused = projection_refused
+        self._commit_ack_lost = commit_ack_lost
         self._record_types: list[str] = []
         self._dispatch_attempted = False
         self._commit_refusal: str | None = None
         self._dispatch_refusal: str | None = None
         self._projection_refusal: str | None = None
+        self._commit_ack_loss: str | None = None
 
     def __getattr__(self, name: str):
         return getattr(self._delegate, name)
@@ -238,6 +272,11 @@ class JoinedFaultConnection:
             raise RuntimeError("joined projection refusal is already armed")
         self._projection_refusal = message
 
+    def lose_activity_request_commit_ack(self, message: str) -> None:
+        if self._commit_ack_loss is not None:
+            raise RuntimeError("joined commit acknowledgement loss is already armed")
+        self._commit_ack_loss = message
+
     def commit(self) -> None:
         joined_begin = ActivityRequested.__name__ in self._record_types
         tracked = joined_begin or any(
@@ -259,6 +298,11 @@ class JoinedFaultConnection:
         if tracked:
             self._attempts.append(self._attempt(True))
         self._clear_transaction()
+        if joined_begin and self._commit_ack_loss is not None:
+            message = self._commit_ack_loss
+            self._commit_ack_loss = None
+            self._commit_ack_lost()
+            raise OSError(message)
 
     def rollback(self) -> None:
         try:
@@ -296,6 +340,7 @@ class JoinedBeginProfile:
     identity = PROFILE_IDENTITY
     fault_name = "history.commit-refuse"
     fault_target = "activity_requested"
+    fault_disposition = FaultDisposition.REFUSE
     refused_observation = "joined-begin-refused"
     recovered_observation = "joined-begin-recovered"
     refusal_field = "commit_refusals"
@@ -307,7 +352,9 @@ class JoinedBeginProfile:
         self.commit_refusals = 0
         self.dispatch_refusals = 0
         self.projection_refusals = 0
+        self.commit_ack_losses = 0
         self.worker_completions = 0
+        self.drive_calls = 0
         self.drops = 0
         self.closes = 0
 
@@ -320,7 +367,7 @@ class JoinedBeginProfile:
         if (
             fault.name != self.fault_name
             or fault.target != self.fault_target
-            or fault.disposition != FaultDisposition.REFUSE.value
+            or fault.disposition != self.fault_disposition.value
             or type(fault.payload) is not dict
             or set(fault.payload) != {"message"}
             or not isinstance(fault.payload["message"], str)
@@ -342,6 +389,7 @@ class JoinedBeginProfile:
         command: Command,
         context: ScenarioContext,
     ) -> ApplyResult:
+        self.drive_calls += 1
         expected = self._configure_faults(generation, context)
         try:
             outcome = generation.engine.advance()
@@ -420,6 +468,7 @@ class JoinedBeginProfile:
             self._commit_refused,
             self._dispatch_refused,
             self._projection_refused,
+            self._commit_ack_lost,
         )
         listener = psycopg.connect(self.dsn, autocommit=True)
         bridge = JoinedBridge(self._prepared)
@@ -462,8 +511,10 @@ class JoinedBeginProfile:
             dict[str, JsonValue],
             {
                 "commit_refusals": self.commit_refusals,
+                "commit_ack_losses": self.commit_ack_losses,
                 "dispatch_refusals": self.dispatch_refusals,
                 "drops": self.drops,
+                "drive_calls": self.drive_calls,
                 "durable_tasks": tasks,
                 "frontier": len(records),
                 "prepare_calls": self.prepare_calls,
@@ -478,7 +529,7 @@ class JoinedBeginProfile:
     def _configure_faults(self, generation: JoinedGeneration, context: ScenarioContext) -> tuple[str, ...]:
         expected = []
         for fault in context.faults(self.fault_target):
-            if fault.name != self.fault_name or fault.disposition != FaultDisposition.REFUSE.value:
+            if fault.name != self.fault_name or fault.disposition != self.fault_disposition.value:
                 raise ValueError(f"unsupported joined-begin fault {fault.name!r}")
             if type(fault.payload) is not dict or set(fault.payload) != {"message"}:
                 raise ValueError(f"{self.fault_name} requires an exact message payload")
@@ -521,6 +572,9 @@ class JoinedBeginProfile:
     def _projection_refused(self) -> None:
         self.projection_refusals += 1
 
+    def _commit_ack_lost(self) -> None:
+        self.commit_ack_losses += 1
+
 
 class JoinedDispatchProfile(JoinedBeginProfile):
     """Public Absurd-Engine profile refusing task spawn inside a joined begin."""
@@ -533,6 +587,42 @@ class JoinedDispatchProfile(JoinedBeginProfile):
 
     def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
         generation.connection.refuse_activity_request_dispatch(message)
+
+
+class JoinedBeginAckLossProfile(JoinedBeginProfile):
+    """Public Absurd-Engine profile losing acknowledgement after joined begin acceptance."""
+
+    identity = ACK_LOSS_PROFILE_IDENTITY
+    fault_name = "history.lose-ack"
+    fault_target = "activity_requested_committed"
+    fault_disposition = FaultDisposition.RAISE
+    refused_observation = "joined-begin-ack-lost"
+    recovered_observation = "joined-begin-ack-recovered"
+    refusal_field = "commit_ack_losses"
+
+    def observe(
+        self,
+        generation: JoinedGeneration,
+        request: ObservationRequest,
+        context: ScenarioContext,
+    ) -> JsonValue:
+        if request.name == "engine.joined-accepted-begin-authority":
+            if request.payload not in (None, {}):
+                raise ValueError("joined accepted-begin authority observation does not accept parameters")
+            state = self._observation_state(generation)
+            fields = (
+                "commit_ack_losses",
+                "durable_tasks",
+                "prepare_calls",
+                "record_types",
+                "transaction_attempts",
+            )
+            return {field: state[field] for field in fields}
+        value = cast(dict[str, JsonValue], super().observe(generation, request, context))
+        return {**value, "drive_calls": self.drive_calls}
+
+    def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
+        generation.connection.lose_activity_request_commit_ack(message)
 
 
 class JoinedProjectionProfile(JoinedBeginProfile):
@@ -740,6 +830,50 @@ class JoinedProjectionAuthorityChecker:
         )
 
 
+class JoinedAcceptedBeginAuthorityChecker:
+    """Independent accepted-begin authority from PostgreSQL transaction and task truth."""
+
+    identity = ACK_LOSS_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.joined-accepted-begin-authority", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        value = cast(dict[str, JsonValue], observation.value)
+        records = cast(list[JsonValue], value["record_types"])
+        attempts = cast(list[dict[str, JsonValue]], value["transaction_attempts"])
+        tasks = cast(list[dict[str, JsonValue]], value["durable_tasks"])
+        accepted_begin = {
+            "accepted": True,
+            "dispatch_attempted": True,
+            "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
+        }
+        accepted_begins = sum(attempt == accepted_begin for attempt in attempts)
+        attempts_exact = attempts in ([], [accepted_begin])
+        selected = records.count(CandidateSelected.__name__)
+        begun = records.count(FiringBegun.__name__)
+        requested = records.count(ActivityRequested.__name__)
+        ack_losses = cast(int, value["commit_ack_losses"])
+        expected_tasks = (
+            [] if accepted_begins == 0 else [{"idempotency": f"{INSTANCE_ID}:occurrence-1", "state": "pending"}]
+        )
+        passed = (
+            attempts_exact
+            and selected == begun == requested == accepted_begins == len(tasks)
+            and cast(int, value["prepare_calls"]) == accepted_begins
+            and tasks == expected_tasks
+            and 0 <= ack_losses <= accepted_begins <= 1
+        )
+        return CheckResult(
+            passed=passed,
+            detail={
+                "accepted_begins": accepted_begins,
+                "ack_losses": ack_losses,
+                "attempts_exact": attempts_exact,
+                "durable_tasks": len(tasks),
+                "prepare_calls": value["prepare_calls"],
+            },
+        )
+
+
 def execute_joined_begin_story(dsn: str) -> tuple[World, JoinedBeginProfile, Timeline]:
     """Refuse one joined begin commit, drop, reload, and begin exactly once."""
 
@@ -868,6 +1002,70 @@ def build_joined_dispatch_artifact(dsn: str) -> ScenarioArtifactV3:
     world, _, _ = execute_joined_dispatch_story(dsn)
     try:
         artifact = world.artifact(DISPATCH_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_joined_ack_loss_story(dsn: str) -> tuple[World, JoinedBeginAckLossProfile, Timeline]:
+    """Lose one accepted joined-begin acknowledgement, drop, and load exact truth."""
+
+    profile = JoinedBeginAckLossProfile(dsn)
+    world = World(profile, WORLD_BUDGET, checkers=(JoinedAcceptedBeginAuthorityChecker(),))
+    timeline = world.timeline()
+
+    timeline.activate_fault(
+        "history.lose-ack",
+        "activity_requested_committed",
+        disposition=FaultDisposition.RAISE,
+        payload={"message": "dst joined begin acknowledgement lost"},
+    )
+    timeline.command("engine.drive", {})
+    lost = timeline.observe("joined-begin-ack-lost")
+    lost_value = cast(dict[str, JsonValue], lost.value)
+    assert lost_value["frontier"] == 6
+    assert lost_value["record_types"] == [
+        "InstanceCreated",
+        "TokensInitialized",
+        "CandidateSelected",
+        "FiringBegun",
+        "TokensConsumed",
+        "ActivityRequested",
+    ]
+    assert lost_value["durable_tasks"] == [{"idempotency": f"{INSTANCE_ID}:occurrence-1", "state": "pending"}]
+    assert lost_value["prepare_calls"] == lost_value["commit_ack_losses"] == 1
+    assert lost_value["drive_calls"] == 1
+    assert lost_value["status"] == "poisoned"
+
+    stale = timeline
+    timeline.crash("joined_begin_committed_ack_lost")
+    world.restart()
+    timeline = world.timeline()
+    recovered = timeline.run_until(
+        "joined-begin-ack-recovered",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["drive_calls"] == 2,
+    )
+    recovered_value = cast(dict[str, JsonValue], recovered.value)
+    assert recovered_value["frontier"] == 6
+    assert recovered_value["record_types"] == lost_value["record_types"]
+    assert recovered_value["durable_tasks"] == lost_value["durable_tasks"]
+    assert recovered_value["prepare_calls"] == recovered_value["commit_ack_losses"] == 1
+    assert recovered_value["transaction_attempts"] == [
+        {
+            "accepted": True,
+            "dispatch_attempted": True,
+            "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
+        }
+    ]
+    timeline.finish(Disposition.EXTERNAL_WAIT)
+    return world, profile, stale
+
+
+def build_joined_ack_loss_artifact(dsn: str) -> ScenarioArtifactV3:
+    world, _, _ = execute_joined_ack_loss_story(dsn)
+    try:
+        artifact = world.artifact(ACK_LOSS_SCENARIO_ID)
         assert isinstance(artifact, ScenarioArtifactV3)
         return artifact
     finally:

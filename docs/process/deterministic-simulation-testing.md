@@ -396,7 +396,9 @@ without merging their claims: the World supplies deterministic fault,
 generation, checker, and replay mechanics, while the exact profiles run the
 public Absurd Engine provider against disposable PostgreSQL. Two qualify the
 pinned commit-refusal and task-spawn-failure paths through the begin+spawn
-commit-or-vanish boundary. A third uses a real Absurd Worker to accept one
+commit-or-vanish boundary. A third loses the joined transaction's
+acknowledgement after acceptance and proves that fresh load retains exactly one
+semantic begin and task. A fourth uses a real Absurd Worker to accept one
 terminal, refuses the later projection commit, and proves fresh-load projection
 without another Worker completion or handler preparation. They do not simulate
 or claim PostgreSQL power loss, transport, or provider-wide fidelity.

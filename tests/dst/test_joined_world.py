@@ -15,15 +15,19 @@ from petrus.testing.dst import (
     replay,
 )
 from tests.dst.joined_world import (
+    ACK_LOSS_SCENARIO_ID,
     DISPATCH_SCENARIO_ID,
     PROJECTION_SCENARIO_ID,
     SCENARIO_ID,
     JoinedBeginProfile,
+    JoinedBeginAckLossProfile,
+    JoinedAcceptedBeginAuthorityChecker,
     JoinedCommitAuthorityChecker,
     JoinedDispatchProfile,
     JoinedProjectionAuthorityChecker,
     JoinedProjectionProfile,
     build_joined_begin_artifact,
+    build_joined_ack_loss_artifact,
     build_joined_dispatch_artifact,
     build_joined_projection_artifact,
 )
@@ -32,6 +36,7 @@ from tests.dst.postgres_support import isolated_absurd_database
 FIXTURE = Path("tests/dst/fixtures/joined-begin-commit-refusal-world-v3.json")
 DISPATCH_FIXTURE = Path("tests/dst/fixtures/joined-dispatch-refusal-world-v3.json")
 PROJECTION_FIXTURE = Path("tests/dst/fixtures/joined-projection-commit-refusal-world-v3.json")
+ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-begin-ack-loss-world-v3.json")
 
 
 def test_joined_begin_commit_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
@@ -98,6 +103,62 @@ def test_retained_joined_dispatch_fixture_replays_without_the_authored_scenario(
     assert result.scenario_id == DISPATCH_SCENARIO_ID
     assert result.outcome == "pass"
     assert result.disposition == Disposition.EXTERNAL_WAIT.value
+
+
+def test_joined_begin_ack_loss_is_exact_and_replayable(absurd_dsn: str) -> None:
+    with isolated_absurd_database(absurd_dsn) as authored_dsn:
+        artifact = build_joined_ack_loss_artifact(authored_dsn)
+
+    assert artifact.scenario_id == ACK_LOSS_SCENARIO_ID
+    assert artifact.origin is None
+    assert encode_artifact(artifact) == ACK_LOSS_FIXTURE.read_bytes().rstrip(b"\n")
+
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedBeginAckLossProfile(replay_dsn))
+        registry.register_checker(JoinedAcceptedBeginAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.version == RESULT_VERSION
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.EXTERNAL_WAIT.value
+    assert result.operations == len(artifact.operations)
+
+
+def test_retained_joined_begin_ack_loss_replays_without_the_authored_scenario(absurd_dsn: str) -> None:
+    artifact = load_artifact(ACK_LOSS_FIXTURE)
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedBeginAckLossProfile(replay_dsn))
+        registry.register_checker(JoinedAcceptedBeginAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.scenario_id == ACK_LOSS_SCENARIO_ID
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.EXTERNAL_WAIT.value
+
+
+def test_joined_accepted_begin_checker_refuses_ack_loss_without_durable_truth() -> None:
+    checker = JoinedAcceptedBeginAuthorityChecker()
+    observation = Observation(
+        name="engine.joined-accepted-begin-authority",
+        value={
+            "commit_ack_losses": 1,
+            "durable_tasks": [],
+            "prepare_calls": 1,
+            "record_types": ["InstanceCreated", "TokensInitialized"],
+            "transaction_attempts": [],
+        },
+        instant=0,
+        generation=1,
+        sequence=0,
+    )
+
+    result: CheckResult = checker.check(observation)
+
+    assert result.passed is False
+    assert result.detail["ack_losses"] == 1
+    assert result.detail["accepted_begins"] == 0
 
 
 def test_joined_projection_commit_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
