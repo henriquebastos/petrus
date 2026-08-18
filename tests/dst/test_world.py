@@ -58,6 +58,7 @@ from petrus.testing.dst import (
 from tests.dst.engine_world import (
     BUDGET_FAILURE_SCENARIO_ID,
     CHECKER_IDENTITY,
+    HISTORY_REFUSAL_SCENARIO_ID,
     INVARIANT_FAILURE_SCENARIO_ID,
     LEGACY_SCENARIO_ID,
     PROFILE_IDENTITY,
@@ -65,10 +66,13 @@ from tests.dst.engine_world import (
     SCENARIO_SEED,
     SEEDED_SCENARIO_ID,
     WORLD_BUDGET,
+    CommitAuthorityChecker,
     EngineHistoryChecker,
     EngineProfile,
+    HistoryRefusalEngineProfile,
     TerminalRefusalChecker,
     build_budget_failure_artifact,
+    build_history_refusal_artifact,
     build_invariant_failure_artifact,
     build_projection_artifact,
     build_seeded_projection_artifact,
@@ -79,6 +83,7 @@ LEGACY_FIXTURE = Path("tests/dst/fixtures/projection-crash-recovery-world-v1.jso
 BUDGET_FAILURE_FIXTURE = Path("tests/dst/fixtures/action-budget-exhaustion-world-v2.json")
 INVARIANT_FAILURE_FIXTURE = Path("tests/dst/fixtures/terminal-checker-failure-world-v2.json")
 SEEDED_FIXTURE = Path("tests/dst/fixtures/seeded-projection-crash-recovery-world-v3.json")
+HISTORY_REFUSAL_FIXTURE = Path("tests/dst/fixtures/history-refusal-crash-recovery-world-v3.json")
 
 
 class QueueProfile:
@@ -596,6 +601,58 @@ def test_seeded_manual_replay_route_is_deterministic() -> None:
     assert result["version"] == RESULT_VERSION
     assert result["scenario_id"] == SEEDED_SCENARIO_ID
     assert result["outcome"] == "pass"
+
+
+def test_history_refusal_before_terminal_is_exact_and_replayable(tmp_path: Path) -> None:
+    artifact = build_history_refusal_artifact(tmp_path / "history-refusal-author.jsonl")
+
+    assert artifact.scenario_id == HISTORY_REFUSAL_SCENARIO_ID
+    assert artifact.origin is None
+    assert encode_artifact(artifact) == HISTORY_REFUSAL_FIXTURE.read_bytes().rstrip(b"\n")
+
+    registry = ScenarioRegistry()
+    registry.register_profile(HistoryRefusalEngineProfile(tmp_path / "history-refusal-replay.jsonl"))
+    registry.register_checker(CommitAuthorityChecker())
+    result = replay(artifact, registry)
+
+    assert result.version == RESULT_VERSION
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.CONVERGED.value
+    assert result.operations == len(artifact.operations)
+
+
+def test_history_refusal_manual_replay_route_is_deterministic() -> None:
+    command = [sys.executable, "-m", "tests.dst.replay_world", str(HISTORY_REFUSAL_FIXTURE)]
+    first = subprocess.run(command, check=True, capture_output=True, text=True)
+    second = subprocess.run(command, check=True, capture_output=True, text=True)
+
+    assert first.stderr == second.stderr == ""
+    assert first.stdout == second.stdout
+    result = json.loads(first.stdout)
+    assert result["version"] == RESULT_VERSION
+    assert result["scenario_id"] == HISTORY_REFUSAL_SCENARIO_ID
+    assert result["outcome"] == "pass"
+    assert result["disposition"] == Disposition.CONVERGED.value
+
+
+def test_commit_authority_checker_refuses_a_terminal_above_external_acceptance() -> None:
+    checker = CommitAuthorityChecker()
+    observation = Observation(
+        name="engine.commit-authority",
+        value={
+            "record_types": ["ActivityCompleted", "FiringCompleted"],
+            "terminal_deliveries": 1,
+            "terminal_refusals": 1,
+        },
+        instant=0,
+        generation=1,
+        sequence=0,
+    )
+
+    result = checker.check(observation)
+
+    assert result.passed is False
+    assert result.detail["accepted_terminal_limit"] == 0
 
 
 def test_legacy_version_one_artifact_remains_byte_exact() -> None:

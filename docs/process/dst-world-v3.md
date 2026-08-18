@@ -86,7 +86,9 @@ callbacks. DS3 owns Hypothesis state machines, generator policy, semantic
 coverage, and shrinking; those generators call these authorities and submit the
 result through the same World/Timeline interpreter.
 
-## Retained proof
+## Retained proofs
+
+### Seeded choice provenance
 
 [`seeded-projection-crash-recovery-world-v3.json`](../../tests/dst/fixtures/seeded-projection-crash-recovery-world-v3.json)
 uses seed `1729` and all four authorities around the real public Engine profile.
@@ -103,10 +105,37 @@ The route returns `outcome: "pass"`, `converged`, 17 operations, 27 journal
 entries, and digest
 `sha256:ddf70617988b010a3300fc6703eb0c8f1bc1c4b0751b4156c2059f851d34a779`.
 
+### Pre-commit terminal refusal
+
+[`history-refusal-crash-recovery-world-v3.json`](../../tests/dst/fixtures/history-refusal-crash-recovery-world-v3.json)
+uses a second exact public-Engine profile around a faulting JSONL History
+delegate. The profile refuses `ActivityCompleted` before the delegate accepts
+it, observes no terminal or projection beyond the prior durable frontier,
+abruptly drops the poisoned generation, and reloads through `Engine.load`.
+Reconciliation republishes the recorded invocation without calling `prepare`;
+the retained observation proves its occurrence, activity, input, execution
+policy, correlation, and idempotency identities are unchanged. An exact
+external terminal redelivery then converges under the fair suffix.
+
+The independent commit-authority checker compares canonical terminal records
+with authored external terminal deliveries minus observed pre-commit refusals
+after every atomic operation and fresh load. Its deliberate-failure test proves
+that it rejects a terminal above that external acceptance bound.
+
+```bash
+UV_FROZEN=1 uv run python -m tests.dst.replay_world \
+  tests/dst/fixtures/history-refusal-crash-recovery-world-v3.json
+```
+
+The route returns `outcome: "pass"`, `converged`, 19 operations, 31 journal
+entries including 11 checker evaluations, and digest
+`sha256:d8a9dec14dc40dc5a27afeaec9028ac37646695e22ff75bee2ce7f2c0f06aff1`.
+
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. Broader pre/post-durable fault adapters and the remaining
-profile-retained-data/watchdog bounds remain in CV19.DS2. Stateful generation,
-shrinking, broad independent models/checkers, and semantic coverage remain in
-DS3; campaign and real-boundary qualification remain in DS4.
+generator. The broader delivery, dispatch, lifecycle, and transaction fault
+matrix plus the remaining profile-retained-data/watchdog bounds remain in
+CV19.DS2. Stateful generation, shrinking, broad independent models/checkers,
+and semantic coverage remain in DS3; campaign and real-boundary qualification
+remain in DS4.

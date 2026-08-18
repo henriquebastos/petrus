@@ -8,13 +8,21 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from petrus.testing.dst import ScenarioRegistry, load_artifact, replay
-from tests.dst.engine_world import EngineHistoryChecker, EngineProfile, TerminalRefusalChecker
+from tests.dst.engine_world import (
+    CommitAuthorityChecker,
+    EngineHistoryChecker,
+    EngineProfile,
+    HistoryRefusalEngineProfile,
+    TerminalRefusalChecker,
+)
 
 
 def replay_path(path: Path):
     with TemporaryDirectory(prefix="petrus-dst-world-") as directory:
         registry = ScenarioRegistry()
-        registry.register_profile(EngineProfile(Path(directory) / "history.jsonl"))
+        registry.register_profile(EngineProfile(Path(directory) / "projection-history.jsonl"))
+        registry.register_profile(HistoryRefusalEngineProfile(Path(directory) / "history-refusal.jsonl"))
+        registry.register_checker(CommitAuthorityChecker())
         registry.register_checker(EngineHistoryChecker())
         registry.register_checker(TerminalRefusalChecker())
         return replay(load_artifact(path), registry)

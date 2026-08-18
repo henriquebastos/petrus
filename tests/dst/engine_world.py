@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Callable, Iterator
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import cast
+from typing import ClassVar, cast
 
 from pydantic import JsonValue
 
 from petrus.engine import Engine
-from petrus.impetus.history import ActivityCompleted, ActivityRequested, FiringCompleted
-from petrus.impetus.history_store import JsonlHistoryStore
+from petrus.impetus.history import ActivityCompleted, ActivityFailed, ActivityRequested, FiringCompleted, Record
+from petrus.impetus.history_store import HistoryStore, JsonlHistoryStore
 from petrus.impetus.petrinet import Arc, Marking, Net, NetPath, Place, Token, Transition
 from petrus.motus.activity import ActivityInvocation
 from petrus.motus.dispatch import InMemoryDispatch
@@ -47,6 +48,7 @@ LEGACY_SCENARIO_ID = "projection-crash-recovery-world-v1"
 SCENARIO_ID = "projection-crash-recovery-world-v3"
 SEEDED_SCENARIO_ID = "seeded-projection-crash-recovery-world-v3"
 SCENARIO_SEED = 1729
+HISTORY_REFUSAL_SCENARIO_ID = "history-refusal-crash-recovery-world-v3"
 INVARIANT_FAILURE_SCENARIO_ID = "terminal-checker-failure-world-v2"
 BUDGET_FAILURE_SCENARIO_ID = "action-budget-exhaustion-world-v2"
 
@@ -71,6 +73,37 @@ PROFILE_IDENTITY = ProfileIdentity(
     version=1,
     digest=digest_json(PROFILE_DEFINITION),
 )
+HISTORY_REFUSAL_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.history-refusal-recovery",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": ["engine.complete", "engine.drive"],
+            "fault": {
+                "disposition": "refuse",
+                "name": "history.refuse",
+                "target": "activity_terminal_frozen",
+            },
+            "instance": INSTANCE_ID,
+            "observations": [
+                "activity-requested",
+                "engine.commit-authority",
+                "engine.safety",
+                "recovered-request",
+                "semantic-batch-refused",
+                "terminal",
+            ],
+            "pending_invocation": [
+                "activity",
+                "correlation",
+                "idempotency",
+                "input",
+                "occurrence",
+                "policy",
+            ],
+        }
+    ),
+)
 CHECKER_IDENTITY = CheckerIdentity(
     name="petrus.engine.history-order",
     version=1,
@@ -81,6 +114,18 @@ CHECKER_IDENTITY = CheckerIdentity(
                 "one frozen terminal",
                 "terminal precedes projection",
             ]
+        }
+    ),
+)
+COMMIT_AUTHORITY_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.commit-authority",
+    version=1,
+    digest=digest_json(
+        {
+            "property": (
+                "activity terminals and projections never exceed authored terminal deliveries "
+                "minus pre-commit history refusals"
+            )
         }
     ),
 )
@@ -140,10 +185,43 @@ class WorldClock:
         return self.context.now() if self.context.now() >= instant else None
 
 
+class RefusingJsonlHistoryStore:
+    """JSONL delegate which can refuse one terminal append before acceptance."""
+
+    def __init__(self, path: Path, on_refusal: Callable[[], None]) -> None:
+        self._delegate = JsonlHistoryStore(path)
+        self._on_refusal = on_refusal
+        self._terminal_error: str | None = None
+
+    @property
+    def records(self) -> tuple[Record, ...]:
+        return self._delegate.records
+
+    def __iter__(self) -> Iterator[Record]:
+        return iter(self._delegate)
+
+    def __len__(self) -> int:
+        return len(self._delegate)
+
+    def append(self, record: Record) -> None:
+        if self._terminal_error is not None and isinstance(record, (ActivityCompleted, ActivityFailed)):
+            message = self._terminal_error
+            self._terminal_error = None
+            self._on_refusal()
+            raise OSError(message)
+        self._delegate.append(record)
+
+    def extend(self, records: list[Record]) -> None:
+        self._delegate.extend(records)
+
+    def refuse_terminal(self, message: str) -> None:
+        self._terminal_error = message
+
+
 @dataclass
 class EngineGeneration:
     engine: Engine
-    history: JsonlHistoryStore
+    history: HistoryStore
     dispatch: InMemoryDispatch
     bridge: ProjectionBridge
     poisoned: bool = False
@@ -154,6 +232,11 @@ class EngineProfile:
     """Petrus-owned profile composed exclusively through public Engine doors."""
 
     identity = PROFILE_IDENTITY
+    observation_fields: ClassVar[dict[str, tuple[str, ...]]] = {
+        "activity-requested": ("frontier", "pending", "status"),
+        "projection-refused": ("bridge", "frontier", "record_types", "status"),
+        "terminal": ("bridge", "drops", "frontier", "marking", "record_types", "status"),
+    }
 
     def __init__(self, history_path: Path):
         self.history_path = history_path
@@ -188,7 +271,7 @@ class EngineProfile:
         return fault
 
     def create(self, context: ScenarioContext) -> GenerationStart[EngineGeneration]:
-        history = JsonlHistoryStore(self.history_path)
+        history = self._history(context)
         dispatch = InMemoryDispatch()
         bridge = ProjectionBridge()
         engine = Engine.create(
@@ -204,7 +287,7 @@ class EngineProfile:
         return GenerationStart(generation, (self._scheduled(context, "engine.drive", {}),))
 
     def load(self, context: ScenarioContext) -> GenerationStart[EngineGeneration]:
-        history = JsonlHistoryStore(self.history_path)
+        history = self._history(context)
         dispatch = InMemoryDispatch()
         bridge = ProjectionBridge()
         engine = Engine.load(
@@ -227,28 +310,19 @@ class EngineProfile:
         if command.name == "engine.complete":
             payload = cast(dict[str, JsonValue], command.payload)
             generation.dispatch.complete(cast(int, payload["occurrence"]), payload["result"])
+            self._terminal_ready()
             return ApplyResult(
                 disposition=ActionDisposition.APPLIED.value,
                 value={"frontier": len(generation.history)},
                 scheduled=[self._scheduled(context, "engine.drive", {})],
             )
 
-        faults = context.faults("activity_terminal_frozen")
-        expected_error = None
-        for fault in faults:
-            if fault.name != "projection.raise" or fault.disposition != FaultDisposition.RAISE.value:
-                raise ValueError(f"unsupported public-Engine profile fault {fault.name!r}")
-            if type(fault.payload) is not dict or set(fault.payload) != {"message"}:
-                raise ValueError("projection.raise requires an exact message payload")
-            expected_error = fault.payload["message"]
-            if not isinstance(expected_error, str):
-                raise ValueError("projection.raise message must be a string")
-            generation.bridge.projection_error = expected_error
+        expected_errors = self._configure_faults(generation, context)
 
         try:
             outcome = generation.engine.advance()
-        except RuntimeError as error:
-            if expected_error is None or str(error) != expected_error:
+        except Exception as error:
+            if not any(isinstance(error, kind) and str(error) == message for kind, message in expected_errors):
                 raise
             generation.poisoned = True
             return ApplyResult(
@@ -282,19 +356,19 @@ class EngineProfile:
         context: ScenarioContext,
     ) -> JsonValue:
         del context
-        if request.name not in {
-            "activity-requested",
-            "engine.safety",
-            "projection-refused",
-            "terminal",
-        }:
+        if request.name != "engine.safety" and request.name not in self.observation_fields:
             raise ValueError(f"unknown public-Engine profile observation {request.name!r}")
         if request.payload not in (None, {}):
             raise ValueError("public-Engine profile observations do not accept parameters")
+        state = self._observation_state(generation)
+        if request.name == "engine.safety":
+            return {"record_types": state["record_types"]}
+        fields = self.observation_fields[request.name]
+        return {field: state[field] for field in fields}
+
+    def _observation_state(self, generation: EngineGeneration) -> dict[str, JsonValue]:
         records = generation.history.records
         record_types = [type(record).__name__ for record in records]
-        if request.name == "engine.safety":
-            return {"record_types": record_types}
         if generation.poisoned:
             status = "poisoned"
             marking = None
@@ -315,15 +389,21 @@ class EngineProfile:
             "in_flight": in_flight,
             "marking": marking,
             "pending": sorted(generation.dispatch.pending),
+            "pending_invocations": [
+                {
+                    "activity": invocation.activity,
+                    "correlation": invocation.correlation,
+                    "idempotency": invocation.idempotency,
+                    "input": invocation.input,
+                    "occurrence": occurrence,
+                    "policy": asdict(invocation.policy),
+                }
+                for occurrence, invocation in sorted(generation.dispatch.pending.items())
+            ],
             "record_types": record_types,
             "status": status,
         }
-        fields = {
-            "activity-requested": ("frontier", "pending", "status"),
-            "projection-refused": ("bridge", "frontier", "record_types", "status"),
-            "terminal": ("bridge", "drops", "frontier", "marking", "record_types", "status"),
-        }[request.name]
-        return {field: state[field] for field in fields}
+        return cast(dict[str, JsonValue], state)
 
     def drop(self, generation: EngineGeneration) -> None:
         self.drops += 1
@@ -339,6 +419,121 @@ class EngineProfile:
             instant=context.now(),
             command=Command(profile=self.identity, name=name, payload=payload),
         )
+
+    def _history(self, context: ScenarioContext) -> HistoryStore:
+        del context
+        return JsonlHistoryStore(self.history_path)
+
+    def _terminal_ready(self) -> None:
+        pass
+
+    def _configure_faults(
+        self, generation: EngineGeneration, context: ScenarioContext
+    ) -> tuple[tuple[type[Exception], str], ...]:
+        expected = []
+        for fault in context.faults("activity_terminal_frozen"):
+            if fault.name != "projection.raise" or fault.disposition != FaultDisposition.RAISE.value:
+                raise ValueError(f"unsupported public-Engine profile fault {fault.name!r}")
+            if type(fault.payload) is not dict or set(fault.payload) != {"message"}:
+                raise ValueError("projection.raise requires an exact message payload")
+            message = fault.payload["message"]
+            if not isinstance(message, str):
+                raise ValueError("projection.raise message must be a string")
+            generation.bridge.projection_error = message
+            expected.append((RuntimeError, message))
+        return tuple(expected)
+
+
+class HistoryRefusalEngineProfile(EngineProfile):
+    """Public-Engine profile with one unambiguously pre-commit terminal cut."""
+
+    identity = HISTORY_REFUSAL_PROFILE_IDENTITY
+    observation_fields = {
+        "activity-requested": (
+            *EngineProfile.observation_fields["activity-requested"],
+            "pending_invocations",
+        ),
+        "engine.commit-authority": (
+            "record_types",
+            "terminal_deliveries",
+            "terminal_refusals",
+        ),
+        "recovered-request": (
+            "bridge",
+            "frontier",
+            "pending",
+            "pending_invocations",
+            "record_types",
+            "status",
+            "terminal_deliveries",
+            "terminal_refusals",
+        ),
+        "semantic-batch-refused": (
+            "bridge",
+            "frontier",
+            "record_types",
+            "status",
+            "terminal_deliveries",
+            "terminal_refusals",
+        ),
+        "terminal": EngineProfile.observation_fields["terminal"],
+    }
+
+    def __init__(self, history_path: Path):
+        super().__init__(history_path)
+        self.terminal_deliveries = 0
+        self.terminal_refusals = 0
+
+    def validate_fault(self, fault: Fault) -> Fault:
+        if (
+            fault.name != "history.refuse"
+            or fault.target != "activity_terminal_frozen"
+            or fault.disposition != FaultDisposition.REFUSE.value
+            or type(fault.payload) is not dict
+            or set(fault.payload) != {"message"}
+            or not isinstance(fault.payload["message"], str)
+        ):
+            raise ValueError("unsupported history-refusal Engine profile fault")
+        return fault
+
+    def _observation_state(self, generation: EngineGeneration) -> dict[str, JsonValue]:
+        state = super()._observation_state(generation)
+        state.update(
+            {
+                "terminal_deliveries": self.terminal_deliveries,
+                "terminal_refusals": self.terminal_refusals,
+            }
+        )
+        return state
+
+    def _history(self, context: ScenarioContext) -> HistoryStore:
+        del context
+        return RefusingJsonlHistoryStore(self.history_path, self._terminal_refused)
+
+    def _terminal_ready(self) -> None:
+        self.terminal_deliveries += 1
+
+    def _terminal_refused(self) -> None:
+        self.terminal_refusals += 1
+
+    def _configure_faults(
+        self, generation: EngineGeneration, context: ScenarioContext
+    ) -> tuple[tuple[type[Exception], str], ...]:
+        expected = []
+        for fault in context.faults("activity_terminal_frozen"):
+            if fault.name != "history.refuse" or fault.disposition != FaultDisposition.REFUSE.value:
+                raise ValueError(f"unsupported history-refusal Engine profile fault {fault.name!r}")
+            if type(fault.payload) is not dict or set(fault.payload) != {"message"}:
+                raise ValueError("history.refuse requires an exact message payload")
+            message = fault.payload["message"]
+            if not isinstance(message, str):
+                raise ValueError("history.refuse message must be a string")
+            history = generation.history
+            if not isinstance(history, RefusingJsonlHistoryStore):
+                raise TypeError("history-refusal Engine profile requires its faulting History adapter")
+            history.refuse_terminal(message)
+            expected.append((OSError, message))
+        return tuple(expected)
 
 
 class EngineHistoryChecker:
@@ -362,6 +557,33 @@ class EngineHistoryChecker:
                 "activity_completed": len(completed),
                 "activity_requested": len(requested),
                 "firing_completed": len(projected),
+            },
+        )
+
+
+class CommitAuthorityChecker:
+    """Independent terminal bound derived from authored external-world facts."""
+
+    identity = COMMIT_AUTHORITY_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.commit-authority", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        value = cast(dict[str, JsonValue], observation.value)
+        records = cast(list[JsonValue], value["record_types"])
+        deliveries = cast(int, value["terminal_deliveries"])
+        refusals = cast(int, value["terminal_refusals"])
+        completed = records.count(ActivityCompleted.__name__) + records.count(ActivityFailed.__name__)
+        projected = records.count(FiringCompleted.__name__)
+        accepted_limit = deliveries - refusals
+        passed = 0 <= refusals <= deliveries and completed <= accepted_limit and projected <= completed <= 1
+        return CheckResult(
+            passed=passed,
+            detail={
+                "accepted_terminal_limit": accepted_limit,
+                "activity_terminals": completed,
+                "authored_terminal_deliveries": deliveries,
+                "firing_completed": projected,
+                "history_refusals": refusals,
             },
         )
 
@@ -446,6 +668,94 @@ def build_seeded_projection_artifact(history_path: Path) -> ScenarioArtifact:
     world, _, _ = execute_projection_story(history_path, seed=SCENARIO_SEED)
     try:
         return world.artifact(SEEDED_SCENARIO_ID)
+    finally:
+        world.close()
+
+
+def execute_history_refusal_story(
+    history_path: Path,
+) -> tuple[World, HistoryRefusalEngineProfile, Timeline]:
+    """Refuse one terminal commit, crash, reload, redeliver, and converge."""
+
+    profile = HistoryRefusalEngineProfile(history_path)
+    world = World(profile, WORLD_BUDGET, checkers=(CommitAuthorityChecker(),))
+    timeline = world.timeline()
+
+    requested = timeline.run_until(
+        "activity-requested",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["pending"] == [1],
+    )
+    requested_value = cast(dict[str, JsonValue], requested.value)
+    assert requested_value["frontier"] == 6
+    requested_invocations = requested_value["pending_invocations"]
+    assert requested_invocations == [
+        {
+            "activity": "calculate",
+            "correlation": "occurrence-1",
+            "idempotency": "occurrence-1",
+            "input": 3,
+            "occurrence": 1,
+            "policy": {
+                "attempts": 1,
+                "coefficient": 2,
+                "heartbeat_timeout": 30,
+                "initial_interval": 0,
+                "jitter": 0,
+                "max_interval": 60,
+                "schedule_to_close": None,
+                "start_to_close": None,
+            },
+        }
+    ]
+
+    timeline.activate_fault(
+        "history.refuse",
+        "activity_terminal_frozen",
+        disposition=FaultDisposition.REFUSE,
+        payload={"message": "dst terminal history refused"},
+    )
+    timeline.command("engine.complete", {"occurrence": 1, "result": {"value": 3}})
+    refused = timeline.run_until(
+        "semantic-batch-refused",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["status"] == "poisoned",
+    )
+    refused_value = cast(dict[str, JsonValue], refused.value)
+    assert refused_value["frontier"] == 6
+    assert refused_value["terminal_deliveries"] == refused_value["terminal_refusals"] == 1
+    assert ActivityCompleted.__name__ not in cast(list[JsonValue], refused_value["record_types"])
+    assert cast(dict[str, JsonValue], refused_value["bridge"])["projected"] == 0
+
+    stale = timeline
+    timeline.crash("semantic_batch_refused")
+    world.restart()
+    timeline = world.timeline()
+    recovered = timeline.run_until(
+        "recovered-request",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["pending"] == [1],
+    )
+    recovered_value = cast(dict[str, JsonValue], recovered.value)
+    assert recovered_value["frontier"] == 6
+    assert cast(dict[str, JsonValue], recovered_value["bridge"]) == {"prepared": 0, "projected": 0}
+    assert recovered_value["pending_invocations"] == requested_invocations
+
+    timeline.command("engine.complete", {"occurrence": 1, "result": {"value": 3}})
+    timeline.begin_fair()
+    terminal = timeline.run_until(
+        "terminal",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["status"] == "terminated",
+    )
+    terminal_value = cast(dict[str, JsonValue], terminal.value)
+    assert terminal_value["frontier"] == 9
+    assert cast(dict[str, JsonValue], terminal_value["bridge"]) == {"prepared": 0, "projected": 1}
+    assert terminal_value["marking"] == [{"place": "done", "tokens": [{"color": "Done", "data": {"value": 3}}]}]
+    timeline.finish(Disposition.CONVERGED)
+    return world, profile, stale
+
+
+def build_history_refusal_artifact(history_path: Path) -> ScenarioArtifact:
+    world, _, _ = execute_history_refusal_story(history_path)
+    try:
+        return world.artifact(HISTORY_REFUSAL_SCENARIO_ID)
     finally:
         world.close()
 
