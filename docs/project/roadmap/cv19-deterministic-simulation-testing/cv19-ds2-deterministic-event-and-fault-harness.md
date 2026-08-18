@@ -2,7 +2,7 @@
 code: CV19.DS2
 level: Delivery Story
 status: Active
-status_reason: The accepted v3 World now pairs post-commit projection recovery with a pre-commit terminal History refusal and exact invocation redispatch; DS2 remains active for broader cuts/adapters/bounds
+status_reason: The accepted v3 World now proves paired terminal durability cuts plus a reset/crash/late-terminal lifecycle race; DS2 remains active for broader cuts/adapters/bounds
 updated: 2026-08-18
 related:
   - index.md
@@ -214,6 +214,21 @@ the supported kernel or prior profile identity:
 7. replay the retained 19 operations and 31 journal entries, including 11
    checker evaluations, exactly.
 
+The third exact profile proves the first planned lifecycle race:
+
+1. open lifecycle generation 1 and deliver identified input inside it;
+2. begin an Activity, then atomically reset the scope to generation 2 while
+   that Activity remains in flight;
+3. abruptly drop the process before its late terminal is delivered;
+4. load a fresh Engine graph and reconcile the recorded reset/cancellation
+   fence without preparing or dispatching the cancelled Activity;
+5. quarantine one exact late terminal, acknowledge its exact duplicate without
+   another History append, and record no ordinary terminal or projection;
+6. continuously compare active generation and lifecycle/terminal/projection
+   records with independent authored-world authority; and
+7. replay the retained 22 operations and 36 journal entries, including 13
+   checker evaluations, exactly.
+
 All authored support and retained evidence live together under `tests/dst/`.
 The application profile returns detached follow-up proposals; only the World
 validates, orders, journals, and executes them. Checkers consume detached
@@ -242,11 +257,11 @@ seeded Engine scenario whose replay never consults the PRNG.
 | Done condition | Slice result |
 | --- | --- |
 | 1. Accepted defining-module compatibility surface | Met by the accepted decision, current `petrus.testing.dst/v3`, explicit v1/v2 constants/models, exact identities, no root/private exports, and the versioned [`dst-world-v3`](../../../process/dst-world-v3.md), [`dst-world-v2`](../../../process/dst-world-v2.md), and [`dst-world-v1`](../../../process/dst-world-v1.md) contracts. |
-| 2. Imperative story emits replay data | Met by `tests/dst/engine_world.py` and the retained projection and History-refusal world fixtures. |
-| 3. Same-interpreter replay agreement | Met for both terminal-cut crash/recovery stories, including exact operations, checker observations, dispositions, and journal digests. |
+| 2. Imperative story emits replay data | Met by the executable profiles under `tests/dst/` and retained projection, History-refusal, and lifecycle-race fixtures. |
+| 3. Same-interpreter replay agreement | Met for all three public-Engine crash/recovery stories, including exact operations, checker observations, dispositions, and journal digests. |
 | 4. Seeded repeatability | Met: two fresh seed-1729 Engine runs produce the same expanded artifact; workload, fault, identifier, and event-order streams are independently pinned, and replay ignores changed seed provenance. |
 | 5. Abrupt generation reconstruction | Met for the public-Engine profile, including revoke-before-drop and stale Timeline refusal. |
-| 6. Named cuts before/after durable acceptance | Partial: paired pre-commit History refusal and post-commit projection refusal are proved at the terminal boundary; the broader delivery, dispatch, lifecycle, and transaction matrix remains. |
+| 6. Named cuts before/after durable acceptance | Partial: paired terminal durability cuts and a reset/crash/late-terminal lifecycle race are proved; the broader delivery, Dispatch, timer/retry, lifecycle, and transaction matrix remains. |
 | 7. Complete bounds | Partial: action, queue, logical-time/advance, reload, predicate, and artifact limits are executable; profile-retained-data and wall-clock watchdog qualification remain. |
 | 8. Checker cadence and fair draining | Met for the vertical slice; broader independent S1–S8 checker coverage belongs to the remaining DS2/DS3 work. |
 | 9. Hermetic real-runtime execution | Met for the vertical slice: no credentials, providers, network sleeps, or substitute Petrus semantics. |
@@ -269,7 +284,7 @@ the authoring API and artifact are version 3.
 
 ### Executed evidence
 
-- `UV_FROZEN=1 uv run pytest -q tests/dst` — 64 passed.
+- `UV_FROZEN=1 uv run pytest -q tests/dst` — 67 passed.
 - `UV_FROZEN=1 uv run python -m tests.dst.replay_world
   tests/dst/fixtures/projection-crash-recovery-world-v1.json` — `pass`,
   `converged`, 15 operations, 25 journal entries, digest
@@ -289,9 +304,14 @@ the authoring API and artifact are version 3.
   `converged`, 19 operations, 31 journal entries including 11 checker
   evaluations, and digest
   `sha256:d8a9dec14dc40dc5a27afeaec9028ac37646695e22ff75bee2ce7f2c0f06aff1`.
-- `scripts/check full` — 2,245 passed.
-- `scripts/check release` — default order 2,245 passed; additional fixed order
-  2,245 passed with 17 intentionally deselected by the release profile.
+- The same replay route over
+  `lifecycle-reset-late-terminal-world-v3.json` returned `pass` / `quiescent`,
+  22 operations, 36 journal entries including 13 checker evaluations, and
+  digest
+  `sha256:1719800ed00cfb705535b47b359d23988080b19a073f6247a995776ab7d9b194`.
+- `scripts/check full` — 2,248 passed.
+- `scripts/check release` — default order 2,248 passed; additional fixed order
+  2,248 passed with 17 intentionally deselected by the release profile.
 - `UV_FROZEN=1 uv run ast-grep test --skip-snapshot-tests` — all 19
   architectural rule fixtures passed, including the runtime-neutral supported
   test-kit boundary.

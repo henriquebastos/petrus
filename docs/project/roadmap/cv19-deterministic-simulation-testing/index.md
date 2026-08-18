@@ -2,7 +2,7 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 is Done and DS2's supported v3 World now pairs seeded exact replay with pre-commit History refusal and post-commit projection recovery; broader fault adapters/bounds and DS3–DS4 work remain active
+status_reason: CV19.DS1 is Done and DS2's supported v3 World now adds a reset/crash/late-terminal lifecycle race to seeded exact replay and paired terminal durability cuts; broader adapters/bounds and DS3–DS4 remain active
 updated: 2026-08-18
 related:
   - ../../../../src/petrus/simulation.py
@@ -141,8 +141,10 @@ the minimized expanded scenario becomes the durable regression fixture.
    implemented; version 2 retains exact action-budget/checker failures, and
    version 3 adds separable seeded authorities while replaying retained version
    1 and 2 artifacts unchanged. Paired terminal-boundary profiles now prove a
-   pre-commit History refusal beside post-commit projection recovery. The
-   broader fault/cut matrix and remaining bounds keep DS2 active.
+   pre-commit History refusal beside post-commit projection recovery, and a
+   lifecycle-reset profile proves crash reconstruction plus late-terminal
+   quarantine/duplicate acknowledgement. The broader fault/cut matrix and
+   remaining bounds keep DS2 active.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)
    adds broad and targeted workload generation, independent models/checkers,
    shrinking, semantic coverage, and durable replay fixtures.

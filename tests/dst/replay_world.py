@@ -15,6 +15,7 @@ from tests.dst.engine_world import (
     HistoryRefusalEngineProfile,
     TerminalRefusalChecker,
 )
+from tests.dst.lifecycle_world import LifecycleAuthorityChecker, LifecycleEngineProfile
 
 
 def replay_path(path: Path):
@@ -22,8 +23,10 @@ def replay_path(path: Path):
         registry = ScenarioRegistry()
         registry.register_profile(EngineProfile(Path(directory) / "projection-history.jsonl"))
         registry.register_profile(HistoryRefusalEngineProfile(Path(directory) / "history-refusal.jsonl"))
+        registry.register_profile(LifecycleEngineProfile(Path(directory) / "lifecycle-history.jsonl"))
         registry.register_checker(CommitAuthorityChecker())
         registry.register_checker(EngineHistoryChecker())
+        registry.register_checker(LifecycleAuthorityChecker())
         registry.register_checker(TerminalRefusalChecker())
         return replay(load_artifact(path), registry)
 

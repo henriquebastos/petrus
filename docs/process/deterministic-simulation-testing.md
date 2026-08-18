@@ -3,8 +3,9 @@
 **Status:** CV19 correctness contract. The strict internal DS1 artifact and the
 supported DS2 executable-World vertical slice are shipped, including exact
 budget/checker-failure replay, seeded choice provenance, and a pre-commit
-terminal History refusal; broader fault adapters, generation, and campaign
-qualification remain.
+terminal History refusal. A lifecycle-reset race now also proves crash/load,
+late-terminal quarantine, and exact duplicate acknowledgement; broader fault
+adapters, generation, and campaign qualification remain.
 
 This document owns Petrus's deterministic simulation testing (DST) contract.
 DST drives the production `Engine`, `Coordinator`, `Instance`, `HistoryStore`,

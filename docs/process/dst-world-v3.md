@@ -131,11 +131,37 @@ The route returns `outcome: "pass"`, `converged`, 19 operations, 31 journal
 entries including 11 checker evaluations, and digest
 `sha256:d8a9dec14dc40dc5a27afeaec9028ac37646695e22ff75bee2ce7f2c0f06aff1`.
 
+### Lifecycle reset and late terminal
+
+[`lifecycle-reset-late-terminal-world-v3.json`](../../tests/dst/fixtures/lifecycle-reset-late-terminal-world-v3.json)
+uses a third exact public-Engine profile. It opens lifecycle generation 1,
+delivers identified scoped input, begins one Activity, and resets the scope to
+generation 2 while that Activity is in flight. After an abrupt process drop,
+`Engine.load` reconstructs the reset, and the fresh generation's first public
+`advance` reconciles the cancellation fence before any late terminal enters
+the new Dispatch.
+
+The exact late result is quarantined once as `ActivityTerminalQuarantined`.
+Redelivering it again is acknowledged without another History append, and the
+cancelled Activity never records an ordinary terminal or projection effect. A
+detached lifecycle-authority checker independently compares active generation,
+canonical opens/resets/quarantines, terminal deliveries, and projection bounds
+against authored world facts after every atomic operation and fresh load.
+
+```bash
+UV_FROZEN=1 uv run python -m tests.dst.replay_world \
+  tests/dst/fixtures/lifecycle-reset-late-terminal-world-v3.json
+```
+
+The route returns `outcome: "pass"`, `quiescent`, 22 operations, 36 journal
+entries including 13 checker evaluations, and digest
+`sha256:1719800ed00cfb705535b47b359d23988080b19a073f6247a995776ab7d9b194`.
+
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. The broader delivery, dispatch, lifecycle, and transaction fault
-matrix plus the remaining profile-retained-data/watchdog bounds remain in
-CV19.DS2. Stateful generation, shrinking, broad independent models/checkers,
-and semantic coverage remain in DS3; campaign and real-boundary qualification
-remain in DS4.
+generator. The broader delivery, Dispatch, timer/retry, lifecycle, and
+transaction fault matrix plus the remaining profile-retained-data/watchdog
+bounds remain in CV19.DS2. Stateful generation, shrinking, broad independent
+models/checkers, and semantic coverage remain in DS3; campaign and real-boundary
+qualification remain in DS4.
