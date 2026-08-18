@@ -2,7 +2,7 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 is Done and DS2 now proves split request/cancellation refusal plus joined begin, paired completed-terminal, paired failed-terminal, paired projection, pre-fence reset refusal, and post-fence cancellation refusal/acknowledgement-loss recovery over real Absurd/PostgreSQL in addition to bounded World v4, process containment, and LocalDispatch provider time; broader cuts and DS3–DS4 remain active
+status_reason: CV19.DS1 is Done and DS2 now proves split request/cancellation refusal plus joined begin, paired completed-terminal, paired failed-terminal, paired projection, paired canonical reset, and paired post-fence cancellation refusal/acknowledgement-loss recovery over real Absurd/PostgreSQL in addition to bounded World v4, process containment, and LocalDispatch provider time; broader cuts and DS3–DS4 remain active
 updated: 2026-08-18
 related:
   - ../../../../src/petrus/simulation.py
@@ -189,10 +189,13 @@ the minimized expanded scenario becomes the durable regression fixture.
    state without another projection. A tenth refuses the canonical
    `ScopeReset` commit and proves fresh load retains generation 1 and accepts
    its still-authoritative Worker completion exactly once. An eleventh commits
+   `ScopeReset` but loses that transaction's acknowledgement before
+   cancellation begins, then proves fresh-load reconstruction of generation 2,
+   one repaired tombstone, and stale-Worker fencing. A twelfth commits
    `ScopeReset`, refuses the separate real Absurd cancellation-tombstone
    commit, then proves fresh-load repair and stale-Worker fencing without a
-   semantic terminal or projection. A twelfth loses the acknowledgement after
-   that tombstone commits, then proves fresh load recognizes the accepted
+   semantic terminal or projection. A thirteenth loses the acknowledgement
+   after that tombstone commits, then proves fresh load recognizes the accepted
    custody without a second cancellation mutation and still fences the stale
    Worker. The broader fault/cut matrix keeps DS2 active.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)

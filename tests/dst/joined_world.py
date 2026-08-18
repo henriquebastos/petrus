@@ -67,6 +67,7 @@ TERMINAL_ACK_LOSS_SCENARIO_ID = "joined-terminal-ack-loss-world-v3"
 FAILURE_REFUSAL_SCENARIO_ID = "joined-failure-commit-refusal-world-v3"
 FAILURE_ACK_LOSS_SCENARIO_ID = "joined-failure-ack-loss-world-v3"
 RESET_REFUSAL_SCENARIO_ID = "joined-reset-commit-refusal-world-v3"
+RESET_ACK_LOSS_SCENARIO_ID = "joined-reset-ack-loss-world-v3"
 CANCELLATION_SCENARIO_ID = "joined-cancellation-commit-refusal-world-v3"
 CANCELLATION_ACK_LOSS_SCENARIO_ID = "joined-cancellation-ack-loss-world-v3"
 
@@ -309,6 +310,38 @@ RESET_REFUSAL_PROFILE_IDENTITY = ProfileIdentity(
         }
     ),
 )
+RESET_ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.joined-reset-ack-loss",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": [
+                "engine.drive",
+                "scope.open",
+                "scope.reset",
+                "source.deliver",
+                "worker.claim",
+                "worker.complete-stale",
+            ],
+            "fault": {
+                "disposition": "raise",
+                "name": "history.lose-ack",
+                "target": "scope_reset_committed",
+            },
+            "instance": INSTANCE_ID,
+            "observations": [
+                "engine.joined-accepted-reset-authority",
+                "joined-reset-ack-ready",
+                "joined-reset-ack-lost",
+                "joined-reset-ack-recovered",
+                "joined-reset-ack-worker-fenced",
+            ],
+            "provider": "petrus.engine.absurd",
+            "property": "an accepted ScopeReset survives acknowledgement loss and installs one cancellation fence",
+            "queue": QUEUE,
+        }
+    ),
+)
 CANCELLATION_PROFILE_IDENTITY = ProfileIdentity(
     name="petrus.engine.joined-cancellation-commit-refusal",
     version=1,
@@ -449,6 +482,18 @@ RESET_REFUSAL_CHECKER_IDENTITY = CheckerIdentity(
         }
     ),
 )
+RESET_ACK_LOSS_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.joined-accepted-reset-authority",
+    version=1,
+    digest=digest_json(
+        {
+            "property": (
+                "an acknowledgement-lost ScopeReset reconstructs generation two, installs one tombstone, and "
+                "fences its old Worker"
+            )
+        }
+    ),
+)
 CANCELLATION_CHECKER_IDENTITY = CheckerIdentity(
     name="petrus.engine.joined-cancellation-authority",
     version=1,
@@ -542,6 +587,7 @@ class JoinedFaultConnection:
         terminal_ack_lost: Callable[[], None],
         lifecycle_attempts: list[dict[str, JsonValue]],
         reset_refused: Callable[[], None],
+        reset_ack_lost: Callable[[], None],
         cancellation_refused: Callable[[], None],
         cancellation_ack_lost: Callable[[], None],
     ) -> None:
@@ -556,6 +602,7 @@ class JoinedFaultConnection:
         self._terminal_ack_lost = terminal_ack_lost
         self._lifecycle_attempts = lifecycle_attempts
         self._reset_refused = reset_refused
+        self._reset_ack_lost = reset_ack_lost
         self._cancellation_refused = cancellation_refused
         self._cancellation_ack_lost = cancellation_ack_lost
         self._record_types: list[str] = []
@@ -569,6 +616,7 @@ class JoinedFaultConnection:
         self._commit_ack_loss: str | None = None
         self._terminal_ack_loss: str | None = None
         self._reset_refusal: str | None = None
+        self._reset_ack_loss: str | None = None
         self._cancellation_refusal: str | None = None
         self._cancellation_ack_loss: str | None = None
 
@@ -633,6 +681,11 @@ class JoinedFaultConnection:
         if self._reset_refusal is not None:
             raise RuntimeError("joined scope-reset refusal is already armed")
         self._reset_refusal = message
+
+    def lose_scope_reset_commit_ack(self, message: str) -> None:
+        if self._reset_ack_loss is not None:
+            raise RuntimeError("joined scope-reset acknowledgement loss is already armed")
+        self._reset_ack_loss = message
 
     def refuse_cancellation_commit(self, message: str) -> None:
         if self._cancellation_refusal is not None:
@@ -724,6 +777,11 @@ class JoinedFaultConnection:
             self._projection_ack_loss = None
             self._projection_ack_lost()
             raise OSError(message)
+        if scope_reset and self._reset_ack_loss is not None:
+            message = self._reset_ack_loss
+            self._reset_ack_loss = None
+            self._reset_ack_lost()
+            raise OSError(message)
         if cancellation_attempted and self._cancellation_ack_loss is not None:
             message = self._cancellation_ack_loss
             self._cancellation_ack_loss = None
@@ -790,6 +848,7 @@ class JoinedBeginProfile:
         self.projection_refusals = 0
         self.projection_ack_losses = 0
         self.reset_refusals = 0
+        self.reset_ack_losses = 0
         self.cancellation_refusals = 0
         self.cancellation_ack_losses = 0
         self.commit_ack_losses = 0
@@ -916,6 +975,7 @@ class JoinedBeginProfile:
             self._terminal_ack_lost,
             self.lifecycle_attempts,
             self._reset_refused,
+            self._reset_ack_lost,
             self._cancellation_refused,
             self._cancellation_ack_lost,
         )
@@ -977,6 +1037,7 @@ class JoinedBeginProfile:
                 "projection_ack_losses": self.projection_ack_losses,
                 "record_types": [type(record).__name__ for record in records],
                 "reset_refusals": self.reset_refusals,
+                "reset_ack_losses": self.reset_ack_losses,
                 "status": status,
                 "terminal_refusals": self.terminal_refusals,
                 "terminal_ack_losses": self.terminal_ack_losses,
@@ -1040,6 +1101,9 @@ class JoinedBeginProfile:
 
     def _reset_refused(self) -> None:
         self.reset_refusals += 1
+
+    def _reset_ack_lost(self) -> None:
+        self.reset_ack_losses += 1
 
     def _cancellation_refused(self) -> None:
         self.cancellation_refusals += 1
@@ -1661,6 +1725,33 @@ class JoinedResetRefusalProfile(JoinedCancellationProfile):
 
     def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
         generation.connection.refuse_scope_reset_commit(message)
+
+
+class JoinedResetAckLossProfile(JoinedCancellationProfile):
+    """Public Absurd profile losing acknowledgement after ScopeReset acceptance."""
+
+    identity = RESET_ACK_LOSS_PROFILE_IDENTITY
+    fault_name = "history.lose-ack"
+    fault_target = "scope_reset_committed"
+    fault_disposition = FaultDisposition.RAISE
+    refused_observation = "joined-reset-ack-lost"
+    recovered_observation = "joined-reset-ack-recovered"
+    refusal_field = "reset_ack_losses"
+    _observations = {
+        "engine.joined-accepted-reset-authority",
+        "joined-reset-ack-ready",
+        "joined-reset-ack-lost",
+        "joined-reset-ack-recovered",
+        "joined-reset-ack-worker-fenced",
+    }
+    _observation_fields = (
+        *JoinedCancellationProfile._observation_fields,
+        "reset_ack_losses",
+        "reset_refusals",
+    )
+
+    def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
+        generation.connection.lose_scope_reset_commit_ack(message)
 
 
 class JoinedCancellationAckLossProfile(JoinedCancellationProfile):
@@ -2325,6 +2416,92 @@ class JoinedResetRefusalAuthorityChecker:
                 "reset_refusals": reset_refusals,
                 "task_state": None if not tasks else tasks[0]["state"],
                 "worker_completions": worker_completions,
+            },
+        )
+
+
+class JoinedAcceptedResetAuthorityChecker:
+    """Independent accepted-reset authority from PostgreSQL and Worker facts."""
+
+    identity = RESET_ACK_LOSS_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.joined-accepted-reset-authority", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        value = cast(dict[str, JsonValue], observation.value)
+        records = cast(list[JsonValue], value["record_types"])
+        attempts = cast(list[dict[str, JsonValue]], value["transaction_attempts"])
+        lifecycle_attempts = cast(list[dict[str, JsonValue]], value["lifecycle_attempts"])
+        tasks = cast(list[dict[str, JsonValue]], value["durable_tasks"])
+        source = {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["ExternalEventDelivered", "FiringBegun", "TokensProduced", "FiringCompleted"],
+        }
+        begin = {
+            "accepted": True,
+            "dispatch_attempted": True,
+            "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
+        }
+        expected_attempts = [source, begin]
+        attempts_exact = len(attempts) <= len(expected_attempts) and attempts == expected_attempts[: len(attempts)]
+        accepted_reset = {"accepted": True, "phase": "scope_reset", "record_types": ["ScopeReset"]}
+        accepted_cancellation = {"accepted": True, "phase": "cancellation", "record_types": []}
+        lifecycle_exact = lifecycle_attempts in (
+            [],
+            [accepted_reset],
+            [accepted_reset, accepted_cancellation],
+        )
+        accepted_begins = attempts.count(begin)
+        accepted_resets = lifecycle_attempts.count(accepted_reset)
+        accepted_cancellations = lifecycle_attempts.count(accepted_cancellation)
+        worker_claims = cast(int, value["worker_claims"])
+        expected_key = f"{INSTANCE_ID}:occurrence-2"
+        if accepted_cancellations:
+            expected_tasks: list[dict[str, JsonValue]] = [{"idempotency": expected_key, "state": "cancelled"}]
+        elif worker_claims:
+            expected_tasks = [{"idempotency": expected_key, "state": "running"}]
+        elif accepted_begins:
+            expected_tasks = [{"idempotency": expected_key, "state": "pending"}]
+        else:
+            expected_tasks = []
+        canonical_sources = records.count(ExternalEventDelivered.__name__)
+        canonical_opens = records.count(ScopeOpened.__name__)
+        canonical_resets = records.count(ScopeReset.__name__)
+        requested = records.count(ActivityRequested.__name__)
+        completed = records.count(ActivityCompleted.__name__)
+        projected = records.count(FiringCompleted.__name__) - canonical_sources
+        ack_losses = cast(int, value["reset_ack_losses"])
+        stale_refusals = cast(int, value["stale_worker_refusals"])
+        passed = (
+            attempts_exact
+            and lifecycle_exact
+            and canonical_opens == cast(int, value["scope_opens"]) <= 1
+            and canonical_sources == cast(int, value["source_deliveries"]) <= 1
+            and canonical_resets == cast(int, value["scope_resets"]) == accepted_resets <= 1
+            and requested == accepted_begins <= 1
+            and cast(int, value["prepare_calls"]) == accepted_begins
+            and tasks == expected_tasks
+            and 0 <= worker_claims <= accepted_begins
+            and 0 <= ack_losses <= accepted_resets
+            and 0 <= accepted_cancellations <= accepted_resets
+            and 0 <= stale_refusals <= accepted_cancellations
+            and cast(int, value["reset_refusals"]) == 0
+            and cast(int, value["cancellation_refusals"]) == 0
+            and completed == projected == 0
+            and records.count(ActivityFailed.__name__) == records.count(FiringFailed.__name__) == 0
+        )
+        return CheckResult(
+            passed=passed,
+            detail={
+                "accepted_begins": accepted_begins,
+                "accepted_cancellations": accepted_cancellations,
+                "accepted_resets": accepted_resets,
+                "ack_losses": ack_losses,
+                "attempts_exact": attempts_exact,
+                "canonical_resets": canonical_resets,
+                "lifecycle_exact": lifecycle_exact,
+                "stale_worker_refusals": stale_refusals,
+                "task_state": None if not tasks else tasks[0]["state"],
             },
         )
 
@@ -3359,6 +3536,95 @@ def build_joined_reset_refusal_artifact(dsn: str) -> ScenarioArtifactV3:
     world, _, _ = execute_joined_reset_refusal_story(dsn)
     try:
         artifact = world.artifact(RESET_REFUSAL_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_joined_reset_ack_loss_story(dsn: str) -> tuple[World, JoinedResetAckLossProfile, Timeline]:
+    """Lose the accepted reset acknowledgement, reload, and fence its old Worker."""
+
+    profile = JoinedResetAckLossProfile(dsn)
+    world = World(profile, CANCELLATION_WORLD_BUDGET, checkers=(JoinedAcceptedResetAuthorityChecker(),))
+    timeline = world.timeline()
+
+    timeline.command("scope.open", {"name": "draft"})
+    timeline.command(
+        "source.deliver",
+        {"identity": "draft-input-3", "scope": "draft", "value": 3},
+    )
+    ready = timeline.run_until(
+        "joined-reset-ack-ready",
+        lambda observation: (
+            cast(dict[str, JsonValue], observation.value)["durable_tasks"]
+            == [{"idempotency": f"{INSTANCE_ID}:occurrence-2", "state": "pending"}]
+        ),
+    )
+    ready_value = cast(dict[str, JsonValue], ready.value)
+    assert ready_value["frontier"] == 11
+    assert ready_value["prepare_calls"] == 1
+
+    timeline.command("worker.claim", {})
+    claimed = timeline.observe("joined-reset-ack-ready")
+    claimed_value = cast(dict[str, JsonValue], claimed.value)
+    assert claimed_value["durable_tasks"] == [{"idempotency": f"{INSTANCE_ID}:occurrence-2", "state": "running"}]
+    assert claimed_value["worker_claims"] == 1
+
+    timeline.activate_fault(
+        "history.lose-ack",
+        "scope_reset_committed",
+        disposition=FaultDisposition.RAISE,
+        payload={"message": "dst joined scope reset acknowledgement lost"},
+    )
+    timeline.command("scope.reset", {"name": "draft"})
+    lost = timeline.observe("joined-reset-ack-lost")
+    lost_value = cast(dict[str, JsonValue], lost.value)
+    assert lost_value["frontier"] == 12
+    assert lost_value["record_types"][-1] == ScopeReset.__name__
+    assert lost_value["durable_tasks"] == claimed_value["durable_tasks"]
+    assert lost_value["lifecycle_attempts"] == [
+        {"accepted": True, "phase": "scope_reset", "record_types": ["ScopeReset"]}
+    ]
+    assert lost_value["reset_ack_losses"] == lost_value["scope_resets"] == 1
+    assert lost_value["cancellation_refusals"] == 0
+    assert lost_value["status"] == "poisoned"
+
+    stale = timeline
+    timeline.crash("joined_scope_reset_committed_ack_lost")
+    world.restart()
+    timeline = world.timeline()
+    recovered = timeline.run_until(
+        "joined-reset-ack-recovered",
+        lambda observation: (
+            cast(dict[str, JsonValue], observation.value)["durable_tasks"]
+            == [{"idempotency": f"{INSTANCE_ID}:occurrence-2", "state": "cancelled"}]
+        ),
+    )
+    recovered_value = cast(dict[str, JsonValue], recovered.value)
+    assert recovered_value["frontier"] == 12
+    assert recovered_value["prepare_calls"] == 1
+    assert recovered_value["lifecycle_attempts"] == [
+        {"accepted": True, "phase": "scope_reset", "record_types": ["ScopeReset"]},
+        {"accepted": True, "phase": "cancellation", "record_types": []},
+    ]
+
+    timeline.command("worker.complete-stale", {})
+    fenced = timeline.observe("joined-reset-ack-worker-fenced")
+    fenced_value = cast(dict[str, JsonValue], fenced.value)
+    assert fenced_value["durable_tasks"] == recovered_value["durable_tasks"]
+    assert fenced_value["reset_ack_losses"] == fenced_value["stale_worker_refusals"] == 1
+    assert ActivityCompleted.__name__ not in cast(list[JsonValue], fenced_value["record_types"])
+
+    timeline.begin_fair()
+    timeline.finish(Disposition.QUIESCENT)
+    return world, profile, stale
+
+
+def build_joined_reset_ack_loss_artifact(dsn: str) -> ScenarioArtifactV3:
+    world, _, _ = execute_joined_reset_ack_loss_story(dsn)
+    try:
+        artifact = world.artifact(RESET_ACK_LOSS_SCENARIO_ID)
         assert isinstance(artifact, ScenarioArtifactV3)
         return artifact
     finally:

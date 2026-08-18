@@ -536,6 +536,28 @@ by the refused reset. The retained route returns `outcome: "pass"`,
 evaluations, and digest
 `sha256:84b2b2e63f4212e942544c8d6aaeae0fc00309abcc4bd1506aec3895de605cda`.
 
+### Joined lifecycle reset acknowledgement loss
+
+[`joined-reset-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-reset-ack-loss-world-v3.json)
+proves the accepted side of the canonical reset boundary before operational
+cancellation starts. One real Absurd Worker holds a generation-1 Activity when
+production commits `ScopeReset`; the test connection then raises as if that
+transaction's acknowledgement were lost. Detached PostgreSQL truth shows
+generation 2, the still-running task, no cancellation attempt, and a poisoned
+writing Engine.
+
+The World revokes and abruptly drops only that Engine generation. Fresh public
+`load_engine` reconstructs the accepted fence and repairs exactly one
+cancellation tombstone against the original idempotency key without another
+handler `prepare`, semantic reset, or task. The old Worker's completion is
+refused as stale, so no `ActivityCompleted` or business projection enters
+History. The independent checker derives reset/cancellation authority from
+accepted lifecycle transactions plus detached History/task custody and rejects
+acknowledgement loss without an accepted reset. The retained route returns
+`outcome: "pass"`, `quiescent`, 19 operations, 31 journal entries including 12
+checker evaluations, and digest
+`sha256:58cb1b8cec3eb0dcb9329c64a3da48b2c839b96a149b5d7308edddab3e1bbf88`.
+
 ### Joined lifecycle cancellation commit refusal
 
 [`joined-cancellation-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-cancellation-commit-refusal-world-v3.json)
@@ -580,14 +602,15 @@ operations, 31 journal entries including 12 checker evaluations, and digest
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. Twelve joined-provider profiles now prove real joined-transaction
+generator. Thirteen joined-provider profiles now prove real joined-transaction
 commit refusal, pre-commit task-spawn failure, post-commit begin
 acknowledgement loss, paired completed-terminal commit refusal/acknowledgement
 loss, paired failed-terminal commit refusal/acknowledgement loss, paired
-projection commit refusal/acknowledgement loss, canonical reset refusal, plus
-both refused and accepted-but-unacknowledged post-reset cancellation-tombstone
-recovery without widening the World contract; the broader delivery, Dispatch,
-lifecycle, and transaction fault matrix remains in CV19.DS2. Version 4
+projection commit refusal/acknowledgement loss, paired canonical reset commit
+refusal/acknowledgement loss, plus both refused and
+accepted-but-unacknowledged post-reset cancellation-tombstone recovery without
+widening the World contract; the broader delivery, Dispatch, lifecycle, and
+transaction fault matrix remains in CV19.DS2. Version 4
 subsequently adds profile-retained-data and hidden-pending-work bounds without
 changing version 3 replay, and runner v1 contains complete Worlds under a
 separate wall-clock process budget. Stateful generation, shrinking, broad
