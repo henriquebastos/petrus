@@ -28,7 +28,7 @@ from petrus.impetus.petrinet import (
     Transition,
     Until,
 )
-from petrus.motus.activity import ActivityInvocation
+from petrus.motus.activity import ActivityFailure, ActivityInvocation
 from petrus.motus.dispatch import InMemoryDispatch
 
 FIXTURE_DIR = Path(__file__).parents[3] / "spec" / "observation"
@@ -316,6 +316,33 @@ def test_snapshot_reports_pure_and_projection_pending_phases_and_detaches_frozen
     pending = observed["current"]["in_flight"][0]
     assert pending["phase"] == "projection_pending"
     assert pending["result"] == {"nested": [{"value": 1}]}
+
+
+def test_snapshot_detaches_a_classified_failure_while_its_firing_terminal_is_pending():
+    engine = canonical_engine()
+    occurrence = engine.in_flight[0]
+    engine._instance.record_activity_failure(  # noqa: SLF001 - no Engine result door
+        occurrence,
+        ActivityFailure(
+            "invalid",
+            kind="InvalidRequest",
+            details={"field": "name"},
+            retryable=False,
+            retry_after=9,
+        ),
+        at=8,
+    )
+
+    pending = engine.snapshot()["current"]["in_flight"][0]
+
+    assert pending["phase"] == "projection_pending"
+    assert pending["result"] == {
+        "error": "invalid",
+        "kind": "InvalidRequest",
+        "details": {"field": "name"},
+        "retryable": False,
+        "retry_after": 9,
+    }
 
 
 def test_snapshot_detaches_nested_tokens_and_activity_values():

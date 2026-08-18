@@ -65,6 +65,7 @@ ACK_LOSS_SCENARIO_ID = "joined-begin-ack-loss-world-v3"
 TERMINAL_REFUSAL_SCENARIO_ID = "joined-terminal-commit-refusal-world-v3"
 TERMINAL_ACK_LOSS_SCENARIO_ID = "joined-terminal-ack-loss-world-v3"
 FAILURE_REFUSAL_SCENARIO_ID = "joined-failure-commit-refusal-world-v3"
+FAILURE_ACK_LOSS_SCENARIO_ID = "joined-failure-ack-loss-world-v3"
 CANCELLATION_SCENARIO_ID = "joined-cancellation-commit-refusal-world-v3"
 CANCELLATION_ACK_LOSS_SCENARIO_ID = "joined-cancellation-ack-loss-world-v3"
 
@@ -252,6 +253,29 @@ FAILURE_REFUSAL_PROFILE_IDENTITY = ProfileIdentity(
         }
     ),
 )
+FAILURE_ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.joined-failure-ack-loss",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": ["engine.drive", "worker.claim", "worker.fail"],
+            "fault": {
+                "disposition": "raise",
+                "name": "history.lose-ack",
+                "target": "activity_failed_committed",
+            },
+            "instance": INSTANCE_ID,
+            "observations": [
+                "engine.joined-accepted-failure-authority",
+                "joined-failure-ack-lost",
+                "joined-failure-ack-recovered",
+            ],
+            "provider": "petrus.engine.absurd",
+            "property": "an accepted ActivityFailed survives loss of its commit acknowledgement",
+            "queue": QUEUE,
+        }
+    ),
+)
 CANCELLATION_PROFILE_IDENTITY = ProfileIdentity(
     name="petrus.engine.joined-cancellation-commit-refusal",
     version=1,
@@ -371,6 +395,13 @@ FAILURE_REFUSAL_CHECKER_IDENTITY = CheckerIdentity(
     version=1,
     digest=digest_json(
         {"property": ("one Worker failure authorizes one accepted ActivityFailed after refusal and one FiringFailed")}
+    ),
+)
+FAILURE_ACK_LOSS_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.joined-accepted-failure-authority",
+    version=1,
+    digest=digest_json(
+        {"property": ("an acknowledgement-lost ActivityFailed remains singular and authorizes one FiringFailed")}
     ),
 )
 CANCELLATION_CHECKER_IDENTITY = CheckerIdentity(
@@ -1255,6 +1286,43 @@ class JoinedFailureRefusalProfile(JoinedProjectionProfile):
         generation.connection.refuse_activity_terminal_commit(message)
 
 
+class JoinedFailureAckLossProfile(JoinedFailureRefusalProfile):
+    """Public Absurd-Engine profile losing acknowledgement after ActivityFailed acceptance."""
+
+    identity = FAILURE_ACK_LOSS_PROFILE_IDENTITY
+    fault_name = "history.lose-ack"
+    fault_target = "activity_failed_committed"
+    fault_disposition = FaultDisposition.RAISE
+    refused_observation = "joined-failure-ack-lost"
+    recovered_observation = "joined-failure-ack-recovered"
+    refusal_field = "terminal_ack_losses"
+
+    def observe(
+        self,
+        generation: JoinedGeneration,
+        request: ObservationRequest,
+        context: ScenarioContext,
+    ) -> JsonValue:
+        if request.name == "engine.joined-accepted-failure-authority":
+            if request.payload not in (None, {}):
+                raise ValueError("joined accepted-failure authority observation does not accept parameters")
+            state = self._observation_state(generation)
+            fields = (
+                "durable_tasks",
+                "prepare_calls",
+                "record_types",
+                "terminal_ack_losses",
+                "transaction_attempts",
+                "worker_failures",
+            )
+            return {field: state[field] for field in fields}
+        value = cast(dict[str, JsonValue], super().observe(generation, request, context))
+        return {**value, "terminal_ack_losses": self.terminal_ack_losses}
+
+    def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
+        generation.connection.lose_activity_terminal_commit_ack(message)
+
+
 class JoinedTerminalAckLossProfile(JoinedProjectionProfile):
     """Public Absurd-Engine profile losing acknowledgement after terminal acceptance."""
 
@@ -1862,6 +1930,78 @@ class JoinedFailureAuthorityChecker:
                 "canonical_firings_failed": firings_failed,
                 "failed_custody": failed_custody,
                 "refused_failures": refused_failures,
+                "tasks_exact": tasks_exact,
+                "worker_failures": worker_failures,
+            },
+        )
+
+
+class JoinedAcceptedFailureAuthorityChecker:
+    """Independent accepted-failure authority from PostgreSQL and Worker facts."""
+
+    identity = FAILURE_ACK_LOSS_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.joined-accepted-failure-authority", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        value = cast(dict[str, JsonValue], observation.value)
+        records = cast(list[JsonValue], value["record_types"])
+        attempts = cast(list[dict[str, JsonValue]], value["transaction_attempts"])
+        tasks = cast(list[dict[str, JsonValue]], value["durable_tasks"])
+        begin = {
+            "accepted": True,
+            "dispatch_attempted": True,
+            "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
+        }
+        failure = {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["ActivityFailed"],
+        }
+        firing_failed = {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["FiringFailed"],
+        }
+        attempts_exact = attempts in ([], [begin], [begin, failure], [begin, failure, firing_failed])
+        accepted_begins = attempts.count(begin)
+        accepted_failures = attempts.count(failure)
+        accepted_firings_failed = attempts.count(firing_failed)
+        selected = records.count(CandidateSelected.__name__)
+        begun = records.count(FiringBegun.__name__)
+        requested = records.count(ActivityRequested.__name__)
+        failed = records.count(ActivityFailed.__name__)
+        firings_failed = records.count(FiringFailed.__name__)
+        worker_failures = cast(int, value["worker_failures"])
+        ack_losses = cast(int, value["terminal_ack_losses"])
+        expected_key = f"{INSTANCE_ID}:occurrence-1"
+        tasks_exact = tasks == [] or tasks in (
+            [{"idempotency": expected_key, "state": "pending"}],
+            [{"idempotency": expected_key, "state": "running"}],
+            [{"idempotency": expected_key, "state": "failed"}],
+        )
+        failed_custody = tasks == [{"idempotency": expected_key, "state": "failed"}]
+        passed = (
+            attempts_exact
+            and cast(int, value["prepare_calls"]) == accepted_begins
+            and selected == begun == requested == accepted_begins == len(tasks)
+            and failed == accepted_failures <= worker_failures <= 1
+            and firings_failed == accepted_firings_failed <= failed
+            and 0 <= ack_losses <= accepted_failures <= 1
+            and records.count(FiringCompleted.__name__) == records.count("TokensProduced") == 0
+            and failed_custody == (worker_failures == 1)
+            and tasks_exact
+        )
+        return CheckResult(
+            passed=passed,
+            detail={
+                "accepted_begins": accepted_begins,
+                "accepted_failures": accepted_failures,
+                "accepted_firings_failed": accepted_firings_failed,
+                "ack_losses": ack_losses,
+                "attempts_exact": attempts_exact,
+                "canonical_failures": failed,
+                "canonical_firings_failed": firings_failed,
+                "failed_custody": failed_custody,
                 "tasks_exact": tasks_exact,
                 "worker_failures": worker_failures,
             },
@@ -2536,6 +2676,97 @@ def build_joined_failure_refusal_artifact(dsn: str) -> ScenarioArtifactV3:
     world, _, _ = execute_joined_failure_refusal_story(dsn)
     try:
         artifact = world.artifact(FAILURE_REFUSAL_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_joined_failure_ack_loss_story(
+    dsn: str,
+) -> tuple[World, JoinedFailureAckLossProfile, Timeline]:
+    """Lose one accepted ActivityFailed acknowledgement, drop, and finish once."""
+
+    profile = JoinedFailureAckLossProfile(dsn)
+    world = World(profile, WORLD_BUDGET, checkers=(JoinedAcceptedFailureAuthorityChecker(),))
+    timeline = world.timeline()
+
+    timeline.command("engine.drive", {})
+    timeline.command("worker.claim", {})
+    timeline.command("worker.fail", {"error": "dst joined terminal failure"})
+    timeline.activate_fault(
+        "history.lose-ack",
+        "activity_failed_committed",
+        disposition=FaultDisposition.RAISE,
+        payload={"message": "dst joined failure acknowledgement lost"},
+    )
+    timeline.command("engine.drive", {})
+    lost = timeline.observe("joined-failure-ack-lost")
+    lost_value = cast(dict[str, JsonValue], lost.value)
+    assert lost_value["record_types"] == [
+        "InstanceCreated",
+        "TokensInitialized",
+        "CandidateSelected",
+        "FiringBegun",
+        "TokensConsumed",
+        "ActivityRequested",
+        "ActivityFailed",
+    ]
+    assert lost_value["durable_tasks"] == [{"idempotency": f"{INSTANCE_ID}:occurrence-1", "state": "failed"}]
+    assert lost_value["frontier"] == 7
+    assert lost_value["prepare_calls"] == lost_value["terminal_ack_losses"] == 1
+    assert lost_value["status"] == "poisoned"
+    assert lost_value["worker_failures"] == 1
+
+    stale = timeline
+    timeline.crash("joined_failure_committed_ack_lost")
+    world.restart()
+    timeline = world.timeline()
+    recovered = timeline.run_until(
+        "joined-failure-ack-recovered",
+        lambda observation: (
+            "FiringFailed" in cast(list[JsonValue], cast(dict[str, JsonValue], observation.value)["record_types"])
+        ),
+    )
+    recovered_value = cast(dict[str, JsonValue], recovered.value)
+    assert recovered_value["record_types"] == [
+        "InstanceCreated",
+        "TokensInitialized",
+        "CandidateSelected",
+        "FiringBegun",
+        "TokensConsumed",
+        "ActivityRequested",
+        "ActivityFailed",
+        "FiringFailed",
+    ]
+    assert recovered_value["frontier"] == 8
+    assert recovered_value["prepare_calls"] == recovered_value["worker_failures"] == 1
+    assert recovered_value["terminal_ack_losses"] == 1
+    assert recovered_value["transaction_attempts"] == [
+        {
+            "accepted": True,
+            "dispatch_attempted": True,
+            "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
+        },
+        {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["ActivityFailed"],
+        },
+        {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["FiringFailed"],
+        },
+    ]
+    timeline.finish(Disposition.QUARANTINED)
+    return world, profile, stale
+
+
+def build_joined_failure_ack_loss_artifact(dsn: str) -> ScenarioArtifactV3:
+    world, _, _ = execute_joined_failure_ack_loss_story(dsn)
+    try:
+        artifact = world.artifact(FAILURE_ACK_LOSS_SCENARIO_ID)
         assert isinstance(artifact, ScenarioArtifactV3)
         return artifact
     finally:

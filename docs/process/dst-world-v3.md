@@ -457,6 +457,26 @@ transaction. The retained route returns `outcome: "pass"`, `quarantined`, 12
 operations, 21 journal entries including 9 checker evaluations, and digest
 `sha256:50dabde303a773fe55c4863593997f55e9685bec1fc53ffb1c496fd0f27496c3`.
 
+### Joined failed-terminal acknowledgement loss
+
+[`joined-failure-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-failure-ack-loss-world-v3.json)
+proves the accepted side of that failed-terminal boundary. A real Worker
+reports one non-retryable `ActivityFailure`, production commits
+`ActivityFailed`, and the test connection then raises as if that transaction's
+acknowledgement were lost. Detached PostgreSQL truth shows one failed task and
+one canonical failure while the writing Engine poisons.
+
+Fresh public `load_engine` reconstructs the accepted failure and appends
+exactly one `FiringFailed` without recollecting provider custody, another Worker
+failure, task, or handler `prepare`. Public snapshot observation detaches the
+frozen `ActivityFailure` as its strict error/kind/details/retryable/retry-after
+value rather than exposing a live Python object. The independent checker
+requires accepted failed-terminal authority before canonical failure and
+rejects an acknowledgement-loss claim without it. The retained route returns
+`outcome: "pass"`, `quarantined`, 12 operations, 21 journal entries including 9
+checker evaluations, and digest
+`sha256:793402ed31fd80eb63a76c755ef31abdea120f9acb06cdb76cd7c74de6a1c9e1`.
+
 ### Joined terminal and refused projection commit
 
 [`joined-projection-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-projection-commit-refusal-world-v3.json)
@@ -539,11 +559,11 @@ operations, 31 journal entries including 12 checker evaluations, and digest
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. Ten joined-provider profiles now prove real joined-transaction
+generator. Eleven joined-provider profiles now prove real joined-transaction
 commit refusal, pre-commit task-spawn failure, post-commit begin
 acknowledgement loss, paired completed-terminal commit refusal/acknowledgement
-loss, failed-terminal recollection after commit refusal, paired projection
-commit refusal/acknowledgement loss, plus both refused and
+loss, paired failed-terminal commit refusal/acknowledgement loss, paired
+projection commit refusal/acknowledgement loss, plus both refused and
 accepted-but-unacknowledged post-reset cancellation-tombstone recovery without
 widening the World contract; the broader delivery, Dispatch, lifecycle, and
 transaction fault matrix remains in CV19.DS2. Version 4

@@ -10,6 +10,7 @@ from petrus.impetus.history import Record
 from petrus.impetus.history.codec import encode_record
 from petrus.impetus.instance import Instance
 from petrus.impetus.petrinet import Net, Token
+from petrus.motus.activity import ActivityFailure
 
 type JsonValue = None | bool | int | float | str | list[JsonValue] | dict[str, JsonValue]
 
@@ -65,6 +66,18 @@ def _selections(selections) -> list[dict[str, object]]:
     return [{"place": str(place), "tokens": _tokens(tokens)} for place, tokens in selections]
 
 
+def _activity_result(value: object) -> object:
+    if isinstance(value, ActivityFailure):
+        return {
+            "error": value.error,
+            "kind": value.kind,
+            "details": value.details,
+            "retryable": value.retryable,
+            "retry_after": value.retry_after,
+        }
+    return value
+
+
 def snapshot(instance: Instance, records: tuple[Record, ...]) -> dict[str, object]:
     """Capture one coherent current protocol-v1 snapshot."""
     watermark = _integer(instance.watermark, "current watermark")
@@ -98,7 +111,7 @@ def snapshot(instance: Instance, records: tuple[Record, ...]) -> dict[str, objec
                     "correlation": invocation.correlation,
                     "idempotency": invocation.idempotency,
                 },
-                "result": instance._frozen_results.get(occurrence.id) if frozen else None,  # noqa: SLF001
+                "result": _activity_result(instance._frozen_results[occurrence.id]) if frozen else None,  # noqa: SLF001
             }
         )
     payload = {

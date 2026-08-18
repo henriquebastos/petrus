@@ -40,7 +40,7 @@ and no live provider or multi-host support is claimed.
   production projection-crash recovery from portable data. DS2 is active: its
   supported executable World now retains exact failures, seeded provenance,
   public-Engine crash/cut replays, versioned profile-resource bounds, and real
-  Absurd/PostgreSQL begin, completed/failed terminal, projection, and
+  Absurd/PostgreSQL begin, paired completed/failed terminal, projection, and
   lifecycle-cancellation refusal/acknowledgement-loss qualification, including
   provider-terminal recollection and converged-state reconstruction. Petrus
   owns the reusable substrate; applications such as Hamsterdan own their domain
