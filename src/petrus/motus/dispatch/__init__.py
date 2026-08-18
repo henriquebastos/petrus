@@ -83,7 +83,7 @@ class WorkerDispatch(Protocol):
 
 
 # ActivityAttempt must exist before the provider imports its neutral value.
-from petrus.motus.dispatch.local import LocalDispatch, LocalWorkerDispatch  # noqa: E402
+from petrus.motus.dispatch.local import LocalDispatch, LocalDispatchClock, LocalWorkerDispatch  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -260,6 +260,7 @@ __all__ = [
     "InMemoryDispatch",
     "InlineDispatch",
     "LocalDispatch",
+    "LocalDispatchClock",
     "LocalWorkerDispatch",
     "WorkerDispatch",
 ]

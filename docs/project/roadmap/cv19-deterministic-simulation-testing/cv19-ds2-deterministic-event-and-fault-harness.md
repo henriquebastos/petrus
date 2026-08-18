@@ -2,12 +2,13 @@
 code: CV19.DS2
 level: Delivery Story
 status: Active
-status_reason: The independently versioned runner now contains hung complete Worlds with an acknowledged prefix while v1-v4 artifacts remain unchanged; DS2 remains active for broader cuts/adapters and provider-time compatibility
+status_reason: LocalDispatch now exposes accepted deterministic provider time and an exact delayed-retry crash replay; DS2 remains active for broader cuts and fault adapters
 updated: 2026-08-18
 related:
   - index.md
   - cv19-ds1-correctness-and-simulation-contract.md
   - ../../decisions/records/2026-08-17T2249Z-ship-a-supported-cross-project-dst-test-kit.md
+  - ../../decisions/records/2026-08-18T1417Z-local-dispatch-accepts-an-explicit-provider-clock.md
   - ../../../process/dst-world-v1.md
   - ../../../process/dst-world-v2.md
   - ../../../process/dst-world-v3.md
@@ -265,6 +266,24 @@ through production LocalDispatch custody:
 6. replay the retained 18 operations and 30 journal entries, including 11
    independent checker evaluations, exactly.
 
+A separate delayed-retry profile closes the planned LocalDispatch
+provider-time boundary without changing that retained zero-backoff identity:
+
+1. inject World logical time through the optional public LocalDispatch
+   millisecond clock while SQLite remains custody and serialization authority;
+2. fail epoch 1 under a five-second retry policy and abruptly drop the process
+   after durable retry admission;
+3. load a fresh public Engine/LocalDispatch graph at instant 0 without another
+   handler `prepare`;
+4. execute the public Worker claim door at instant 4 and observe no eligible
+   retry, then execute it at instant 5 and receive epoch 2 with stable logical
+   invocation identity;
+5. exhaust the retry budget with exactly one canonical `ActivityFailed` and
+   `FiringFailed`, no projection, and continuous independent deadline/retry
+   checks; and
+6. replay the retained 22 operations and 35 journal entries, including 12
+   checker evaluations, exactly.
+
 The sixth exact profile proves successful LocalDispatch terminal custody and
 recollection across the complementary pre-collection crash cut:
 
@@ -386,11 +405,11 @@ seeded Engine scenario whose replay never consults the PRNG.
 | Done condition | Slice result |
 | --- | --- |
 | 1. Accepted defining-module compatibility surface | Met by the accepted decision, current `petrus.testing.dst/v4`, explicit v1-v3 constants/models, exact identities, no root/private exports, and the versioned [`dst-world-v4`](../../../process/dst-world-v4.md), [`dst-world-v3`](../../../process/dst-world-v3.md), [`dst-world-v2`](../../../process/dst-world-v2.md), and [`dst-world-v1`](../../../process/dst-world-v1.md) contracts. |
-| 2. Imperative story emits replay data | Met by the executable profiles under `tests/dst/` and retained projection, pre/post-commit History, ingress-redelivery, delayed-terminal, lifecycle-race, timer-recovery, retry-exhaustion, terminal-recollection, and resource-bound fixtures. |
-| 3. Same-interpreter replay agreement | Met for all ten public-Engine crash/recovery stories plus the retained resource-overage failure, including exact operations, resource/checker observations, dispositions, and journal digests. |
+| 2. Imperative story emits replay data | Met by the executable profiles under `tests/dst/` and retained projection, pre/post-commit History, ingress-redelivery, delayed-terminal, lifecycle-race, timer-recovery, zero/delayed retry-exhaustion, terminal-recollection, and resource-bound fixtures. |
+| 3. Same-interpreter replay agreement | Met for all eleven public-Engine crash/recovery stories plus the retained resource-overage failure, including exact operations, resource/checker observations, dispositions, and journal digests. |
 | 4. Seeded repeatability | Met: two fresh seed-1729 Engine runs produce the same expanded artifact; workload, fault, identifier, and event-order streams are independently pinned, and replay ignores changed seed provenance. |
 | 5. Abrupt generation reconstruction | Met for the public-Engine profile, including revoke-before-drop and stale Timeline refusal. |
-| 6. Named cuts before/after durable acceptance | Partial: paired pre-commit refusal/post-commit acknowledgement-loss History cuts, identified ingress redelivery, delayed external completion, lifecycle and timer reconstruction, zero-backoff LocalDispatch retry exhaustion, and provider-terminal custody before Engine collection are proved; the broader delivery, delayed retry, lifecycle, and transaction matrix remains. |
+| 6. Named cuts before/after durable acceptance | Partial: paired pre-commit refusal/post-commit acknowledgement-loss History cuts, identified ingress redelivery, delayed external completion, lifecycle and timer reconstruction, zero- and nonzero-backoff LocalDispatch retry reconstruction/exhaustion, and provider-terminal custody before Engine collection are proved; the broader delivery, lifecycle, and transaction matrix remains. |
 | 7. Complete bounds | Met for the generic harness: action, queue, logical-time/advance, reload, predicate, artifact, profile-retained-data, hidden-pending-work, process-progress, and wall-clock limits are executable and identify the ending bound. |
 | 8. Checker cadence and fair draining | Met for the vertical slice; broader independent S1–S8 checker coverage belongs to the remaining DS2/DS3 work. |
 | 9. Hermetic real-runtime execution | Met for the vertical slice: no credentials, providers, network sleeps, or substitute Petrus semantics. |
@@ -425,7 +444,7 @@ deterministic `FailureOperation` for a killed call.
 
 ### Executed evidence
 
-- `UV_FROZEN=1 uv run pytest -q tests/dst` — 95 passed.
+- `UV_FROZEN=1 uv run pytest -q tests/dst` — 98 passed.
 - `UV_FROZEN=1 uv run pytest -q tests/dst/test_process_runner.py` — 3 passed;
   the public-Engine process run returned and replayed its unchanged 14-operation
   / 39-journal-entry v4 artifact, while the deliberate SIGTERM-resistant hang
@@ -463,6 +482,10 @@ deterministic `FailureOperation` for a killed call.
   `pass` / `quarantined`, 18 operations, 30 journal entries including 11
   checker evaluations, and digest
   `sha256:8158a70525b02afd7fb705ddec9ffc62a66d8c4ec6c9c0872062d36a05402392`.
+- The same replay route over `delayed-retry-crash-recovery-world-v3.json`
+  returned `pass` / `quarantined`, 22 operations, 35 journal entries including
+  12 checker evaluations, and digest
+  `sha256:339da88d51c682641b7e8fc8fbf8964622c2c031dd6c373f327b94464e26a6c1`.
 - The same replay route over `local-terminal-redelivery-world-v3.json`
   returned `pass` / `converged`, 15 operations, 26 journal entries including
   10 checker evaluations, and digest
@@ -486,8 +509,8 @@ deterministic `FailureOperation` for a killed call.
   returned `pass` / `budget_exhausted`, 3 operations, 10 journal entries, and
   digest
   `sha256:845e62259ae1e18b1ab92f1a2f5c16b1757cea29181bda6e6cd767ce0857b451`.
-- `scripts/check full` — 2,276 passed.
-- `scripts/check release` — 2,276 passed in both the four-worker and fixed-order
+- `scripts/check full` — 2,285 passed.
+- `scripts/check release` — 2,285 passed in both the four-worker and fixed-order
   serial runs; the serial run reported 17 expected qualification deselections.
 - `UV_FROZEN=1 uv run ast-grep test --skip-snapshot-tests` — all 19
   architectural rule fixtures passed, including the runtime-neutral supported

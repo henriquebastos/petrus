@@ -2,12 +2,13 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 is Done and DS2 now ships bounded World v4 plus independently versioned process containment; broader fault adapters/provider-time work and DS3–DS4 remain active
+status_reason: CV19.DS1 is Done and DS2 now ships bounded World v4, process containment, and deterministic LocalDispatch provider time; broader fault adapters and DS3–DS4 remain active
 updated: 2026-08-18
 related:
   - ../../../../src/petrus/simulation.py
   - ../../../../tests/petrus/impetus/instance/test_instance_replay_properties.py
   - ../../decisions/records/2026-08-17T2249Z-ship-a-supported-cross-project-dst-test-kit.md
+  - ../../decisions/records/2026-08-18T1417Z-local-dispatch-accepts-an-explicit-provider-clock.md
   - https://github.com/tigerbeetle/tigerbeetle/blob/main/docs/TIGER_STYLE.md
   - https://github.com/tigerbeetle/tigerbeetle/blob/main/docs/internals/vopr.md
   - https://github.com/henriquebastos/hamsterdan
@@ -152,7 +153,10 @@ the minimized expanded scenario becomes the durable regression fixture.
    reconstruction of a queued deadline followed by one exact logical-time
    maturation. A LocalDispatch profile proves a retry epoch across process
    loss and exact attempt-budget exhaustion without re-preparing the logical
-   Activity. A complementary profile proves durable successful-terminal
+   Activity. A separate profile now drives nonzero provider backoff through
+   public LocalDispatch clock and Worker doors, refusing a claim immediately
+   before the durable availability time and claiming at the exact deadline
+   after crash/reload. A complementary profile proves durable successful-terminal
    recollection, exact duplicate acknowledgement, conflict refusal, and one
    projection after pre-collection process loss. An identified-ingress profile
    proves exact source redelivery, changed-content refusal, distinct equal-data
@@ -161,7 +165,7 @@ the minimized expanded scenario becomes the durable regression fixture.
    after volatile queue loss and delivers once at the authored logical instant.
    A post-commit History profile loses an acknowledgement after durable terminal
    acceptance and recovers projection without redelivery. The broader fault/cut
-   matrix and provider-time compatibility keep DS2 active.
+   matrix keeps DS2 active.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)
    adds broad and targeted workload generation, independent models/checkers,
    shrinking, semantic coverage, and durable replay fixtures.

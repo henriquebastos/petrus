@@ -1,9 +1,10 @@
 """SQLite-backed, single-host Activity custody.
 
-The database is the clock and serialization authority.  Every operation opens
-its own connection and finishes its short transaction before Activity code can
-run; consequently a provider object is safe to construct before spawning, but
-no SQLite connection is inherited by a child.
+The database is the default clock and always the serialization authority. An
+explicit provider clock supports controlled hosts without changing the default.
+Every operation opens its own connection and finishes its short transaction
+before Activity code can run; consequently a provider object is safe to
+construct before spawning, but no SQLite connection is inherited by a child.
 """
 
 from __future__ import annotations
@@ -12,10 +13,12 @@ import json
 import math
 import re
 import sqlite3
+import threading
 import time
 import uuid
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Protocol
 
 import petrus.telemetry as telemetry
 from petrus.motus.activity import (
@@ -35,6 +38,29 @@ log = telemetry.get_logger("impetus")
 
 _VERSION = 3
 _PREFIX = "impetus_local_dispatch_"
+
+
+class LocalDispatchClock(Protocol):
+    """Monotone provider time in milliseconds, sampled inside SQLite transactions."""
+
+    def now_ms(self) -> int: ...
+
+
+class _ClockReader:
+    def __init__(self, clock: LocalDispatchClock):
+        self.clock = clock
+        self._last: int | None = None
+        self._lock = threading.Lock()
+
+    def sample(self) -> int:
+        with self._lock:
+            instant = self.clock.now_ms()
+            if type(instant) is not int or not 0 <= instant <= 2**63 - 1:
+                raise ValueError("Local Dispatch clock must return a nonnegative signed-64-bit millisecond integer")
+            if self._last is not None and instant < self._last:
+                raise ValueError("Local Dispatch clock must not rewind")
+            self._last = instant
+            return instant
 
 
 _DDL = (
@@ -78,6 +104,7 @@ class LocalDispatch:
         instance: str,
         default_queue: str = "default",
         activity_queues: Mapping[str, str] | None = None,
+        clock: LocalDispatchClock | None = None,
     ):
         self.path = Path(path)
         self.instance = _name(instance, "instance")
@@ -87,10 +114,11 @@ class LocalDispatch:
             _name(activity, "activity")
             _name(queue, "queue")
         self.activity_queues = routes
+        self._clock = _ClockReader(clock) if clock is not None else None
         self._published: set[int] = set()
         self._collected: set[int] = set()
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        _initialize(self.path)
+        _initialize(self.path, self._clock)
 
     def dispatch(self, occurrence: int, invocation: ActivityInvocation) -> None:
         _occurrence(occurrence)
@@ -109,7 +137,7 @@ class LocalDispatch:
                     raise ValueError(f"Local Dispatch publication conflict for occurrence {occurrence}")
                 self._published.add(occurrence)
                 return
-            now = _now(connection)
+            now = _now(connection, self._clock)
             connection.execute(
                 "INSERT INTO impetus_local_dispatch_tasks(instance,occurrence,queue,invocation,schedule_start,available_at) "
                 "VALUES(?,?,?,?,?,?) "
@@ -215,7 +243,7 @@ class LocalDispatch:
 
     def worker(self, queues: Sequence[str] = ("default",), *, worker_id: str | None = None) -> LocalWorkerDispatch:
         """Construct a Worker-side provider over this database (not this Instance)."""
-        return LocalWorkerDispatch(self.path, queues=queues, worker_id=worker_id)
+        return LocalWorkerDispatch(self.path, queues=queues, worker_id=worker_id, _clock_reader=self._clock)
 
     def wait_for_results(self, timeout: float) -> bool:
         deadline = time.monotonic() + _timeout(timeout)
@@ -251,20 +279,25 @@ class LocalWorkerDispatch:
         *,
         queues: Sequence[str] = ("default",),
         worker_id: str | None = None,
+        clock: LocalDispatchClock | None = None,
         _claimant: str | None = None,
+        _clock_reader: _ClockReader | None = None,
     ):
+        if clock is not None and _clock_reader is not None:
+            raise TypeError("Local Worker Dispatch accepts either clock or its dispatch clock reader")
         self.path = Path(path)
         self.queues = tuple(dict.fromkeys(_name(queue, "queue") for queue in queues))
         if not self.queues:
             raise ValueError("Local Worker Dispatch requires at least one queue")
         label = _name(worker_id, "worker label") if worker_id is not None else "worker"
         self.claimant = _claimant or f"{label}:{uuid.uuid4()}"
-        _initialize(self.path)
+        self._clock = _ClockReader(clock) if clock is not None else _clock_reader
+        _initialize(self.path, self._clock)
 
     def claim(self) -> ActivityAttempt | None:
         marks = ",".join("?" for _ in self.queues)
         with _transaction(self.path) as connection:
-            now = _now(connection)
+            now = _now(connection, self._clock)
             expired = _terminalize_exhausted(connection, now, self.queues)
             row = connection.execute(
                 f"SELECT t.instance,t.occurrence,t.queue,t.invocation,t.epoch,t.details "
@@ -325,7 +358,7 @@ class LocalWorkerDispatch:
         snapshot = None if details is _OMITTED else snapshot_heartbeat_details(details)
         encoded = None if details is _OMITTED else _encode_json(snapshot, "heartbeat details")
         with _transaction(self.path) as connection:
-            now = _now(connection)
+            now = _now(connection, self._clock)
             row = _active(connection, attempt, now)
             timeout = _decode_invocation(row[1]).policy.heartbeat_timeout
             instance, occurrence = _attempt_key(attempt)
@@ -370,7 +403,7 @@ class LocalWorkerDispatch:
                 self._insert_terminal(connection, attempt, outcome)
                 disposition = "cancelled-report"
             else:
-                now = _now(connection)
+                now = _now(connection, self._clock)
                 _active(connection, attempt, now)
                 instance, occurrence = _attempt_key(attempt)
                 attempts = connection.execute(
@@ -414,7 +447,7 @@ class LocalWorkerDispatch:
                 self._insert_terminal(connection, attempt, outcome)
                 disposition = "cancelled-report"
             else:
-                _active(connection, attempt, _now(connection))
+                _active(connection, attempt, _now(connection, self._clock))
                 self._insert_terminal(connection, attempt, outcome)
                 disposition = "terminal"
         _emit_attempt("dispatch_completed", attempt, outcome=disposition)
@@ -432,7 +465,7 @@ class LocalWorkerDispatch:
         marks = ",".join("?" for _ in self.queues)
         while True:
             with _transaction(self.path) as connection:
-                now = _now(connection)
+                now = _now(connection, self._clock)
                 expired = _terminalize_exhausted(connection, now, self.queues)
                 row = connection.execute(
                     f"SELECT 1 FROM impetus_local_dispatch_tasks t LEFT JOIN impetus_local_dispatch_terminals x "
@@ -613,7 +646,7 @@ def _terminalize_exhausted(
     return tuple(rows)
 
 
-def _initialize(path: Path) -> None:
+def _initialize(path: Path, clock: _ClockReader | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with _raw_connect(path) as connection:
         connection.execute("BEGIN IMMEDIATE")
@@ -638,7 +671,7 @@ def _initialize(path: Path) -> None:
                     )
                 rows = connection.execute("SELECT component,version FROM impetus_local_dispatch_schema").fetchall()
                 if rows == [("dispatch", 1)]:
-                    _migrate_v1(connection)
+                    _migrate_v1(connection, clock)
                     connection.execute("UPDATE impetus_local_dispatch_schema SET version=2 WHERE component='dispatch'")
                     rows = [("dispatch", 2)]
                 if rows == [("dispatch", 2)]:
@@ -730,9 +763,9 @@ def _validate_shape(connection: sqlite3.Connection, path: Path) -> None:
         raise ValueError(f"{path}: foreign current-version Local Dispatch constraint or index shape")
 
 
-def _migrate_v1(connection: sqlite3.Connection) -> None:
+def _migrate_v1(connection: sqlite3.Connection, clock: _ClockReader | None) -> None:
     """Transactionally rebuild the real v1 column order into exact v2 DDL."""
-    now = _now(connection)
+    now = _now(connection, clock)
     tasks = connection.execute(
         "SELECT sequence,instance,occurrence,queue,invocation,epoch,claimant,deadline,details "
         "FROM impetus_local_dispatch_tasks ORDER BY sequence"
@@ -831,10 +864,12 @@ def _raw_connect(path: Path) -> sqlite3.Connection:
     return connection
 
 
-def _now(connection: sqlite3.Connection) -> int:
-    return connection.execute(
-        "SELECT CAST(strftime('%s','now') AS INTEGER) * 1000 + CAST(substr(strftime('%f','now'),4,3) AS INTEGER)"
-    ).fetchone()[0]
+def _now(connection: sqlite3.Connection, clock: _ClockReader | None = None) -> int:
+    if clock is None:
+        return connection.execute(
+            "SELECT CAST(strftime('%s','now') AS INTEGER) * 1000 + CAST(substr(strftime('%f','now'),4,3) AS INTEGER)"
+        ).fetchone()[0]
+    return clock.sample()
 
 
 def _name(value: object, noun: str) -> str:

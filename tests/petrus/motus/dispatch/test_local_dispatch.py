@@ -9,6 +9,7 @@ import time
 from dataclasses import replace
 from multiprocessing import get_context
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -72,6 +73,27 @@ def require_claim(custody) -> ActivityAttempt:
     attempt = custody.claim()
     assert attempt is not None, f"expected {custody.claimant!r} to claim work from {custody.queues!r}"
     return attempt
+
+
+class _ManualProviderClock:
+    def __init__(self, at: int = 0):
+        self.at = at
+
+    def now_ms(self) -> int:
+        return self.at
+
+    def advance_to(self, instant: int) -> None:
+        if instant < self.at:
+            raise ValueError("provider clock cannot rewind")
+        self.at = instant
+
+
+class _ProviderClockValue:
+    def __init__(self, value: object):
+        self.value = value
+
+    def now_ms(self) -> int:
+        return cast(int, self.value)
 
 
 class _CountingActivity:
@@ -569,28 +591,46 @@ def test_two_retryable_failures_then_success_keep_one_logical_invocation(tmp_pat
     assert dispatch.collect() == ((1, "done"),)
 
 
-def test_delayed_retry_schedule_survives_dispatch_restart(tmp_path: Path) -> None:
+def test_delayed_retry_schedule_survives_restart_under_the_provider_clock(tmp_path: Path) -> None:
     path = tmp_path / "dispatch.db"
-    dispatch = LocalDispatch(path, instance="one")
+    clock = _ManualProviderClock(1_000)
+    dispatch = LocalDispatch(path, instance="one", clock=clock)
     call = invocation(attempts=2, initial_interval=60)
     dispatch.dispatch(1, call)
-    worker = LocalWorkerDispatch(path, _claimant="first")
+    worker = LocalWorkerDispatch(path, _claimant="first", clock=clock)
     worker.fail(
         require_claim(worker),
         ActivityFailure("later", kind="Unavailable", retryable=True, retry_after=30),
     )
 
-    restarted = LocalDispatch(path, instance="one")
+    restarted = LocalDispatch(path, instance="one", clock=clock)
     restarted.dispatch(1, call)
-    replacement = LocalWorkerDispatch(path, _claimant="replacement")
+    replacement = LocalWorkerDispatch(path, _claimant="replacement", clock=clock)
     assert replacement.claim() is None
-    with sqlite3.connect(path) as connection:
-        available, schedule_start = connection.execute(
-            "SELECT available_at,schedule_start FROM impetus_local_dispatch_tasks"
-        ).fetchone()
-        assert available >= schedule_start + 60_000
-        connection.execute("UPDATE impetus_local_dispatch_tasks SET deadline=0,available_at=0")
+    clock.advance_to(60_999)
+    assert replacement.claim() is None
+    clock.advance_to(61_000)
     assert require_claim(replacement).epoch == "2"
+
+
+@pytest.mark.parametrize("value", [True, -1, 1.5, "1", 2**63])
+def test_provider_clock_refuses_non_integer_negative_and_out_of_range_values(tmp_path: Path, value: object) -> None:
+    dispatch = LocalDispatch(tmp_path / "dispatch.db", instance="one", clock=_ProviderClockValue(value))
+
+    with pytest.raises(ValueError, match="nonnegative signed-64-bit millisecond integer"):
+        dispatch.dispatch(1, invocation())
+
+
+def test_dispatch_worker_shares_provider_clock_monotonicity_guard(tmp_path: Path) -> None:
+    clock = _ManualProviderClock(1_000)
+    dispatch = LocalDispatch(tmp_path / "dispatch.db", instance="one", clock=clock)
+    dispatch.dispatch(1, invocation())
+    worker = dispatch.worker(worker_id="worker")
+    attempt = require_claim(worker)
+
+    clock.at = 999
+    with pytest.raises(ValueError, match="must not rewind"):
+        worker.heartbeat(attempt)
 
 
 def test_nonretryable_failure_terminalizes_without_spending_remaining_attempts(tmp_path: Path) -> None:

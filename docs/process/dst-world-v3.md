@@ -187,12 +187,30 @@ exhausts the policy and records exactly one `ActivityFailed` plus
 `FiringFailed`, with no business projection.
 
 The profile deliberately claims only zero-backoff retry semantics; provider
-time, delayed backoff, and lease expiry remain separate. Its independent
-checker bounds terminal authority by authored failures and preserves logical
-invocation identity across epochs. The retained route returns `outcome:
-"pass"`, `quarantined`, 18 operations, 30 journal entries including 11 checker
-evaluations, and digest
+time, delayed backoff, and lease expiry remain separate in that retained
+profile. Its independent checker bounds terminal authority by authored
+failures and preserves logical invocation identity across epochs. The retained
+route returns `outcome: "pass"`, `quarantined`, 18 operations, 30 journal
+entries including 11 checker evaluations, and digest
 `sha256:8158a70525b02afd7fb705ddec9ffc62a66d8c4ec6c9c0872062d36a05402392`.
+
+### LocalDispatch delayed-retry reconstruction
+
+[`delayed-retry-crash-recovery-world-v3.json`](../../tests/dst/fixtures/delayed-retry-crash-recovery-world-v3.json)
+uses the separately accepted LocalDispatch provider clock while leaving SQLite
+as custody and serialization authority. Epoch 1 fails at World instant 0 with
+a five-second retry interval. The process drops after retry admission; fresh
+public `Engine.load` and LocalDispatch construction preserve the durable
+availability deadline without another handler `prepare`.
+
+The World executes one public Worker claim at instant 4 and observes no work,
+then executes the same door at instant 5 and receives epoch 2 with unchanged
+activity, input, policy, correlation, and idempotency. An independent checker
+rejects any claim sequence other than first claim → unavailable-before-deadline
+→ available-at-deadline while retaining the original retry/exhaustion bounds.
+The retained route returns `outcome: "pass"`, `quarantined`, 22 operations, 35
+journal entries including 12 checker evaluations, and digest
+`sha256:339da88d51c682641b7e8fc8fbf8964622c2c031dd6c373f327b94464e26a6c1`.
 
 ### LocalDispatch successful-terminal recollection
 
@@ -268,15 +286,17 @@ and digest
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. The broader delivery, Dispatch, delayed retry/provider-time,
-lifecycle, and transaction fault matrix plus wall-clock process containment
-remain in CV19.DS2. Version 4 subsequently adds profile-retained-data and
-hidden-pending-work bounds without changing version 3 replay. Stateful
+generator. The broader delivery, Dispatch, lifecycle, and transaction fault
+matrix remains in CV19.DS2. Version 4 subsequently adds profile-retained-data
+and hidden-pending-work bounds without changing version 3 replay, and runner v1
+contains complete Worlds under a separate wall-clock process budget. Stateful
 generation, shrinking, broad independent models/checkers, and semantic
 coverage remain in DS3; campaign and real-boundary qualification remain in DS4.
 
-Nonzero LocalDispatch retry time remains at an explicit compatibility
-boundary: SQLite is intentionally the provider clock and serialization
-authority, and no public deterministic provider-time seam currently exists.
-DST must not substitute the Engine clock, mutate private SQLite rows, or sleep;
-that route requires an accepted provider-time design before implementation.
+Nonzero LocalDispatch retry time crosses the explicit optional provider-clock
+contract accepted in the
+[LocalDispatch provider-clock decision](../project/decisions/records/2026-08-18T1417Z-local-dispatch-accepts-an-explicit-provider-clock.md).
+SQLite remains custody and serialization authority, and the default provider
+clock remains SQLite time. DST supplies provider milliseconds only through the
+public constructor, without substituting the Engine clock, mutating private
+rows, or sleeping.

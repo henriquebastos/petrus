@@ -40,6 +40,8 @@ WORK = NetPath("work")
 INSTANCE_ID = "dst-world-retry-recovery"
 SCENARIO_ID = "retry-crash-exhaustion-world-v3"
 TERMINAL_SCENARIO_ID = "local-terminal-redelivery-world-v3"
+DELAYED_RETRY_SCENARIO_ID = "delayed-retry-crash-recovery-world-v3"
+RETRY_AVAILABLE_INSTANT = 5
 
 PROFILE_DEFINITION = {
     "commands": {
@@ -71,6 +73,46 @@ CHECKER_IDENTITY = CheckerIdentity(
             "properties": [
                 "retry claims preserve one logical invocation across exact epochs",
                 "a terminal Activity failure requires exhaustion of both authored attempts",
+                "retry exhaustion produces no business projection",
+            ]
+        }
+    ),
+)
+DELAYED_RETRY_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.local-dispatch-delayed-retry",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": {
+                "engine.drive": [],
+                "worker.claim": [],
+                "worker.fail": ["attempt", "error"],
+                "worker.probe": [],
+            },
+            "dispatch": "local",
+            "instance": INSTANCE_ID,
+            "policy": {"attempts": 2, "initial_interval": RETRY_AVAILABLE_INSTANT},
+            "provider_clock": "world-logical-seconds-to-milliseconds-v1",
+            "observations": [
+                "activity-requested",
+                "delayed-retry-available",
+                "delayed-retry-before-available",
+                "delayed-retry-recovered",
+                "delayed-retry-terminal",
+                "engine.delayed-retry-authority",
+            ],
+        }
+    ),
+)
+DELAYED_RETRY_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.delayed-retry-authority",
+    version=1,
+    digest=digest_json(
+        {
+            "properties": [
+                "retry claims preserve one logical invocation across exact epochs",
+                "a delayed retry is unavailable before its provider deadline",
+                "the reconstructed retry becomes claimable at its exact provider deadline",
                 "retry exhaustion produces no business projection",
             ]
         }
@@ -120,6 +162,15 @@ WORLD_BUDGET = Budget(
     predicate_polls=16,
     artifact_bytes=262_144,
 )
+DELAYED_RETRY_WORLD_BUDGET = Budget(
+    actions=48,
+    queued_commands=8,
+    timer_advances=2,
+    logical_instant=RETRY_AVAILABLE_INSTANT,
+    reloads=1,
+    predicate_polls=20,
+    artifact_bytes=262_144,
+)
 
 
 def application_net() -> Net:
@@ -132,7 +183,8 @@ def application_net() -> Net:
 
 
 class RetryBridge:
-    def __init__(self) -> None:
+    def __init__(self, initial_interval: int = 0) -> None:
+        self.initial_interval = initial_interval
         self.prepared = 0
         self.projected = 0
 
@@ -141,7 +193,7 @@ class RetryBridge:
         return ActivityInvocation(
             "work",
             input=binding.tokens[0].data,
-            policy=ExecutionPolicy(attempts=2, initial_interval=0),
+            policy=ExecutionPolicy(attempts=2, initial_interval=self.initial_interval),
         )
 
     def project(self, binding, result):
@@ -161,6 +213,16 @@ class WorldClock:
         return self.context.now() if self.context.now() >= instant else None
 
 
+class WorldProviderClock:
+    """LocalDispatch provider milliseconds derived from the World instant."""
+
+    def __init__(self, context: ScenarioContext):
+        self.context = context
+
+    def now_ms(self) -> int:
+        return self.context.now() * 1_000
+
+
 @dataclass
 class RetryGeneration:
     engine: Engine
@@ -177,6 +239,8 @@ class RetryEngineProfile:
     """Opaque public Engine plus durable LocalDispatch retry custody."""
 
     identity = PROFILE_IDENTITY
+    initial_interval = 0
+    provider_time = False
     _debug_fields = (
         "attempts",
         "bridge",
@@ -205,6 +269,7 @@ class RetryEngineProfile:
         self.history_path = history_path
         self.dispatch_path = dispatch_path
         self.attempts: list[dict[str, JsonValue]] = []
+        self.claim_checks: list[dict[str, JsonValue]] = []
         self.failures_delivered = 0
         self.drops = 0
         self.closes = 0
@@ -255,6 +320,7 @@ class RetryEngineProfile:
             generation.attempt = attempt
             detached = self._attempt_view(attempt)
             self.attempts.append(detached)
+            self.claim_checks.append({"available": True, "epoch": int(attempt.epoch), "instant": context.now()})
             return self._applied(generation, {"attempt": detached})
 
         if command.name == "worker.fail":
@@ -350,8 +416,9 @@ class RetryEngineProfile:
 
     def _generation(self, context: ScenarioContext, *, load: bool) -> RetryGeneration:
         history = JsonlHistoryStore(self.history_path)
-        dispatch = LocalDispatch(self.dispatch_path, instance=INSTANCE_ID)
-        bridge = RetryBridge()
+        provider_clock = WorldProviderClock(context) if self.provider_time else None
+        dispatch = LocalDispatch(self.dispatch_path, instance=INSTANCE_ID, clock=provider_clock)
+        bridge = RetryBridge(self.initial_interval)
         if load:
             engine = Engine.load(
                 application_net(),
@@ -438,6 +505,110 @@ class RetryEngineProfile:
             instant=context.now(),
             command=Command(profile=self.identity, name="engine.drive", payload={}),
         )
+
+
+class DelayedRetryEngineProfile(RetryEngineProfile):
+    """LocalDispatch retry custody under the World's explicit provider clock."""
+
+    identity = DELAYED_RETRY_PROFILE_IDENTITY
+    initial_interval = RETRY_AVAILABLE_INSTANT
+    provider_time = True
+    _delayed_debug_fields = (*RetryEngineProfile._debug_fields, "claim_checks", "current_instant")
+    observation_fields: ClassVar[dict[str, tuple[str, ...]]] = {
+        "activity-requested": _delayed_debug_fields,
+        "delayed-retry-available": _delayed_debug_fields,
+        "delayed-retry-before-available": _delayed_debug_fields,
+        "delayed-retry-recovered": _delayed_debug_fields,
+        "delayed-retry-terminal": _delayed_debug_fields,
+        "engine.delayed-retry-authority": (
+            "attempts",
+            "claim_checks",
+            "current_instant",
+            "failures_delivered",
+            "record_types",
+        ),
+    }
+
+    def validate(self, command: Command) -> Command:
+        if command.name == "worker.probe":
+            if command.payload != {}:
+                raise ValueError("worker.probe payload must be an empty object")
+            return command
+        return super().validate(command)
+
+    def load(self, context: ScenarioContext) -> GenerationStart[RetryGeneration]:
+        started = super().load(context)
+        scheduled = list(started.scheduled)
+        if self.failures_delivered == 1 and len(self.attempts) == 1:
+            scheduled.extend(self._retry_schedule())
+        return GenerationStart(started.generation, tuple(scheduled))
+
+    def apply(
+        self,
+        generation: RetryGeneration,
+        command: Command,
+        context: ScenarioContext,
+    ) -> ApplyResult:
+        if command.name == "worker.probe":
+            worker = generation.dispatch.worker(worker_id="dst-retry-probe")
+            attempt = worker.claim()
+            check = cast(
+                dict[str, JsonValue],
+                {
+                    "available": attempt is not None,
+                    "epoch": None if attempt is None else int(attempt.epoch),
+                    "instant": context.now(),
+                },
+            )
+            self.claim_checks.append(check)
+            if attempt is None:
+                worker.close()
+            else:
+                generation.worker = worker
+                generation.attempt = attempt
+                self.attempts.append(self._attempt_view(attempt))
+            return self._applied(generation, {"claim_check": check})
+
+        result = super().apply(generation, command, context)
+        payload = cast(dict[str, JsonValue], command.payload)
+        if command.name == "worker.fail" and payload["attempt"] == 1:
+            return ApplyResult(
+                disposition=result.disposition,
+                value=result.value,
+                scheduled=self._retry_schedule(),
+            )
+        return result
+
+    def observe(
+        self,
+        generation: RetryGeneration,
+        request: ObservationRequest,
+        context: ScenarioContext,
+    ) -> JsonValue:
+        if request.name not in self.observation_fields:
+            raise ValueError(f"unknown delayed-retry Engine profile observation {request.name!r}")
+        if request.payload not in (None, {}):
+            raise ValueError("delayed-retry Engine profile observations do not accept parameters")
+        state = self._observation_state(generation)
+        state["current_instant"] = context.now()
+        return {field: state[field] for field in self.observation_fields[request.name]}
+
+    def _observation_state(self, generation: RetryGeneration) -> dict[str, JsonValue]:
+        state = super()._observation_state(generation)
+        state["claim_checks"] = self.claim_checks
+        return state
+
+    def _retry_schedule(self) -> list[ScheduledCommand]:
+        return [
+            ScheduledCommand(
+                instant=RETRY_AVAILABLE_INSTANT - 1,
+                command=Command(profile=self.identity, name="worker.probe", payload={}),
+            ),
+            ScheduledCommand(
+                instant=RETRY_AVAILABLE_INSTANT,
+                command=Command(profile=self.identity, name="worker.claim", payload={}),
+            ),
+        ]
 
 
 class TerminalEngineProfile(RetryEngineProfile):
@@ -584,6 +755,39 @@ class RetryAuthorityChecker:
         )
 
 
+class DelayedRetryAuthorityChecker(RetryAuthorityChecker):
+    """Add independent provider-deadline authority to the retry bounds."""
+
+    identity = DELAYED_RETRY_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.delayed-retry-authority", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        authority = super().check(observation)
+        value = cast(dict[str, JsonValue], observation.value)
+        claim_checks = cast(list[dict[str, JsonValue]], value["claim_checks"])
+        attempts = cast(list[dict[str, JsonValue]], value["attempts"])
+        current_instant = cast(int, value["current_instant"])
+        expected = [
+            {"available": True, "epoch": 1, "instant": 0},
+            {"available": False, "epoch": None, "instant": RETRY_AVAILABLE_INSTANT - 1},
+            {"available": True, "epoch": 2, "instant": RETRY_AVAILABLE_INSTANT},
+        ]
+        exact_prefix = len(claim_checks) <= len(expected) and claim_checks == expected[: len(claim_checks)]
+        no_early_retry = len(attempts) < 2 or current_instant >= RETRY_AVAILABLE_INSTANT
+        detail = cast(dict[str, JsonValue], authority.detail)
+        return CheckResult(
+            passed=authority.passed and exact_prefix and no_early_retry,
+            detail={
+                **detail,
+                "claim_checks": claim_checks,
+                "current_instant": current_instant,
+                "exact_deadline": RETRY_AVAILABLE_INSTANT,
+                "exact_prefix": exact_prefix,
+                "no_early_retry": no_early_retry,
+            },
+        )
+
+
 class TerminalAuthorityChecker:
     """Judge canonical terminal projection from authored provider reports."""
 
@@ -718,6 +922,89 @@ def build_retry_artifact(history_path: Path, dispatch_path: Path) -> ScenarioArt
     world, _ = execute_retry_story(history_path, dispatch_path)
     try:
         artifact = world.artifact(SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_delayed_retry_story(history_path: Path, dispatch_path: Path) -> tuple[World, DelayedRetryEngineProfile]:
+    """Crash after retry admission, then cross its provider deadline exactly."""
+
+    profile = DelayedRetryEngineProfile(history_path, dispatch_path)
+    world = World(profile, DELAYED_RETRY_WORLD_BUDGET, checkers=(DelayedRetryAuthorityChecker(),))
+    timeline = world.timeline()
+
+    timeline.run_until(
+        "activity-requested",
+        lambda observation: ActivityRequested.__name__ in cast(dict[str, JsonValue], observation.value)["record_types"],
+    )
+    first_claim = timeline.command("worker.claim", {})
+    first = cast(dict[str, JsonValue], first_claim.value)["attempt"]
+    assert isinstance(first, dict)
+    assert first["epoch"] == 1
+    assert cast(dict[str, JsonValue], first["policy"])["initial_interval"] == RETRY_AVAILABLE_INSTANT
+    timeline.command("worker.fail", {"attempt": 1, "error": "temporary-1"})
+
+    timeline.crash("delayed_retry_epoch_1_durable")
+    world.restart()
+    timeline = world.timeline()
+    recovered = timeline.run_until(
+        "delayed-retry-recovered",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["drives"] == 1,
+    )
+    recovered_value = cast(dict[str, JsonValue], recovered.value)
+    assert recovered_value["current_instant"] == 0
+    assert recovered_value["bridge"] == {"prepared": 0, "projected": 0}
+
+    before = timeline.run_until(
+        "delayed-retry-before-available",
+        lambda observation: (
+            cast(list[dict[str, JsonValue]], cast(dict[str, JsonValue], observation.value)["claim_checks"])[-1][
+                "instant"
+            ]
+            == RETRY_AVAILABLE_INSTANT - 1
+        ),
+    )
+    before_value = cast(dict[str, JsonValue], before.value)
+    assert before_value["current_instant"] == RETRY_AVAILABLE_INSTANT - 1
+    assert cast(list[dict[str, JsonValue]], before_value["claim_checks"])[-1] == {
+        "available": False,
+        "epoch": None,
+        "instant": RETRY_AVAILABLE_INSTANT - 1,
+    }
+    assert [attempt["epoch"] for attempt in cast(list[dict[str, JsonValue]], before_value["attempts"])] == [1]
+
+    available = timeline.run_until(
+        "delayed-retry-available",
+        lambda observation: len(cast(dict[str, JsonValue], observation.value)["attempts"]) == 2,
+    )
+    available_value = cast(dict[str, JsonValue], available.value)
+    assert available_value["current_instant"] == RETRY_AVAILABLE_INSTANT
+    attempts = cast(list[dict[str, JsonValue]], available_value["attempts"])
+    assert [attempt["epoch"] for attempt in attempts] == [1, 2]
+    assert {name: value for name, value in attempts[1].items() if name != "epoch"} == {
+        name: value for name, value in attempts[0].items() if name != "epoch"
+    }
+
+    timeline.command("worker.fail", {"attempt": 2, "error": "temporary-2"})
+    timeline.begin_fair()
+    terminal = timeline.run_until(
+        "delayed-retry-terminal",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["status"] == "poisoned",
+    )
+    terminal_value = cast(dict[str, JsonValue], terminal.value)
+    records = cast(list[JsonValue], terminal_value["record_types"])
+    assert records.count(ActivityFailed.__name__) == records.count(FiringFailed.__name__) == 1
+    assert terminal_value["bridge"] == {"prepared": 0, "projected": 0}
+    timeline.finish(Disposition.QUARANTINED)
+    return world, profile
+
+
+def build_delayed_retry_artifact(history_path: Path, dispatch_path: Path) -> ScenarioArtifactV3:
+    world, _ = execute_delayed_retry_story(history_path, dispatch_path)
+    try:
+        artifact = world.artifact(DELAYED_RETRY_SCENARIO_ID)
         assert isinstance(artifact, ScenarioArtifactV3)
         return artifact
     finally:

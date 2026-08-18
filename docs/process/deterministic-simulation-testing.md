@@ -6,7 +6,9 @@ budget/checker-failure replay, seeded choice provenance, and a pre-commit
 terminal History refusal. A lifecycle-reset race now also proves crash/load,
 late-terminal quarantine, and exact duplicate acknowledgement. Focused profiles
 also prove deterministic Engine timer reconstruction and zero-backoff
-LocalDispatch retry reconstruction/exhaustion. A complementary LocalDispatch
+LocalDispatch retry reconstruction/exhaustion. A separate provider-clock
+profile proves delayed retry refusal immediately before availability and claim
+at the exact deadline across process loss. A complementary LocalDispatch
 profile proves successful-terminal custody and recollection across process loss;
 an identified-ingress profile proves source redelivery and identity conflict
 recovery. A delayed external-terminal profile proves volatile queue loss,

@@ -22,6 +22,8 @@ from tests.dst.engine_world import (
 )
 from tests.dst.lifecycle_world import LifecycleAuthorityChecker, LifecycleEngineProfile
 from tests.dst.retry_world import (
+    DelayedRetryAuthorityChecker,
+    DelayedRetryEngineProfile,
     RetryAuthorityChecker,
     RetryEngineProfile,
     TerminalAuthorityChecker,
@@ -41,6 +43,12 @@ def replay_path(path: Path):
         registry.register_profile(ResourceBoundedEngineProfile(Path(directory) / "resource-history.jsonl"))
         registry.register_profile(LifecycleEngineProfile(Path(directory) / "lifecycle-history.jsonl"))
         registry.register_profile(
+            DelayedRetryEngineProfile(
+                Path(directory) / "delayed-retry-history.jsonl",
+                Path(directory) / "delayed-retry-dispatch.db",
+            )
+        )
+        registry.register_profile(
             RetryEngineProfile(
                 Path(directory) / "retry-history.jsonl",
                 Path(directory) / "retry-dispatch.db",
@@ -57,6 +65,7 @@ def replay_path(path: Path):
         registry.register_checker(CommitAuthorityChecker())
         registry.register_checker(DelayedAuthorityChecker())
         registry.register_checker(DeliveryAuthorityChecker())
+        registry.register_checker(DelayedRetryAuthorityChecker())
         registry.register_checker(EngineHistoryChecker())
         registry.register_checker(LifecycleAuthorityChecker())
         registry.register_checker(RetryAuthorityChecker())
