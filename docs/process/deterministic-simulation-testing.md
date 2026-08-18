@@ -4,8 +4,10 @@
 supported DS2 executable-World vertical slice are shipped, including exact
 budget/checker-failure replay, seeded choice provenance, and a pre-commit
 terminal History refusal. A lifecycle-reset race now also proves crash/load,
-late-terminal quarantine, and exact duplicate acknowledgement; broader fault
-adapters, generation, and campaign qualification remain.
+late-terminal quarantine, and exact duplicate acknowledgement. Focused profiles
+also prove deterministic Engine timer reconstruction and zero-backoff
+LocalDispatch retry reconstruction/exhaustion; broader fault adapters, bounds,
+generation, and campaign qualification remain.
 
 This document owns Petrus's deterministic simulation testing (DST) contract.
 DST drives the production `Engine`, `Coordinator`, `Instance`, `HistoryStore`,
