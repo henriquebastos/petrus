@@ -428,7 +428,11 @@ again fences the stale Worker. A fourteenth refuses an identified source-deliver
 transaction and proves fresh load can accept it exactly once. A fifteenth loses
 that transaction's acknowledgement after acceptance and proves fresh load
 returns the prior acknowledgement on exact redelivery without another event,
-source firing, or output token. They do not simulate or claim PostgreSQL power
+source firing, or output token. A sixteenth refuses canonical `ScopeClosed`
+before acceptance and proves fresh load retains the active scope and its
+Worker authority. A seventeenth loses the accepted close acknowledgement and
+proves fresh load reconstructs terminal scope authority, repairs one task
+tombstone, and fences stale completion. They do not simulate or claim PostgreSQL power
 loss, transport, or provider-wide fidelity.
 
 ## Correctness position

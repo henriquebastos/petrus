@@ -18,6 +18,8 @@ from tests.dst.joined_world import (
     ACK_LOSS_SCENARIO_ID,
     CANCELLATION_ACK_LOSS_SCENARIO_ID,
     CANCELLATION_SCENARIO_ID,
+    CLOSE_ACK_LOSS_SCENARIO_ID,
+    CLOSE_REFUSAL_SCENARIO_ID,
     DELIVERY_ACK_LOSS_SCENARIO_ID,
     DELIVERY_REFUSAL_SCENARIO_ID,
     DISPATCH_SCENARIO_ID,
@@ -31,6 +33,7 @@ from tests.dst.joined_world import (
     TERMINAL_ACK_LOSS_SCENARIO_ID,
     TERMINAL_REFUSAL_SCENARIO_ID,
     JoinedAcceptedCancellationAuthorityChecker,
+    JoinedAcceptedCloseAuthorityChecker,
     JoinedAcceptedTerminalAuthorityChecker,
     JoinedBeginProfile,
     JoinedBeginAckLossProfile,
@@ -38,6 +41,9 @@ from tests.dst.joined_world import (
     JoinedCancellationAckLossProfile,
     JoinedCancellationAuthorityChecker,
     JoinedCancellationProfile,
+    JoinedCloseAckLossProfile,
+    JoinedCloseRefusalAuthorityChecker,
+    JoinedCloseRefusalProfile,
     JoinedCommitAuthorityChecker,
     JoinedDeliveryAckLossProfile,
     JoinedDeliveryAuthorityChecker,
@@ -63,6 +69,8 @@ from tests.dst.joined_world import (
     build_joined_cancellation_ack_loss_artifact,
     build_joined_dispatch_artifact,
     build_joined_cancellation_artifact,
+    build_joined_close_ack_loss_artifact,
+    build_joined_close_refusal_artifact,
     build_joined_delivery_ack_loss_artifact,
     build_joined_delivery_refusal_artifact,
     build_joined_failure_ack_loss_artifact,
@@ -91,6 +99,8 @@ CANCELLATION_FIXTURE = Path("tests/dst/fixtures/joined-cancellation-commit-refus
 CANCELLATION_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-cancellation-ack-loss-world-v3.json")
 DELIVERY_REFUSAL_FIXTURE = Path("tests/dst/fixtures/joined-delivery-commit-refusal-world-v3.json")
 DELIVERY_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-delivery-ack-loss-world-v3.json")
+CLOSE_REFUSAL_FIXTURE = Path("tests/dst/fixtures/joined-close-commit-refusal-world-v3.json")
+CLOSE_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-close-ack-loss-world-v3.json")
 
 
 def test_joined_begin_commit_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
@@ -963,6 +973,66 @@ def test_joined_reset_ack_loss_is_exact_and_replayable(absurd_dsn: str) -> None:
     assert result.outcome == "pass"
     assert result.disposition == Disposition.QUIESCENT.value
     assert result.operations == len(artifact.operations)
+
+
+def test_joined_close_commit_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
+    with isolated_absurd_database(absurd_dsn) as authored_dsn:
+        artifact = build_joined_close_refusal_artifact(authored_dsn)
+
+    assert artifact.scenario_id == CLOSE_REFUSAL_SCENARIO_ID
+    assert artifact.origin is None
+    assert encode_artifact(artifact) == CLOSE_REFUSAL_FIXTURE.read_bytes().rstrip(b"\n")
+
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedCloseRefusalProfile(replay_dsn))
+        registry.register_checker(JoinedCloseRefusalAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.QUIESCENT.value
+
+
+def test_retained_joined_close_refusal_replays_without_the_authored_scenario(absurd_dsn: str) -> None:
+    artifact = load_artifact(CLOSE_REFUSAL_FIXTURE)
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedCloseRefusalProfile(replay_dsn))
+        registry.register_checker(JoinedCloseRefusalAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.scenario_id == CLOSE_REFUSAL_SCENARIO_ID
+    assert result.outcome == "pass"
+
+
+def test_joined_close_ack_loss_is_exact_and_replayable(absurd_dsn: str) -> None:
+    with isolated_absurd_database(absurd_dsn) as authored_dsn:
+        artifact = build_joined_close_ack_loss_artifact(authored_dsn)
+
+    assert artifact.scenario_id == CLOSE_ACK_LOSS_SCENARIO_ID
+    assert artifact.origin is None
+    assert encode_artifact(artifact) == CLOSE_ACK_LOSS_FIXTURE.read_bytes().rstrip(b"\n")
+
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedCloseAckLossProfile(replay_dsn))
+        registry.register_checker(JoinedAcceptedCloseAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.QUIESCENT.value
+
+
+def test_retained_joined_close_ack_loss_replays_without_the_authored_scenario(absurd_dsn: str) -> None:
+    artifact = load_artifact(CLOSE_ACK_LOSS_FIXTURE)
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedCloseAckLossProfile(replay_dsn))
+        registry.register_checker(JoinedAcceptedCloseAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.scenario_id == CLOSE_ACK_LOSS_SCENARIO_ID
+    assert result.outcome == "pass"
 
 
 def test_retained_joined_reset_ack_loss_replays_without_the_authored_scenario(absurd_dsn: str) -> None:

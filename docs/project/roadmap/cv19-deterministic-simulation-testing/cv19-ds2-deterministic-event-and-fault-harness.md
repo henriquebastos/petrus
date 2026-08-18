@@ -2,7 +2,7 @@
 code: CV19.DS2
 level: Delivery Story
 status: Active
-status_reason: Split Dispatch refusals and real joined begin plus paired initial-creation, identified-delivery, completed-terminal, failed-terminal, projection, canonical reset, and post-fence cancellation refusal/acknowledgement-loss recovery now replay through crash with exact repair; DS2 remains active for the broader transaction cut matrix
+status_reason: Split Dispatch refusals and real joined begin plus paired initial-creation, identified-delivery, completed-terminal, failed-terminal, projection, canonical reset, terminal close, and post-fence cancellation refusal/acknowledgement-loss recovery now replay through crash with exact repair; DS2 remains active for the broader transaction cut matrix
 updated: 2026-08-18
 related:
   - index.md
@@ -619,6 +619,16 @@ The fifteenth proves acceptance followed by acknowledgement loss:
 6. replay the retained 8 operations and 14 journal entries, including 6
    independent checker evaluations, exactly, ending in `external_wait`.
 
+Two further separately identified real-provider profiles prove the terminal
+scope-close transaction boundary. The sixteenth refuses `ScopeClosed` before
+PostgreSQL accepts it, then fresh public load retains the active lifecycle and
+accepts its still-authoritative Worker completion and projection exactly once.
+The seventeenth commits `ScopeClosed` but loses its acknowledgement before
+cancellation starts, then fresh load reconstructs terminal scope authority,
+repairs one real Absurd tombstone, and fences stale Worker completion. The pair
+replays 20/18 operations and 33/30 journal entries, including 13/12 independent
+checker evaluations, ending in `quiescent`.
+
 The resource-bound profile proves generic retained-resource and hidden-pending-work
 accounting across a production Engine crash:
 
@@ -681,15 +691,15 @@ seeded Engine scenario whose replay never consults the PRNG.
 | Done condition | Slice result |
 | --- | --- |
 | 1. Accepted defining-module compatibility surface | Met by the accepted decision, current `petrus.testing.dst/v4`, explicit v1-v3 constants/models, exact identities, no root/private exports, and the versioned [`dst-world-v4`](../../../process/dst-world-v4.md), [`dst-world-v3`](../../../process/dst-world-v3.md), [`dst-world-v2`](../../../process/dst-world-v2.md), and [`dst-world-v1`](../../../process/dst-world-v1.md) contracts. |
-| 2. Imperative story emits replay data | Met by the executable profiles under `tests/dst/` and retained projection, pre/post-commit History, split Dispatch request/cancellation refusal, paired joined initial-creation refusal/acknowledgement loss, joined begin commit/task-spawn rollback and post-commit acknowledgement loss, paired joined identified-delivery, completed-terminal, and failed-terminal refusal/acknowledgement-loss, projection recovery, paired canonical reset refusal/acknowledgement-loss, joined lifecycle cancellation repair, ingress-redelivery, delayed-terminal, lifecycle-race, timer-recovery, zero/delayed retry-exhaustion, terminal-recollection, and resource-bound fixtures. |
-| 3. Same-interpreter replay agreement | Met for all thirty-one public-Engine/provider crash/recovery stories plus the three retained generic failures, including exact operations, resource/checker observations, dispositions, and journal digests. |
+| 2. Imperative story emits replay data | Met by the executable profiles under `tests/dst/` and retained projection, pre/post-commit History, split Dispatch request/cancellation refusal, paired joined initial-creation refusal/acknowledgement loss, joined begin commit/task-spawn rollback and post-commit acknowledgement loss, paired joined identified-delivery, completed-terminal, failed-terminal, canonical reset, and terminal-close refusal/acknowledgement-loss, projection recovery, joined lifecycle cancellation repair, ingress-redelivery, delayed-terminal, lifecycle-race, timer-recovery, zero/delayed retry-exhaustion, terminal-recollection, and resource-bound fixtures. |
+| 3. Same-interpreter replay agreement | Met for all thirty-three public-Engine/provider crash/recovery stories plus the three retained generic failures, including exact operations, resource/checker observations, dispositions, and journal digests. |
 | 4. Seeded repeatability | Met: two fresh seed-1729 Engine runs produce the same expanded artifact; workload, fault, identifier, and event-order streams are independently pinned, and replay ignores changed seed provenance. |
 | 5. Abrupt generation reconstruction | Met for the public-Engine profile, including revoke-before-drop and stale Timeline refusal. |
-| 6. Named cuts before/after durable acceptance | Partial: paired pre-commit refusal/post-commit acknowledgement-loss History cuts, paired initial creation, split Dispatch refusal after a durable request and lifecycle fence, joined begin+spawn commit refusal, task-spawn rollback, accepted-begin acknowledgement loss, paired identified-delivery, completed-terminal, failed-terminal, projection, and canonical reset commit refusal/acknowledgement loss, paired refused/accepted-but-unacknowledged post-reset cancellation-tombstone recovery, delayed external completion, lifecycle and timer reconstruction, zero- and nonzero-backoff LocalDispatch retry reconstruction/exhaustion, and provider-terminal custody before Engine collection are proved; the broader transaction matrix remains. |
+| 6. Named cuts before/after durable acceptance | Partial: paired pre-commit refusal/post-commit acknowledgement-loss History cuts, paired initial creation, split Dispatch refusal after a durable request and lifecycle fence, joined begin+spawn commit refusal, task-spawn rollback, accepted-begin acknowledgement loss, paired identified-delivery, completed-terminal, failed-terminal, projection, canonical reset, and terminal-close commit refusal/acknowledgement loss, paired refused/accepted-but-unacknowledged post-reset cancellation-tombstone recovery, delayed external completion, lifecycle and timer reconstruction, zero- and nonzero-backoff LocalDispatch retry reconstruction/exhaustion, and provider-terminal custody before Engine collection are proved; the broader transaction matrix remains. |
 | 7. Complete bounds | Met for the generic harness: action, queue, logical-time/advance, reload, predicate, artifact, profile-retained-data, hidden-pending-work, process-progress, and wall-clock limits are executable and identify the ending bound. |
 | 8. Checker cadence and fair draining | Met for the vertical slice; broader independent S1–S8 checker coverage belongs to the remaining DS2/DS3 work. |
 | 9. Hermetic real-runtime execution | Met for the provider-neutral vertical slice: no credentials, external providers, network sleeps, or substitute Petrus semantics. The joined profiles are separately identified real-boundary qualification against disposable PostgreSQL/Absurd and claim only that composition's transaction contract. |
-| 10. Repository gates | Met: focused DST and project tests pass, and the current full and release gates pass all 2,341 tests in both release orders with 17 expected serial qualification deselections. |
+| 10. Repository gates | Met: focused DST and project tests pass, and the current full and release gates pass all 2,345 tests in both release orders with 17 expected serial qualification deselections. |
 
 Version 1 artifacts intentionally retain only authored endings. Version 2
 removes that format limit: it preserves one exact terminal failed attempt plus

@@ -669,12 +669,37 @@ boundary. The retained route returns `outcome: "pass"`, `quiescent`, 19
 operations, 31 journal entries including 12 checker evaluations, and digest
 `sha256:c369eda31394c6de8287f23ea462c448fd2a7fb4e894a9ad163fd8b99c44630b`.
 
+### Joined lifecycle close transaction pair
+
+[`joined-close-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-close-commit-refusal-world-v3.json)
+refuses the transaction containing terminal `ScopeClosed` while one real
+Absurd Worker holds an Activity. Detached PostgreSQL truth retains the active
+scope and running task. Fresh public `load_engine` reconstructs that live
+authority, and the original Worker completes and projects exactly once. The
+retained route has 20 operations, 33 journal entries including 13 checker
+evaluations, disposition `quiescent`, and artifact digest
+`sha256:b5f6d250e797dd2da53974d9c65b5e1a10d3957f805a63e4b9d3daa82164c3ee`.
+
+[`joined-close-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-close-ack-loss-world-v3.json)
+commits `ScopeClosed` and loses its acknowledgement before operational
+cancellation starts. Fresh public load reconstructs the terminal scope,
+repairs exactly one cancellation tombstone, and rejects the old Worker's
+completion as stale without a semantic terminal or projection. The retained
+route has 18 operations, 30 journal entries including 12 checker evaluations,
+disposition `quiescent`, and artifact digest
+`sha256:ff15a6c7e961e8063b12fbaae4c94b8deb9533432e3913cf85bc5a3367fa4a89`.
+
+Both profiles use only public Engine/Worker doors. Their independent checkers
+derive authority from detached PostgreSQL History, accepted/refused lifecycle
+transactions, and Absurd custody; terminal close remains distinct from reset
+because no successor lifecycle generation is opened.
+
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. Seventeen joined-provider profiles now prove paired initial
+generator. Nineteen joined-provider profiles now prove paired initial
 creation, identified-delivery, completed-terminal, failed-terminal, projection,
-and canonical-reset commit refusal/acknowledgement loss, plus real joined-begin
+canonical-reset, and terminal-close commit refusal/acknowledgement loss, plus real joined-begin
 commit refusal, pre-commit task-spawn failure, post-commit begin acknowledgement
 loss, and both refused and accepted-but-unacknowledged post-reset
 cancellation-tombstone recovery without widening the World contract; the

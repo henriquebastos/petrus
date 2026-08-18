@@ -207,7 +207,12 @@ the minimized expanded scenario becomes the durable regression fixture.
    retries successfully. A seventeenth loses the accepted creation commit's
    acknowledgement before an Engine is returned and proves fresh public load
    reconstructs the exact identity and marking without another creation
-   transaction. The broader fault/cut matrix keeps DS2 active.
+   transaction. An eighteenth profile refuses terminal `ScopeClosed` before
+   acceptance and proves fresh load retains the active scope and Worker
+   authority. A nineteenth loses the accepted close acknowledgement and proves
+   fresh load reconstructs terminal scope authority, repairs one tombstone,
+   and fences stale completion without opening a successor generation. The
+   broader fault/cut matrix keeps DS2 active.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)
    adds broad and targeted workload generation, independent models/checkers,
    shrinking, semantic coverage, and durable replay fixtures.
