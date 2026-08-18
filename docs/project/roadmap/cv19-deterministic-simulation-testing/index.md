@@ -2,7 +2,7 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 is Done and DS2's supported v3 World now adds identified ingress, lifecycle/timer reconstruction, and LocalDispatch retry plus terminal custody to seeded exact replay and terminal cuts; broader adapters/bounds and DS3–DS4 remain active
+status_reason: CV19.DS1 is Done and DS2's supported v3 World now adds identified ingress, delayed external completion, lifecycle/timer reconstruction, and LocalDispatch custody to seeded exact replay and terminal cuts; broader adapters/bounds and DS3–DS4 remain active
 updated: 2026-08-18
 related:
   - ../../../../src/petrus/simulation.py
@@ -152,8 +152,9 @@ the minimized expanded scenario becomes the durable regression fixture.
    projection after pre-collection process loss. An identified-ingress profile
    proves exact source redelivery, changed-content refusal, distinct equal-data
    identities, and recovery from both process loss and the poisoned conflict
-   generation. The broader fault/cut matrix and remaining bounds keep DS2
-   active.
+   generation. A delayed-terminal profile reconstructs modeled external truth
+   after volatile queue loss and delivers once at the authored logical instant.
+   The broader fault/cut matrix and remaining bounds keep DS2 active.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)
    adds broad and targeted workload generation, independent models/checkers,
    shrinking, semantic coverage, and durable replay fixtures.

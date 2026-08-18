@@ -228,6 +228,22 @@ reused. The retained route returns `outcome: "pass"`, `external_wait`, 15
 operations, 26 journal entries including 10 checker evaluations, and digest
 `sha256:e0223b0e0dd5ce6ce964cb9a72e38a9370f7f6b8a38d9571cdc1179e9a03d8bc`.
 
+### Delayed external terminal reconstruction
+
+[`delayed-terminal-recovery-world-v3.json`](../../tests/dst/fixtures/delayed-terminal-recovery-world-v3.json)
+separates external event delay from Dispatch-owned retry time. The profile
+authors one provider result for logical instant 5 and returns it to the World
+as a scheduled command. A crash discards that volatile queue entry while the
+profile's modeled external truth remains. Fresh public `Engine.load` re-proposes
+the same command; the fair phase advances directly to 5 and records one
+Activity completion, firing completion, and projection.
+
+The checker bounds canonical terminal facts by authored external deliveries
+and rejects any completion before the authored logical instant. The retained
+route returns `outcome: "pass"`, `converged`, 17 operations, 27 journal entries
+including 9 checker evaluations, and digest
+`sha256:a89273aadcb2aeb48e60832d658e6ae37ef8a09c5dcb14298e16bdd2b398c007`.
+
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
