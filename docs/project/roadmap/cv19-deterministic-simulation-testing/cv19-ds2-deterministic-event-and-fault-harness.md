@@ -2,7 +2,7 @@
 code: CV19.DS2
 level: Delivery Story
 status: Active
-status_reason: The accepted v3 World now proves paired terminal durability cuts, lifecycle reset, and timer reconstruction; DS2 remains active for broader cuts/adapters/bounds
+status_reason: The accepted v3 World now proves terminal cuts, lifecycle/timer reconstruction, and LocalDispatch retry exhaustion; DS2 remains active for broader cuts/adapters/bounds
 updated: 2026-08-18
 related:
   - index.md
@@ -245,6 +245,23 @@ conflating it with Dispatch-owned retry policy:
 6. replay the retained 15 operations and 24 journal entries, including 8
    checker evaluations, exactly.
 
+The fifth exact profile proves zero-backoff retry reconstruction and exhaustion
+through production LocalDispatch custody:
+
+1. prepare and publish one canonical Activity invocation with two attempts;
+2. claim epoch 1 through the public LocalDispatch Worker door and report one
+   classified retryable failure with exact zero backoff;
+3. abruptly drop the Engine/Worker generation after LocalDispatch has durably
+   admitted the retry but before another claim;
+4. load a fresh public Engine and LocalDispatch session, reconcile the recorded
+   invocation without another `prepare`, and claim epoch 2 with unchanged
+   activity, input, policy, correlation, and idempotency;
+5. report a second retryable failure, let LocalDispatch exhaust the declared
+   attempt budget, and record exactly one `ActivityFailed` plus `FiringFailed`
+   with no business projection; and
+6. replay the retained 18 operations and 30 journal entries, including 11
+   independent checker evaluations, exactly.
+
 All authored support and retained evidence live together under `tests/dst/`.
 The application profile returns detached follow-up proposals; only the World
 validates, orders, journals, and executes them. Checkers consume detached
@@ -273,11 +290,11 @@ seeded Engine scenario whose replay never consults the PRNG.
 | Done condition | Slice result |
 | --- | --- |
 | 1. Accepted defining-module compatibility surface | Met by the accepted decision, current `petrus.testing.dst/v3`, explicit v1/v2 constants/models, exact identities, no root/private exports, and the versioned [`dst-world-v3`](../../../process/dst-world-v3.md), [`dst-world-v2`](../../../process/dst-world-v2.md), and [`dst-world-v1`](../../../process/dst-world-v1.md) contracts. |
-| 2. Imperative story emits replay data | Met by the executable profiles under `tests/dst/` and retained projection, History-refusal, lifecycle-race, and timer-recovery fixtures. |
-| 3. Same-interpreter replay agreement | Met for all four public-Engine crash/recovery stories, including exact operations, checker observations, dispositions, and journal digests. |
+| 2. Imperative story emits replay data | Met by the executable profiles under `tests/dst/` and retained projection, History-refusal, lifecycle-race, timer-recovery, and retry-exhaustion fixtures. |
+| 3. Same-interpreter replay agreement | Met for all five public-Engine crash/recovery stories, including exact operations, checker observations, dispositions, and journal digests. |
 | 4. Seeded repeatability | Met: two fresh seed-1729 Engine runs produce the same expanded artifact; workload, fault, identifier, and event-order streams are independently pinned, and replay ignores changed seed provenance. |
 | 5. Abrupt generation reconstruction | Met for the public-Engine profile, including revoke-before-drop and stale Timeline refusal. |
-| 6. Named cuts before/after durable acceptance | Partial: paired terminal durability cuts, a reset/crash/late-terminal lifecycle race, and timer crash/reconstruction are proved; the broader delivery, Dispatch/retry, lifecycle, and transaction matrix remains. |
+| 6. Named cuts before/after durable acceptance | Partial: paired terminal durability cuts, lifecycle and timer crash/reconstruction, and zero-backoff LocalDispatch retry exhaustion are proved; the broader delivery, delayed retry, lifecycle, and transaction matrix remains. |
 | 7. Complete bounds | Partial: action, queue, logical-time/advance, reload, predicate, and artifact limits are executable; profile-retained-data and wall-clock watchdog qualification remain. |
 | 8. Checker cadence and fair draining | Met for the vertical slice; broader independent S1–S8 checker coverage belongs to the remaining DS2/DS3 work. |
 | 9. Hermetic real-runtime execution | Met for the vertical slice: no credentials, providers, network sleeps, or substitute Petrus semantics. |
@@ -300,7 +317,7 @@ the authoring API and artifact are version 3.
 
 ### Executed evidence
 
-- `UV_FROZEN=1 uv run pytest -q tests/dst` — 70 passed.
+- `UV_FROZEN=1 uv run pytest -q tests/dst` — 73 passed.
 - `UV_FROZEN=1 uv run python -m tests.dst.replay_world
   tests/dst/fixtures/projection-crash-recovery-world-v1.json` — `pass`,
   `converged`, 15 operations, 25 journal entries, digest
@@ -329,9 +346,13 @@ the authoring API and artifact are version 3.
   `pass` / `converged`, 15 operations, 24 journal entries including 8 checker
   evaluations, and digest
   `sha256:82460bacb8628c897a35e19883cb0f91e07bc1343cd5944ea22592c940fc8a69`.
-- `scripts/check full` — 2,251 passed.
-- `scripts/check release` — default order 2,251 passed; additional fixed order
-  2,251 passed with 17 intentionally deselected by the release profile.
+- The same replay route over `retry-crash-exhaustion-world-v3.json` returned
+  `pass` / `quarantined`, 18 operations, 30 journal entries including 11
+  checker evaluations, and digest
+  `sha256:8158a70525b02afd7fb705ddec9ffc62a66d8c4ec6c9c0872062d36a05402392`.
+- `scripts/check full` — 2,254 passed.
+- `scripts/check release` — default order 2,254 passed; additional fixed order
+  2,254 passed with 17 intentionally deselected by the release profile.
 - `UV_FROZEN=1 uv run ast-grep test --skip-snapshot-tests` — all 19
   architectural rule fixtures passed, including the runtime-neutral supported
   test-kit boundary.
@@ -373,8 +394,9 @@ the authoring API and artifact are version 3.
   Activity request → terminal freeze → projection crash → process
   reconstruction → projection-only completion. Generate its strict artifact
   from the run rather than hand-authoring the JSON.
-- Keep retry scenarios at their Dispatch-owned provider-time boundary rather
-  than using an Engine timer as a substitute for retry scheduling.
+- Keep delayed-backoff and lease-expiry scenarios at their Dispatch-owned
+  provider-time boundary rather than editing SQLite state or using an Engine
+  timer as a substitute for retry scheduling.
 - Deliberately perturb observation/logging and verify expanded replay does not
   depend on additional PRNG draws.
 - Execute focused replay tests, related recovery suites, `scripts/check full`,
