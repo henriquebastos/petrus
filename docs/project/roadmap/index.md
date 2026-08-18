@@ -42,9 +42,10 @@ and no live provider or multi-host support is claimed.
   public-Engine crash/cut replays, versioned profile-resource bounds, and real
   Absurd/PostgreSQL begin, terminal, projection, and lifecycle-cancellation
   refusal/acknowledgement-loss qualification, including provider-terminal
-  recollection after commit refusal. Petrus owns the reusable substrate;
-  applications such as Hamsterdan own their domain models and provider fault
-  worlds. Broader transaction/fault qualification remains before DS2 closes.
+  recollection and converged-state reconstruction. Petrus owns the reusable
+  substrate; applications such as Hamsterdan own their domain models and
+  provider fault worlds. Broader transaction/fault qualification remains before
+  DS2 closes.
 
 Application-specific and site-operation plans are not part of this source
 tree.

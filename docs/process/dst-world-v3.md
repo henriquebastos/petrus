@@ -456,6 +456,25 @@ after the refused attempt. The retained route returns `outcome: "pass"`,
 and digest
 `sha256:a4670deb5ec8841f29c8e6f716488c22cb7c91ffe3084867ae54704a8fe2ec6b`.
 
+### Joined projection acknowledgement loss
+
+[`joined-projection-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-projection-ack-loss-world-v3.json)
+proves the accepted side of the same real Absurd/PostgreSQL projection
+boundary. Production commits `ActivityCompleted`, `TokensProduced`, and
+`FiringCompleted`, then the test connection raises as if the projection
+transaction's acknowledgement were lost. Detached PostgreSQL truth shows the
+completed task and fully converged canonical History while the writing Engine
+poisons.
+
+Fresh public `load_engine` reconstructs that converged state and executes a
+no-change drive without another Worker completion, handler `prepare`, terminal,
+or projection. The checker requires accepted begin, terminal, and projection
+transactions before accepting the acknowledgement-loss fact. Its mutation
+test rejects an acknowledgement-loss claim without accepted projection
+authority. The retained route returns `outcome: "pass"`, `converged`, 12
+operations, 21 journal entries including 9 checker evaluations, and digest
+`sha256:39110a67203cfcaa35ae527bfd9dbbd4a9ed33322b5e4fbf3cd29d5c4e83083d`.
+
 ### Joined lifecycle cancellation commit refusal
 
 [`joined-cancellation-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-cancellation-commit-refusal-world-v3.json)
@@ -500,10 +519,10 @@ operations, 31 journal entries including 12 checker evaluations, and digest
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. Eight joined-provider profiles now prove real joined-transaction
+generator. Nine joined-provider profiles now prove real joined-transaction
 commit refusal, pre-commit task-spawn failure, post-commit begin
 acknowledgement loss, paired terminal commit refusal/acknowledgement loss,
-accepted-terminal/refused-projection recovery, and
+and paired projection commit refusal/acknowledgement loss, plus
 both refused and accepted-but-unacknowledged post-reset cancellation-tombstone
 recovery without widening the World contract; the broader delivery, Dispatch,
 lifecycle, and transaction fault matrix remains in CV19.DS2. Version 4

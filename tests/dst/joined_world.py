@@ -58,6 +58,7 @@ QUEUE = "dst_joined_begin"
 SCENARIO_ID = "joined-begin-commit-refusal-world-v3"
 DISPATCH_SCENARIO_ID = "joined-dispatch-refusal-world-v3"
 PROJECTION_SCENARIO_ID = "joined-projection-commit-refusal-world-v3"
+PROJECTION_ACK_LOSS_SCENARIO_ID = "joined-projection-ack-loss-world-v3"
 ACK_LOSS_SCENARIO_ID = "joined-begin-ack-loss-world-v3"
 TERMINAL_REFUSAL_SCENARIO_ID = "joined-terminal-commit-refusal-world-v3"
 TERMINAL_ACK_LOSS_SCENARIO_ID = "joined-terminal-ack-loss-world-v3"
@@ -129,6 +130,29 @@ PROJECTION_PROFILE_IDENTITY = ProfileIdentity(
             ],
             "provider": "petrus.engine.absurd",
             "property": "a frozen terminal survives refusal of the later projection commit",
+            "queue": QUEUE,
+        }
+    ),
+)
+PROJECTION_ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.joined-projection-ack-loss",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": ["engine.drive", "worker.claim", "worker.complete"],
+            "fault": {
+                "disposition": "raise",
+                "name": "history.lose-ack",
+                "target": "projection_committed",
+            },
+            "instance": INSTANCE_ID,
+            "observations": [
+                "engine.joined-accepted-projection-authority",
+                "joined-projection-ack-lost",
+                "joined-projection-ack-recovered",
+            ],
+            "provider": "petrus.engine.absurd",
+            "property": "an accepted projection survives loss of its commit acknowledgement",
             "queue": QUEUE,
         }
     ),
@@ -284,6 +308,13 @@ PROJECTION_CHECKER_IDENTITY = CheckerIdentity(
         }
     ),
 )
+PROJECTION_ACK_LOSS_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.joined-accepted-projection-authority",
+    version=1,
+    digest=digest_json(
+        {"property": "an acknowledgement-lost projection remains singular and converged after fresh load"}
+    ),
+)
 ACK_LOSS_CHECKER_IDENTITY = CheckerIdentity(
     name="petrus.engine.joined-accepted-begin-authority",
     version=1,
@@ -397,6 +428,7 @@ class JoinedFaultConnection:
         dispatch_refused: Callable[[], None],
         terminal_refused: Callable[[], None],
         projection_refused: Callable[[], None],
+        projection_ack_lost: Callable[[], None],
         commit_ack_lost: Callable[[], None],
         terminal_ack_lost: Callable[[], None],
         lifecycle_attempts: list[dict[str, JsonValue]],
@@ -409,6 +441,7 @@ class JoinedFaultConnection:
         self._dispatch_refused = dispatch_refused
         self._terminal_refused = terminal_refused
         self._projection_refused = projection_refused
+        self._projection_ack_lost = projection_ack_lost
         self._commit_ack_lost = commit_ack_lost
         self._terminal_ack_lost = terminal_ack_lost
         self._lifecycle_attempts = lifecycle_attempts
@@ -421,6 +454,7 @@ class JoinedFaultConnection:
         self._dispatch_refusal: str | None = None
         self._terminal_refusal: str | None = None
         self._projection_refusal: str | None = None
+        self._projection_ack_loss: str | None = None
         self._commit_ack_loss: str | None = None
         self._terminal_ack_loss: str | None = None
         self._cancellation_refusal: str | None = None
@@ -478,6 +512,11 @@ class JoinedFaultConnection:
             raise RuntimeError("joined terminal refusal is already armed")
         self._terminal_refusal = message
 
+    def lose_projection_commit_ack(self, message: str) -> None:
+        if self._projection_ack_loss is not None:
+            raise RuntimeError("joined projection acknowledgement loss is already armed")
+        self._projection_ack_loss = message
+
     def refuse_cancellation_commit(self, message: str) -> None:
         if self._cancellation_refusal is not None:
             raise RuntimeError("joined cancellation refusal is already armed")
@@ -501,6 +540,7 @@ class JoinedFaultConnection:
     def commit(self) -> None:
         joined_begin = ActivityRequested.__name__ in self._record_types
         activity_terminal = ActivityCompleted.__name__ in self._record_types
+        projection_completed = FiringCompleted.__name__ in self._record_types
         scope_reset = ScopeReset.__name__ in self._record_types
         cancellation_attempted = self._cancellation_attempted
         tracked = joined_begin or any(
@@ -547,6 +587,11 @@ class JoinedFaultConnection:
             message = self._terminal_ack_loss
             self._terminal_ack_loss = None
             self._terminal_ack_lost()
+            raise OSError(message)
+        if projection_completed and self._projection_ack_loss is not None:
+            message = self._projection_ack_loss
+            self._projection_ack_loss = None
+            self._projection_ack_lost()
             raise OSError(message)
         if cancellation_attempted and self._cancellation_ack_loss is not None:
             message = self._cancellation_ack_loss
@@ -612,6 +657,7 @@ class JoinedBeginProfile:
         self.dispatch_refusals = 0
         self.terminal_refusals = 0
         self.projection_refusals = 0
+        self.projection_ack_losses = 0
         self.cancellation_refusals = 0
         self.cancellation_ack_losses = 0
         self.commit_ack_losses = 0
@@ -732,6 +778,7 @@ class JoinedBeginProfile:
             self._dispatch_refused,
             self._terminal_refused,
             self._projection_refused,
+            self._projection_ack_lost,
             self._commit_ack_lost,
             self._terminal_ack_lost,
             self.lifecycle_attempts,
@@ -793,6 +840,7 @@ class JoinedBeginProfile:
                 "frontier": len(records),
                 "prepare_calls": self.prepare_calls,
                 "projection_refusals": self.projection_refusals,
+                "projection_ack_losses": self.projection_ack_losses,
                 "record_types": [type(record).__name__ for record in records],
                 "status": status,
                 "terminal_refusals": self.terminal_refusals,
@@ -850,6 +898,9 @@ class JoinedBeginProfile:
 
     def _terminal_refused(self) -> None:
         self.terminal_refusals += 1
+
+    def _projection_ack_lost(self) -> None:
+        self.projection_ack_losses += 1
 
     def _cancellation_refused(self) -> None:
         self.cancellation_refusals += 1
@@ -989,6 +1040,42 @@ class JoinedProjectionProfile(JoinedBeginProfile):
 
     def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
         generation.connection.refuse_projection_commit(message)
+
+
+class JoinedProjectionAckLossProfile(JoinedProjectionProfile):
+    """Public Absurd-Engine profile losing acknowledgement after projection acceptance."""
+
+    identity = PROJECTION_ACK_LOSS_PROFILE_IDENTITY
+    fault_name = "history.lose-ack"
+    fault_disposition = FaultDisposition.RAISE
+    refused_observation = "joined-projection-ack-lost"
+    recovered_observation = "joined-projection-ack-recovered"
+    refusal_field = "projection_ack_losses"
+
+    def observe(
+        self,
+        generation: JoinedGeneration,
+        request: ObservationRequest,
+        context: ScenarioContext,
+    ) -> JsonValue:
+        if request.name == "engine.joined-accepted-projection-authority":
+            if request.payload not in (None, {}):
+                raise ValueError("joined accepted-projection authority observation does not accept parameters")
+            state = self._observation_state(generation)
+            fields = (
+                "durable_tasks",
+                "prepare_calls",
+                "projection_ack_losses",
+                "record_types",
+                "transaction_attempts",
+                "worker_completions",
+            )
+            return {field: state[field] for field in fields}
+        value = cast(dict[str, JsonValue], super().observe(generation, request, context))
+        return {**value, "drive_calls": self.drive_calls, "projection_ack_losses": self.projection_ack_losses}
+
+    def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
+        generation.connection.lose_projection_commit_ack(message)
 
 
 class JoinedTerminalRefusalProfile(JoinedProjectionProfile):
@@ -1403,6 +1490,78 @@ class JoinedProjectionAuthorityChecker:
                 "canonical_terminals": completed,
                 "completed_custody": completed_custody,
                 "refused_projections": refused_projection,
+                "tasks_exact": tasks_exact,
+                "worker_completions": worker_completions,
+            },
+        )
+
+
+class JoinedAcceptedProjectionAuthorityChecker:
+    """Independent accepted-projection authority from PostgreSQL and Worker facts."""
+
+    identity = PROJECTION_ACK_LOSS_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.joined-accepted-projection-authority", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        value = cast(dict[str, JsonValue], observation.value)
+        records = cast(list[JsonValue], value["record_types"])
+        attempts = cast(list[dict[str, JsonValue]], value["transaction_attempts"])
+        tasks = cast(list[dict[str, JsonValue]], value["durable_tasks"])
+        begin = {
+            "accepted": True,
+            "dispatch_attempted": True,
+            "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
+        }
+        terminal = {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["ActivityCompleted"],
+        }
+        projection = {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["TokensProduced", "FiringCompleted"],
+        }
+        attempts_exact = attempts in ([], [begin], [begin, terminal, projection])
+        accepted_begins = sum(attempt == begin for attempt in attempts)
+        accepted_terminals = sum(attempt == terminal for attempt in attempts)
+        accepted_projections = sum(attempt == projection for attempt in attempts)
+        selected = records.count(CandidateSelected.__name__)
+        begun = records.count(FiringBegun.__name__)
+        requested = records.count(ActivityRequested.__name__)
+        completed = records.count(ActivityCompleted.__name__)
+        produced = records.count("TokensProduced")
+        projected = records.count(FiringCompleted.__name__)
+        worker_completions = cast(int, value["worker_completions"])
+        ack_losses = cast(int, value["projection_ack_losses"])
+        expected_key = f"{INSTANCE_ID}:occurrence-1"
+        tasks_exact = tasks == [] or tasks in (
+            [{"idempotency": expected_key, "state": "pending"}],
+            [{"idempotency": expected_key, "state": "running"}],
+            [{"idempotency": expected_key, "state": "completed"}],
+        )
+        completed_custody = tasks == [{"idempotency": expected_key, "state": "completed"}]
+        passed = (
+            attempts_exact
+            and cast(int, value["prepare_calls"]) == accepted_begins
+            and selected == begun == requested == accepted_begins == len(tasks)
+            and completed == accepted_terminals <= worker_completions <= 1
+            and produced == projected == accepted_projections <= completed
+            and 0 <= ack_losses <= accepted_projections <= 1
+            and completed_custody == (worker_completions == 1)
+            and tasks_exact
+        )
+        return CheckResult(
+            passed=passed,
+            detail={
+                "accepted_begins": accepted_begins,
+                "accepted_projections": accepted_projections,
+                "accepted_terminals": accepted_terminals,
+                "ack_losses": ack_losses,
+                "attempts_exact": attempts_exact,
+                "canonical_projections": projected,
+                "canonical_terminals": completed,
+                "completed_custody": completed_custody,
                 "tasks_exact": tasks_exact,
                 "worker_completions": worker_completions,
             },
@@ -2247,6 +2406,89 @@ def build_joined_projection_artifact(dsn: str) -> ScenarioArtifactV3:
     world, _, _ = execute_joined_projection_story(dsn)
     try:
         artifact = world.artifact(PROJECTION_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_joined_projection_ack_loss_story(
+    dsn: str,
+) -> tuple[World, JoinedProjectionAckLossProfile, Timeline]:
+    """Lose one accepted projection acknowledgement, drop, and load exact truth."""
+
+    profile = JoinedProjectionAckLossProfile(dsn)
+    world = World(profile, WORLD_BUDGET, checkers=(JoinedAcceptedProjectionAuthorityChecker(),))
+    timeline = world.timeline()
+
+    timeline.command("engine.drive", {})
+    timeline.command("worker.claim", {})
+    timeline.command("worker.complete", {"result": {"value": 3}})
+    timeline.activate_fault(
+        "history.lose-ack",
+        "projection_committed",
+        disposition=FaultDisposition.RAISE,
+        payload={"message": "dst joined projection acknowledgement lost"},
+    )
+    timeline.command("engine.drive", {})
+    lost = timeline.observe("joined-projection-ack-lost")
+    lost_value = cast(dict[str, JsonValue], lost.value)
+    assert lost_value["record_types"] == [
+        "InstanceCreated",
+        "TokensInitialized",
+        "CandidateSelected",
+        "FiringBegun",
+        "TokensConsumed",
+        "ActivityRequested",
+        "ActivityCompleted",
+        "TokensProduced",
+        "FiringCompleted",
+    ]
+    assert lost_value["durable_tasks"] == [{"idempotency": f"{INSTANCE_ID}:occurrence-1", "state": "completed"}]
+    assert lost_value["frontier"] == 9
+    assert lost_value["prepare_calls"] == lost_value["projection_ack_losses"] == 1
+    assert lost_value["status"] == "poisoned"
+    assert lost_value["worker_completions"] == 1
+
+    stale = timeline
+    timeline.crash("joined_projection_committed_ack_lost")
+    world.restart()
+    timeline = world.timeline()
+    recovered = timeline.run_until(
+        "joined-projection-ack-recovered",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["drive_calls"] == 3,
+    )
+    recovered_value = cast(dict[str, JsonValue], recovered.value)
+    assert recovered_value["record_types"] == lost_value["record_types"]
+    assert recovered_value["durable_tasks"] == lost_value["durable_tasks"]
+    assert recovered_value["frontier"] == 9
+    assert recovered_value["prepare_calls"] == recovered_value["worker_completions"] == 1
+    assert recovered_value["projection_ack_losses"] == 1
+    assert recovered_value["transaction_attempts"] == [
+        {
+            "accepted": True,
+            "dispatch_attempted": True,
+            "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
+        },
+        {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["ActivityCompleted"],
+        },
+        {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["TokensProduced", "FiringCompleted"],
+        },
+    ]
+    timeline.finish(Disposition.CONVERGED)
+    return world, profile, stale
+
+
+def build_joined_projection_ack_loss_artifact(dsn: str) -> ScenarioArtifactV3:
+    world, _, _ = execute_joined_projection_ack_loss_story(dsn)
+    try:
+        artifact = world.artifact(PROJECTION_ACK_LOSS_SCENARIO_ID)
         assert isinstance(artifact, ScenarioArtifactV3)
         return artifact
     finally:

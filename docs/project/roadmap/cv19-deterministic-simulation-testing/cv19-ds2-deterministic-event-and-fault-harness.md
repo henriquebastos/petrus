@@ -2,7 +2,7 @@
 code: CV19.DS2
 level: Delivery Story
 status: Active
-status_reason: Split Dispatch refusals and real joined begin, paired terminal refusal/acknowledgement-loss, projection, and paired lifecycle-cancellation refusal/acknowledgement-loss recovery now replay through crash with exact repair; DS2 remains active for the broader transaction cut matrix
+status_reason: Split Dispatch refusals and real joined begin plus paired terminal, projection, and lifecycle-cancellation refusal/acknowledgement-loss recovery now replay through crash with exact repair; DS2 remains active for the broader transaction cut matrix
 updated: 2026-08-18
 related:
   - index.md
@@ -470,7 +470,24 @@ terminal/projection transaction boundary:
 6. replay the retained 12 operations and 21 journal entries, including 9
    independent checker evaluations, exactly, ending in `converged`.
 
-A seventh separately identified real-provider profile proves the lifecycle
+A seventh separately identified real-provider profile proves the accepted side
+of the same terminal/projection transaction boundary:
+
+1. begin one Activity through public `create_engine`, then claim and complete
+   its durable task through a real public `AbsurdWorkerDispatch`;
+2. let production commit `ActivityCompleted`, `TokensProduced`, and
+   `FiringCompleted`, then lose the projection transaction's acknowledgement
+   at the connection boundary;
+3. independently observe completed task custody, one accepted terminal, one
+   accepted canonical projection, and the poisoned Engine;
+4. revoke and abruptly drop that generation, then load through public
+   `load_engine`;
+5. reconstruct the already-converged state without another Worker completion,
+   terminal, task, projection, or handler `prepare`; and
+6. replay the retained 12 operations and 21 journal entries, including 9
+   independent checker evaluations, exactly, ending in `converged`.
+
+An eighth separately identified real-provider profile proves the lifecycle
 reset/cancellation transaction boundary:
 
 1. open a lifecycle scope, begin one Activity, and claim its real Absurd task
@@ -487,7 +504,7 @@ reset/cancellation transaction boundary:
 6. replay the retained 19 operations and 31 journal entries, including 12
    independent checker evaluations, exactly, ending in `quiescent`.
 
-An eighth separately identified real-provider profile proves the accepted side
+A ninth separately identified real-provider profile proves the accepted side
 of that cancellation transaction boundary:
 
 1. open a lifecycle scope, begin one Activity, and claim its real Absurd task
@@ -568,14 +585,14 @@ seeded Engine scenario whose replay never consults the PRNG.
 | --- | --- |
 | 1. Accepted defining-module compatibility surface | Met by the accepted decision, current `petrus.testing.dst/v4`, explicit v1-v3 constants/models, exact identities, no root/private exports, and the versioned [`dst-world-v4`](../../../process/dst-world-v4.md), [`dst-world-v3`](../../../process/dst-world-v3.md), [`dst-world-v2`](../../../process/dst-world-v2.md), and [`dst-world-v1`](../../../process/dst-world-v1.md) contracts. |
 | 2. Imperative story emits replay data | Met by the executable profiles under `tests/dst/` and retained projection, pre/post-commit History, split Dispatch request/cancellation refusal, joined begin commit/task-spawn rollback and post-commit acknowledgement loss, paired joined terminal refusal/acknowledgement-loss and projection recovery, joined lifecycle cancellation repair, ingress-redelivery, delayed-terminal, lifecycle-race, timer-recovery, zero/delayed retry-exhaustion, terminal-recollection, and resource-bound fixtures. |
-| 3. Same-interpreter replay agreement | Met for all twenty-one public-Engine/provider crash/recovery stories plus the retained resource-overage failure, including exact operations, resource/checker observations, dispositions, and journal digests. |
+| 3. Same-interpreter replay agreement | Met for all twenty-three public-Engine/provider crash/recovery stories plus the three retained generic failures, including exact operations, resource/checker observations, dispositions, and journal digests. |
 | 4. Seeded repeatability | Met: two fresh seed-1729 Engine runs produce the same expanded artifact; workload, fault, identifier, and event-order streams are independently pinned, and replay ignores changed seed provenance. |
 | 5. Abrupt generation reconstruction | Met for the public-Engine profile, including revoke-before-drop and stale Timeline refusal. |
-| 6. Named cuts before/after durable acceptance | Partial: paired pre-commit refusal/post-commit acknowledgement-loss History cuts, split Dispatch refusal after a durable request and lifecycle fence, joined begin+spawn commit refusal, task-spawn rollback, accepted-begin acknowledgement loss, paired terminal commit refusal/acknowledgement loss, refused-projection recovery, and paired refused/accepted-but-unacknowledged post-reset cancellation-tombstone recovery, identified ingress redelivery, delayed external completion, lifecycle and timer reconstruction, zero- and nonzero-backoff LocalDispatch retry reconstruction/exhaustion, and provider-terminal custody before Engine collection are proved; the broader transaction matrix remains. |
+| 6. Named cuts before/after durable acceptance | Partial: paired pre-commit refusal/post-commit acknowledgement-loss History cuts, split Dispatch refusal after a durable request and lifecycle fence, joined begin+spawn commit refusal, task-spawn rollback, accepted-begin acknowledgement loss, paired terminal and projection commit refusal/acknowledgement loss, paired refused/accepted-but-unacknowledged post-reset cancellation-tombstone recovery, identified ingress redelivery, delayed external completion, lifecycle and timer reconstruction, zero- and nonzero-backoff LocalDispatch retry reconstruction/exhaustion, and provider-terminal custody before Engine collection are proved; the broader transaction matrix remains. |
 | 7. Complete bounds | Met for the generic harness: action, queue, logical-time/advance, reload, predicate, artifact, profile-retained-data, hidden-pending-work, process-progress, and wall-clock limits are executable and identify the ending bound. |
 | 8. Checker cadence and fair draining | Met for the vertical slice; broader independent S1–S8 checker coverage belongs to the remaining DS2/DS3 work. |
 | 9. Hermetic real-runtime execution | Met for the provider-neutral vertical slice: no credentials, external providers, network sleeps, or substitute Petrus semantics. The joined profiles are separately identified real-boundary qualification against disposable PostgreSQL/Absurd and claim only that composition's transaction contract. |
-| 10. Repository gates | Met: focused DST and project tests pass, and the current full and release gates pass all 2,315 tests in both release orders with 17 expected serial qualification deselections. |
+| 10. Repository gates | Met: focused DST and project tests pass, and the current full and release gates pass all 2,318 tests in both release orders with 17 expected serial qualification deselections. |
 
 Version 1 artifacts intentionally retain only authored endings. Version 2
 removes that format limit: it preserves one exact terminal failed attempt plus
@@ -606,8 +623,8 @@ deterministic `FailureOperation` for a killed call.
 
 ### Executed evidence
 
-- `UV_FROZEN=1 uv run pytest -q tests/dst` — 128 passed.
-- `UV_FROZEN=1 uv run pytest -q tests/dst tests/project` — 157 passed.
+- `UV_FROZEN=1 uv run pytest -q tests/dst` — 131 passed.
+- `UV_FROZEN=1 uv run pytest -q tests/dst tests/project` — 160 passed.
 - `UV_FROZEN=1 uv run pytest -q tests/dst/test_process_runner.py` — 3 passed;
   the public-Engine process run returned and replayed its unchanged 14-operation
   / 39-journal-entry v4 artifact, while the deliberate SIGTERM-resistant hang
@@ -705,6 +722,11 @@ deterministic `FailureOperation` for a killed call.
   checker evaluations, and digest
   `sha256:a4670deb5ec8841f29c8e6f716488c22cb7c91ffe3084867ae54704a8fe2ec6b`.
 - `UV_FROZEN=1 uv run pytest -q
+  tests/dst/test_joined_world.py::test_retained_joined_projection_ack_loss_replays_without_the_authored_scenario`
+  returned `pass` / `converged`, 12 operations, 21 journal entries including 9
+  checker evaluations, and digest
+  `sha256:39110a67203cfcaa35ae527bfd9dbbd4a9ed33322b5e4fbf3cd29d5c4e83083d`.
+- `UV_FROZEN=1 uv run pytest -q
   tests/dst/test_joined_world.py::test_retained_joined_cancellation_fixture_replays_without_the_authored_scenario`
   returned `pass` / `quiescent`, 19 operations, 31 journal entries including
   12 checker evaluations, and digest
@@ -721,8 +743,8 @@ deterministic `FailureOperation` for a killed call.
   returned `pass` / `budget_exhausted`, 3 operations, 10 journal entries, and
   digest
   `sha256:845e62259ae1e18b1ab92f1a2f5c16b1757cea29181bda6e6cd767ce0857b451`.
-- `scripts/check full` — 2,315 passed.
-- `scripts/check release` — 2,315 passed in both the four-worker and fixed-order
+- `scripts/check full` — 2,318 passed.
+- `scripts/check release` — 2,318 passed in both the four-worker and fixed-order
   serial runs; the serial run reported 17 expected qualification deselections.
 - `UV_FROZEN=1 uv run ast-grep test --skip-snapshot-tests` — all 19
   architectural rule fixtures passed, including the runtime-neutral supported
