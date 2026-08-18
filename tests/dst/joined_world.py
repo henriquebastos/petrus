@@ -23,8 +23,10 @@ from petrus.impetus.history import (
     FiringFailed,
     ScopeOpened,
     ScopeReset,
+    TokensProduced,
 )
 from petrus.impetus.history_store.postgres import PostgresHistoryStore
+from petrus.impetus.instance import PriorAcknowledgement
 from petrus.impetus.petrinet import Arc, Marking, Net, NetPath, Place, Token, Transition
 from petrus.motus.activity import ActivityFailure, ActivityInvocation
 from petrus.motus.dispatch import ActivityAttempt
@@ -62,6 +64,8 @@ DISPATCH_SCENARIO_ID = "joined-dispatch-refusal-world-v3"
 PROJECTION_SCENARIO_ID = "joined-projection-commit-refusal-world-v3"
 PROJECTION_ACK_LOSS_SCENARIO_ID = "joined-projection-ack-loss-world-v3"
 ACK_LOSS_SCENARIO_ID = "joined-begin-ack-loss-world-v3"
+DELIVERY_REFUSAL_SCENARIO_ID = "joined-delivery-commit-refusal-world-v3"
+DELIVERY_ACK_LOSS_SCENARIO_ID = "joined-delivery-ack-loss-world-v3"
 TERMINAL_REFUSAL_SCENARIO_ID = "joined-terminal-commit-refusal-world-v3"
 TERMINAL_ACK_LOSS_SCENARIO_ID = "joined-terminal-ack-loss-world-v3"
 FAILURE_REFUSAL_SCENARIO_ID = "joined-failure-commit-refusal-world-v3"
@@ -183,6 +187,51 @@ ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
             "provider": "petrus.engine.absurd",
             "property": "an accepted joined begin survives loss of its commit acknowledgement",
             "queue": QUEUE,
+        }
+    ),
+)
+DELIVERY_REFUSAL_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.joined-delivery-commit-refusal",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": {"source.deliver": ["identity", "value"]},
+            "fault": {
+                "disposition": "refuse",
+                "name": "history.commit-refuse",
+                "target": "delivery_accepted",
+            },
+            "instance": INSTANCE_ID,
+            "observations": [
+                "engine.joined-delivery-authority",
+                "joined-delivery-refused",
+                "joined-delivery-recovered",
+                "joined-delivery-redelivered",
+            ],
+            "provider": "petrus.engine.absurd",
+            "property": "a refused identified delivery is not accepted and fresh load may accept it once",
+        }
+    ),
+)
+DELIVERY_ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.joined-delivery-ack-loss",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": {"source.deliver": ["identity", "value"]},
+            "fault": {
+                "disposition": "raise",
+                "name": "history.lose-ack",
+                "target": "delivery_accepted_committed",
+            },
+            "instance": INSTANCE_ID,
+            "observations": [
+                "engine.joined-delivery-authority",
+                "joined-delivery-ack-lost",
+                "joined-delivery-ack-recovered",
+            ],
+            "provider": "petrus.engine.absurd",
+            "property": "an accepted identified delivery survives acknowledgement loss and redelivers idempotently",
         }
     ),
 )
@@ -438,6 +487,18 @@ ACK_LOSS_CHECKER_IDENTITY = CheckerIdentity(
         {"property": ("an acknowledged-lost begin has exactly one accepted semantic prefix and one durable task")}
     ),
 )
+DELIVERY_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.joined-delivery-authority",
+    version=1,
+    digest=digest_json(
+        {
+            "property": (
+                "accepted PostgreSQL delivery transactions authorize one identified source fact and projection; "
+                "exact redelivery is idempotent"
+            )
+        }
+    ),
+)
 TERMINAL_ACK_LOSS_CHECKER_IDENTITY = CheckerIdentity(
     name="petrus.engine.joined-accepted-terminal-authority",
     version=1,
@@ -556,6 +617,15 @@ def lifecycle_application_net() -> Net:
     )
 
 
+def delivery_application_net() -> Net:
+    return Net(
+        places=[Place(DONE)],
+        transitions=[Transition(SOURCE)],
+        arcs=[Arc(SOURCE, DONE)],
+        name="dst-world-joined-delivery",
+    )
+
+
 class JoinedBridge:
     """Deterministic application handler with profile-owned call evidence."""
 
@@ -580,6 +650,8 @@ class JoinedFaultConnection:
         attempts: list[dict[str, JsonValue]],
         commit_refused: Callable[[], None],
         dispatch_refused: Callable[[], None],
+        delivery_refused: Callable[[], None],
+        delivery_ack_lost: Callable[[], None],
         terminal_refused: Callable[[], None],
         projection_refused: Callable[[], None],
         projection_ack_lost: Callable[[], None],
@@ -595,6 +667,8 @@ class JoinedFaultConnection:
         self._attempts = attempts
         self._commit_refused = commit_refused
         self._dispatch_refused = dispatch_refused
+        self._delivery_refused = delivery_refused
+        self._delivery_ack_lost = delivery_ack_lost
         self._terminal_refused = terminal_refused
         self._projection_refused = projection_refused
         self._projection_ack_lost = projection_ack_lost
@@ -610,6 +684,8 @@ class JoinedFaultConnection:
         self._cancellation_attempted = False
         self._commit_refusal: str | None = None
         self._dispatch_refusal: str | None = None
+        self._delivery_refusal: str | None = None
+        self._delivery_ack_loss: str | None = None
         self._terminal_refusal: str | None = None
         self._projection_refusal: str | None = None
         self._projection_ack_loss: str | None = None
@@ -662,6 +738,16 @@ class JoinedFaultConnection:
             raise RuntimeError("joined Dispatch refusal is already armed")
         self._dispatch_refusal = message
 
+    def refuse_delivery_commit(self, message: str) -> None:
+        if self._delivery_refusal is not None:
+            raise RuntimeError("joined delivery refusal is already armed")
+        self._delivery_refusal = message
+
+    def lose_delivery_commit_ack(self, message: str) -> None:
+        if self._delivery_ack_loss is not None:
+            raise RuntimeError("joined delivery acknowledgement loss is already armed")
+        self._delivery_ack_loss = message
+
     def refuse_projection_commit(self, message: str) -> None:
         if self._projection_refusal is not None:
             raise RuntimeError("joined projection refusal is already armed")
@@ -708,6 +794,7 @@ class JoinedFaultConnection:
         self._cancellation_ack_loss = message
 
     def commit(self) -> None:
+        source_delivery = ExternalEventDelivered.__name__ in self._record_types
         joined_begin = ActivityRequested.__name__ in self._record_types
         activity_terminal = any(
             name in self._record_types for name in (ActivityCompleted.__name__, ActivityFailed.__name__)
@@ -724,6 +811,12 @@ class JoinedFaultConnection:
                 FiringFailed.__name__,
             )
         )
+        if source_delivery and self._delivery_refusal is not None:
+            message = self._delivery_refusal
+            self._delivery_refusal = None
+            self._attempts.append(self._attempt(False))
+            self._delivery_refused()
+            raise OSError(message)
         if joined_begin and self._commit_refusal is not None:
             message = self._commit_refusal
             self._commit_refusal = None
@@ -762,6 +855,11 @@ class JoinedFaultConnection:
         if cancellation_attempted:
             self._lifecycle_attempts.append(self._lifecycle_attempt(True, "cancellation"))
         self._clear_transaction()
+        if source_delivery and self._delivery_ack_loss is not None:
+            message = self._delivery_ack_loss
+            self._delivery_ack_loss = None
+            self._delivery_ack_lost()
+            raise OSError(message)
         if joined_begin and self._commit_ack_loss is not None:
             message = self._commit_ack_loss
             self._commit_ack_loss = None
@@ -844,6 +942,8 @@ class JoinedBeginProfile:
         self.prepare_calls = 0
         self.commit_refusals = 0
         self.dispatch_refusals = 0
+        self.delivery_refusals = 0
+        self.delivery_ack_losses = 0
         self.terminal_refusals = 0
         self.projection_refusals = 0
         self.projection_ack_losses = 0
@@ -968,6 +1068,8 @@ class JoinedBeginProfile:
             self.transaction_attempts,
             self._commit_refused,
             self._dispatch_refused,
+            self._delivery_refused,
+            self._delivery_ack_lost,
             self._terminal_refused,
             self._projection_refused,
             self._projection_ack_lost,
@@ -1028,6 +1130,8 @@ class JoinedBeginProfile:
                 "commit_refusals": self.commit_refusals,
                 "commit_ack_losses": self.commit_ack_losses,
                 "dispatch_refusals": self.dispatch_refusals,
+                "delivery_refusals": self.delivery_refusals,
+                "delivery_ack_losses": self.delivery_ack_losses,
                 "drops": self.drops,
                 "drive_calls": self.drive_calls,
                 "durable_tasks": tasks,
@@ -1089,6 +1193,12 @@ class JoinedBeginProfile:
 
     def _dispatch_refused(self) -> None:
         self.dispatch_refusals += 1
+
+    def _delivery_refused(self) -> None:
+        self.delivery_refusals += 1
+
+    def _delivery_ack_lost(self) -> None:
+        self.delivery_ack_losses += 1
 
     def _projection_refused(self) -> None:
         self.projection_refusals += 1
@@ -1165,6 +1275,155 @@ class JoinedBeginAckLossProfile(JoinedBeginProfile):
 
     def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
         generation.connection.lose_activity_request_commit_ack(message)
+
+
+class JoinedDeliveryRefusalProfile(JoinedBeginProfile):
+    """Public Absurd profile refusing one identified source-delivery commit."""
+
+    identity = DELIVERY_REFUSAL_PROFILE_IDENTITY
+    fault_name = "history.commit-refuse"
+    fault_target = "delivery_accepted"
+    fault_disposition = FaultDisposition.REFUSE
+    _observations = {
+        "engine.joined-delivery-authority",
+        "joined-delivery-refused",
+        "joined-delivery-recovered",
+        "joined-delivery-redelivered",
+    }
+    _observation_fields = (
+        "canonical_deliveries",
+        "delivery_ack_losses",
+        "delivery_attempts",
+        "delivery_refusals",
+        "drops",
+        "firing_completed",
+        "frontier",
+        "produced_values",
+        "status",
+        "transaction_attempts",
+    )
+
+    def __init__(self, dsn: str) -> None:
+        super().__init__(dsn)
+        self.delivery_attempts: list[dict[str, JsonValue]] = []
+
+    def validate(self, command: Command) -> Command:
+        if command.name != "source.deliver":
+            raise ValueError(f"unknown joined-delivery command {command.name!r}")
+        payload = command.payload
+        if type(payload) is not dict or set(payload) != {"identity", "value"}:
+            raise ValueError("source.deliver requires exact identity and value fields")
+        if not isinstance(payload["identity"], str) or not payload["identity"]:
+            raise ValueError("source.deliver identity must be a non-empty string")
+        if isinstance(payload["value"], bool) or not isinstance(payload["value"], int):
+            raise ValueError("source.deliver value must be an integer")
+        return command
+
+    def load(self, context: ScenarioContext) -> GenerationStart[JoinedGeneration]:
+        del context
+        return GenerationStart(self._open(create=False), ())
+
+    def apply(
+        self,
+        generation: JoinedGeneration,
+        command: Command,
+        context: ScenarioContext,
+    ) -> ApplyResult:
+        payload = cast(dict[str, JsonValue], command.payload)
+        identity = cast(str, payload["identity"])
+        value = cast(int, payload["value"])
+        expected = self._configure_faults(generation, context)
+        try:
+            outcome = generation.engine.deliver(SOURCE, Token("External", value), identity=identity)
+        except OSError as error:
+            if str(error) not in expected:
+                raise
+            generation.poisoned = True
+            disposition = ActionDisposition.REFUSED_EXPECTED
+        else:
+            disposition = (
+                ActionDisposition.IDEMPOTENT if isinstance(outcome, PriorAcknowledgement) else ActionDisposition.APPLIED
+            )
+        attempt = cast(
+            dict[str, JsonValue],
+            {"disposition": disposition.value, "identity": identity, "value": value},
+        )
+        self.delivery_attempts.append(attempt)
+        return ApplyResult(
+            disposition=disposition.value,
+            value={"attempt": attempt, "frontier": self._frontier()},
+            scheduled=[],
+        )
+
+    def observe(
+        self,
+        generation: JoinedGeneration,
+        request: ObservationRequest,
+        context: ScenarioContext,
+    ) -> JsonValue:
+        del context
+        if request.name not in self._observations:
+            raise ValueError(f"unknown joined-delivery observation {request.name!r}")
+        if request.payload not in (None, {}):
+            raise ValueError("joined-delivery observations do not accept parameters")
+        state = self._observation_state(generation)
+        return {field: state[field] for field in self._observation_fields}
+
+    def _net(self) -> Net:
+        return delivery_application_net()
+
+    def _marking(self, *, create: bool) -> Marking | None:
+        del create
+        return None
+
+    def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
+        generation.connection.refuse_delivery_commit(message)
+
+    def _observation_state(self, generation: JoinedGeneration) -> dict[str, JsonValue]:
+        state = super()._observation_state(generation)
+        with psycopg.connect(self.dsn, autocommit=True) as probe:
+            records = PostgresHistoryStore(probe, INSTANCE_ID).records
+        deliveries = [
+            {
+                "identity": record.identity,
+                "occurrence": record.occurrence,
+                "value": record.tokens[0].data,
+            }
+            for record in records
+            if isinstance(record, ExternalEventDelivered)
+        ]
+        produced = [
+            token.data
+            for record in records
+            if isinstance(record, TokensProduced) and record.place == DONE
+            for token in record.tokens
+        ]
+        state.update(
+            {
+                "canonical_deliveries": deliveries,
+                "delivery_attempts": self.delivery_attempts,
+                "firing_completed": sum(isinstance(record, FiringCompleted) for record in records),
+                "produced_values": produced,
+            }
+        )
+        return state
+
+
+class JoinedDeliveryAckLossProfile(JoinedDeliveryRefusalProfile):
+    """Public Absurd profile losing acknowledgement after identified delivery acceptance."""
+
+    identity = DELIVERY_ACK_LOSS_PROFILE_IDENTITY
+    fault_name = "history.lose-ack"
+    fault_target = "delivery_accepted_committed"
+    fault_disposition = FaultDisposition.RAISE
+    _observations = {
+        "engine.joined-delivery-authority",
+        "joined-delivery-ack-lost",
+        "joined-delivery-ack-recovered",
+    }
+
+    def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
+        generation.connection.lose_delivery_commit_ack(message)
 
 
 class JoinedProjectionProfile(JoinedBeginProfile):
@@ -1828,6 +2087,81 @@ class JoinedCommitAuthorityChecker:
                 "prepare_calls": value["prepare_calls"],
                 "refused_joined_begins": refused,
                 "tasks_exact": tasks_exact,
+            },
+        )
+
+
+class JoinedDeliveryAuthorityChecker:
+    """Independent identified-delivery authority from PostgreSQL transaction facts."""
+
+    identity = DELIVERY_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.joined-delivery-authority", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        value = cast(dict[str, JsonValue], observation.value)
+        canonical = cast(list[dict[str, JsonValue]], value["canonical_deliveries"])
+        delivery_attempts = cast(list[dict[str, JsonValue]], value["delivery_attempts"])
+        transactions = cast(list[dict[str, JsonValue]], value["transaction_attempts"])
+        source_batch = ["ExternalEventDelivered", "FiringBegun", "TokensProduced", "FiringCompleted"]
+        transactions_exact = all(
+            attempt["dispatch_attempted"] is False and attempt["record_types"] == source_batch
+            for attempt in transactions
+        )
+        accepted = sum(attempt["accepted"] is True for attempt in transactions)
+        refused = sum(attempt["accepted"] is False for attempt in transactions)
+        refusal_faults = cast(int, value["delivery_refusals"])
+        ack_losses = cast(int, value["delivery_ack_losses"])
+        reported = [cast(str, attempt["disposition"]) for attempt in delivery_attempts]
+        if refusal_faults:
+            expected_transactions = [False] if accepted == 0 else [False, True]
+            expected_reported = [ActionDisposition.REFUSED_EXPECTED.value]
+            if accepted:
+                expected_reported.append(ActionDisposition.APPLIED.value)
+                if len(delivery_attempts) == 3:
+                    expected_reported.append(ActionDisposition.IDEMPOTENT.value)
+        elif ack_losses:
+            expected_transactions = [True]
+            expected_reported = [ActionDisposition.REFUSED_EXPECTED.value]
+            if len(delivery_attempts) == 2:
+                expected_reported.append(ActionDisposition.IDEMPOTENT.value)
+        else:
+            expected_transactions = []
+            expected_reported = []
+        transaction_acceptance = [cast(bool, attempt["accepted"]) for attempt in transactions]
+        if accepted and delivery_attempts:
+            first = delivery_attempts[0]
+            expected_canonical: list[dict[str, JsonValue]] = [
+                {
+                    "identity": first["identity"],
+                    "occurrence": 1,
+                    "value": first["value"],
+                }
+            ]
+            expected_values: list[JsonValue] = [first["value"]]
+        else:
+            expected_canonical = []
+            expected_values = []
+        passed = (
+            transactions_exact
+            and transaction_acceptance == expected_transactions
+            and reported == expected_reported
+            and canonical == expected_canonical
+            and cast(list[JsonValue], value["produced_values"]) == expected_values
+            and cast(int, value["firing_completed"]) == accepted
+            and refused == refusal_faults <= 1
+            and ack_losses <= accepted <= 1
+            and refusal_faults + ack_losses <= 1
+        )
+        return CheckResult(
+            passed=passed,
+            detail={
+                "accepted_transactions": accepted,
+                "ack_losses": ack_losses,
+                "canonical_deliveries": canonical,
+                "expected_deliveries": expected_canonical,
+                "refused_transactions": refused,
+                "reported_dispositions": reported,
+                "transactions_exact": transactions_exact,
             },
         )
 
@@ -2867,6 +3201,148 @@ def build_joined_ack_loss_artifact(dsn: str) -> ScenarioArtifactV3:
     world, _, _ = execute_joined_ack_loss_story(dsn)
     try:
         artifact = world.artifact(ACK_LOSS_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_joined_delivery_refusal_story(
+    dsn: str,
+) -> tuple[World, JoinedDeliveryRefusalProfile, Timeline]:
+    """Refuse one identified delivery, reload, then accept and redeliver once."""
+
+    profile = JoinedDeliveryRefusalProfile(dsn)
+    world = World(profile, WORLD_BUDGET, checkers=(JoinedDeliveryAuthorityChecker(),))
+    timeline = world.timeline()
+    payload = {"identity": "event-3", "value": 3}
+
+    timeline.activate_fault(
+        "history.commit-refuse",
+        "delivery_accepted",
+        disposition=FaultDisposition.REFUSE,
+        payload={"message": "dst joined delivery commit refused"},
+    )
+    refused_command = timeline.command("source.deliver", payload)
+    assert refused_command.disposition == ActionDisposition.REFUSED_EXPECTED.value
+    refused = timeline.observe("joined-delivery-refused")
+    refused_value = cast(dict[str, JsonValue], refused.value)
+    assert refused_value["canonical_deliveries"] == []
+    assert refused_value["produced_values"] == []
+    assert refused_value["frontier"] == 2
+    assert refused_value["delivery_refusals"] == 1
+    assert refused_value["delivery_ack_losses"] == 0
+    assert refused_value["transaction_attempts"] == [
+        {
+            "accepted": False,
+            "dispatch_attempted": False,
+            "record_types": ["ExternalEventDelivered", "FiringBegun", "TokensProduced", "FiringCompleted"],
+        }
+    ]
+    assert refused_value["status"] == "poisoned"
+
+    stale = timeline
+    timeline.crash("joined_delivery_commit_refused")
+    world.restart()
+    timeline = world.timeline()
+    accepted_command = timeline.command("source.deliver", payload)
+    assert accepted_command.disposition == ActionDisposition.APPLIED.value
+    recovered = timeline.observe("joined-delivery-recovered")
+    recovered_value = cast(dict[str, JsonValue], recovered.value)
+    assert recovered_value["canonical_deliveries"] == [{"identity": "event-3", "occurrence": 1, "value": 3}]
+    assert recovered_value["produced_values"] == [3]
+    assert recovered_value["firing_completed"] == 1
+    accepted_frontier = recovered_value["frontier"]
+
+    duplicate = timeline.command("source.deliver", payload)
+    assert duplicate.disposition == ActionDisposition.IDEMPOTENT.value
+    redelivered = timeline.observe("joined-delivery-redelivered")
+    redelivered_value = cast(dict[str, JsonValue], redelivered.value)
+    assert redelivered_value["frontier"] == accepted_frontier
+    assert redelivered_value["canonical_deliveries"] == recovered_value["canonical_deliveries"]
+    assert [
+        attempt["disposition"] for attempt in cast(list[dict[str, JsonValue]], redelivered_value["delivery_attempts"])
+    ] == [
+        ActionDisposition.REFUSED_EXPECTED.value,
+        ActionDisposition.APPLIED.value,
+        ActionDisposition.IDEMPOTENT.value,
+    ]
+
+    timeline.finish(Disposition.EXTERNAL_WAIT)
+    return world, profile, stale
+
+
+def build_joined_delivery_refusal_artifact(dsn: str) -> ScenarioArtifactV3:
+    world, _, _ = execute_joined_delivery_refusal_story(dsn)
+    try:
+        artifact = world.artifact(DELIVERY_REFUSAL_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_joined_delivery_ack_loss_story(
+    dsn: str,
+) -> tuple[World, JoinedDeliveryAckLossProfile, Timeline]:
+    """Lose one accepted delivery acknowledgement and redeliver after load."""
+
+    profile = JoinedDeliveryAckLossProfile(dsn)
+    world = World(profile, WORLD_BUDGET, checkers=(JoinedDeliveryAuthorityChecker(),))
+    timeline = world.timeline()
+    payload = {"identity": "event-3", "value": 3}
+
+    timeline.activate_fault(
+        "history.lose-ack",
+        "delivery_accepted_committed",
+        disposition=FaultDisposition.RAISE,
+        payload={"message": "dst joined delivery acknowledgement lost"},
+    )
+    lost_command = timeline.command("source.deliver", payload)
+    assert lost_command.disposition == ActionDisposition.REFUSED_EXPECTED.value
+    lost = timeline.observe("joined-delivery-ack-lost")
+    lost_value = cast(dict[str, JsonValue], lost.value)
+    assert lost_value["canonical_deliveries"] == [{"identity": "event-3", "occurrence": 1, "value": 3}]
+    assert lost_value["produced_values"] == [3]
+    assert lost_value["frontier"] == 6
+    assert lost_value["delivery_refusals"] == 0
+    assert lost_value["delivery_ack_losses"] == 1
+    assert lost_value["transaction_attempts"] == [
+        {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["ExternalEventDelivered", "FiringBegun", "TokensProduced", "FiringCompleted"],
+        }
+    ]
+    assert lost_value["status"] == "poisoned"
+
+    stale = timeline
+    timeline.crash("joined_delivery_committed_ack_lost")
+    world.restart()
+    timeline = world.timeline()
+    duplicate = timeline.command("source.deliver", payload)
+    assert duplicate.disposition == ActionDisposition.IDEMPOTENT.value
+    recovered = timeline.observe("joined-delivery-ack-recovered")
+    recovered_value = cast(dict[str, JsonValue], recovered.value)
+    assert recovered_value["frontier"] == lost_value["frontier"]
+    assert recovered_value["canonical_deliveries"] == lost_value["canonical_deliveries"]
+    assert recovered_value["produced_values"] == [3]
+    assert recovered_value["firing_completed"] == 1
+    assert [
+        attempt["disposition"] for attempt in cast(list[dict[str, JsonValue]], recovered_value["delivery_attempts"])
+    ] == [
+        ActionDisposition.REFUSED_EXPECTED.value,
+        ActionDisposition.IDEMPOTENT.value,
+    ]
+
+    timeline.finish(Disposition.EXTERNAL_WAIT)
+    return world, profile, stale
+
+
+def build_joined_delivery_ack_loss_artifact(dsn: str) -> ScenarioArtifactV3:
+    world, _, _ = execute_joined_delivery_ack_loss_story(dsn)
+    try:
+        artifact = world.artifact(DELIVERY_ACK_LOSS_SCENARIO_ID)
         assert isinstance(artifact, ScenarioArtifactV3)
         return artifact
     finally:

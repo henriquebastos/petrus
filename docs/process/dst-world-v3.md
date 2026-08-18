@@ -382,6 +382,42 @@ authored external delivery. The retained route returns `outcome: "pass"`,
 and digest
 `sha256:b69cd6760d3a1818f4cbfcc5f531d7ad3c970b0e383c5b5ba0abd62a0ff47c92`.
 
+### Joined identified-delivery commit refusal
+
+[`joined-delivery-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-delivery-commit-refusal-world-v3.json)
+qualifies the refused side of the real Absurd/PostgreSQL source-delivery
+boundary. Production prepares one identified `ExternalEventDelivered` and its
+complete source firing, but the test connection refuses the transaction before
+PostgreSQL accepts it. Detached truth retains only construction records: no
+accepted identity, produced token, or completed source firing.
+
+After revocation and abrupt drop, fresh public `load_engine` accepts the same
+identity and payload once. A further exact redelivery returns
+`PriorAcknowledgement` without another transaction, occurrence, token, or
+History record. The independent checker equates canonical delivery/projection
+facts with accepted or refused transaction attempts and rejects a canonical
+identity backed only by rollback. The retained route returns `outcome: "pass"`,
+`external_wait`, 10 operations, 17 journal entries including 7 checker
+evaluations, and digest
+`sha256:c4a340a7e6426a799f03767648cb8068424ab88b947b84f2ad50e7a91c6856ec`.
+
+### Joined identified-delivery acknowledgement loss
+
+[`joined-delivery-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-delivery-ack-loss-world-v3.json)
+proves the accepted side of that boundary. Production commits one identified
+external event and its source firing, then the test connection raises as if the
+commit acknowledgement were lost. Detached PostgreSQL truth shows exactly one
+identity, occurrence, produced token, and completed source firing while the
+writing Engine poisons.
+
+Fresh public `load_engine` reconstructs that accepted identity. Exact
+redelivery returns `PriorAcknowledgement` and leaves the six-record frontier
+unchanged. The same independent checker requires acknowledgement loss to have
+one accepted transaction and rejects acknowledgement-loss evidence without
+canonical truth. The retained route returns `outcome: "pass"`, `external_wait`,
+8 operations, 14 journal entries including 6 checker evaluations, and digest
+`sha256:317898902bb290ff5f6a40fb37183f7ef461932c3171a3351f588f986fed1f7f`.
+
 ### Joined begin acknowledgement loss
 
 [`joined-begin-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-begin-ack-loss-world-v3.json)
@@ -602,11 +638,10 @@ operations, 31 journal entries including 12 checker evaluations, and digest
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. Thirteen joined-provider profiles now prove real joined-transaction
+generator. Fifteen joined-provider profiles now prove real joined-transaction
 commit refusal, pre-commit task-spawn failure, post-commit begin
-acknowledgement loss, paired completed-terminal commit refusal/acknowledgement
-loss, paired failed-terminal commit refusal/acknowledgement loss, paired
-projection commit refusal/acknowledgement loss, paired canonical reset commit
+acknowledgement loss, paired identified-delivery, completed-terminal,
+failed-terminal, projection, and canonical-reset commit
 refusal/acknowledgement loss, plus both refused and
 accepted-but-unacknowledged post-reset cancellation-tombstone recovery without
 widening the World contract; the broader delivery, Dispatch, lifecycle, and

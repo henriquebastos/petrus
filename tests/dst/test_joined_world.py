@@ -18,6 +18,8 @@ from tests.dst.joined_world import (
     ACK_LOSS_SCENARIO_ID,
     CANCELLATION_ACK_LOSS_SCENARIO_ID,
     CANCELLATION_SCENARIO_ID,
+    DELIVERY_ACK_LOSS_SCENARIO_ID,
+    DELIVERY_REFUSAL_SCENARIO_ID,
     DISPATCH_SCENARIO_ID,
     FAILURE_ACK_LOSS_SCENARIO_ID,
     FAILURE_REFUSAL_SCENARIO_ID,
@@ -37,6 +39,9 @@ from tests.dst.joined_world import (
     JoinedCancellationAuthorityChecker,
     JoinedCancellationProfile,
     JoinedCommitAuthorityChecker,
+    JoinedDeliveryAckLossProfile,
+    JoinedDeliveryAuthorityChecker,
+    JoinedDeliveryRefusalProfile,
     JoinedDispatchProfile,
     JoinedAcceptedFailureAuthorityChecker,
     JoinedFailureAckLossProfile,
@@ -58,6 +63,8 @@ from tests.dst.joined_world import (
     build_joined_cancellation_ack_loss_artifact,
     build_joined_dispatch_artifact,
     build_joined_cancellation_artifact,
+    build_joined_delivery_ack_loss_artifact,
+    build_joined_delivery_refusal_artifact,
     build_joined_failure_ack_loss_artifact,
     build_joined_failure_refusal_artifact,
     build_joined_projection_ack_loss_artifact,
@@ -82,6 +89,8 @@ TERMINAL_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-terminal-ack-loss-wo
 TERMINAL_REFUSAL_FIXTURE = Path("tests/dst/fixtures/joined-terminal-commit-refusal-world-v3.json")
 CANCELLATION_FIXTURE = Path("tests/dst/fixtures/joined-cancellation-commit-refusal-world-v3.json")
 CANCELLATION_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-cancellation-ack-loss-world-v3.json")
+DELIVERY_REFUSAL_FIXTURE = Path("tests/dst/fixtures/joined-delivery-commit-refusal-world-v3.json")
+DELIVERY_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-delivery-ack-loss-world-v3.json")
 
 
 def test_joined_begin_commit_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
@@ -204,6 +213,120 @@ def test_joined_accepted_begin_checker_refuses_ack_loss_without_durable_truth() 
     assert result.passed is False
     assert result.detail["ack_losses"] == 1
     assert result.detail["accepted_begins"] == 0
+
+
+def test_joined_delivery_commit_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
+    with isolated_absurd_database(absurd_dsn) as authored_dsn:
+        artifact = build_joined_delivery_refusal_artifact(authored_dsn)
+
+    assert artifact.scenario_id == DELIVERY_REFUSAL_SCENARIO_ID
+    assert artifact.origin is None
+    assert encode_artifact(artifact) == DELIVERY_REFUSAL_FIXTURE.read_bytes().rstrip(b"\n")
+
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedDeliveryRefusalProfile(replay_dsn))
+        registry.register_checker(JoinedDeliveryAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.version == RESULT_VERSION
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.EXTERNAL_WAIT.value
+    assert result.operations == len(artifact.operations)
+
+
+def test_retained_joined_delivery_refusal_replays_without_the_authored_scenario(absurd_dsn: str) -> None:
+    artifact = load_artifact(DELIVERY_REFUSAL_FIXTURE)
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedDeliveryRefusalProfile(replay_dsn))
+        registry.register_checker(JoinedDeliveryAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.scenario_id == DELIVERY_REFUSAL_SCENARIO_ID
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.EXTERNAL_WAIT.value
+
+
+def test_joined_delivery_ack_loss_is_exact_and_replayable(absurd_dsn: str) -> None:
+    with isolated_absurd_database(absurd_dsn) as authored_dsn:
+        artifact = build_joined_delivery_ack_loss_artifact(authored_dsn)
+
+    assert artifact.scenario_id == DELIVERY_ACK_LOSS_SCENARIO_ID
+    assert artifact.origin is None
+    assert encode_artifact(artifact) == DELIVERY_ACK_LOSS_FIXTURE.read_bytes().rstrip(b"\n")
+
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedDeliveryAckLossProfile(replay_dsn))
+        registry.register_checker(JoinedDeliveryAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.version == RESULT_VERSION
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.EXTERNAL_WAIT.value
+    assert result.operations == len(artifact.operations)
+
+
+def test_retained_joined_delivery_ack_loss_replays_without_the_authored_scenario(absurd_dsn: str) -> None:
+    artifact = load_artifact(DELIVERY_ACK_LOSS_FIXTURE)
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedDeliveryAckLossProfile(replay_dsn))
+        registry.register_checker(JoinedDeliveryAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.scenario_id == DELIVERY_ACK_LOSS_SCENARIO_ID
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.EXTERNAL_WAIT.value
+
+
+def test_joined_delivery_checker_refuses_phantom_acceptance_and_ack_loss() -> None:
+    checker = JoinedDeliveryAuthorityChecker()
+    refused_only = Observation(
+        name="engine.joined-delivery-authority",
+        value={
+            "canonical_deliveries": [{"identity": "event-3", "occurrence": 1, "value": 3}],
+            "delivery_ack_losses": 0,
+            "delivery_attempts": [{"disposition": "refused_expected", "identity": "event-3", "value": 3}],
+            "delivery_refusals": 1,
+            "firing_completed": 1,
+            "produced_values": [3],
+            "transaction_attempts": [
+                {
+                    "accepted": False,
+                    "dispatch_attempted": False,
+                    "record_types": ["ExternalEventDelivered", "FiringBegun", "TokensProduced", "FiringCompleted"],
+                }
+            ],
+        },
+        instant=0,
+        generation=1,
+        sequence=0,
+    )
+    ack_without_acceptance = Observation(
+        name="engine.joined-delivery-authority",
+        value={
+            "canonical_deliveries": [],
+            "delivery_ack_losses": 1,
+            "delivery_attempts": [{"disposition": "refused_expected", "identity": "event-3", "value": 3}],
+            "delivery_refusals": 0,
+            "firing_completed": 0,
+            "produced_values": [],
+            "transaction_attempts": [],
+        },
+        instant=0,
+        generation=1,
+        sequence=0,
+    )
+
+    phantom_result: CheckResult = checker.check(refused_only)
+    missing_result: CheckResult = checker.check(ack_without_acceptance)
+
+    assert phantom_result.passed is False
+    assert phantom_result.detail["accepted_transactions"] == 0
+    assert missing_result.passed is False
+    assert missing_result.detail["ack_losses"] == 1
 
 
 def test_joined_terminal_commit_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
