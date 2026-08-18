@@ -49,6 +49,7 @@ SCENARIO_ID = "projection-crash-recovery-world-v3"
 SEEDED_SCENARIO_ID = "seeded-projection-crash-recovery-world-v3"
 SCENARIO_SEED = 1729
 HISTORY_REFUSAL_SCENARIO_ID = "history-refusal-crash-recovery-world-v3"
+HISTORY_ACK_LOSS_SCENARIO_ID = "history-ack-loss-recovery-world-v3"
 INVARIANT_FAILURE_SCENARIO_ID = "terminal-checker-failure-world-v2"
 BUDGET_FAILURE_SCENARIO_ID = "action-budget-exhaustion-world-v2"
 
@@ -104,6 +105,27 @@ HISTORY_REFUSAL_PROFILE_IDENTITY = ProfileIdentity(
         }
     ),
 )
+HISTORY_ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.history-ack-loss-recovery",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": ["engine.complete", "engine.drive"],
+            "fault": {
+                "disposition": "raise",
+                "name": "history.lose-ack",
+                "target": "activity_terminal_frozen",
+            },
+            "instance": INSTANCE_ID,
+            "observations": [
+                "activity-requested",
+                "engine.accepted-commit-authority",
+                "terminal-ack-lost",
+                "terminal-recovered",
+            ],
+        }
+    ),
+)
 CHECKER_IDENTITY = CheckerIdentity(
     name="petrus.engine.history-order",
     version=1,
@@ -125,6 +147,18 @@ COMMIT_AUTHORITY_CHECKER_IDENTITY = CheckerIdentity(
             "property": (
                 "activity terminals and projections never exceed authored terminal deliveries "
                 "minus pre-commit history refusals"
+            )
+        }
+    ),
+)
+ACCEPTED_COMMIT_AUTHORITY_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.accepted-commit-authority",
+    version=1,
+    digest=digest_json(
+        {
+            "property": (
+                "a post-commit acknowledgement loss implies one durable terminal, "
+                "which remains bounded by authored terminal delivery"
             )
         }
     ),
@@ -215,6 +249,39 @@ class RefusingJsonlHistoryStore:
         self._delegate.extend(records)
 
     def refuse_terminal(self, message: str) -> None:
+        self._terminal_error = message
+
+
+class AckLosingJsonlHistoryStore:
+    """JSONL delegate which loses one acknowledgement after durable acceptance."""
+
+    def __init__(self, path: Path, on_ack_loss: Callable[[], None]) -> None:
+        self._delegate = JsonlHistoryStore(path)
+        self._on_ack_loss = on_ack_loss
+        self._terminal_error: str | None = None
+
+    @property
+    def records(self) -> tuple[Record, ...]:
+        return self._delegate.records
+
+    def __iter__(self) -> Iterator[Record]:
+        return iter(self._delegate)
+
+    def __len__(self) -> int:
+        return len(self._delegate)
+
+    def append(self, record: Record) -> None:
+        self._delegate.append(record)
+        if self._terminal_error is not None and isinstance(record, (ActivityCompleted, ActivityFailed)):
+            message = self._terminal_error
+            self._terminal_error = None
+            self._on_ack_loss()
+            raise OSError(message)
+
+    def extend(self, records: list[Record]) -> None:
+        self._delegate.extend(records)
+
+    def lose_terminal_ack(self, message: str) -> None:
         self._terminal_error = message
 
 
@@ -536,6 +603,85 @@ class HistoryRefusalEngineProfile(EngineProfile):
         return tuple(expected)
 
 
+class HistoryAckLossEngineProfile(EngineProfile):
+    """Public-Engine profile with one terminal append accepted before its acknowledgement is lost."""
+
+    identity = HISTORY_ACK_LOSS_PROFILE_IDENTITY
+    observation_fields = {
+        "activity-requested": EngineProfile.observation_fields["activity-requested"],
+        "engine.accepted-commit-authority": (
+            "record_types",
+            "terminal_ack_losses",
+            "terminal_deliveries",
+        ),
+        "terminal-ack-lost": (
+            "bridge",
+            "frontier",
+            "record_types",
+            "status",
+            "terminal_ack_losses",
+            "terminal_deliveries",
+        ),
+        "terminal-recovered": EngineProfile.observation_fields["terminal"],
+    }
+
+    def __init__(self, history_path: Path):
+        super().__init__(history_path)
+        self.terminal_deliveries = 0
+        self.terminal_ack_losses = 0
+
+    def validate_fault(self, fault: Fault) -> Fault:
+        if (
+            fault.name != "history.lose-ack"
+            or fault.target != "activity_terminal_frozen"
+            or fault.disposition != FaultDisposition.RAISE.value
+            or type(fault.payload) is not dict
+            or set(fault.payload) != {"message"}
+            or not isinstance(fault.payload["message"], str)
+        ):
+            raise ValueError("unsupported History acknowledgement-loss Engine profile fault")
+        return fault
+
+    def _observation_state(self, generation: EngineGeneration) -> dict[str, JsonValue]:
+        state = super()._observation_state(generation)
+        state.update(
+            {
+                "terminal_ack_losses": self.terminal_ack_losses,
+                "terminal_deliveries": self.terminal_deliveries,
+            }
+        )
+        return state
+
+    def _history(self, context: ScenarioContext) -> HistoryStore:
+        del context
+        return AckLosingJsonlHistoryStore(self.history_path, self._terminal_ack_lost)
+
+    def _terminal_ready(self) -> None:
+        self.terminal_deliveries += 1
+
+    def _terminal_ack_lost(self) -> None:
+        self.terminal_ack_losses += 1
+
+    def _configure_faults(
+        self, generation: EngineGeneration, context: ScenarioContext
+    ) -> tuple[tuple[type[Exception], str], ...]:
+        expected = []
+        for fault in context.faults("activity_terminal_frozen"):
+            if fault.name != "history.lose-ack" or fault.disposition != FaultDisposition.RAISE.value:
+                raise ValueError(f"unsupported History acknowledgement-loss fault {fault.name!r}")
+            if type(fault.payload) is not dict or set(fault.payload) != {"message"}:
+                raise ValueError("history.lose-ack requires an exact message payload")
+            message = fault.payload["message"]
+            if not isinstance(message, str):
+                raise ValueError("history.lose-ack message must be a string")
+            history = generation.history
+            if not isinstance(history, AckLosingJsonlHistoryStore):
+                raise TypeError("History acknowledgement-loss profile requires its faulting adapter")
+            history.lose_terminal_ack(message)
+            expected.append((OSError, message))
+        return tuple(expected)
+
+
 class EngineHistoryChecker:
     """Independent ordering checker over detached canonical record names."""
 
@@ -584,6 +730,31 @@ class CommitAuthorityChecker:
                 "authored_terminal_deliveries": deliveries,
                 "firing_completed": projected,
                 "history_refusals": refusals,
+            },
+        )
+
+
+class AcceptedCommitAuthorityChecker:
+    """Treat the adapter's post-commit callback as independent durable acceptance evidence."""
+
+    identity = ACCEPTED_COMMIT_AUTHORITY_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.accepted-commit-authority", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        value = cast(dict[str, JsonValue], observation.value)
+        records = cast(list[JsonValue], value["record_types"])
+        deliveries = cast(int, value["terminal_deliveries"])
+        ack_losses = cast(int, value["terminal_ack_losses"])
+        terminals = records.count(ActivityCompleted.__name__) + records.count(ActivityFailed.__name__)
+        projected = records.count(FiringCompleted.__name__)
+        passed = 0 <= ack_losses <= deliveries <= 1 and ack_losses <= terminals <= deliveries and projected <= terminals
+        return CheckResult(
+            passed=passed,
+            detail={
+                "durable_activity_terminals": terminals,
+                "firing_completed": projected,
+                "terminal_ack_losses": ack_losses,
+                "terminal_deliveries": deliveries,
             },
         )
 
@@ -756,6 +927,62 @@ def build_history_refusal_artifact(history_path: Path) -> ScenarioArtifact:
     world, _, _ = execute_history_refusal_story(history_path)
     try:
         return world.artifact(HISTORY_REFUSAL_SCENARIO_ID)
+    finally:
+        world.close()
+
+
+def execute_history_ack_loss_story(
+    history_path: Path,
+) -> tuple[World, HistoryAckLossEngineProfile]:
+    """Lose a post-commit acknowledgement, crash, reload, and project the durable terminal."""
+
+    profile = HistoryAckLossEngineProfile(history_path)
+    world = World(profile, WORLD_BUDGET, checkers=(AcceptedCommitAuthorityChecker(),))
+    timeline = world.timeline()
+
+    requested = timeline.run_until(
+        "activity-requested",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["pending"] == [1],
+    )
+    assert cast(dict[str, JsonValue], requested.value)["frontier"] == 6
+
+    timeline.activate_fault(
+        "history.lose-ack",
+        "activity_terminal_frozen",
+        disposition=FaultDisposition.RAISE,
+        payload={"message": "dst terminal acknowledgement lost"},
+    )
+    timeline.command("engine.complete", {"occurrence": 1, "result": {"value": 3}})
+    lost = timeline.run_until(
+        "terminal-ack-lost",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["status"] == "poisoned",
+    )
+    lost_value = cast(dict[str, JsonValue], lost.value)
+    assert lost_value["frontier"] == 7
+    assert lost_value["terminal_ack_losses"] == lost_value["terminal_deliveries"] == 1
+    assert cast(list[JsonValue], lost_value["record_types"]).count(ActivityCompleted.__name__) == 1
+    assert lost_value["bridge"] == {"prepared": 1, "projected": 0}
+
+    timeline.crash("terminal_commit_accepted_ack_lost")
+    world.restart()
+    timeline = world.timeline()
+    timeline.begin_fair()
+    terminal = timeline.run_until(
+        "terminal-recovered",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["status"] == "terminated",
+    )
+    terminal_value = cast(dict[str, JsonValue], terminal.value)
+    assert terminal_value["frontier"] == 9
+    assert terminal_value["bridge"] == {"prepared": 0, "projected": 1}
+    assert terminal_value["marking"] == [{"place": "done", "tokens": [{"color": "Done", "data": {"value": 3}}]}]
+    timeline.finish(Disposition.CONVERGED)
+    return world, profile
+
+
+def build_history_ack_loss_artifact(history_path: Path) -> ScenarioArtifact:
+    world, _ = execute_history_ack_loss_story(history_path)
+    try:
+        return world.artifact(HISTORY_ACK_LOSS_SCENARIO_ID)
     finally:
         world.close()
 

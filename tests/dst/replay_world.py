@@ -11,9 +11,11 @@ from petrus.testing.dst import ScenarioRegistry, load_artifact, replay
 from tests.dst.delayed_world import DelayedAuthorityChecker, DelayedEngineProfile
 from tests.dst.delivery_world import DeliveryAuthorityChecker, DeliveryEngineProfile
 from tests.dst.engine_world import (
+    AcceptedCommitAuthorityChecker,
     CommitAuthorityChecker,
     EngineHistoryChecker,
     EngineProfile,
+    HistoryAckLossEngineProfile,
     HistoryRefusalEngineProfile,
     TerminalRefusalChecker,
 )
@@ -33,6 +35,7 @@ def replay_path(path: Path):
         registry.register_profile(DelayedEngineProfile(Path(directory) / "delayed-history.jsonl"))
         registry.register_profile(DeliveryEngineProfile(Path(directory) / "delivery-history.jsonl"))
         registry.register_profile(EngineProfile(Path(directory) / "projection-history.jsonl"))
+        registry.register_profile(HistoryAckLossEngineProfile(Path(directory) / "history-ack-loss.jsonl"))
         registry.register_profile(HistoryRefusalEngineProfile(Path(directory) / "history-refusal.jsonl"))
         registry.register_profile(LifecycleEngineProfile(Path(directory) / "lifecycle-history.jsonl"))
         registry.register_profile(
@@ -48,6 +51,7 @@ def replay_path(path: Path):
             )
         )
         registry.register_profile(TimerEngineProfile(Path(directory) / "timer-history.jsonl"))
+        registry.register_checker(AcceptedCommitAuthorityChecker())
         registry.register_checker(CommitAuthorityChecker())
         registry.register_checker(DelayedAuthorityChecker())
         registry.register_checker(DeliveryAuthorityChecker())

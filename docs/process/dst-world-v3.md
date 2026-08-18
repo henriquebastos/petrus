@@ -244,6 +244,23 @@ route returns `outcome: "pass"`, `converged`, 17 operations, 27 journal entries
 including 9 checker evaluations, and digest
 `sha256:a89273aadcb2aeb48e60832d658e6ae37ef8a09c5dcb14298e16bdd2b398c007`.
 
+### Post-commit History acknowledgement loss
+
+[`history-ack-loss-recovery-world-v3.json`](../../tests/dst/fixtures/history-ack-loss-recovery-world-v3.json)
+is the accepted side of the History ambiguity pair. Its adapter delegates the
+terminal append to production `JsonlHistoryStore`, observes durable acceptance,
+then raises as if the acknowledgement were lost. The writing Engine poisons;
+the World reads only the adapter's durable detached records at that boundary,
+drops the generation, and resumes through public `Engine.load`. Projection then
+completes without terminal redelivery or handler preparation.
+
+The checker treats the adapter's post-delegate callback as independent durable
+acceptance evidence and bounds canonical terminal/projection records by the
+authored external delivery. The retained route returns `outcome: "pass"`,
+`converged`, 15 operations, 25 journal entries including 9 checker evaluations,
+and digest
+`sha256:b69cd6760d3a1818f4cbfcc5f531d7ad3c970b0e383c5b5ba0abd62a0ff47c92`.
+
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a

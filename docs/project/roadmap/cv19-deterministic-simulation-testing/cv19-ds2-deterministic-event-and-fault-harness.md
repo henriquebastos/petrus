@@ -2,7 +2,7 @@
 code: CV19.DS2
 level: Delivery Story
 status: Active
-status_reason: The accepted v3 World now proves terminal cuts, identified ingress, delayed external completion, lifecycle/timer reconstruction, and LocalDispatch custody; DS2 remains active for broader cuts/adapters/bounds
+status_reason: The accepted v3 World now proves paired pre/post-commit History cuts, identified ingress, delayed completion, lifecycle/timer reconstruction, and LocalDispatch custody; DS2 remains active for broader cuts/adapters/bounds
 updated: 2026-08-18
 related:
   - index.md
@@ -308,6 +308,19 @@ the World clock without treating it as Dispatch retry time:
    then replay 17 operations and 27 journal entries, including 9 independent
    checker evaluations, exactly.
 
+The ninth exact profile proves post-commit History acknowledgement loss:
+
+1. deliver one external Activity result and durably append its
+   `ActivityCompleted` record;
+2. lose the append acknowledgement after acceptance, poisoning the live Engine
+   while leaving canonical History one record ahead of its in-memory Instance;
+3. observe the durable terminal through the faulting History adapter, then
+   abruptly drop the ambiguous generation;
+4. load a fresh public Engine and complete projection from the accepted terminal
+   without another terminal delivery or handler preparation; and
+5. replay 15 operations and 25 journal entries, including 9 independent checker
+   evaluations, exactly.
+
 All authored support and retained evidence live together under `tests/dst/`.
 The application profile returns detached follow-up proposals; only the World
 validates, orders, journals, and executes them. Checkers consume detached
@@ -336,11 +349,11 @@ seeded Engine scenario whose replay never consults the PRNG.
 | Done condition | Slice result |
 | --- | --- |
 | 1. Accepted defining-module compatibility surface | Met by the accepted decision, current `petrus.testing.dst/v3`, explicit v1/v2 constants/models, exact identities, no root/private exports, and the versioned [`dst-world-v3`](../../../process/dst-world-v3.md), [`dst-world-v2`](../../../process/dst-world-v2.md), and [`dst-world-v1`](../../../process/dst-world-v1.md) contracts. |
-| 2. Imperative story emits replay data | Met by the executable profiles under `tests/dst/` and retained projection, History-refusal, ingress-redelivery, delayed-terminal, lifecycle-race, timer-recovery, retry-exhaustion, and terminal-recollection fixtures. |
-| 3. Same-interpreter replay agreement | Met for all eight public-Engine crash/recovery stories, including exact operations, checker observations, dispositions, and journal digests. |
+| 2. Imperative story emits replay data | Met by the executable profiles under `tests/dst/` and retained projection, pre/post-commit History, ingress-redelivery, delayed-terminal, lifecycle-race, timer-recovery, retry-exhaustion, and terminal-recollection fixtures. |
+| 3. Same-interpreter replay agreement | Met for all nine public-Engine crash/recovery stories, including exact operations, checker observations, dispositions, and journal digests. |
 | 4. Seeded repeatability | Met: two fresh seed-1729 Engine runs produce the same expanded artifact; workload, fault, identifier, and event-order streams are independently pinned, and replay ignores changed seed provenance. |
 | 5. Abrupt generation reconstruction | Met for the public-Engine profile, including revoke-before-drop and stale Timeline refusal. |
-| 6. Named cuts before/after durable acceptance | Partial: paired History terminal cuts, identified ingress redelivery, delayed external completion, lifecycle and timer crash/reconstruction, zero-backoff LocalDispatch retry exhaustion, and provider-terminal custody before Engine collection are proved; the broader delivery, delayed retry, lifecycle, and transaction matrix remains. |
+| 6. Named cuts before/after durable acceptance | Partial: paired pre-commit refusal/post-commit acknowledgement-loss History cuts, identified ingress redelivery, delayed external completion, lifecycle and timer reconstruction, zero-backoff LocalDispatch retry exhaustion, and provider-terminal custody before Engine collection are proved; the broader delivery, delayed retry, lifecycle, and transaction matrix remains. |
 | 7. Complete bounds | Partial: action, queue, logical-time/advance, reload, predicate, and artifact limits are executable; profile-retained-data and wall-clock watchdog qualification remain. |
 | 8. Checker cadence and fair draining | Met for the vertical slice; broader independent S1–S8 checker coverage belongs to the remaining DS2/DS3 work. |
 | 9. Hermetic real-runtime execution | Met for the vertical slice: no credentials, providers, network sleeps, or substitute Petrus semantics. |
@@ -363,7 +376,7 @@ the authoring API and artifact are version 3.
 
 ### Executed evidence
 
-- `UV_FROZEN=1 uv run pytest -q tests/dst` — 82 passed.
+- `UV_FROZEN=1 uv run pytest -q tests/dst` — 85 passed.
 - `UV_FROZEN=1 uv run python -m tests.dst.replay_world
   tests/dst/fixtures/projection-crash-recovery-world-v1.json` — `pass`,
   `converged`, 15 operations, 25 journal entries, digest
@@ -408,9 +421,13 @@ the authoring API and artifact are version 3.
   returned `pass` / `converged`, 17 operations, 27 journal entries including 9
   checker evaluations, and digest
   `sha256:a89273aadcb2aeb48e60832d658e6ae37ef8a09c5dcb14298e16bdd2b398c007`.
-- `scripts/check full` — 2,263 passed.
-- `scripts/check release` — default order 2,263 passed; additional fixed order
-  2,263 passed with 17 intentionally deselected by the release profile.
+- The same replay route over `history-ack-loss-recovery-world-v3.json`
+  returned `pass` / `converged`, 15 operations, 25 journal entries including 9
+  checker evaluations, and digest
+  `sha256:b69cd6760d3a1818f4cbfcc5f531d7ad3c970b0e383c5b5ba0abd62a0ff47c92`.
+- `scripts/check full` — 2,266 passed.
+- `scripts/check release` — default order 2,266 passed; additional fixed order
+  2,266 passed with 17 intentionally deselected by the release profile.
 - `UV_FROZEN=1 uv run ast-grep test --skip-snapshot-tests` — all 19
   architectural rule fixtures passed, including the runtime-neutral supported
   test-kit boundary.
