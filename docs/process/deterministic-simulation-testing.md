@@ -391,13 +391,15 @@ publish claims in two columns:
 Neither column substitutes for the other. “DST passed” without the profile,
 bounds, semantic matrix, and replay artifact is not a release claim.
 
-The retained joined-begin artifacts deliberately occupy both columns without
-merging their claims: the World supplies deterministic fault, generation,
-checker, and replay mechanics, while the exact profiles run the public Absurd
-Engine provider against disposable PostgreSQL. They qualify only the pinned
-commit-refusal and task-spawn-failure paths through the begin+spawn
-commit-or-vanish boundary and fresh-load repair. They do not simulate or claim
-PostgreSQL power loss, Worker execution, transport, or provider-wide fidelity.
+The retained joined-provider artifacts deliberately occupy both columns
+without merging their claims: the World supplies deterministic fault,
+generation, checker, and replay mechanics, while the exact profiles run the
+public Absurd Engine provider against disposable PostgreSQL. Two qualify the
+pinned commit-refusal and task-spawn-failure paths through the begin+spawn
+commit-or-vanish boundary. A third uses a real Absurd Worker to accept one
+terminal, refuses the later projection commit, and proves fresh-load projection
+without another Worker completion or handler preparation. They do not simulate
+or claim PostgreSQL power loss, transport, or provider-wide fidelity.
 
 ## Correctness position
 
