@@ -103,7 +103,10 @@ Consumers of the supported executable-World test kit must also follow its
 current versioned [`petrus.testing.dst/v4` contract](dst-world-v4.md); retained
 version 1 through 3 artifacts continue to follow
 [`dst-world-v1`](dst-world-v1.md), [`dst-world-v2`](dst-world-v2.md), and
-[`dst-world-v3`](dst-world-v3.md).
+[`dst-world-v3`](dst-world-v3.md). Complete scenarios whose profile calls can
+block use the separate process-isolated
+[`petrus.testing.dst.runner/v1`](dst-process-runner-v1.md) watchdog rather than
+an in-process thread or signal timeout.
 
 Production correctness must not depend on Python `assert`: use explicit
 validation, refusal, or failure behavior because optimized Python may remove

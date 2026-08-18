@@ -2,7 +2,7 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 is Done and DS2's supported v3 World now adds paired History commit cuts, identified ingress, delayed external completion, lifecycle/timer reconstruction, and LocalDispatch custody; broader adapters/bounds and DS3–DS4 remain active
+status_reason: CV19.DS1 is Done and DS2 now ships bounded World v4 plus independently versioned process containment; broader fault adapters/provider-time work and DS3–DS4 remain active
 updated: 2026-08-18
 related:
   - ../../../../src/petrus/simulation.py
@@ -141,8 +141,11 @@ the minimized expanded scenario becomes the durable regression fixture.
    implemented; version 2 retains exact action-budget/checker failures, and
    version 3 adds separable seeded authorities while replaying retained version
    1 and 2 artifacts unchanged. Version 4 adds exact profile-owned retained and
-   pending resource gauges while preserving version 1 through 3 replay. Paired
-   terminal-boundary profiles now prove a
+   pending resource gauges while preserving version 1 through 3 replay. The
+   separate runner v1 executes a complete World in a killable child, retains
+   synchronized acknowledged prefixes and unfinished attempts, and classifies
+   wall timeout as harness containment rather than a deterministic artifact.
+   Paired terminal-boundary profiles now prove a
    pre-commit History refusal beside post-commit projection recovery, and a
    lifecycle-reset profile proves crash reconstruction plus late-terminal
    quarantine/duplicate acknowledgement. A timer profile now proves loss and
@@ -158,8 +161,7 @@ the minimized expanded scenario becomes the durable regression fixture.
    after volatile queue loss and delivers once at the authored logical instant.
    A post-commit History profile loses an acknowledgement after durable terminal
    acceptance and recovers projection without redelivery. The broader fault/cut
-   matrix, wall-clock process containment, and provider-time compatibility keep
-   DS2 active.
+   matrix and provider-time compatibility keep DS2 active.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)
    adds broad and targeted workload generation, independent models/checkers,
    shrinking, semantic coverage, and durable replay fixtures.

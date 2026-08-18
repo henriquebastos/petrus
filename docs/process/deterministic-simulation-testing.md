@@ -13,7 +13,8 @@ recovery. A delayed external-terminal profile proves volatile queue loss,
 external-truth reconstruction, and logical-time delivery. Broader fault
 adapters now include paired pre-commit refusal and post-commit acknowledgement
 loss. Version 4 adds deterministic profile-retained-data and hidden-pending-work
-accounting; wall-clock process containment, generation, and campaign
+accounting, while outer runner version 1 adds process-isolated wall-clock
+containment with acknowledged-prefix diagnostics. Generation and campaign
 qualification remain.
 
 This document owns Petrus's deterministic simulation testing (DST) contract.
@@ -31,7 +32,8 @@ by [`dst-world-v4`](dst-world-v4.md); versions 1 through 3 remain supported for
 strict decode and replay under [`dst-world-v1`](dst-world-v1.md),
 [`dst-world-v2`](dst-world-v2.md), and [`dst-world-v3`](dst-world-v3.md). This
 document remains the authority for the cross-profile correctness properties,
-cuts, bounds, and evidence limits.
+cuts, bounds, and evidence limits. Nondeterministic wall-clock containment is
+specified separately by [`dst-process-runner-v1`](dst-process-runner-v1.md).
 
 ## Driver route for correctness-sensitive work
 
@@ -325,11 +327,11 @@ The History/token ceilings align with `implementation-free-v1`, and the time
 ceiling aligns with Motus's provider-neutral duration maximum. Version 4 lets
 each exact profile map these retained and pending ceilings to named gauges and
 replays an overage as `budget_exhausted`. The watchdog is a harness-failure
-guard, never a simulated timeout, and is not yet implemented: it requires the
-process-isolated acknowledged-prefix runner specified as remaining DS2 work in
-[`dst-world-v4`](dst-world-v4.md). Crossing its eventual ceiling cannot be
-fabricated as a deterministic artifact failure for a call which never
-returned.
+guard, never a simulated timeout. The process-isolated
+[`runner/v1`](dst-process-runner-v1.md) enforces the ceiling, terminates and
+reaps a hung child, and reports its acknowledged prefix plus unfinished
+attempt. Crossing the ceiling is never fabricated as a deterministic artifact
+failure for a call which did not return.
 
 Every scheduled event has one of these terminal application dispositions:
 `applied`, `idempotent`, `refused_expected`, `quarantined`,

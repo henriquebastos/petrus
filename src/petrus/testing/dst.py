@@ -8,8 +8,14 @@ from __future__ import annotations
 
 import hashlib
 import heapq
+import importlib
 import json
+import os
 import re
+import signal
+import subprocess
+import sys
+import tempfile
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -29,9 +35,16 @@ ARTIFACT_VERSION = 4
 RESULT_FORMAT = "petrus-dst-world-replay-result"
 RESULT_VERSION = 2
 MAX_ARTIFACT_BYTES = 4_194_304
+PROCESS_RUNNER_API_COMPATIBILITY = "petrus.testing.dst.runner/v1"
+PROCESS_RUNNER_PROTOCOL = "petrus-dst-process-runner"
+PROCESS_RUNNER_PROTOCOL_VERSION = 1
+PROCESS_RESULT_FORMAT = "petrus-dst-process-run-result"
+PROCESS_RESULT_VERSION = 1
+MAX_PROCESS_PROGRESS_BYTES = 16_777_216
 
 _NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_.:-]*$")
 _DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
+_ENTRYPOINT = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*:[A-Za-z_][A-Za-z0-9_]*$")
 _MAX_PORTABLE_INTEGER = 2**53 - 1
 
 type _ActionDisposition = Literal["applied", "idempotent", "refused_expected", "quarantined"]
@@ -507,6 +520,34 @@ type OperationAttempt = Annotated[
 ]
 
 
+class ConstructAttempt(_StrictModel):
+    """Outer-runner acknowledgement before initial World construction."""
+
+    kind: Literal["construct"]
+
+
+class CloseAttempt(_StrictModel):
+    """Outer-runner acknowledgement before graceful profile cleanup."""
+
+    kind: Literal["close"]
+    generation: int = Field(ge=1)
+
+
+type ProcessAttempt = Annotated[
+    SubmitAttempt
+    | StepAttempt
+    | FaultAttempt
+    | ObserveAttempt
+    | CrashAttempt
+    | RestartAttempt
+    | FairAttempt
+    | FinishAttempt
+    | ConstructAttempt
+    | CloseAttempt,
+    Field(discriminator="kind"),
+]
+
+
 class BudgetFailure(_StrictModel):
     kind: Literal["budget_exhausted"]
     bound: str
@@ -948,6 +989,14 @@ class ScenarioRegistry:
         return tuple(resolved)
 
 
+class _WorldProgress(Protocol):
+    """Synchronous process-runner acknowledgements at legal World boundaries."""
+
+    def attempt(self, attempt: ProcessAttempt) -> None: ...
+
+    def boundary(self, world: World) -> None: ...
+
+
 class World:
     """One deterministic interpreter over an application-owned runtime profile."""
 
@@ -958,10 +1007,12 @@ class World:
         *,
         checkers: tuple[Checker, ...] = (),
         seed: int | None = None,
+        _process_progress: _WorldProgress | None = None,
     ):
         self.profile = profile
         self.budget = budget
         self.checkers = checkers
+        self._process_progress = _process_progress
         self._choices = None if seed is None else ChoiceStreams(seed)
         checker_keys = [_identity_key(checker.identity) for checker in checkers]
         if len(checker_keys) != len(set(checker_keys)):
@@ -985,9 +1036,11 @@ class World:
         self._fair = False
         self._disposition: Disposition | None = None
         try:
+            self._notify_attempt(ConstructAttempt(kind="construct"))
             self._sample_resources(None, "before_create")
             started = self._invoke(self.profile.create, self._context)
             self._install_generation(started, loaded=False)
+            self._notify_boundary()
         except BaseException:
             if self._generation is not None:
                 generation = self._generation
@@ -1293,10 +1346,15 @@ class World:
         if self._generation is None:
             return
         generation = self._generation
+        generation_id = self._generation_id
+        if generation_id is None:
+            raise AssertionError("a live DST generation must have an identity")
+        self._notify_attempt(CloseAttempt(kind="close", generation=generation_id))
         self._generation = None
         self._generation_id = None
         self._queue.clear()
         self._invoke(self.profile.close, generation)
+        self._notify_boundary()
 
     def pending(self) -> list[JsonValue]:
         return [
@@ -1496,9 +1554,10 @@ class World:
         raise BudgetExhausted(bound, limit)
 
     def _attempt[ResultT](self, attempt: OperationAttempt, operation: Callable[[], ResultT]) -> ResultT:
+        self._notify_attempt(attempt)
         before = len(self._operations)
         try:
-            return operation()
+            result = operation()
         except (BudgetExhausted, InvariantViolation) as error:
             if isinstance(error, BudgetExhausted):
                 if self._disposition is not Disposition.BUDGET_EXHAUSTED:
@@ -1527,7 +1586,18 @@ class World:
             )
             self._operations.append(failure_operation)
             self._record("failure", failure.kind, failure_operation.model_dump(mode="json"))
+            self._notify_boundary()
             raise
+        self._notify_boundary()
+        return result
+
+    def _notify_attempt(self, attempt: ProcessAttempt) -> None:
+        if self._process_progress is not None:
+            self._process_progress.attempt(attempt)
+
+    def _notify_boundary(self) -> None:
+        if self._process_progress is not None:
+            self._process_progress.boundary(self)
 
     def _stable_id(self, namespace: str) -> str:
         if not self._inside_profile:
@@ -1641,6 +1711,634 @@ class Timeline:
 
 
 type AnyScenarioArtifact = ScenarioArtifactV1 | ScenarioArtifactV2 | ScenarioArtifactV3 | ScenarioArtifact
+
+
+class ProcessBudget(_StrictModel):
+    """Nondeterministic host-containment limits, separate from World budgets."""
+
+    wall_clock_ms: int = Field(ge=1, le=30_000)
+    termination_grace_ms: int = Field(ge=1, le=5_000)
+    input_bytes: int = Field(ge=1, le=MAX_ARTIFACT_BYTES)
+    progress_bytes: int = Field(ge=1, le=MAX_PROCESS_PROGRESS_BYTES)
+
+
+class ProcessRunSpec(_StrictModel):
+    """One importable complete-scenario invocation for the outer runner."""
+
+    scenario_id: str
+    entrypoint: str
+    payload: JsonValue
+    budget: ProcessBudget
+
+    @field_validator("scenario_id")
+    @classmethod
+    def valid_scenario_id(cls, value: str) -> str:
+        if not _NAME.fullmatch(value):
+            raise ValueError("process scenario id must be normalized and non-empty")
+        return value
+
+    @field_validator("entrypoint")
+    @classmethod
+    def valid_entrypoint(cls, value: str) -> str:
+        if not _ENTRYPOINT.fullmatch(value):
+            raise ValueError("process scenario entrypoint must be 'dotted.module:function'")
+        return value
+
+    @field_validator("payload", mode="before")
+    @classmethod
+    def strict_payload(cls, value: object) -> JsonValue:
+        return _strict_json(value, "process scenario payload")
+
+
+class ProcessWorldMetadata(_StrictModel):
+    """Detached identity of the one child-owned World."""
+
+    profile: ProfileIdentity
+    checkers: list[CheckerIdentity]
+    budget: Budget | BudgetV4
+    seed: int | None = Field(default=None, ge=0, le=_MAX_PORTABLE_INTEGER)
+
+
+class AcknowledgedPrefix(_StrictModel):
+    """Exact complete World boundaries durably acknowledged by the child."""
+
+    world: ProcessWorldMetadata | None
+    operations: list[ExpandedOperation]
+    journal: list[JournalEntry]
+    instant: int = Field(ge=0, le=_MAX_PORTABLE_INTEGER)
+    generation: int | None = Field(ge=1)
+    disposition: _EndingDisposition | None
+
+    @model_validator(mode="after")
+    def coherent(self) -> AcknowledgedPrefix:
+        if [operation.position for operation in self.operations] != list(range(len(self.operations))):
+            raise ValueError("acknowledged operation positions must be dense and zero-based")
+        if [entry.position for entry in self.journal] != list(range(len(self.journal))):
+            raise ValueError("acknowledged journal positions must be dense and zero-based")
+        if self.world is None and (self.operations or self.journal or self.generation is not None):
+            raise ValueError("acknowledged World progress requires World metadata")
+        return self
+
+    @property
+    def last_operation(self) -> ExpandedOperation | None:
+        return self.operations[-1] if self.operations else None
+
+    @property
+    def last_journal_entry(self) -> JournalEntry | None:
+        return self.journal[-1] if self.journal else None
+
+    @property
+    def last_resource(self) -> JournalEntry | None:
+        return next((entry for entry in reversed(self.journal) if entry.kind == "resource"), None)
+
+    @property
+    def last_check(self) -> JournalEntry | None:
+        return next((entry for entry in reversed(self.journal) if entry.kind == "check"), None)
+
+
+class WallClockFailure(_StrictModel):
+    kind: Literal["wall_clock_timeout"]
+    bound: Literal["wall_clock_ms"]
+    limit: int = Field(ge=1, le=30_000)
+
+
+class ChildProcessFailure(_StrictModel):
+    kind: Literal["child_failure"]
+    code: str
+
+    @field_validator("code")
+    @classmethod
+    def valid_code(cls, value: str) -> str:
+        if not _NAME.fullmatch(value):
+            raise ValueError("child failure code must be normalized and non-empty")
+        return value
+
+
+class ProcessProtocolFailure(_StrictModel):
+    kind: Literal["protocol_failure"]
+    code: str
+
+    @field_validator("code")
+    @classmethod
+    def valid_code(cls, value: str) -> str:
+        if not _NAME.fullmatch(value):
+            raise ValueError("process protocol failure code must be normalized and non-empty")
+        return value
+
+
+type ProcessFailure = Annotated[
+    WallClockFailure | ChildProcessFailure | ProcessProtocolFailure,
+    Field(discriminator="kind"),
+]
+type _ProcessArtifact = Annotated[
+    ScenarioArtifactV1 | ScenarioArtifactV2 | ScenarioArtifactV3 | ScenarioArtifact,
+    Field(discriminator="version"),
+]
+
+
+class ProcessRunResult(_StrictModel):
+    """Structured completion or containment result from one child process."""
+
+    format: Literal["petrus-dst-process-run-result"]
+    version: Literal[1]
+    api: Literal["petrus.testing.dst.runner/v1"]
+    scenario_id: str
+    outcome: Literal["completed", "harness_failure"]
+    termination: Literal["exited", "terminated", "killed"]
+    returncode: int
+    prefix: AcknowledgedPrefix
+    unfinished_attempt: ProcessAttempt | None
+    artifact: _ProcessArtifact | None
+    failure: ProcessFailure | None
+
+    @model_validator(mode="after")
+    def coherent(self) -> ProcessRunResult:
+        if self.outcome == "completed":
+            if (
+                self.termination != "exited"
+                or self.returncode != 0
+                or self.unfinished_attempt is not None
+                or self.artifact is None
+                or self.failure is not None
+            ):
+                raise ValueError("a completed process run requires one clean artifact and no unfinished attempt")
+            if self.artifact.scenario_id != self.scenario_id:
+                raise ValueError("process result and artifact scenario identities differ")
+            if self.prefix.operations != self.artifact.operations:
+                raise ValueError("process result prefix operations differ from the completed artifact")
+            if _journal_digest(self.prefix.journal) != self.artifact.expected.journal_digest:
+                raise ValueError("process result prefix journal differs from the completed artifact")
+        elif self.artifact is not None or self.failure is None:
+            raise ValueError("a process harness failure cannot contain a deterministic artifact")
+        return self
+
+
+class _StartedFrame(_StrictModel):
+    kind: Literal["started"]
+    sequence: int = Field(ge=0)
+    protocol: Literal["petrus-dst-process-runner"]
+    version: Literal[1]
+    scenario_id: str
+
+
+class _WorldFrame(_StrictModel):
+    kind: Literal["world"]
+    sequence: int = Field(ge=0)
+    metadata: ProcessWorldMetadata
+
+
+class _AttemptFrame(_StrictModel):
+    kind: Literal["attempt"]
+    sequence: int = Field(ge=0)
+    attempt: ProcessAttempt
+
+
+class _BoundaryFrame(_StrictModel):
+    kind: Literal["boundary"]
+    sequence: int = Field(ge=0)
+    operations: list[ExpandedOperation]
+    journal: list[JournalEntry]
+    instant: int = Field(ge=0, le=_MAX_PORTABLE_INTEGER)
+    generation: int | None = Field(ge=1)
+    disposition: _EndingDisposition | None
+
+
+class _CompleteFrame(_StrictModel):
+    kind: Literal["complete"]
+    sequence: int = Field(ge=0)
+    artifact: _ProcessArtifact
+
+
+class _FailedFrame(_StrictModel):
+    kind: Literal["failed"]
+    sequence: int = Field(ge=0)
+    code: str
+
+    @field_validator("code")
+    @classmethod
+    def valid_code(cls, value: str) -> str:
+        if not _NAME.fullmatch(value):
+            raise ValueError("process child failure code must be normalized and non-empty")
+        return value
+
+
+type _ProcessFrame = _StartedFrame | _WorldFrame | _AttemptFrame | _BoundaryFrame | _CompleteFrame | _FailedFrame
+
+
+class _FileProgress:
+    """Child-only canonical JSONL writer; every complete line is one acknowledgement."""
+
+    def __init__(self, path: Path, spec: ProcessRunSpec):
+        self._stream = path.open("xb", buffering=0)
+        self._limit = spec.budget.progress_bytes
+        self._written = 0
+        self._sequence = 0
+        self._operation_position = 0
+        self._journal_position = 0
+        self._terminal = False
+        self._write(
+            _StartedFrame(
+                kind="started",
+                sequence=0,
+                protocol=PROCESS_RUNNER_PROTOCOL,
+                version=PROCESS_RUNNER_PROTOCOL_VERSION,
+                scenario_id=spec.scenario_id,
+            )
+        )
+
+    def world(self, metadata: ProcessWorldMetadata) -> None:
+        self._write(_WorldFrame(kind="world", sequence=self._sequence, metadata=metadata))
+
+    def attempt(self, attempt: ProcessAttempt) -> None:
+        self._write(_AttemptFrame(kind="attempt", sequence=self._sequence, attempt=attempt))
+
+    def boundary(self, world: World) -> None:
+        operations = list(world.operations[self._operation_position :])
+        journal = list(world.journal[self._journal_position :])
+        self._operation_position += len(operations)
+        self._journal_position += len(journal)
+        self._write(
+            _BoundaryFrame(
+                kind="boundary",
+                sequence=self._sequence,
+                operations=operations,
+                journal=journal,
+                instant=world.instant,
+                generation=world.generation,
+                disposition=None if world.disposition is None else world.disposition.value,
+            )
+        )
+
+    def complete(self, artifact: AnyScenarioArtifact) -> None:
+        self._write(_CompleteFrame(kind="complete", sequence=self._sequence, artifact=artifact))
+        self._terminal = True
+
+    def failed(self, code: str) -> None:
+        if not self._terminal:
+            self._write(_FailedFrame(kind="failed", sequence=self._sequence, code=code))
+            self._terminal = True
+
+    def close(self) -> None:
+        self._stream.close()
+
+    def _write(self, frame: _ProcessFrame) -> None:
+        payload = (
+            json.dumps(frame.model_dump(mode="json"), allow_nan=False, separators=(",", ":"), sort_keys=True).encode()
+            + b"\n"
+        )
+        if self._written + len(payload) > self._limit:
+            raise ValueError("DST process progress exceeds its byte limit")
+        self._stream.write(payload)
+        os.fsync(self._stream.fileno())
+        self._written += len(payload)
+        self._sequence += 1
+
+
+class ProcessSession:
+    """Child-owned composition root for exactly one acknowledged World."""
+
+    def __init__(self, progress: _FileProgress):
+        self._progress = progress
+        self._world: World | None = None
+
+    def world[GenerationT](
+        self,
+        profile: ScenarioProfile[GenerationT],
+        budget: Budget | BudgetV4,
+        *,
+        checkers: tuple[Checker, ...] = (),
+        seed: int | None = None,
+    ) -> World:
+        if self._world is not None:
+            raise DstError("a DST process session owns exactly one World")
+        self._progress.world(
+            ProcessWorldMetadata(
+                profile=profile.identity,
+                checkers=[checker.identity for checker in checkers],
+                budget=budget,
+                seed=seed,
+            )
+        )
+        world = World(
+            cast(ScenarioProfile[object], profile),
+            budget,
+            checkers=checkers,
+            seed=seed,
+            _process_progress=self._progress,
+        )
+        self._world = world
+        return world
+
+    def close(self) -> None:
+        if self._world is not None:
+            self._world.close()
+
+
+def run_process_scenario(spec: ProcessRunSpec) -> ProcessRunResult:
+    """Run one complete scenario under a wall-clock process watchdog."""
+
+    if not isinstance(spec, ProcessRunSpec):
+        raise TypeError("run_process_scenario requires a strict ProcessRunSpec")
+    if os.name != "posix":
+        raise DstError("DST process-group containment requires a POSIX host")
+    with tempfile.TemporaryDirectory(prefix="petrus-dst-runner-") as directory:
+        root = Path(directory)
+        spec_path = root / "spec.json"
+        progress_path = root / "progress.jsonl"
+        encoded_spec = json.dumps(
+            spec.model_dump(mode="json"), allow_nan=False, separators=(",", ":"), sort_keys=True
+        ).encode()
+        if len(encoded_spec) > spec.budget.input_bytes:
+            raise ValueError(f"DST process run spec has {len(encoded_spec)} bytes; limit is {spec.budget.input_bytes}")
+        spec_path.write_bytes(encoded_spec)
+        process = subprocess.Popen(
+            (
+                sys.executable,
+                "-c",
+                "from pathlib import Path; from petrus.testing.dst import _process_child_main; "
+                "raise SystemExit(_process_child_main(Path(__import__('sys').argv[1]), "
+                "Path(__import__('sys').argv[2])))",
+                str(spec_path),
+                str(progress_path),
+            ),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        timed_out = False
+        termination: Literal["exited", "terminated", "killed"] = "exited"
+        try:
+            process.wait(timeout=spec.budget.wall_clock_ms / 1000)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            termination = "terminated"
+            _signal_process_group(process, signal.SIGTERM)
+            try:
+                process.wait(timeout=spec.budget.termination_grace_ms / 1000)
+            except subprocess.TimeoutExpired:
+                termination = "killed"
+                _signal_process_group(process, signal.SIGKILL)
+                process.wait()
+        return _process_result(spec, process.returncode, termination, timed_out, progress_path)
+
+
+def _signal_process_group(process: subprocess.Popen[bytes], requested: signal.Signals) -> None:
+    if process.poll() is not None:
+        return
+    try:
+        os.killpg(process.pid, requested)
+    except ProcessLookupError:
+        pass
+
+
+def _process_child_main(spec_path: Path, progress_path: Path) -> int:
+    spec_value = _load_strict_json(spec_path.read_bytes(), "process run spec")
+    spec = ProcessRunSpec.model_validate(spec_value, strict=True)
+    progress = _FileProgress(progress_path, spec)
+    session = ProcessSession(progress)
+    try:
+        module_name, function_name = spec.entrypoint.split(":", 1)
+        function = getattr(importlib.import_module(module_name), function_name)
+        if not callable(function):
+            raise TypeError("DST process scenario entrypoint is not callable")
+        artifact = function(session, spec.payload)
+        if not isinstance(
+            artifact,
+            (ScenarioArtifactV1, ScenarioArtifactV2, ScenarioArtifactV3, ScenarioArtifact),
+        ):
+            raise TypeError("DST process scenario must return one strict artifact")
+        if artifact.scenario_id != spec.scenario_id:
+            raise ValueError("DST process scenario returned a different scenario identity")
+        encode_artifact(artifact)
+        session.close()
+        progress.complete(artifact)
+        return 0
+    except BaseException:
+        try:
+            progress.failed("scenario-failed")
+        except BaseException:
+            pass
+        return 70
+    finally:
+        progress.close()
+
+
+def _process_result(
+    spec: ProcessRunSpec,
+    returncode: int,
+    termination: Literal["exited", "terminated", "killed"],
+    timed_out: bool,
+    progress_path: Path,
+) -> ProcessRunResult:
+    frames, protocol_code = _read_process_frames(progress_path, spec.budget.progress_bytes, timed_out)
+    prefix, attempt, artifact, child_code, fold_code = _fold_process_frames(spec, frames)
+    protocol_code = protocol_code or fold_code
+    if artifact is not None and (
+        prefix.operations != artifact.operations or _journal_digest(prefix.journal) != artifact.expected.journal_digest
+    ):
+        protocol_code = protocol_code or "artifact-prefix-mismatch"
+        artifact = None
+    if timed_out:
+        failure: ProcessFailure | None = WallClockFailure(
+            kind="wall_clock_timeout", bound="wall_clock_ms", limit=spec.budget.wall_clock_ms
+        )
+        outcome: Literal["completed", "harness_failure"] = "harness_failure"
+        artifact = None
+    elif protocol_code is not None:
+        failure = ProcessProtocolFailure(kind="protocol_failure", code=protocol_code)
+        outcome = "harness_failure"
+        artifact = None
+    elif returncode != 0 or child_code is not None:
+        failure = ChildProcessFailure(kind="child_failure", code=child_code or "child-exited")
+        outcome = "harness_failure"
+        artifact = None
+    elif artifact is None:
+        failure = ProcessProtocolFailure(kind="protocol_failure", code="terminal-missing")
+        outcome = "harness_failure"
+    else:
+        failure = None
+        outcome = "completed"
+    return ProcessRunResult(
+        format=PROCESS_RESULT_FORMAT,
+        version=PROCESS_RESULT_VERSION,
+        api=PROCESS_RUNNER_API_COMPATIBILITY,
+        scenario_id=spec.scenario_id,
+        outcome=outcome,
+        termination=termination,
+        returncode=returncode,
+        prefix=prefix,
+        unfinished_attempt=attempt,
+        artifact=artifact,
+        failure=failure,
+    )
+
+
+def _read_process_frames(path: Path, limit: int, allow_partial: bool) -> tuple[list[_ProcessFrame], str | None]:
+    if not path.exists():
+        return [], "progress-missing"
+    payload = path.read_bytes()
+    if len(payload) > limit:
+        return [], "progress-overflow"
+    if payload and not payload.endswith(b"\n"):
+        if not allow_partial:
+            return [], "partial-frame"
+        payload = payload.rpartition(b"\n")[0] + (b"\n" if b"\n" in payload else b"")
+    frames: list[_ProcessFrame] = []
+    for raw in payload.splitlines():
+        try:
+            value = _load_strict_json(raw, "process progress frame")
+            if type(value) is not dict:
+                raise ValueError
+            model = {
+                "started": _StartedFrame,
+                "world": _WorldFrame,
+                "attempt": _AttemptFrame,
+                "boundary": _BoundaryFrame,
+                "complete": _CompleteFrame,
+                "failed": _FailedFrame,
+            }.get(cast(dict[str, object], value).get("kind"))
+            if model is None:
+                raise ValueError
+            frames.append(model.model_validate(value, strict=True))
+        except TypeError, ValueError:
+            return frames, "malformed-frame"
+    return frames, None
+
+
+def _fold_process_frames(  # noqa: C901 - one fail-closed framed protocol state machine
+    spec: ProcessRunSpec, frames: list[_ProcessFrame]
+) -> tuple[
+    AcknowledgedPrefix,
+    ProcessAttempt | None,
+    AnyScenarioArtifact | None,
+    str | None,
+    str | None,
+]:
+    metadata: ProcessWorldMetadata | None = None
+    operations: list[ExpandedOperation] = []
+    journal: list[JournalEntry] = []
+    instant = 0
+    generation = None
+    disposition = None
+    attempt = None
+    artifact = None
+    child_code = None
+    started = terminal = False
+    for sequence, frame in enumerate(frames):
+        if frame.sequence != sequence or terminal:
+            return (
+                _prefix(metadata, operations, journal, instant, generation, disposition),
+                attempt,
+                None,
+                None,
+                "frame-order",
+            )
+        if isinstance(frame, _StartedFrame):
+            if started or sequence != 0 or frame.scenario_id != spec.scenario_id:
+                return (
+                    _prefix(metadata, operations, journal, instant, generation, disposition),
+                    attempt,
+                    None,
+                    None,
+                    "frame-order",
+                )
+            started = True
+        elif isinstance(frame, _WorldFrame):
+            if not started or metadata is not None or attempt is not None:
+                return (
+                    _prefix(metadata, operations, journal, instant, generation, disposition),
+                    attempt,
+                    None,
+                    None,
+                    "frame-order",
+                )
+            metadata = frame.metadata
+        elif isinstance(frame, _AttemptFrame):
+            if not started or metadata is None or attempt is not None:
+                return (
+                    _prefix(metadata, operations, journal, instant, generation, disposition),
+                    attempt,
+                    None,
+                    None,
+                    "frame-order",
+                )
+            attempt = frame.attempt
+        elif isinstance(frame, _BoundaryFrame):
+            if attempt is None:
+                return (
+                    _prefix(metadata, operations, journal, instant, generation, disposition),
+                    attempt,
+                    None,
+                    None,
+                    "frame-order",
+                )
+            if [item.position for item in frame.operations] != list(
+                range(len(operations), len(operations) + len(frame.operations))
+            ) or [item.position for item in frame.journal] != list(
+                range(len(journal), len(journal) + len(frame.journal))
+            ):
+                return (
+                    _prefix(metadata, operations, journal, instant, generation, disposition),
+                    attempt,
+                    None,
+                    None,
+                    "prefix-position",
+                )
+            operations.extend(frame.operations)
+            journal.extend(frame.journal)
+            instant = frame.instant
+            generation = frame.generation
+            disposition = frame.disposition
+            attempt = None
+        elif isinstance(frame, _CompleteFrame):
+            if attempt is not None or metadata is None or frame.artifact.scenario_id != spec.scenario_id:
+                return (
+                    _prefix(metadata, operations, journal, instant, generation, disposition),
+                    attempt,
+                    None,
+                    None,
+                    "frame-order",
+                )
+            artifact = frame.artifact
+            terminal = True
+        elif isinstance(frame, _FailedFrame):
+            child_code = frame.code
+            terminal = True
+    if not started:
+        return (
+            _prefix(metadata, operations, journal, instant, generation, disposition),
+            attempt,
+            None,
+            None,
+            "start-missing",
+        )
+    return _prefix(metadata, operations, journal, instant, generation, disposition), attempt, artifact, child_code, None
+
+
+def _prefix(
+    metadata: ProcessWorldMetadata | None,
+    operations: list[ExpandedOperation],
+    journal: list[JournalEntry],
+    instant: int,
+    generation: int | None,
+    disposition: _EndingDisposition | None,
+) -> AcknowledgedPrefix:
+    return AcknowledgedPrefix(
+        world=metadata,
+        operations=operations,
+        journal=journal,
+        instant=instant,
+        generation=generation,
+        disposition=disposition,
+    )
+
+
+def _load_strict_json(payload: bytes, subject: str) -> object:
+    try:
+        return json.loads(payload, object_pairs_hook=_strict_object, parse_constant=_refuse_constant)
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+        raise ValueError(f"invalid strict DST {subject}: {error}") from None
 
 
 def encode_artifact(artifact: AnyScenarioArtifact) -> bytes:
@@ -1883,6 +2581,12 @@ __all__ = [
     "SEEDED_ARTIFACT_VERSION",
     "RESULT_FORMAT",
     "RESULT_VERSION",
+    "PROCESS_RESULT_FORMAT",
+    "PROCESS_RESULT_VERSION",
+    "PROCESS_RUNNER_API_COMPATIBILITY",
+    "PROCESS_RUNNER_PROTOCOL",
+    "PROCESS_RUNNER_PROTOCOL_VERSION",
+    "AcknowledgedPrefix",
     "ActionDisposition",
     "AnyReplayResult",
     "AnyScenarioArtifact",
@@ -1897,8 +2601,11 @@ __all__ = [
     "ChoiceAuthority",
     "ChoiceProvenance",
     "ChoiceStreams",
+    "ChildProcessFailure",
+    "CloseAttempt",
     "Command",
     "ComponentIdentity",
+    "ConstructAttempt",
     "Disposition",
     "DstError",
     "ExecuteOperation",
@@ -1912,6 +2619,14 @@ __all__ = [
     "Observation",
     "ObservationRequest",
     "PendingWork",
+    "ProcessAttempt",
+    "ProcessBudget",
+    "ProcessFailure",
+    "ProcessProtocolFailure",
+    "ProcessRunResult",
+    "ProcessRunSpec",
+    "ProcessSession",
+    "ProcessWorldMetadata",
     "ProfileIdentity",
     "ReplayMismatch",
     "ReplayResult",
@@ -1928,6 +2643,7 @@ __all__ = [
     "ScenarioRegistry",
     "ScheduledCommand",
     "StaleGeneration",
+    "SubmitAttempt",
     "Timeline",
     "World",
     "decode_artifact",
@@ -1935,4 +2651,6 @@ __all__ = [
     "encode_artifact",
     "load_artifact",
     "replay",
+    "run_process_scenario",
+    "WallClockFailure",
 ]

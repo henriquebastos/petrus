@@ -132,20 +132,20 @@ interrupt a production/profile call which never returns. A thread timeout
 cannot kill that call safely, and signal injection is not a portable runtime
 contract.
 
-Honest hang containment belongs to an independently versioned outer runner
-which starts the complete World in a killable process, owns a monotonic
-deadline, terminates and reaps on expiry, and reports the last acknowledged
-operation boundary. Retaining a killed run requires the child to stream each
-attempt before entering a profile call and each committed operation/journal
-boundary before the next attempt. A parent may then retain an exact prefix and
-unfinished attempt; it must not fabricate a deterministic `FailureOperation`
-for a call that never returned. That runner remains CV19.DS2 work.
+Honest hang containment belongs to the independently versioned
+[`petrus.testing.dst.runner/v1`](dst-process-runner-v1.md). It starts the
+complete World in a killable process, owns a monotonic deadline, terminates and
+reaps on expiry, and reports the last acknowledged operation boundary. The
+child streams each attempt before entering a profile call and each committed
+operation/journal boundary before the next attempt. A killed run retains an
+exact prefix and unfinished attempt but never fabricates a deterministic
+`FailureOperation` for a call that did not return.
 
 ## Remaining CV19 scope
 
 Version 4 closes generic profile-retained-data and hidden-pending-work
-accounting. Wall-clock process containment, the broader delivery/Dispatch/
-lifecycle/transaction fault matrix, and an accepted deterministic
-LocalDispatch provider-time design remain in DS2. Stateful generation,
-shrinking, broad independent models/checkers, and semantic coverage remain in
-DS3; campaign and real-boundary qualification remain in DS4.
+accounting, and the separate runner v1 closes wall-clock process containment.
+The broader delivery/Dispatch/lifecycle/transaction fault matrix and an
+accepted deterministic LocalDispatch provider-time design remain in DS2.
+Stateful generation, shrinking, broad independent models/checkers, and semantic
+coverage remain in DS3; campaign and real-boundary qualification remain in DS4.

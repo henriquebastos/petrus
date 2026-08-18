@@ -2,7 +2,7 @@
 code: CV19.DS2
 level: Delivery Story
 status: Active
-status_reason: The accepted v4 World now also bounds profile-owned retained and pending resources while preserving v1-v3 replay; DS2 remains active for process watchdog containment and broader cuts/adapters
+status_reason: The independently versioned runner now contains hung complete Worlds with an acknowledged prefix while v1-v4 artifacts remain unchanged; DS2 remains active for broader cuts/adapters and provider-time compatibility
 updated: 2026-08-18
 related:
   - index.md
@@ -12,6 +12,7 @@ related:
   - ../../../process/dst-world-v2.md
   - ../../../process/dst-world-v3.md
   - ../../../process/dst-world-v4.md
+  - ../../../process/dst-process-runner-v1.md
 ---
 
 # CV19.DS2 — Deterministic event and fault harness
@@ -341,6 +342,22 @@ accounting across a production Engine crash:
    `profile_resources:retained.history_records`, and replay the exact 3-operation
    / 10-journal-entry failure.
 
+The independently versioned outer runner closes the wall-clock containment
+gap without changing World or artifact semantics:
+
+1. an exact importable entrypoint constructs the complete profile, checker,
+   World, and runtime generation inside a fresh child process;
+2. strict synchronized JSONL acknowledges each attempt before entering a
+   profile call and each complete operation/journal/resource/check boundary;
+3. the existing public-Engine resource scenario completes under the runner,
+   returns its unchanged version-4 artifact, and replays exactly;
+4. a deliberate profile hang acknowledges its normalized `SubmitAttempt`,
+   ignores termination, and forces the parent through terminate → kill → reap;
+   and
+5. the structured harness failure retains the exact create boundary and
+   unfinished command but contains no fabricated `FailureOperation` or replay
+   artifact.
+
 All authored support and retained evidence live together under `tests/dst/`.
 The application profile returns detached follow-up proposals; only the World
 validates, orders, journals, and executes them. Checkers consume detached
@@ -374,7 +391,7 @@ seeded Engine scenario whose replay never consults the PRNG.
 | 4. Seeded repeatability | Met: two fresh seed-1729 Engine runs produce the same expanded artifact; workload, fault, identifier, and event-order streams are independently pinned, and replay ignores changed seed provenance. |
 | 5. Abrupt generation reconstruction | Met for the public-Engine profile, including revoke-before-drop and stale Timeline refusal. |
 | 6. Named cuts before/after durable acceptance | Partial: paired pre-commit refusal/post-commit acknowledgement-loss History cuts, identified ingress redelivery, delayed external completion, lifecycle and timer reconstruction, zero-backoff LocalDispatch retry exhaustion, and provider-terminal custody before Engine collection are proved; the broader delivery, delayed retry, lifecycle, and transaction matrix remains. |
-| 7. Complete bounds | Partial: action, queue, logical-time/advance, reload, predicate, artifact, profile-retained-data, and hidden-pending-work limits are executable; wall-clock process watchdog qualification remains. |
+| 7. Complete bounds | Met for the generic harness: action, queue, logical-time/advance, reload, predicate, artifact, profile-retained-data, hidden-pending-work, process-progress, and wall-clock limits are executable and identify the ending bound. |
 | 8. Checker cadence and fair draining | Met for the vertical slice; broader independent S1–S8 checker coverage belongs to the remaining DS2/DS3 work. |
 | 9. Hermetic real-runtime execution | Met for the vertical slice: no credentials, providers, network sleeps, or substitute Petrus semantics. |
 | 10. Repository gates | Met with a release-gate reservation: focused DST and the current full suite pass; an earlier release run passed both orders, while the latest release attempt exposed the unrelated existing Gondolin `/tmp/petrus-g-*` xdist race and its exact node passes in isolation. |
@@ -401,12 +418,19 @@ and journals them at legal boundaries, rejects changing key sets as profile
 contract errors, and deterministically retains the lexicographically first
 overage as a budget failure. A legacy `Budget` never invokes the new door and
 continues to author version 3. The wall-clock watchdog remains a distinct
-outer-process runner problem: a killed call cannot truthfully manufacture an
-ordinary deterministic `FailureOperation`.
+outer-process concern: [`petrus.testing.dst.runner/v1`](../../../process/dst-process-runner-v1.md)
+now supervises the complete World, retains acknowledged operation/journal
+prefixes and unfinished attempts, and never manufactures an ordinary
+deterministic `FailureOperation` for a killed call.
 
 ### Executed evidence
 
-- `UV_FROZEN=1 uv run pytest -q tests/dst` — 92 passed.
+- `UV_FROZEN=1 uv run pytest -q tests/dst` — 95 passed.
+- `UV_FROZEN=1 uv run pytest -q tests/dst/test_process_runner.py` — 3 passed;
+  the public-Engine process run returned and replayed its unchanged 14-operation
+  / 39-journal-entry v4 artifact, while the deliberate SIGTERM-resistant hang
+  escalated to SIGKILL and returned its exact unfinished `runtime.hang`
+  attempt with no artifact.
 - `UV_FROZEN=1 uv run python -m tests.dst.replay_world
   tests/dst/fixtures/projection-crash-recovery-world-v1.json` — `pass`,
   `converged`, 15 operations, 25 journal entries, digest
@@ -462,13 +486,9 @@ ordinary deterministic `FailureOperation`.
   returned `pass` / `budget_exhausted`, 3 operations, 10 journal entries, and
   digest
   `sha256:845e62259ae1e18b1ab92f1a2f5c16b1757cea29181bda6e6cd767ce0857b451`.
-- `scripts/check full` — 2,273 passed.
-- `scripts/check release` — one slice run passed 2,273 tests in both orders
-  (17 expected alternate-order deselections). The latest run stopped after
-  2,272 passed and the unrelated
-  `test_spawn_failure_removes_runtime_and_operation_directory` observed another
-  xdist worker's transient `/tmp/petrus-g-*` directory; its exact node then
-  passed in isolation and a fresh `scripts/check full` passed 2,273 tests.
+- `scripts/check full` — 2,276 passed.
+- `scripts/check release` — 2,276 passed in both the four-worker and fixed-order
+  serial runs; the serial run reported 17 expected qualification deselections.
 - `UV_FROZEN=1 uv run ast-grep test --skip-snapshot-tests` — all 19
   architectural rule fixtures passed, including the runtime-neutral supported
   test-kit boundary.

@@ -33,6 +33,7 @@ from petrus.testing.dst import (
     InvariantViolation,
     Observation,
     ObservationRequest,
+    ProcessSession,
     ProfileIdentity,
     ResourceUsage,
     ScenarioArtifact,
@@ -930,11 +931,16 @@ def build_seeded_projection_artifact(history_path: Path) -> ScenarioArtifactV3:
         world.close()
 
 
-def execute_resource_bounded_story(history_path: Path) -> tuple[World, ResourceBoundedEngineProfile]:
+def execute_resource_bounded_story(
+    history_path: Path, *, process: ProcessSession | None = None
+) -> tuple[World, ResourceBoundedEngineProfile]:
     """Bound retained resources across abrupt public-Engine reconstruction."""
 
     profile = ResourceBoundedEngineProfile(history_path)
-    world = World(profile, resource_world_budget(), checkers=(EngineHistoryChecker(),))
+    if process is None:
+        world = World(profile, resource_world_budget(), checkers=(EngineHistoryChecker(),))
+    else:
+        world = process.world(profile, resource_world_budget(), checkers=(EngineHistoryChecker(),))
     timeline = world.timeline()
     requested = timeline.run_until(
         "activity-requested",
