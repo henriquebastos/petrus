@@ -191,6 +191,40 @@ The route returns `outcome: "pass"`, `external_wait`, 9 operations, 16 journal
 entries including 6 checker evaluations, and digest
 `sha256:0b2129eaf3802d174a5526f5e32b0e6de8f923cd2d8ce3e05bd89c2904c930c7`.
 
+### Joined initial-creation commit refusal
+
+[`joined-creation-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-creation-commit-refusal-world-v3.json)
+qualifies the refused side of the real Absurd/PostgreSQL initial-construction
+boundary. The profile's opaque process generation exists before an Engine;
+its authored `engine.create` command alone calls public `create_engine` through
+the normalized interpreter. Production prepares `InstanceCreated` and the
+initial `TokensInitialized`, but the test connection refuses the transaction
+before PostgreSQL accepts either record.
+
+After revocation and abrupt drop, a fresh generation observes no canonical
+instance. Retrying the same command creates the supplied identity and marking
+once. The independent checker derives authority from accepted/refused
+PostgreSQL transaction evidence and detached canonical records, and rejects an
+instance backed only by rollback. The retained route returns `outcome: "pass"`,
+`external_wait`, 9 operations, 16 journal entries including 6 checker
+evaluations, and digest
+`sha256:f9a40de727afd825a844fb5657d851fc5b49a7e509c424cfc75c9c75052fbe6a`.
+
+### Joined initial-creation acknowledgement loss
+
+[`joined-creation-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-creation-ack-loss-world-v3.json)
+proves the accepted side of the same construction boundary. Production commits
+one `InstanceCreated` and initial marking, then the test connection raises as
+if the commit acknowledgement were lost before an Engine can be returned.
+Detached PostgreSQL truth remains the only authority at that boundary.
+
+Fresh public `load_engine` reconstructs exactly those two records, the supplied
+identity, and the initial token without another creation transaction. The same
+checker rejects acknowledgement-loss evidence without an accepted transaction.
+The retained route returns `outcome: "pass"`, `external_wait`, 7 operations,
+13 journal entries including 5 checker evaluations, and digest
+`sha256:cc2123263ec933f7fb57c21c05a19f2a44dcb413556bb239ee1816596bd80836`.
+
 ### Joined Dispatch refusal before commit
 
 [`joined-dispatch-refusal-world-v3.json`](../../tests/dst/fixtures/joined-dispatch-refusal-world-v3.json)
@@ -638,14 +672,14 @@ operations, 31 journal entries including 12 checker evaluations, and digest
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. Fifteen joined-provider profiles now prove real joined-transaction
-commit refusal, pre-commit task-spawn failure, post-commit begin
-acknowledgement loss, paired identified-delivery, completed-terminal,
-failed-terminal, projection, and canonical-reset commit
-refusal/acknowledgement loss, plus both refused and
-accepted-but-unacknowledged post-reset cancellation-tombstone recovery without
-widening the World contract; the broader delivery, Dispatch, lifecycle, and
-transaction fault matrix remains in CV19.DS2. Version 4
+generator. Seventeen joined-provider profiles now prove paired initial
+creation, identified-delivery, completed-terminal, failed-terminal, projection,
+and canonical-reset commit refusal/acknowledgement loss, plus real joined-begin
+commit refusal, pre-commit task-spawn failure, post-commit begin acknowledgement
+loss, and both refused and accepted-but-unacknowledged post-reset
+cancellation-tombstone recovery without widening the World contract; the
+broader delivery, Dispatch, lifecycle, and transaction fault matrix remains in
+CV19.DS2. Version 4
 subsequently adds profile-retained-data and hidden-pending-work bounds without
 changing version 3 replay, and runner v1 contains complete Worlds under a
 separate wall-clock process budget. Stateful generation, shrinking, broad

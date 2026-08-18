@@ -2,7 +2,7 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 is Done and DS2 now proves split request/cancellation refusal plus paired joined identified-delivery, completed-terminal, failed-terminal, projection, canonical reset, and post-fence cancellation refusal/acknowledgement-loss recovery together with joined begin recovery over real Absurd/PostgreSQL in addition to bounded World v4, process containment, and LocalDispatch provider time; broader cuts and DS3–DS4 remain active
+status_reason: CV19.DS1 is Done and DS2 now proves split request/cancellation refusal plus paired joined initial-creation, identified-delivery, completed-terminal, failed-terminal, projection, canonical reset, and post-fence cancellation refusal/acknowledgement-loss recovery together with joined begin recovery over real Absurd/PostgreSQL in addition to bounded World v4, process containment, and LocalDispatch provider time; broader cuts and DS3–DS4 remain active
 updated: 2026-08-18
 related:
   - ../../../../src/petrus/simulation.py
@@ -201,8 +201,13 @@ the minimized expanded scenario becomes the durable regression fixture.
    proves fresh load can accept that identity exactly once. A fifteenth loses
    the accepted delivery transaction's acknowledgement, then proves fresh load
    returns the prior acknowledgement on exact redelivery without another
-   external-event fact, source firing, or output token. The broader fault/cut
-   matrix keeps DS2 active.
+   external-event fact, source firing, or output token. A sixteenth profile
+   refuses the initial `InstanceCreated` and marking transaction and proves a
+   fresh generation observes no instance before the normalized create command
+   retries successfully. A seventeenth loses the accepted creation commit's
+   acknowledgement before an Engine is returned and proves fresh public load
+   reconstructs the exact identity and marking without another creation
+   transaction. The broader fault/cut matrix keeps DS2 active.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)
    adds broad and targeted workload generation, independent models/checkers,
    shrinking, semantic coverage, and durable replay fixtures.
