@@ -22,6 +22,7 @@ from tests.dst.joined_world import (
     PROJECTION_SCENARIO_ID,
     SCENARIO_ID,
     TERMINAL_ACK_LOSS_SCENARIO_ID,
+    TERMINAL_REFUSAL_SCENARIO_ID,
     JoinedAcceptedCancellationAuthorityChecker,
     JoinedAcceptedTerminalAuthorityChecker,
     JoinedBeginProfile,
@@ -34,7 +35,9 @@ from tests.dst.joined_world import (
     JoinedDispatchProfile,
     JoinedProjectionAuthorityChecker,
     JoinedProjectionProfile,
+    JoinedTerminalAuthorityChecker,
     JoinedTerminalAckLossProfile,
+    JoinedTerminalRefusalProfile,
     build_joined_begin_artifact,
     build_joined_ack_loss_artifact,
     build_joined_cancellation_ack_loss_artifact,
@@ -42,6 +45,7 @@ from tests.dst.joined_world import (
     build_joined_cancellation_artifact,
     build_joined_projection_artifact,
     build_joined_terminal_ack_loss_artifact,
+    build_joined_terminal_refusal_artifact,
 )
 from tests.dst.postgres_support import isolated_absurd_database
 
@@ -50,6 +54,7 @@ DISPATCH_FIXTURE = Path("tests/dst/fixtures/joined-dispatch-refusal-world-v3.jso
 PROJECTION_FIXTURE = Path("tests/dst/fixtures/joined-projection-commit-refusal-world-v3.json")
 ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-begin-ack-loss-world-v3.json")
 TERMINAL_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-terminal-ack-loss-world-v3.json")
+TERMINAL_REFUSAL_FIXTURE = Path("tests/dst/fixtures/joined-terminal-commit-refusal-world-v3.json")
 CANCELLATION_FIXTURE = Path("tests/dst/fixtures/joined-cancellation-commit-refusal-world-v3.json")
 CANCELLATION_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-cancellation-ack-loss-world-v3.json")
 
@@ -174,6 +179,87 @@ def test_joined_accepted_begin_checker_refuses_ack_loss_without_durable_truth() 
     assert result.passed is False
     assert result.detail["ack_losses"] == 1
     assert result.detail["accepted_begins"] == 0
+
+
+def test_joined_terminal_commit_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
+    with isolated_absurd_database(absurd_dsn) as authored_dsn:
+        artifact = build_joined_terminal_refusal_artifact(authored_dsn)
+
+    assert artifact.scenario_id == TERMINAL_REFUSAL_SCENARIO_ID
+    assert artifact.origin is None
+    assert encode_artifact(artifact) == TERMINAL_REFUSAL_FIXTURE.read_bytes().rstrip(b"\n")
+
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedTerminalRefusalProfile(replay_dsn))
+        registry.register_checker(JoinedTerminalAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.version == RESULT_VERSION
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.CONVERGED.value
+    assert result.operations == len(artifact.operations)
+
+
+def test_retained_joined_terminal_refusal_replays_without_the_authored_scenario(absurd_dsn: str) -> None:
+    artifact = load_artifact(TERMINAL_REFUSAL_FIXTURE)
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedTerminalRefusalProfile(replay_dsn))
+        registry.register_checker(JoinedTerminalAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.scenario_id == TERMINAL_REFUSAL_SCENARIO_ID
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.CONVERGED.value
+
+
+def test_joined_terminal_checker_refuses_a_canonical_terminal_after_refused_transaction() -> None:
+    checker = JoinedTerminalAuthorityChecker()
+    observation = Observation(
+        name="engine.joined-terminal-authority",
+        value={
+            "durable_tasks": [
+                {
+                    "idempotency": "dst-world-joined-begin-refusal:occurrence-1",
+                    "state": "completed",
+                }
+            ],
+            "prepare_calls": 1,
+            "record_types": [
+                "InstanceCreated",
+                "TokensInitialized",
+                "CandidateSelected",
+                "FiringBegun",
+                "TokensConsumed",
+                "ActivityRequested",
+                "ActivityCompleted",
+            ],
+            "terminal_refusals": 1,
+            "transaction_attempts": [
+                {
+                    "accepted": True,
+                    "dispatch_attempted": True,
+                    "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
+                },
+                {
+                    "accepted": False,
+                    "dispatch_attempted": False,
+                    "record_types": ["ActivityCompleted"],
+                },
+            ],
+            "worker_completions": 1,
+        },
+        instant=0,
+        generation=1,
+        sequence=0,
+    )
+
+    result: CheckResult = checker.check(observation)
+
+    assert result.passed is False
+    assert result.detail["accepted_terminals"] == 0
+    assert result.detail["canonical_terminals"] == 1
 
 
 def test_joined_terminal_ack_loss_is_exact_and_replayable(absurd_dsn: str) -> None:

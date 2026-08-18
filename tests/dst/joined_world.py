@@ -59,6 +59,7 @@ SCENARIO_ID = "joined-begin-commit-refusal-world-v3"
 DISPATCH_SCENARIO_ID = "joined-dispatch-refusal-world-v3"
 PROJECTION_SCENARIO_ID = "joined-projection-commit-refusal-world-v3"
 ACK_LOSS_SCENARIO_ID = "joined-begin-ack-loss-world-v3"
+TERMINAL_REFUSAL_SCENARIO_ID = "joined-terminal-commit-refusal-world-v3"
 TERMINAL_ACK_LOSS_SCENARIO_ID = "joined-terminal-ack-loss-world-v3"
 CANCELLATION_SCENARIO_ID = "joined-cancellation-commit-refusal-world-v3"
 CANCELLATION_ACK_LOSS_SCENARIO_ID = "joined-cancellation-ack-loss-world-v3"
@@ -178,6 +179,29 @@ TERMINAL_ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
         }
     ),
 )
+TERMINAL_REFUSAL_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.joined-terminal-commit-refusal",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": ["engine.drive", "worker.claim", "worker.complete"],
+            "fault": {
+                "disposition": "refuse",
+                "name": "history.commit-refuse",
+                "target": "activity_completed",
+            },
+            "instance": INSTANCE_ID,
+            "observations": [
+                "engine.joined-terminal-authority",
+                "joined-terminal-refused",
+                "joined-terminal-recovered",
+            ],
+            "provider": "petrus.engine.absurd",
+            "property": "a completed provider task survives refusal of its semantic terminal commit",
+            "queue": QUEUE,
+        }
+    ),
+)
 CANCELLATION_PROFILE_IDENTITY = ProfileIdentity(
     name="petrus.engine.joined-cancellation-commit-refusal",
     version=1,
@@ -274,6 +298,17 @@ TERMINAL_ACK_LOSS_CHECKER_IDENTITY = CheckerIdentity(
         {"property": ("an acknowledged-lost terminal remains singular and authorizes exactly one later projection")}
     ),
 )
+TERMINAL_REFUSAL_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.joined-terminal-authority",
+    version=1,
+    digest=digest_json(
+        {
+            "property": (
+                "one Worker completion authorizes one accepted terminal after refusal and exactly one projection"
+            )
+        }
+    ),
+)
 CANCELLATION_CHECKER_IDENTITY = CheckerIdentity(
     name="petrus.engine.joined-cancellation-authority",
     version=1,
@@ -360,6 +395,7 @@ class JoinedFaultConnection:
         attempts: list[dict[str, JsonValue]],
         commit_refused: Callable[[], None],
         dispatch_refused: Callable[[], None],
+        terminal_refused: Callable[[], None],
         projection_refused: Callable[[], None],
         commit_ack_lost: Callable[[], None],
         terminal_ack_lost: Callable[[], None],
@@ -371,6 +407,7 @@ class JoinedFaultConnection:
         self._attempts = attempts
         self._commit_refused = commit_refused
         self._dispatch_refused = dispatch_refused
+        self._terminal_refused = terminal_refused
         self._projection_refused = projection_refused
         self._commit_ack_lost = commit_ack_lost
         self._terminal_ack_lost = terminal_ack_lost
@@ -382,6 +419,7 @@ class JoinedFaultConnection:
         self._cancellation_attempted = False
         self._commit_refusal: str | None = None
         self._dispatch_refusal: str | None = None
+        self._terminal_refusal: str | None = None
         self._projection_refusal: str | None = None
         self._commit_ack_loss: str | None = None
         self._terminal_ack_loss: str | None = None
@@ -435,6 +473,11 @@ class JoinedFaultConnection:
             raise RuntimeError("joined projection refusal is already armed")
         self._projection_refusal = message
 
+    def refuse_activity_terminal_commit(self, message: str) -> None:
+        if self._terminal_refusal is not None:
+            raise RuntimeError("joined terminal refusal is already armed")
+        self._terminal_refusal = message
+
     def refuse_cancellation_commit(self, message: str) -> None:
         if self._cancellation_refusal is not None:
             raise RuntimeError("joined cancellation refusal is already armed")
@@ -468,6 +511,12 @@ class JoinedFaultConnection:
             self._commit_refusal = None
             self._attempts.append(self._attempt(False))
             self._commit_refused()
+            raise OSError(message)
+        if activity_terminal and self._terminal_refusal is not None:
+            message = self._terminal_refusal
+            self._terminal_refusal = None
+            self._attempts.append(self._attempt(False))
+            self._terminal_refused()
             raise OSError(message)
         if FiringCompleted.__name__ in self._record_types and self._projection_refusal is not None:
             message = self._projection_refusal
@@ -561,6 +610,7 @@ class JoinedBeginProfile:
         self.prepare_calls = 0
         self.commit_refusals = 0
         self.dispatch_refusals = 0
+        self.terminal_refusals = 0
         self.projection_refusals = 0
         self.cancellation_refusals = 0
         self.cancellation_ack_losses = 0
@@ -680,6 +730,7 @@ class JoinedBeginProfile:
             self.transaction_attempts,
             self._commit_refused,
             self._dispatch_refused,
+            self._terminal_refused,
             self._projection_refused,
             self._commit_ack_lost,
             self._terminal_ack_lost,
@@ -744,6 +795,7 @@ class JoinedBeginProfile:
                 "projection_refusals": self.projection_refusals,
                 "record_types": [type(record).__name__ for record in records],
                 "status": status,
+                "terminal_refusals": self.terminal_refusals,
                 "terminal_ack_losses": self.terminal_ack_losses,
                 "transaction_attempts": self.transaction_attempts,
                 "worker_completions": self.worker_completions,
@@ -795,6 +847,9 @@ class JoinedBeginProfile:
 
     def _projection_refused(self) -> None:
         self.projection_refusals += 1
+
+    def _terminal_refused(self) -> None:
+        self.terminal_refusals += 1
 
     def _cancellation_refused(self) -> None:
         self.cancellation_refusals += 1
@@ -934,6 +989,41 @@ class JoinedProjectionProfile(JoinedBeginProfile):
 
     def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
         generation.connection.refuse_projection_commit(message)
+
+
+class JoinedTerminalRefusalProfile(JoinedProjectionProfile):
+    """Public Absurd-Engine profile refusing the semantic terminal commit."""
+
+    identity = TERMINAL_REFUSAL_PROFILE_IDENTITY
+    fault_target = "activity_completed"
+    refused_observation = "joined-terminal-refused"
+    recovered_observation = "joined-terminal-recovered"
+    refusal_field = "terminal_refusals"
+
+    def observe(
+        self,
+        generation: JoinedGeneration,
+        request: ObservationRequest,
+        context: ScenarioContext,
+    ) -> JsonValue:
+        if request.name == "engine.joined-terminal-authority":
+            if request.payload not in (None, {}):
+                raise ValueError("joined terminal authority observation does not accept parameters")
+            state = self._observation_state(generation)
+            fields = (
+                "durable_tasks",
+                "prepare_calls",
+                "record_types",
+                "terminal_refusals",
+                "transaction_attempts",
+                "worker_completions",
+            )
+            return {field: state[field] for field in fields}
+        value = cast(dict[str, JsonValue], super().observe(generation, request, context))
+        return {**value, "drive_calls": self.drive_calls, "terminal_refusals": self.terminal_refusals}
+
+    def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
+        generation.connection.refuse_activity_terminal_commit(message)
 
 
 class JoinedTerminalAckLossProfile(JoinedProjectionProfile):
@@ -1313,6 +1403,85 @@ class JoinedProjectionAuthorityChecker:
                 "canonical_terminals": completed,
                 "completed_custody": completed_custody,
                 "refused_projections": refused_projection,
+                "tasks_exact": tasks_exact,
+                "worker_completions": worker_completions,
+            },
+        )
+
+
+class JoinedTerminalAuthorityChecker:
+    """Independent terminal authority from completed custody and transaction fate."""
+
+    identity = TERMINAL_REFUSAL_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.joined-terminal-authority", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        value = cast(dict[str, JsonValue], observation.value)
+        records = cast(list[JsonValue], value["record_types"])
+        attempts = cast(list[dict[str, JsonValue]], value["transaction_attempts"])
+        tasks = cast(list[dict[str, JsonValue]], value["durable_tasks"])
+        begin = {
+            "accepted": True,
+            "dispatch_attempted": True,
+            "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
+        }
+        terminal_refused = {
+            "accepted": False,
+            "dispatch_attempted": False,
+            "record_types": ["ActivityCompleted"],
+        }
+        terminal_accepted = {**terminal_refused, "accepted": True}
+        projection = {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["TokensProduced", "FiringCompleted"],
+        }
+        attempts_exact = attempts in (
+            [],
+            [begin],
+            [begin, terminal_refused],
+            [begin, terminal_refused, terminal_accepted],
+            [begin, terminal_refused, terminal_accepted, projection],
+        )
+        accepted_begins = sum(attempt == begin for attempt in attempts)
+        refused_terminals = sum(attempt == terminal_refused for attempt in attempts)
+        accepted_terminals = sum(attempt == terminal_accepted for attempt in attempts)
+        accepted_projections = sum(attempt == projection for attempt in attempts)
+        selected = records.count(CandidateSelected.__name__)
+        begun = records.count(FiringBegun.__name__)
+        requested = records.count(ActivityRequested.__name__)
+        completed = records.count(ActivityCompleted.__name__)
+        produced = records.count("TokensProduced")
+        projected = records.count(FiringCompleted.__name__)
+        worker_completions = cast(int, value["worker_completions"])
+        expected_key = f"{INSTANCE_ID}:occurrence-1"
+        tasks_exact = tasks == [] or tasks in (
+            [{"idempotency": expected_key, "state": "pending"}],
+            [{"idempotency": expected_key, "state": "running"}],
+            [{"idempotency": expected_key, "state": "completed"}],
+        )
+        completed_custody = tasks == [{"idempotency": expected_key, "state": "completed"}]
+        passed = (
+            attempts_exact
+            and cast(int, value["prepare_calls"]) == accepted_begins
+            and selected == begun == requested == accepted_begins == len(tasks)
+            and completed == accepted_terminals <= worker_completions <= 1
+            and produced == projected == accepted_projections <= completed
+            and refused_terminals == cast(int, value["terminal_refusals"]) <= 1
+            and completed_custody == (worker_completions == 1)
+            and tasks_exact
+        )
+        return CheckResult(
+            passed=passed,
+            detail={
+                "accepted_begins": accepted_begins,
+                "accepted_projections": accepted_projections,
+                "accepted_terminals": accepted_terminals,
+                "attempts_exact": attempts_exact,
+                "canonical_projections": projected,
+                "canonical_terminals": completed,
+                "completed_custody": completed_custody,
+                "refused_terminals": refused_terminals,
                 "tasks_exact": tasks_exact,
                 "worker_completions": worker_completions,
             },
@@ -1796,6 +1965,102 @@ def build_joined_ack_loss_artifact(dsn: str) -> ScenarioArtifactV3:
     world, _, _ = execute_joined_ack_loss_story(dsn)
     try:
         artifact = world.artifact(ACK_LOSS_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_joined_terminal_refusal_story(
+    dsn: str,
+) -> tuple[World, JoinedTerminalRefusalProfile, Timeline]:
+    """Refuse one semantic terminal commit, drop, recollect, and project once."""
+
+    profile = JoinedTerminalRefusalProfile(dsn)
+    world = World(profile, WORLD_BUDGET, checkers=(JoinedTerminalAuthorityChecker(),))
+    timeline = world.timeline()
+
+    timeline.command("engine.drive", {})
+    timeline.command("worker.claim", {})
+    timeline.command("worker.complete", {"result": {"value": 3}})
+    timeline.activate_fault(
+        "history.commit-refuse",
+        "activity_completed",
+        disposition=FaultDisposition.REFUSE,
+        payload={"message": "dst joined terminal commit refused"},
+    )
+    timeline.command("engine.drive", {})
+    refused = timeline.observe("joined-terminal-refused")
+    refused_value = cast(dict[str, JsonValue], refused.value)
+    assert refused_value["record_types"] == [
+        "InstanceCreated",
+        "TokensInitialized",
+        "CandidateSelected",
+        "FiringBegun",
+        "TokensConsumed",
+        "ActivityRequested",
+    ]
+    assert refused_value["durable_tasks"] == [{"idempotency": f"{INSTANCE_ID}:occurrence-1", "state": "completed"}]
+    assert refused_value["frontier"] == 6
+    assert refused_value["prepare_calls"] == refused_value["terminal_refusals"] == 1
+    assert refused_value["status"] == "poisoned"
+    assert refused_value["worker_completions"] == 1
+
+    stale = timeline
+    timeline.crash("joined_terminal_commit_refused")
+    world.restart()
+    timeline = world.timeline()
+    recovered = timeline.run_until(
+        "joined-terminal-recovered",
+        lambda observation: (
+            "FiringCompleted" in cast(list[JsonValue], cast(dict[str, JsonValue], observation.value)["record_types"])
+        ),
+    )
+    recovered_value = cast(dict[str, JsonValue], recovered.value)
+    assert recovered_value["record_types"] == [
+        "InstanceCreated",
+        "TokensInitialized",
+        "CandidateSelected",
+        "FiringBegun",
+        "TokensConsumed",
+        "ActivityRequested",
+        "ActivityCompleted",
+        "TokensProduced",
+        "FiringCompleted",
+    ]
+    assert recovered_value["frontier"] == 9
+    assert recovered_value["prepare_calls"] == recovered_value["worker_completions"] == 1
+    assert recovered_value["terminal_refusals"] == 1
+    assert recovered_value["transaction_attempts"] == [
+        {
+            "accepted": True,
+            "dispatch_attempted": True,
+            "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
+        },
+        {
+            "accepted": False,
+            "dispatch_attempted": False,
+            "record_types": ["ActivityCompleted"],
+        },
+        {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["ActivityCompleted"],
+        },
+        {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["TokensProduced", "FiringCompleted"],
+        },
+    ]
+    timeline.finish(Disposition.CONVERGED)
+    return world, profile, stale
+
+
+def build_joined_terminal_refusal_artifact(dsn: str) -> ScenarioArtifactV3:
+    world, _, _ = execute_joined_terminal_refusal_story(dsn)
+    try:
+        artifact = world.artifact(TERMINAL_REFUSAL_SCENARIO_ID)
         assert isinstance(artifact, ScenarioArtifactV3)
         return artifact
     finally:

@@ -2,7 +2,7 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 is Done and DS2 now proves split request/cancellation refusal plus joined begin, terminal, projection, and paired lifecycle-cancellation refusal/acknowledgement-loss recovery over real Absurd/PostgreSQL in addition to bounded World v4, process containment, and LocalDispatch provider time; broader cuts and DS3–DS4 remain active
+status_reason: CV19.DS1 is Done and DS2 now proves split request/cancellation refusal plus joined begin, paired terminal refusal/acknowledgement-loss, projection, and paired lifecycle-cancellation refusal/acknowledgement-loss recovery over real Absurd/PostgreSQL in addition to bounded World v4, process containment, and LocalDispatch provider time; broader cuts and DS3–DS4 remain active
 updated: 2026-08-18
 related:
   - ../../../../src/petrus/simulation.py
@@ -175,17 +175,18 @@ the minimized expanded scenario becomes the durable regression fixture.
    spawn leaves neither semantic prefix nor task, and fresh provider load begins
    exactly once from the prior marking. A third loses the joined commit
    acknowledgement after acceptance and proves fresh load retains exactly one
-   semantic begin and task without another preparation. A fourth uses a real
-   Absurd Worker, loses the accepted terminal commit's acknowledgement, and
-   proves projection-only recovery. A fifth refuses the later projection commit
-   and proves the same fresh-load projection without another Worker completion
-   or handler preparation. A sixth commits `ScopeReset`, refuses the separate
-   real Absurd cancellation-tombstone commit, then proves fresh-load repair and
-   stale-Worker fencing without a semantic terminal or projection. A seventh
-   loses the acknowledgement after that tombstone commits, then proves fresh
-   load recognizes the accepted custody without a second cancellation mutation
-   and still fences the stale Worker. The broader fault/cut matrix keeps DS2
-   active.
+   semantic begin and task without another preparation. A fourth refuses the
+   semantic terminal commit after real Worker completion and proves fresh-load
+   recollection plus projection. A fifth loses the accepted terminal commit's
+   acknowledgement and proves projection-only recovery. A sixth refuses the
+   later projection commit and proves the same fresh-load projection without
+   another Worker completion or handler preparation. A seventh commits
+   `ScopeReset`, refuses the separate real Absurd cancellation-tombstone commit,
+   then proves fresh-load repair and stale-Worker fencing without a semantic
+   terminal or projection. An eighth loses the acknowledgement after that
+   tombstone commits, then proves fresh load recognizes the accepted custody
+   without a second cancellation mutation and still fences the stale Worker.
+   The broader fault/cut matrix keeps DS2 active.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)
    adds broad and targeted workload generation, independent models/checkers,
    shrinking, semantic coverage, and durable replay fixtures.

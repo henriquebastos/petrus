@@ -400,6 +400,25 @@ route returns `outcome: "pass"`, `external_wait`, 9 operations, 15 journal
 entries including 6 checker evaluations, and digest
 `sha256:e335a248d18103ea1e19e1843bb1666d760a19296cca35c7a5363ddde692466e`.
 
+### Joined terminal commit refusal
+
+[`joined-terminal-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-terminal-commit-refusal-world-v3.json)
+proves the refused side of the real Absurd/PostgreSQL terminal boundary. A real
+Worker completes one task in provider custody, then the test connection refuses
+the transaction containing `ActivityCompleted` before PostgreSQL accepts it.
+Detached truth shows one completed task, no canonical terminal or projection,
+and a poisoned writing Engine.
+
+After revocation and abrupt drop, fresh public `load_engine` recollects the same
+provider result, accepts one `ActivityCompleted`, and projects it exactly once.
+There is no second Worker completion, handler `prepare`, or task. The checker
+derives terminal authority from completed provider custody, recorded Worker
+completion, and accepted/refused PostgreSQL transactions; its mutation test
+rejects a canonical terminal authorized only by the refused transaction. The
+retained route returns `outcome: "pass"`, `converged`, 12 operations, 21
+journal entries including 9 checker evaluations, and digest
+`sha256:c61d9286f53a66cfa7484ff6bf440a35f377b8355b55bdf6fc4f8c9a017c631b`.
+
 ### Joined terminal acknowledgement loss
 
 [`joined-terminal-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-terminal-ack-loss-world-v3.json)
@@ -481,17 +500,18 @@ operations, 31 journal entries including 12 checker evaluations, and digest
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. Seven joined-provider profiles now prove real joined-transaction
-commit refusal, pre-commit task-spawn failure, post-commit begin and terminal
-acknowledgement loss, accepted-terminal/refused-projection recovery, and
+generator. Eight joined-provider profiles now prove real joined-transaction
+commit refusal, pre-commit task-spawn failure, post-commit begin
+acknowledgement loss, paired terminal commit refusal/acknowledgement loss,
+accepted-terminal/refused-projection recovery, and
 both refused and accepted-but-unacknowledged post-reset cancellation-tombstone
 recovery without widening the World contract; the broader delivery, Dispatch,
-lifecycle, and transaction fault matrix remains in CV19.DS2. Version 4 subsequently adds
-profile-retained-data and hidden-pending-work bounds without changing version 3
-replay, and runner v1 contains complete Worlds under a separate wall-clock
-process budget. Stateful generation, shrinking, broad independent
-models/checkers, and semantic coverage remain in DS3; campaign and real-boundary
-qualification remain in DS4.
+lifecycle, and transaction fault matrix remains in CV19.DS2. Version 4
+subsequently adds profile-retained-data and hidden-pending-work bounds without
+changing version 3 replay, and runner v1 contains complete Worlds under a
+separate wall-clock process budget. Stateful generation, shrinking, broad
+independent models/checkers, and semantic coverage remain in DS3; campaign and
+real-boundary qualification remain in DS4.
 
 Nonzero LocalDispatch retry time crosses the explicit optional provider-clock
 contract accepted in the
