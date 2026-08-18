@@ -2,7 +2,7 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 is Done and DS2 now proves split request/cancellation refusal plus joined begin and paired terminal, projection, and lifecycle-cancellation refusal/acknowledgement-loss recovery over real Absurd/PostgreSQL in addition to bounded World v4, process containment, and LocalDispatch provider time; broader cuts and DS3–DS4 remain active
+status_reason: CV19.DS1 is Done and DS2 now proves split request/cancellation refusal plus joined begin, paired completed-terminal, failed-terminal refusal, paired projection, and lifecycle-cancellation refusal/acknowledgement-loss recovery over real Absurd/PostgreSQL in addition to bounded World v4, process containment, and LocalDispatch provider time; broader cuts and DS3–DS4 remain active
 updated: 2026-08-18
 related:
   - ../../../../src/petrus/simulation.py
@@ -179,13 +179,15 @@ the minimized expanded scenario becomes the durable regression fixture.
    semantic terminal commit after real Worker completion and proves fresh-load
    recollection plus projection. A fifth loses the accepted terminal commit's
    acknowledgement and proves projection-only recovery. A sixth refuses the
-   later projection commit and proves the same fresh-load projection without
-   another Worker completion or handler preparation. A seventh loses the
-   accepted projection acknowledgement and proves fresh load reconstructs the
-   converged state without another projection. An eighth commits `ScopeReset`,
+   `ActivityFailed` transaction after a non-retryable Worker failure and proves
+   fresh-load recollection plus one `FiringFailed`. A seventh refuses the later
+   projection commit and proves the same fresh-load projection without another
+   Worker completion or handler preparation. An eighth loses the accepted
+   projection acknowledgement and proves fresh load reconstructs the converged
+   state without another projection. A ninth commits `ScopeReset`,
    refuses the separate real Absurd cancellation-tombstone commit, then proves
    fresh-load repair and stale-Worker fencing without a semantic terminal or
-   projection. A ninth loses the acknowledgement after that tombstone commits,
+   projection. A tenth loses the acknowledgement after that tombstone commits,
    then proves fresh load recognizes the accepted custody without a second
    cancellation mutation and still fences the stale Worker. The broader
    fault/cut matrix keeps DS2 active.

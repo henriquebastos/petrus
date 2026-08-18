@@ -437,6 +437,26 @@ retained route returns `outcome: "pass"`, `converged`, 12 operations, 21 journal
 entries including 9 checker evaluations, and digest
 `sha256:77698d04b4827861bf7f090606b37a576bdee4cb558d644147f9c34891b4f6b8`.
 
+### Joined failed-terminal commit refusal
+
+[`joined-failure-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-failure-commit-refusal-world-v3.json)
+qualifies the failed side of the real Absurd/PostgreSQL terminal boundary. A
+real Worker reports one non-retryable `ActivityFailure`, leaving failed provider
+custody. Production tries to commit `ActivityFailed`, but the test connection
+refuses that transaction. Detached PostgreSQL truth shows no canonical failure
+while the writing Engine poisons.
+
+Fresh public `load_engine` recollects that same provider failure and commits
+exactly one `ActivityFailed` followed by one `FiringFailed`. No second Worker
+failure, task, or handler `prepare` occurs, and the exact profile converts the
+production terminal raise into the `quarantined` disposition. The independent
+checker derives failure authority from failed provider custody, the recorded
+Worker failure, and accepted or refused PostgreSQL transaction attempts. Its
+mutation test rejects a canonical `ActivityFailed` backed only by the refused
+transaction. The retained route returns `outcome: "pass"`, `quarantined`, 12
+operations, 21 journal entries including 9 checker evaluations, and digest
+`sha256:50dabde303a773fe55c4863593997f55e9685bec1fc53ffb1c496fd0f27496c3`.
+
 ### Joined terminal and refused projection commit
 
 [`joined-projection-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-projection-commit-refusal-world-v3.json)
@@ -519,13 +539,14 @@ operations, 31 journal entries including 12 checker evaluations, and digest
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. Nine joined-provider profiles now prove real joined-transaction
+generator. Ten joined-provider profiles now prove real joined-transaction
 commit refusal, pre-commit task-spawn failure, post-commit begin
-acknowledgement loss, paired terminal commit refusal/acknowledgement loss,
-and paired projection commit refusal/acknowledgement loss, plus
-both refused and accepted-but-unacknowledged post-reset cancellation-tombstone
-recovery without widening the World contract; the broader delivery, Dispatch,
-lifecycle, and transaction fault matrix remains in CV19.DS2. Version 4
+acknowledgement loss, paired completed-terminal commit refusal/acknowledgement
+loss, failed-terminal recollection after commit refusal, paired projection
+commit refusal/acknowledgement loss, plus both refused and
+accepted-but-unacknowledged post-reset cancellation-tombstone recovery without
+widening the World contract; the broader delivery, Dispatch, lifecycle, and
+transaction fault matrix remains in CV19.DS2. Version 4
 subsequently adds profile-retained-data and hidden-pending-work bounds without
 changing version 3 replay, and runner v1 contains complete Worlds under a
 separate wall-clock process budget. Stateful generation, shrinking, broad
