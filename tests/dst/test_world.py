@@ -20,12 +20,17 @@ from petrus.testing.dst import (
     ARTIFACT_VERSION,
     LEGACY_API_COMPATIBILITY,
     LEGACY_ARTIFACT_VERSION,
+    PREVIOUS_API_COMPATIBILITY,
+    PREVIOUS_ARTIFACT_VERSION,
+    RESULT_VERSION,
     ActionDisposition,
     ApplyResult,
     Budget,
     BudgetExhausted,
     CheckResult,
     CheckerIdentity,
+    ChoiceAuthority,
+    ChoiceStreams,
     Command,
     Disposition,
     DstError,
@@ -40,6 +45,7 @@ from petrus.testing.dst import (
     RunUntilFailed,
     ScenarioRegistry,
     ScenarioArtifactV1,
+    ScenarioArtifactV2,
     ScheduledCommand,
     ScenarioContext,
     StaleGeneration,
@@ -56,6 +62,8 @@ from tests.dst.engine_world import (
     LEGACY_SCENARIO_ID,
     PROFILE_IDENTITY,
     SCENARIO_ID,
+    SCENARIO_SEED,
+    SEEDED_SCENARIO_ID,
     WORLD_BUDGET,
     EngineHistoryChecker,
     EngineProfile,
@@ -63,12 +71,14 @@ from tests.dst.engine_world import (
     build_budget_failure_artifact,
     build_invariant_failure_artifact,
     build_projection_artifact,
+    build_seeded_projection_artifact,
     execute_projection_story,
 )
 
 LEGACY_FIXTURE = Path("tests/dst/fixtures/projection-crash-recovery-world-v1.json")
 BUDGET_FAILURE_FIXTURE = Path("tests/dst/fixtures/action-budget-exhaustion-world-v2.json")
 INVARIANT_FAILURE_FIXTURE = Path("tests/dst/fixtures/terminal-checker-failure-world-v2.json")
+SEEDED_FIXTURE = Path("tests/dst/fixtures/seeded-projection-crash-recovery-world-v3.json")
 
 
 class QueueProfile:
@@ -449,7 +459,7 @@ def test_queue_reload_and_artifact_byte_budgets_end_explicitly() -> None:
         encode_artifact(artifact)
 
 
-def test_executable_story_generates_a_strict_version_two_artifact(tmp_path: Path) -> None:
+def test_executable_story_generates_a_strict_version_three_artifact(tmp_path: Path) -> None:
     artifact = build_projection_artifact(tmp_path / "authored-history.jsonl")
 
     assert artifact.format == ARTIFACT_FORMAT
@@ -458,7 +468,134 @@ def test_executable_story_generates_a_strict_version_two_artifact(tmp_path: Path
     assert artifact.scenario_id == SCENARIO_ID
     assert artifact.profile == PROFILE_IDENTITY
     assert artifact.checkers == [CHECKER_IDENTITY]
+    assert artifact.origin is None
     assert decode_artifact(encode_artifact(artifact)) == artifact
+
+
+def test_choice_authorities_are_repeatable_and_stream_isolated() -> None:
+    first = ChoiceStreams(SCENARIO_SEED)
+    second = ChoiceStreams(SCENARIO_SEED)
+
+    first_workload = [first.index(ChoiceAuthority.WORKLOAD, 1_000) for _ in range(4)]
+    second_workload = [second.index(ChoiceAuthority.WORKLOAD, 1_000) for _ in range(4)]
+    assert first_workload == second_workload == [584, 541, 292, 147]
+    assert (
+        first.identifier("scenario") == second.identifier("scenario") == ("scenario-4a6cb3d68a08da140c56fd1ed8bcbce2")
+    )
+
+    baseline = ChoiceStreams(SCENARIO_SEED)
+    perturbed = ChoiceStreams(SCENARIO_SEED)
+    baseline_workload = [baseline.index(ChoiceAuthority.WORKLOAD, 1_000) for _ in range(2)]
+    first_perturbed = perturbed.index(ChoiceAuthority.WORKLOAD, 1_000)
+    for _ in range(8):
+        perturbed.index(ChoiceAuthority.FAULT, 17)
+    perturbed.identifier("diagnostic")
+    perturbed.index(ChoiceAuthority.EVENT_ORDER, 5)
+    second_perturbed = perturbed.index(ChoiceAuthority.WORKLOAD, 1_000)
+
+    assert [first_perturbed, second_perturbed] == baseline_workload
+    assert perturbed.provenance().draws == {
+        "event_order": 1,
+        "fault": 8,
+        "identifier:diagnostic": 1,
+        "workload": 2,
+    }
+
+    baseline_ids = ChoiceStreams(SCENARIO_SEED)
+    perturbed_ids = ChoiceStreams(SCENARIO_SEED)
+    expected_ids = [baseline_ids.identifier("scenario") for _ in range(2)]
+    first_id = perturbed_ids.identifier("scenario")
+    for _ in range(8):
+        perturbed_ids.identifier("diagnostic")
+    second_id = perturbed_ids.identifier("scenario")
+    assert [first_id, second_id] == expected_ids
+
+
+def test_choice_authorities_refuse_implicit_or_malformed_inputs() -> None:
+    with pytest.raises(ValueError, match="choice seed"):
+        ChoiceStreams(True)
+
+    choices = ChoiceStreams(SCENARIO_SEED)
+    with pytest.raises(AttributeError):
+        choices.seed = SCENARIO_SEED + 1  # type: ignore[misc]
+    with pytest.raises(AttributeError):
+        choices.algorithm = "other"  # type: ignore[misc]
+    with pytest.raises(TypeError, match="ChoiceAuthority"):
+        choices.index("workload", 2)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match=r"identifier\(\)"):
+        choices.index(ChoiceAuthority.IDENTIFIER, 2)
+    with pytest.raises(ValueError, match="integer from 1"):
+        choices.index(ChoiceAuthority.WORKLOAD, True)
+    with pytest.raises(ValueError, match="integer from 1"):
+        choices.index(ChoiceAuthority.WORKLOAD, 2**53)
+    with pytest.raises(ValueError, match="identifier namespace"):
+        choices.identifier("")
+
+    provenance = ChoiceStreams(SCENARIO_SEED).provenance().model_dump(mode="json")
+    provenance["draws"] = {"workload": 2**53}
+    with pytest.raises(ValidationError, match="JSON-portable"):
+        dst.ChoiceProvenance.model_validate(provenance, strict=True)
+
+    world = World(
+        QueueProfile(),
+        Budget(
+            actions=2,
+            queued_commands=2,
+            timer_advances=1,
+            logical_instant=5,
+            reloads=0,
+            predicate_polls=1,
+            artifact_bytes=65_536,
+        ),
+    )
+    try:
+        with pytest.raises(DstError, match="no seeded choice authorities"):
+            _ = world.choices
+    finally:
+        world.close()
+
+
+def test_seeded_story_is_exact_and_replay_uses_expanded_operations(tmp_path: Path) -> None:
+    first = build_seeded_projection_artifact(tmp_path / "seeded-first.jsonl")
+    second = build_seeded_projection_artifact(tmp_path / "seeded-second.jsonl")
+
+    assert first == second
+    assert first.scenario_id == SEEDED_SCENARIO_ID
+    assert first.origin is not None
+    assert first.origin.seed == SCENARIO_SEED
+    assert first.origin.draws == {
+        "event_order": 1,
+        "fault": 1,
+        "identifier:scenario": 1,
+        "workload": 1,
+    }
+    assert encode_artifact(first) == SEEDED_FIXTURE.read_bytes().rstrip(b"\n")
+
+    value = json.loads(SEEDED_FIXTURE.read_bytes())
+    value["origin"]["seed"] = SCENARIO_SEED + 1
+    changed_provenance = decode_artifact(json.dumps(value, allow_nan=False).encode())
+    registry = ScenarioRegistry()
+    registry.register_profile(EngineProfile(tmp_path / "seeded-replay.jsonl"))
+    registry.register_checker(EngineHistoryChecker())
+    result = replay(changed_provenance, registry)
+
+    assert result.version == RESULT_VERSION
+    assert result.scenario_id == SEEDED_SCENARIO_ID
+    assert result.disposition == Disposition.CONVERGED.value
+    assert result.operations == len(first.operations)
+
+
+def test_seeded_manual_replay_route_is_deterministic() -> None:
+    command = [sys.executable, "-m", "tests.dst.replay_world", str(SEEDED_FIXTURE)]
+    first = subprocess.run(command, check=True, capture_output=True, text=True)
+    second = subprocess.run(command, check=True, capture_output=True, text=True)
+
+    assert first.stderr == second.stderr == ""
+    assert first.stdout == second.stdout
+    result = json.loads(first.stdout)
+    assert result["version"] == RESULT_VERSION
+    assert result["scenario_id"] == SEEDED_SCENARIO_ID
+    assert result["outcome"] == "pass"
 
 
 def test_legacy_version_one_artifact_remains_byte_exact() -> None:
@@ -501,18 +638,16 @@ def test_legacy_manual_replay_route_is_deterministic() -> None:
 
 
 @pytest.mark.parametrize(
-    ("build", "fixture", "scenario_id", "disposition", "operations"),
+    ("build", "scenario_id", "disposition", "operations"),
     [
         (
             build_budget_failure_artifact,
-            BUDGET_FAILURE_FIXTURE,
             BUDGET_FAILURE_SCENARIO_ID,
             Disposition.BUDGET_EXHAUSTED,
             2,
         ),
         (
             build_invariant_failure_artifact,
-            INVARIANT_FAILURE_FIXTURE,
             INVARIANT_FAILURE_SCENARIO_ID,
             Disposition.INVARIANT_FAILURE,
             6,
@@ -522,13 +657,13 @@ def test_legacy_manual_replay_route_is_deterministic() -> None:
 def test_failed_attempt_artifacts_are_exact_and_replayable(
     tmp_path: Path,
     build,
-    fixture: Path,
     scenario_id: str,
     disposition: Disposition,
     operations: int,
 ) -> None:
     artifact = build(tmp_path / f"author-{scenario_id}.jsonl")
-    assert encode_artifact(artifact) == fixture.read_bytes().rstrip(b"\n")
+    assert artifact.version == ARTIFACT_VERSION
+    assert artifact.origin is None
     assert artifact.expected.disposition == disposition.value
     assert artifact.expected.failure is not None
     assert isinstance(artifact.operations[-1], FailureOperation)
@@ -537,13 +672,55 @@ def test_failed_attempt_artifacts_are_exact_and_replayable(
     registry.register_profile(EngineProfile(tmp_path / f"replay-{scenario_id}.jsonl"))
     registry.register_checker(EngineHistoryChecker())
     registry.register_checker(TerminalRefusalChecker())
-    result = replay(load_artifact(fixture), registry)
+    result = replay(artifact, registry)
 
-    assert result.version == ARTIFACT_VERSION
+    assert result.version == RESULT_VERSION
     assert result.scenario_id == scenario_id
     assert result.outcome == "pass"
     assert result.disposition == disposition.value
     assert result.failure == artifact.expected.failure
+    assert result.operations == operations
+
+
+@pytest.mark.parametrize(
+    ("fixture", "scenario_id", "disposition", "operations"),
+    [
+        (
+            BUDGET_FAILURE_FIXTURE,
+            BUDGET_FAILURE_SCENARIO_ID,
+            Disposition.BUDGET_EXHAUSTED,
+            2,
+        ),
+        (
+            INVARIANT_FAILURE_FIXTURE,
+            INVARIANT_FAILURE_SCENARIO_ID,
+            Disposition.INVARIANT_FAILURE,
+            6,
+        ),
+    ],
+)
+def test_retained_version_two_failure_artifacts_remain_exact_and_replayable(
+    tmp_path: Path,
+    fixture: Path,
+    scenario_id: str,
+    disposition: Disposition,
+    operations: int,
+) -> None:
+    artifact = load_artifact(fixture)
+    assert isinstance(artifact, ScenarioArtifactV2)
+    assert artifact.version == PREVIOUS_ARTIFACT_VERSION
+    assert artifact.api == PREVIOUS_API_COMPATIBILITY
+    assert encode_artifact(artifact) == fixture.read_bytes().rstrip(b"\n")
+
+    registry = ScenarioRegistry()
+    registry.register_profile(EngineProfile(tmp_path / f"replay-v2-{scenario_id}.jsonl"))
+    registry.register_checker(EngineHistoryChecker())
+    registry.register_checker(TerminalRefusalChecker())
+    result = replay(artifact, registry)
+
+    assert result.version == RESULT_VERSION
+    assert result.scenario_id == scenario_id
+    assert result.disposition == disposition.value
     assert result.operations == operations
 
 
@@ -657,7 +834,7 @@ def test_failed_attempt_manual_replay_is_deterministic(fixture: Path, dispositio
     result = json.loads(first.stdout)
     assert first.stderr == second.stderr == ""
     assert first.stdout == second.stdout
-    assert result["version"] == ARTIFACT_VERSION
+    assert result["version"] == RESULT_VERSION
     assert result["disposition"] == disposition.value
     assert result["failure"]["kind"] == disposition.value
 
@@ -724,6 +901,7 @@ def test_supported_surface_has_no_root_reexports_or_private_runtime_handles() ->
     assert "Engine" not in dst.__all__
     assert not hasattr(dst.ScenarioContext, "schedule")
     assert not hasattr(dst.ScenarioContext, "submit")
+    assert not hasattr(dst.ScenarioContext, "choices")
     assert set(inspect.signature(dst.ScenarioProfile.apply).parameters) == {
         "self",
         "generation",

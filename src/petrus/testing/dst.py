@@ -13,20 +13,24 @@ import re
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Annotated, Callable, Literal, Protocol, cast
+from typing import Annotated, Callable, ClassVar, Literal, Protocol, cast
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator, model_validator
 
 LEGACY_API_COMPATIBILITY = "petrus.testing.dst/v1"
-API_COMPATIBILITY = "petrus.testing.dst/v2"
+PREVIOUS_API_COMPATIBILITY = "petrus.testing.dst/v2"
+API_COMPATIBILITY = "petrus.testing.dst/v3"
 ARTIFACT_FORMAT = "petrus-dst-world"
 LEGACY_ARTIFACT_VERSION = 1
-ARTIFACT_VERSION = 2
+PREVIOUS_ARTIFACT_VERSION = 2
+ARTIFACT_VERSION = 3
 RESULT_FORMAT = "petrus-dst-world-replay-result"
+RESULT_VERSION = 2
 MAX_ARTIFACT_BYTES = 4_194_304
 
 _NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_.:-]*$")
 _DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
+_MAX_PORTABLE_INTEGER = 2**53 - 1
 
 type _ActionDisposition = Literal["applied", "idempotent", "refused_expected", "quarantined"]
 type _AuthoredDisposition = Literal["converged", "quiescent", "external_wait", "quarantined"]
@@ -66,6 +70,15 @@ class FaultDisposition(StrEnum):
     DUPLICATE = "duplicate"
 
 
+class ChoiceAuthority(StrEnum):
+    """Independent deterministic authorities available to scenario authors."""
+
+    WORKLOAD = "workload"
+    FAULT = "fault"
+    IDENTIFIER = "identifier"
+    EVENT_ORDER = "event_order"
+
+
 def _strict_json(value: object, subject: str = "value") -> JsonValue:
     """Detach exact JSON data while refusing Python extensions and NaN/Inf."""
 
@@ -102,6 +115,90 @@ def digest_json(value: object) -> str:
 
 class _StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+
+class ChoiceProvenance(_StrictModel):
+    """Seed metadata for discovery; expanded operations remain authoritative."""
+
+    algorithm: Literal["sha256-counter-v1"]
+    seed: int = Field(ge=0, le=_MAX_PORTABLE_INTEGER)
+    draws: dict[str, int]
+
+    @field_validator("draws")
+    @classmethod
+    def valid_draws(cls, value: dict[str, int]) -> dict[str, int]:
+        for name, count in value.items():
+            identifier = name.removeprefix(f"{ChoiceAuthority.IDENTIFIER.value}:")
+            if name not in {
+                authority.value for authority in ChoiceAuthority if authority is not ChoiceAuthority.IDENTIFIER
+            }:
+                if identifier == name or not _NAME.fullmatch(identifier):
+                    raise ValueError("choice draw names must identify one authority or identifier namespace")
+            if type(count) is not int or not 1 <= count <= _MAX_PORTABLE_INTEGER:
+                raise ValueError("choice draw counts must be positive JSON-portable integers")
+        return value
+
+
+class ChoiceStreams:
+    """Separable deterministic choice streams for generated scenario inputs."""
+
+    __slots__ = ("_draws", "_seed")
+
+    algorithm: ClassVar[Literal["sha256-counter-v1"]] = "sha256-counter-v1"
+
+    def __init__(self, seed: int):
+        if type(seed) is not int or not 0 <= seed <= _MAX_PORTABLE_INTEGER:
+            raise ValueError("DST choice seed must be an integer from 0 through 2^53 - 1")
+        self._seed = seed
+        self._draws: dict[str, int] = {}
+
+    @property
+    def seed(self) -> int:
+        return self._seed
+
+    def index(self, authority: ChoiceAuthority, stop: int) -> int:
+        """Choose one unbiased index without perturbing another authority."""
+
+        if not isinstance(authority, ChoiceAuthority):
+            raise TypeError("DST choice authority must be a ChoiceAuthority")
+        if authority is ChoiceAuthority.IDENTIFIER:
+            raise ValueError("use identifier() for the generated-identifier authority")
+        if type(stop) is not int or not 1 <= stop <= _MAX_PORTABLE_INTEGER:
+            raise ValueError("DST choice stop must be an integer from 1 through 2^53 - 1")
+        return self._index(authority.value, stop)
+
+    def identifier(self, namespace: str) -> str:
+        """Generate one seeded stable identifier on a namespace-isolated stream."""
+
+        if not _NAME.fullmatch(namespace):
+            raise ValueError("choice identifier namespace must be a normalized non-empty name")
+        key = f"{ChoiceAuthority.IDENTIFIER.value}:{namespace}"
+        ordinal = self._draws.get(key, 0)
+        self._draws[key] = ordinal + 1
+        value = self._digest(key, ordinal, 0)
+        return f"{namespace}-{value.hex()[:32]}"
+
+    def provenance(self) -> ChoiceProvenance:
+        return ChoiceProvenance(algorithm=self.algorithm, seed=self.seed, draws=dict(sorted(self._draws.items())))
+
+    def _index(self, key: str, stop: int) -> int:
+        ordinal = self._draws.get(key, 0)
+        space = 1 << 256
+        ceiling = space - (space % stop)
+        for probe in range(16):
+            value = int.from_bytes(self._digest(key, ordinal, probe))
+            if value < ceiling:
+                self._draws[key] = ordinal + 1
+                return value % stop
+        raise RuntimeError("DST choice rejection sampling exceeded 16 deterministic probes")
+
+    def _digest(self, key: str, ordinal: int, probe: int) -> bytes:
+        payload = json.dumps(
+            [self.algorithm, self.seed, key, ordinal, probe],
+            allow_nan=False,
+            separators=(",", ":"),
+        ).encode()
+        return hashlib.sha256(payload).digest()
 
 
 class ComponentIdentity(_StrictModel):
@@ -562,12 +659,10 @@ class ScenarioExpected(_StrictModel):
         return value
 
 
-class ScenarioArtifact(_StrictModel):
-    """Strict version-2 operations including an exact terminal failure attempt."""
+class _FailureScenarioArtifact(_StrictModel):
+    """Common strict shape for artifacts which retain terminal failures."""
 
     format: Literal["petrus-dst-world"]
-    version: Literal[2]
-    api: Literal["petrus.testing.dst/v2"]
     scenario_id: str
     profile: ProfileIdentity
     checkers: list[CheckerIdentity]
@@ -583,7 +678,7 @@ class ScenarioArtifact(_StrictModel):
         return value
 
     @model_validator(mode="after")
-    def coherent(self) -> ScenarioArtifact:
+    def coherent(self) -> _FailureScenarioArtifact:
         self._validate_shape()
         self._validate_failure()
         self._validate_profiles()
@@ -631,6 +726,21 @@ class ScenarioArtifact(_StrictModel):
                     raise ValueError("DST failed command attempt does not match the artifact profile")
                 if isinstance(attempt, FaultAttempt) and attempt.fault.profile != self.profile:
                     raise ValueError("DST failed fault attempt does not match the artifact profile")
+
+
+class ScenarioArtifactV2(_FailureScenarioArtifact):
+    """Legacy version-2 artifact with exact terminal failure retention."""
+
+    version: Literal[2]
+    api: Literal["petrus.testing.dst/v2"]
+
+
+class ScenarioArtifact(_FailureScenarioArtifact):
+    """Current artifact with exact operations and seeded discovery provenance."""
+
+    version: Literal[3]
+    api: Literal["petrus.testing.dst/v3"]
+    origin: ChoiceProvenance | None
 
 
 class ReplayResultV1(_StrictModel):
@@ -785,10 +895,18 @@ class ScenarioRegistry:
 class World:
     """One deterministic interpreter over an application-owned runtime profile."""
 
-    def __init__(self, profile: ScenarioProfile[object], budget: Budget, *, checkers: tuple[Checker, ...] = ()):
+    def __init__(
+        self,
+        profile: ScenarioProfile[object],
+        budget: Budget,
+        *,
+        checkers: tuple[Checker, ...] = (),
+        seed: int | None = None,
+    ):
         self.profile = profile
         self.budget = budget
         self.checkers = checkers
+        self._choices = None if seed is None else ChoiceStreams(seed)
         checker_keys = [_identity_key(checker.identity) for checker in checkers]
         if len(checker_keys) != len(set(checker_keys)):
             raise ValueError("DST World checker identities must be unique")
@@ -837,6 +955,12 @@ class World:
     @property
     def disposition(self) -> Disposition | None:
         return self._disposition
+
+    @property
+    def choices(self) -> ChoiceStreams:
+        if self._choices is None:
+            raise DstError("DST World has no seeded choice authorities")
+        return self._choices
 
     def timeline(self) -> Timeline:
         if self._generation_id is None:
@@ -1072,6 +1196,7 @@ class World:
             checkers=[checker.identity for checker in self.checkers],
             budget=self.budget,
             operations=list(self._operations),
+            origin=None if self._choices is None else self._choices.provenance(),
             expected=ScenarioExpected(
                 disposition=self._disposition.value,
                 failure=failure,
@@ -1402,7 +1527,7 @@ class Timeline:
         self._world.finish(disposition, generation=self.generation)
 
 
-type AnyScenarioArtifact = ScenarioArtifactV1 | ScenarioArtifact
+type AnyScenarioArtifact = ScenarioArtifactV1 | ScenarioArtifactV2 | ScenarioArtifact
 
 
 def encode_artifact(artifact: AnyScenarioArtifact) -> bytes:
@@ -1430,6 +1555,8 @@ def decode_artifact(payload: bytes) -> AnyScenarioArtifact:
     version = value.get("version")
     if version == LEGACY_ARTIFACT_VERSION:
         artifact: AnyScenarioArtifact = ScenarioArtifactV1.model_validate(value, strict=True)
+    elif version == PREVIOUS_ARTIFACT_VERSION:
+        artifact = ScenarioArtifactV2.model_validate(value, strict=True)
     elif version == ARTIFACT_VERSION:
         artifact = ScenarioArtifact.model_validate(value, strict=True)
     else:
@@ -1471,7 +1598,7 @@ def replay(artifact: AnyScenarioArtifact, registry: ScenarioRegistry) -> AnyRepl
             raise ReplayMismatch("DST replay journal digest diverged")
         result = {
             "format": RESULT_FORMAT,
-            "version": artifact.version,
+            "version": 1 if isinstance(artifact, ScenarioArtifactV1) else RESULT_VERSION,
             "scenario_id": artifact.scenario_id,
             "outcome": "pass",
             "disposition": world.disposition.value,
@@ -1635,7 +1762,10 @@ __all__ = [
     "ARTIFACT_VERSION",
     "LEGACY_API_COMPATIBILITY",
     "LEGACY_ARTIFACT_VERSION",
+    "PREVIOUS_API_COMPATIBILITY",
+    "PREVIOUS_ARTIFACT_VERSION",
     "RESULT_FORMAT",
+    "RESULT_VERSION",
     "ActionDisposition",
     "AnyReplayResult",
     "AnyScenarioArtifact",
@@ -1646,6 +1776,9 @@ __all__ = [
     "CheckResult",
     "Checker",
     "CheckerIdentity",
+    "ChoiceAuthority",
+    "ChoiceProvenance",
+    "ChoiceStreams",
     "Command",
     "ComponentIdentity",
     "Disposition",
@@ -1668,6 +1801,7 @@ __all__ = [
     "RunUntilFailed",
     "ScenarioArtifact",
     "ScenarioArtifactV1",
+    "ScenarioArtifactV2",
     "ScenarioContext",
     "ScenarioProfile",
     "ScenarioRegistry",

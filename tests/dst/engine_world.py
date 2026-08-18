@@ -21,6 +21,7 @@ from petrus.testing.dst import (
     BudgetExhausted,
     CheckResult,
     CheckerIdentity,
+    ChoiceAuthority,
     Command,
     Disposition,
     Fault,
@@ -43,7 +44,9 @@ DONE = NetPath("done")
 PROJECT = NetPath("project")
 INSTANCE_ID = "dst-world-projection-recovery"
 LEGACY_SCENARIO_ID = "projection-crash-recovery-world-v1"
-SCENARIO_ID = "projection-crash-recovery-world-v2"
+SCENARIO_ID = "projection-crash-recovery-world-v3"
+SEEDED_SCENARIO_ID = "seeded-projection-crash-recovery-world-v3"
+SCENARIO_SEED = 1729
 INVARIANT_FAILURE_SCENARIO_ID = "terminal-checker-failure-world-v2"
 BUDGET_FAILURE_SCENARIO_ID = "action-budget-exhaustion-world-v2"
 
@@ -376,11 +379,11 @@ class TerminalRefusalChecker:
         return CheckResult(passed=not terminal, detail={"terminal_firing": terminal})
 
 
-def execute_projection_story(history_path: Path) -> tuple[World, EngineProfile, Timeline]:
+def execute_projection_story(history_path: Path, *, seed: int | None = None) -> tuple[World, EngineProfile, Timeline]:
     """Author the vertical scenario as an imperative debugger-like pytest story."""
 
     profile = EngineProfile(history_path)
-    world = World(profile, WORLD_BUDGET, checkers=(EngineHistoryChecker(),))
+    world = World(profile, WORLD_BUDGET, checkers=(EngineHistoryChecker(),), seed=seed)
     timeline = world.timeline()
 
     requested = timeline.run_until(
@@ -389,13 +392,26 @@ def execute_projection_story(history_path: Path) -> tuple[World, EngineProfile, 
     )
     assert cast(dict[str, JsonValue], requested.value)["frontier"] == 6
 
+    result = 3
+    fault_message = "dst projection fault"
+    if seed is not None:
+        result = (3, 5, 8)[world.choices.index(ChoiceAuthority.WORKLOAD, 3)]
+        fault_label = ("projection", "bridge")[world.choices.index(ChoiceAuthority.FAULT, 2)]
+        identifier = world.choices.identifier("scenario")
+        observations = ["activity-requested", "projection-refused"]
+        if world.choices.index(ChoiceAuthority.EVENT_ORDER, 2):
+            observations.reverse()
+        for name in observations:
+            timeline.observe(name)
+        fault_message = f"dst {fault_label} fault {identifier}"
+
     timeline.activate_fault(
         "projection.raise",
         "activity_terminal_frozen",
         disposition=FaultDisposition.RAISE,
-        payload={"message": "dst projection fault"},
+        payload={"message": fault_message},
     )
-    timeline.command("engine.complete", {"occurrence": 1, "result": {"value": 3}})
+    timeline.command("engine.complete", {"occurrence": 1, "result": {"value": result}})
     refused = timeline.run_until(
         "projection-refused",
         lambda observation: cast(dict[str, JsonValue], observation.value)["status"] == "poisoned",
@@ -413,7 +429,7 @@ def execute_projection_story(history_path: Path) -> tuple[World, EngineProfile, 
     )
     terminal_value = cast(dict[str, JsonValue], terminal.value)
     assert terminal_value["frontier"] == 9
-    assert terminal_value["marking"] == [{"place": "done", "tokens": [{"color": "Done", "data": {"value": 3}}]}]
+    assert terminal_value["marking"] == [{"place": "done", "tokens": [{"color": "Done", "data": {"value": result}}]}]
     timeline.finish(Disposition.CONVERGED)
     return world, profile, stale
 
@@ -422,6 +438,14 @@ def build_projection_artifact(history_path: Path) -> ScenarioArtifact:
     world, _, _ = execute_projection_story(history_path)
     try:
         return world.artifact(SCENARIO_ID)
+    finally:
+        world.close()
+
+
+def build_seeded_projection_artifact(history_path: Path) -> ScenarioArtifact:
+    world, _, _ = execute_projection_story(history_path, seed=SCENARIO_SEED)
+    try:
+        return world.artifact(SEEDED_SCENARIO_ID)
     finally:
         world.close()
 

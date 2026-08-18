@@ -2,7 +2,7 @@
 code: CV19.DS2
 level: Delivery Story
 status: Active
-status_reason: The accepted petrus.testing.dst/v2 kernel retains and replays exact budget/checker failures while preserving v1 replay; DS2 remains active for seeded choices and broader cuts/adapters/bounds
+status_reason: The accepted petrus.testing.dst/v3 kernel adds separable seeded choice provenance while preserving v1/v2 replay; DS2 remains active for broader cuts/adapters/bounds
 updated: 2026-08-18
 related:
   - index.md
@@ -10,6 +10,7 @@ related:
   - ../../decisions/records/2026-08-17T2249Z-ship-a-supported-cross-project-dst-test-kit.md
   - ../../../process/dst-world-v1.md
   - ../../../process/dst-world-v2.md
+  - ../../../process/dst-world-v3.md
 ---
 
 # CV19.DS2 — Deterministic event and fault harness
@@ -177,10 +178,10 @@ format rather than silently widening that fixture contract.
 ## Implemented vertical slice
 
 The accepted kernel ships under the supported defining module
-`petrus.testing.dst`. The current API identity is `petrus.testing.dst/v2` and
-its current strict artifact is `petrus-dst-world` version 2. The loader and
-same interpreter retain strict version 1 decode/replay compatibility; DS1's
-`petrus-dst-scenario` version 1 remains byte-for-byte unchanged.
+`petrus.testing.dst`. The current API identity is `petrus.testing.dst/v3` and
+its current strict artifact is `petrus-dst-world` version 3. The loader and
+same interpreter retain strict version 1 and 2 decode/replay compatibility;
+DS1's `petrus-dst-scenario` version 1 remains byte-for-byte unchanged.
 
 The slice proves one executable pytest World/Timeline story through the real
 public Engine surface:
@@ -213,15 +214,18 @@ CLI output. Version 2 additionally retains the exact attempted operation for
 action-budget exhaustion and checker refusal, reproduces both failures through
 the same interpreter, refuses shifted or mismatched failures, and does not
 misclassify profile/checker implementation exceptions as World failures.
+Version 3 adds workload/fault/identifier/event-order authorities isolated by
+hash domain and counter, strict seed/algorithm/draw provenance, and a retained
+seeded Engine scenario whose replay never consults the PRNG.
 
 ### Acceptance assessment after the slice
 
 | Done condition | Slice result |
 | --- | --- |
-| 1. Accepted defining-module compatibility surface | Met by the accepted decision, current `petrus.testing.dst/v2`, explicit legacy constants/models, exact identities, no root/private exports, and the versioned [`dst-world-v2`](../../../process/dst-world-v2.md) and [`dst-world-v1`](../../../process/dst-world-v1.md) contracts. |
+| 1. Accepted defining-module compatibility surface | Met by the accepted decision, current `petrus.testing.dst/v3`, explicit v1/v2 constants/models, exact identities, no root/private exports, and the versioned [`dst-world-v3`](../../../process/dst-world-v3.md), [`dst-world-v2`](../../../process/dst-world-v2.md), and [`dst-world-v1`](../../../process/dst-world-v1.md) contracts. |
 | 2. Imperative story emits replay data | Met by `tests/dst/engine_world.py` and the retained world fixture. |
 | 3. Same-interpreter replay agreement | Met for the projection refusal/crash/recovery story, including exact operations, checker observations, disposition, and journal digest. |
-| 4. Seeded repeatability | Partial: deterministic stable IDs and total ordering are proved, but explicit separable seeded choice streams remain. |
+| 4. Seeded repeatability | Met: two fresh seed-1729 Engine runs produce the same expanded artifact; workload, fault, identifier, and event-order streams are independently pinned, and replay ignores changed seed provenance. |
 | 5. Abrupt generation reconstruction | Met for the public-Engine profile, including revoke-before-drop and stale Timeline refusal. |
 | 6. Named cuts before/after durable acceptance | Partial: one terminal-frozen projection cut is proved; the broader pre/post-acceptance matrix remains. |
 | 7. Complete bounds | Partial: action, queue, logical-time/advance, reload, predicate, and artifact limits are executable; profile-retained-data and wall-clock watchdog qualification remain. |
@@ -237,9 +241,16 @@ successful replay reports `outcome: pass` separately from the retained
 `budget_exhausted` or `invariant_failure` disposition; it does not relabel the
 counterexample itself as passing behavior.
 
+Version 3 adds seed provenance without making the seed executable. Four
+SHA-256/counter authorities isolate workload, fault, identifier namespace, and
+event-order draws. Their chosen consequences still cross the normalized
+Timeline/World doors, and replay constructs an unseeded World from the expanded
+operations. The replay-result schema therefore remains version 2 even though
+the authoring API and artifact are version 3.
+
 ### Executed evidence
 
-- `UV_FROZEN=1 uv run pytest -q tests/dst` — 55 passed.
+- `UV_FROZEN=1 uv run pytest -q tests/dst` — 61 passed.
 - `UV_FROZEN=1 uv run python -m tests.dst.replay_world
   tests/dst/fixtures/projection-crash-recovery-world-v1.json` — `pass`,
   `converged`, 15 operations, 25 journal entries, digest
@@ -250,13 +261,17 @@ counterexample itself as passing behavior.
 - The same replay route over `terminal-checker-failure-world-v2.json` returned
   `pass` / `invariant_failure`, 6 operations, 15 journal entries, and digest
   `sha256:82ca298ed8946a75b35e65b7c8609d1d03ebebf4546f10bde88ebfbccea5a9b1`.
-- `scripts/check full` — 2,236 passed.
-- `scripts/check release` — default order 2,236 passed; additional fixed order
-  2,236 passed with 17 intentionally deselected by the release profile.
+- The same replay route over
+  `seeded-projection-crash-recovery-world-v3.json` returned `pass` /
+  `converged`, 17 operations, 27 journal entries, and digest
+  `sha256:ddf70617988b010a3300fc6703eb0c8f1bc1c4b0751b4156c2059f851d34a779`.
+- `scripts/check full` — 2,242 passed.
+- `scripts/check release` — default order 2,242 passed; additional fixed order
+  2,242 passed with 17 intentionally deselected by the release profile.
 - `UV_FROZEN=1 uv run ast-grep test --skip-snapshot-tests` — all 19
   architectural rule fixtures passed, including the runtime-neutral supported
   test-kit boundary.
-- `UV_FROZEN=1 uv build --out-dir /tmp/petrus-dst-v2-dist` plus wheel listing —
+- `UV_FROZEN=1 uv build --out-dir /tmp/petrus-dst-v3-dist` plus wheel listing —
   built the sdist and wheel and confirmed both `petrus/testing/__init__.py` and
   `petrus/testing/dst.py` are packaged.
 
