@@ -100,7 +100,8 @@ promotion guidance in
 This is a conditional planning and evidence route inside the existing Ariad
 lifecycle, not a second lifecycle or a mandatory artifact for ordinary work.
 Consumers of the supported executable-World test kit must also follow its
-versioned [`petrus.testing.dst/v1` contract](dst-world-v1.md).
+current versioned [`petrus.testing.dst/v2` contract](dst-world-v2.md); retained
+version 1 artifacts continue to follow [`dst-world-v1`](dst-world-v1.md).
 
 Production correctness must not depend on Python `assert`: use explicit
 validation, refusal, or failure behavior because optimized Python may remove

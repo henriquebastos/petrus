@@ -13,13 +13,15 @@ import re
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Annotated, Literal, Protocol, cast
+from typing import Annotated, Callable, Literal, Protocol, cast
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator, model_validator
 
-API_COMPATIBILITY = "petrus.testing.dst/v1"
+LEGACY_API_COMPATIBILITY = "petrus.testing.dst/v1"
+API_COMPATIBILITY = "petrus.testing.dst/v2"
 ARTIFACT_FORMAT = "petrus-dst-world"
-ARTIFACT_VERSION = 1
+LEGACY_ARTIFACT_VERSION = 1
+ARTIFACT_VERSION = 2
 RESULT_FORMAT = "petrus-dst-world-replay-result"
 MAX_ARTIFACT_BYTES = 4_194_304
 
@@ -27,7 +29,10 @@ _NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_.:-]*$")
 _DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 type _ActionDisposition = Literal["applied", "idempotent", "refused_expected", "quarantined"]
-type _ArtifactDisposition = Literal["converged", "quiescent", "external_wait", "quarantined"]
+type _AuthoredDisposition = Literal["converged", "quiescent", "external_wait", "quarantined"]
+type _EndingDisposition = Literal[
+    "converged", "quiescent", "external_wait", "budget_exhausted", "invariant_failure", "quarantined"
+]
 type _CommandSource = Literal["authored", "profile"]
 
 
@@ -295,6 +300,85 @@ class Checker(Protocol):
     def check(self, observation: Observation) -> CheckResult: ...
 
 
+class SubmitAttempt(_StrictModel):
+    kind: Literal["submit"]
+    generation: int = Field(ge=1)
+    command: Command
+
+
+class StepAttempt(_StrictModel):
+    kind: Literal["step"]
+
+
+class FaultAttempt(_StrictModel):
+    kind: Literal["activate_fault"]
+    generation: int = Field(ge=1)
+    fault: Fault
+
+
+class ObserveAttempt(_StrictModel):
+    kind: Literal["observe"]
+    generation: int = Field(ge=1)
+    request: ObservationRequest
+    poll: bool
+
+
+class CrashAttempt(_StrictModel):
+    kind: Literal["crash"]
+    generation: int = Field(ge=1)
+    cut: str
+
+    @field_validator("cut")
+    @classmethod
+    def valid_cut(cls, value: str) -> str:
+        if not _NAME.fullmatch(value):
+            raise ValueError("crash cut must be a normalized non-empty name")
+        return value
+
+
+class RestartAttempt(_StrictModel):
+    kind: Literal["restart"]
+
+
+class FairAttempt(_StrictModel):
+    kind: Literal["begin_fair"]
+    generation: int = Field(ge=1)
+
+
+class FinishAttempt(_StrictModel):
+    kind: Literal["finish"]
+    generation: int = Field(ge=1)
+    disposition: _AuthoredDisposition
+
+
+type OperationAttempt = Annotated[
+    SubmitAttempt
+    | StepAttempt
+    | FaultAttempt
+    | ObserveAttempt
+    | CrashAttempt
+    | RestartAttempt
+    | FairAttempt
+    | FinishAttempt,
+    Field(discriminator="kind"),
+]
+
+
+class BudgetFailure(_StrictModel):
+    kind: Literal["budget_exhausted"]
+    bound: str
+    limit: int = Field(ge=0)
+    error: str
+
+
+class InvariantFailure(_StrictModel):
+    kind: Literal["invariant_failure"]
+    error: str
+
+
+type FailureDetail = Annotated[BudgetFailure | InvariantFailure, Field(discriminator="kind")]
+
+
 class ExecuteOperation(_StrictModel):
     kind: Literal["execute"]
     position: int = Field(ge=0)
@@ -357,10 +441,20 @@ class FinishOperation(_StrictModel):
     position: int = Field(ge=0)
     instant: int = Field(ge=0, le=2**53 - 1)
     generation: int = Field(ge=1)
-    disposition: Literal["converged", "quiescent", "external_wait", "quarantined"]
+    disposition: _AuthoredDisposition
 
 
-type ExpandedOperation = Annotated[
+class FailureOperation(_StrictModel):
+    kind: Literal["failure"]
+    position: int = Field(ge=0)
+    instant: int = Field(ge=0, le=2**53 - 1)
+    generation: int | None = Field(ge=1)
+    accepted_operations: int = Field(ge=0, le=1)
+    attempt: OperationAttempt
+    failure: FailureDetail
+
+
+type ExpandedOperationV1 = Annotated[
     ExecuteOperation
     | FaultOperation
     | ObserveOperation
@@ -370,6 +464,7 @@ type ExpandedOperation = Annotated[
     | FinishOperation,
     Field(discriminator="kind"),
 ]
+type ExpandedOperation = Annotated[ExpandedOperationV1 | FailureOperation, Field(discriminator="kind")]
 
 
 class JournalEntry(_StrictModel):
@@ -389,6 +484,7 @@ class JournalEntry(_StrictModel):
         "fair",
         "finish",
         "budget",
+        "failure",
     ]
     name: str
     value: JsonValue
@@ -399,8 +495,8 @@ class JournalEntry(_StrictModel):
         return _strict_json(value, "journal value")
 
 
-class ScenarioExpected(_StrictModel):
-    disposition: _ArtifactDisposition
+class ScenarioExpectedV1(_StrictModel):
+    disposition: _AuthoredDisposition
     checks: list[JournalEntry]
     journal_digest: str
 
@@ -412,8 +508,8 @@ class ScenarioExpected(_StrictModel):
         return value
 
 
-class ScenarioArtifact(_StrictModel):
-    """Strict expanded operations and exact expected outcome for replay."""
+class ScenarioArtifactV1(_StrictModel):
+    """Legacy strict expanded operations and exact expected authored outcome."""
 
     format: Literal["petrus-dst-world"]
     version: Literal[1]
@@ -422,8 +518,8 @@ class ScenarioArtifact(_StrictModel):
     profile: ProfileIdentity
     checkers: list[CheckerIdentity]
     budget: Budget
-    operations: list[ExpandedOperation]
-    expected: ScenarioExpected
+    operations: list[ExpandedOperationV1]
+    expected: ScenarioExpectedV1
 
     @field_validator("scenario_id")
     @classmethod
@@ -433,7 +529,7 @@ class ScenarioArtifact(_StrictModel):
         return value
 
     @model_validator(mode="after")
-    def coherent(self) -> ScenarioArtifact:
+    def coherent(self) -> ScenarioArtifactV1:
         if [operation.position for operation in self.operations] != list(range(len(self.operations))):
             raise ValueError("DST operation positions must be dense and zero-based")
         check_positions = [entry.position for entry in self.expected.checks]
@@ -452,12 +548,109 @@ class ScenarioArtifact(_StrictModel):
         return self
 
 
-class ReplayResult(_StrictModel):
+class ScenarioExpected(_StrictModel):
+    disposition: _EndingDisposition
+    failure: FailureDetail | None
+    checks: list[JournalEntry]
+    journal_digest: str
+
+    @field_validator("journal_digest")
+    @classmethod
+    def valid_digest(cls, value: str) -> str:
+        if not _DIGEST.fullmatch(value):
+            raise ValueError("journal digest must be sha256:<64 lowercase hex>")
+        return value
+
+
+class ScenarioArtifact(_StrictModel):
+    """Strict version-2 operations including an exact terminal failure attempt."""
+
+    format: Literal["petrus-dst-world"]
+    version: Literal[2]
+    api: Literal["petrus.testing.dst/v2"]
+    scenario_id: str
+    profile: ProfileIdentity
+    checkers: list[CheckerIdentity]
+    budget: Budget
+    operations: list[ExpandedOperation]
+    expected: ScenarioExpected
+
+    @field_validator("scenario_id")
+    @classmethod
+    def valid_scenario_id(cls, value: str) -> str:
+        if not _NAME.fullmatch(value):
+            raise ValueError("scenario id must be a normalized non-empty name")
+        return value
+
+    @model_validator(mode="after")
+    def coherent(self) -> ScenarioArtifact:
+        self._validate_shape()
+        self._validate_failure()
+        self._validate_profiles()
+        return self
+
+    def _validate_shape(self) -> None:
+        if [operation.position for operation in self.operations] != list(range(len(self.operations))):
+            raise ValueError("DST operation positions must be dense and zero-based")
+        check_positions = [entry.position for entry in self.expected.checks]
+        if check_positions != sorted(set(check_positions)) or any(
+            entry.kind != "check" for entry in self.expected.checks
+        ):
+            raise ValueError("DST expected checks must be ordered unique check-journal entries")
+        identities = [_identity_key(identity) for identity in self.checkers]
+        if len(identities) != len(set(identities)):
+            raise ValueError("DST checker manifest identities must be unique")
+
+    def _validate_failure(self) -> None:
+        failures = [operation for operation in self.operations if isinstance(operation, FailureOperation)]
+        expected_failure = self.expected.disposition in {"budget_exhausted", "invariant_failure"}
+        if expected_failure:
+            if len(failures) != 1 or not self.operations or self.operations[-1] != failures[0]:
+                raise ValueError("a failed DST artifact must end with exactly one failure operation")
+            if failures[0].failure != self.expected.failure:
+                raise ValueError("DST expected failure must equal the terminal failure operation")
+            if failures[0].accepted_operations:
+                if len(self.operations) < 2 or not _attempt_produced_operation(
+                    failures[0].attempt, self.operations[-2]
+                ):
+                    raise ValueError("DST failed attempt does not identify its accepted operation")
+        elif failures or self.expected.failure is not None:
+            raise ValueError("a successful DST artifact cannot contain an expected failure")
+
+    def _validate_profiles(self) -> None:
+        for operation in self.operations:
+            if isinstance(operation, ExecuteOperation) and operation.command.profile != self.profile:
+                raise ValueError("DST operation command does not match the artifact profile")
+            if isinstance(operation, FaultOperation) and operation.fault.profile != self.profile:
+                raise ValueError("DST operation fault does not match the artifact profile")
+            if isinstance(operation, FailureOperation):
+                if operation.failure.kind != self.expected.disposition:
+                    raise ValueError("DST terminal failure kind must equal the expected disposition")
+                attempt = operation.attempt
+                if isinstance(attempt, SubmitAttempt) and attempt.command.profile != self.profile:
+                    raise ValueError("DST failed command attempt does not match the artifact profile")
+                if isinstance(attempt, FaultAttempt) and attempt.fault.profile != self.profile:
+                    raise ValueError("DST failed fault attempt does not match the artifact profile")
+
+
+class ReplayResultV1(_StrictModel):
     format: Literal["petrus-dst-world-replay-result"]
     version: Literal[1]
     scenario_id: str
     outcome: Literal["pass"]
-    disposition: _ArtifactDisposition
+    disposition: _AuthoredDisposition
+    operations: int = Field(ge=0)
+    journal_entries: int = Field(ge=0)
+    journal_digest: str
+
+
+class ReplayResult(_StrictModel):
+    format: Literal["petrus-dst-world-replay-result"]
+    version: Literal[2]
+    scenario_id: str
+    outcome: Literal["pass"]
+    disposition: _EndingDisposition
+    failure: FailureDetail | None
     operations: int = Field(ge=0)
     journal_entries: int = Field(ge=0)
     journal_digest: str
@@ -651,18 +844,25 @@ class World:
         return Timeline(self, self._generation_id)
 
     def submit(self, command: Command, *, generation: int) -> ApplyResult:
+        attempt = SubmitAttempt(kind="submit", generation=generation, command=command)
+        return self._attempt(attempt, lambda: self._submit(command, generation=generation))
+
+    def _submit(self, command: Command, *, generation: int) -> ApplyResult:
         self._require_generation(generation)
         if self._fair:
             raise DstError("authored commands cannot enter an active DST fair phase")
         if self._queue and self._queue[0].instant <= self.instant:
             raise PendingWork("run eligible profile work before submitting another authored command")
         order = self._enqueue(ScheduledCommand(instant=self.instant, command=command), "authored")
-        executed = self.step()
+        executed = self._step()
         if executed.queue_order != order:
             raise AssertionError("DST authored command was not the scheduler's next total-order choice")
         return executed.result
 
     def step(self) -> ExecuteOperation:
+        return self._attempt(StepAttempt(kind="step"), self._step)
+
+    def _step(self) -> ExecuteOperation:
         self._require_unfinished()
         if self._generation_id is None or self._generation is None:
             raise StaleGeneration("DST World has no live generation")
@@ -703,6 +903,10 @@ class World:
         return operation
 
     def activate_fault(self, fault: Fault, *, generation: int) -> None:
+        attempt = FaultAttempt(kind="activate_fault", generation=generation, fault=fault)
+        self._attempt(attempt, lambda: self._activate_fault(fault, generation=generation))
+
+    def _activate_fault(self, fault: Fault, *, generation: int) -> None:
         self._require_generation(generation)
         self._require_unfinished()
         if self._fair:
@@ -730,6 +934,10 @@ class World:
         self._evaluate_checkers(f"fault:{validated.name}", position, live, generation)
 
     def observe(self, request: ObservationRequest, *, generation: int, poll: bool = False) -> Observation:
+        attempt = ObserveAttempt(kind="observe", generation=generation, request=request, poll=poll)
+        return self._attempt(attempt, lambda: self._observe(request, generation=generation, poll=poll))
+
+    def _observe(self, request: ObservationRequest, *, generation: int, poll: bool) -> Observation:
         self._require_generation(generation)
         self._require_unfinished()
         self._reserve_action()
@@ -747,6 +955,10 @@ class World:
         return observation
 
     def crash(self, cut: str, *, generation: int) -> None:
+        attempt = CrashAttempt(kind="crash", generation=generation, cut=cut)
+        self._attempt(attempt, lambda: self._crash(cut, generation=generation))
+
+    def _crash(self, cut: str, *, generation: int) -> None:
         self._require_generation(generation)
         self._require_unfinished()
         if self._fair:
@@ -775,6 +987,9 @@ class World:
         self._record_checks(captured)
 
     def restart(self) -> int:
+        return self._attempt(RestartAttempt(kind="restart"), self._restart)
+
+    def _restart(self) -> int:
         self._require_unfinished()
         if self._generation is not None or self._generation_id is not None:
             raise DstError("DST restart requires an abruptly dropped generation")
@@ -793,6 +1008,10 @@ class World:
         return generation_id
 
     def begin_fair(self, *, generation: int) -> None:
+        attempt = FairAttempt(kind="begin_fair", generation=generation)
+        self._attempt(attempt, lambda: self._begin_fair(generation=generation))
+
+    def _begin_fair(self, *, generation: int) -> None:
         self._require_generation(generation)
         self._require_unfinished()
         if self._fair:
@@ -809,8 +1028,6 @@ class World:
         self._evaluate_checkers("begin_fair", position, live, generation)
 
     def finish(self, disposition: Disposition, *, generation: int) -> None:
-        self._require_generation(generation)
-        self._require_unfinished()
         if disposition not in {
             Disposition.CONVERGED,
             Disposition.QUIESCENT,
@@ -818,6 +1035,12 @@ class World:
             Disposition.QUARANTINED,
         }:
             raise ValueError(f"DST disposition {disposition.value!r} is reserved for interpreter failures")
+        attempt = FinishAttempt(kind="finish", generation=generation, disposition=disposition.value)
+        self._attempt(attempt, lambda: self._finish(disposition, generation=generation))
+
+    def _finish(self, disposition: Disposition, *, generation: int) -> None:
+        self._require_generation(generation)
+        self._require_unfinished()
         if self._fair and disposition is Disposition.EXTERNAL_WAIT:
             raise DstError("an active DST fair phase cannot end as an external wait")
         if self._queue:
@@ -829,7 +1052,7 @@ class World:
             position=position,
             instant=self.instant,
             generation=generation,
-            disposition=disposition.value,
+            disposition=cast(_AuthoredDisposition, disposition.value),
         )
         self._operations.append(operation)
         self._disposition = disposition
@@ -838,10 +1061,8 @@ class World:
     def artifact(self, scenario_id: str) -> ScenarioArtifact:
         if self._disposition is None:
             raise DstError("finish the DST World before producing an artifact")
-        if self._disposition in {Disposition.BUDGET_EXHAUSTED, Disposition.INVARIANT_FAILURE}:
-            raise DstError(
-                f"DST world artifact version 1 does not retain interpreter failure {self._disposition.value!r}"
-            )
+        failures = [operation for operation in self._operations if isinstance(operation, FailureOperation)]
+        failure = failures[-1].failure if failures else None
         artifact = ScenarioArtifact(
             format=ARTIFACT_FORMAT,
             version=ARTIFACT_VERSION,
@@ -853,6 +1074,7 @@ class World:
             operations=list(self._operations),
             expected=ScenarioExpected(
                 disposition=self._disposition.value,
+                failure=failure,
                 checks=[entry for entry in self._journal if entry.kind == "check"],
                 journal_digest=_journal_digest(self._journal),
             ),
@@ -1016,6 +1238,7 @@ class World:
                         "fair",
                         "finish",
                         "budget",
+                        "failure",
                     ],
                     kind,
                 ),
@@ -1033,6 +1256,40 @@ class World:
         self._disposition = Disposition.BUDGET_EXHAUSTED
         self._record("budget", bound, {"limit": limit})
         raise BudgetExhausted(bound, limit)
+
+    def _attempt[ResultT](self, attempt: OperationAttempt, operation: Callable[[], ResultT]) -> ResultT:
+        before = len(self._operations)
+        try:
+            return operation()
+        except (BudgetExhausted, InvariantViolation) as error:
+            if isinstance(error, BudgetExhausted):
+                if self._disposition is not Disposition.BUDGET_EXHAUSTED:
+                    raise
+                failure: FailureDetail = BudgetFailure(
+                    kind="budget_exhausted",
+                    bound=error.bound,
+                    limit=error.limit,
+                    error=str(error),
+                )
+            else:
+                if self._disposition is not Disposition.INVARIANT_FAILURE:
+                    raise
+                failure = InvariantFailure(kind="invariant_failure", error=str(error))
+            accepted_operations = len(self._operations) - before
+            if accepted_operations not in {0, 1}:
+                raise AssertionError("one DST interpreter attempt accepted more than one operation")
+            failure_operation = FailureOperation(
+                kind="failure",
+                position=len(self._operations),
+                instant=self.instant,
+                generation=self._generation_id,
+                accepted_operations=accepted_operations,
+                attempt=attempt,
+                failure=failure,
+            )
+            self._operations.append(failure_operation)
+            self._record("failure", failure.kind, failure_operation.model_dump(mode="json"))
+            raise
 
     def _stable_id(self, namespace: str) -> str:
         if not self._inside_profile:
@@ -1145,7 +1402,10 @@ class Timeline:
         self._world.finish(disposition, generation=self.generation)
 
 
-def encode_artifact(artifact: ScenarioArtifact) -> bytes:
+type AnyScenarioArtifact = ScenarioArtifactV1 | ScenarioArtifact
+
+
+def encode_artifact(artifact: AnyScenarioArtifact) -> bytes:
     """Encode one canonical strict artifact and enforce its byte budget."""
 
     payload = json.dumps(
@@ -1156,7 +1416,7 @@ def encode_artifact(artifact: ScenarioArtifact) -> bytes:
     return payload
 
 
-def decode_artifact(payload: bytes) -> ScenarioArtifact:
+def decode_artifact(payload: bytes) -> AnyScenarioArtifact:
     """Decode strict JSON with duplicate-key, finite-number, and size refusal."""
 
     if len(payload) > MAX_ARTIFACT_BYTES:
@@ -1165,33 +1425,37 @@ def decode_artifact(payload: bytes) -> ScenarioArtifact:
         value = json.loads(payload, object_pairs_hook=_strict_object, parse_constant=_refuse_constant)
     except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
         raise ValueError(f"invalid strict DST JSON: {error}") from None
-    artifact = ScenarioArtifact.model_validate(value, strict=True)
+    if type(value) is not dict:
+        raise ValueError("invalid strict DST JSON: artifact must be an object")
+    version = value.get("version")
+    if version == LEGACY_ARTIFACT_VERSION:
+        artifact: AnyScenarioArtifact = ScenarioArtifactV1.model_validate(value, strict=True)
+    elif version == ARTIFACT_VERSION:
+        artifact = ScenarioArtifact.model_validate(value, strict=True)
+    else:
+        raise ValueError(f"unsupported DST artifact version {version!r}")
     if len(payload) > artifact.budget.artifact_bytes:
         raise ValueError(f"DST artifact has {len(payload)} bytes; limit is {artifact.budget.artifact_bytes}")
     return artifact
 
 
-def load_artifact(path: Path) -> ScenarioArtifact:
+def load_artifact(path: Path) -> AnyScenarioArtifact:
     """Load one strict artifact from an explicit path."""
 
     return decode_artifact(path.read_bytes())
 
 
-def replay(artifact: ScenarioArtifact, registry: ScenarioRegistry) -> ReplayResult:
+type AnyReplayResult = ReplayResultV1 | ReplayResult
+
+
+def replay(artifact: AnyScenarioArtifact, registry: ScenarioRegistry) -> AnyReplayResult:
     """Replay expanded operations through the same World interpreter."""
 
     profile = registry.profile(artifact.profile)
     checkers = registry.checkers(artifact.checkers)
     world = World(profile, artifact.budget, checkers=checkers)
     try:
-        for expected in artifact.operations:
-            before = len(world.operations)
-            _replay_operation(world, expected)
-            if len(world.operations) != before + 1 or world.operations[-1] != expected:
-                actual = None if len(world.operations) == before else world.operations[-1]
-                raise ReplayMismatch(
-                    f"DST operation {expected.position} diverged: expected {expected!r}, observed {actual!r}"
-                )
+        _replay_operations(world, artifact)
         if world.disposition is None:
             raise ReplayMismatch("DST replay ended without an explicit disposition")
         if world.disposition.value != artifact.expected.disposition:
@@ -1205,18 +1469,53 @@ def replay(artifact: ScenarioArtifact, registry: ScenarioRegistry) -> ReplayResu
         digest = _journal_digest(world.journal)
         if digest != artifact.expected.journal_digest:
             raise ReplayMismatch("DST replay journal digest diverged")
-        return ReplayResult(
-            format=RESULT_FORMAT,
-            version=1,
-            scenario_id=artifact.scenario_id,
-            outcome="pass",
-            disposition=world.disposition.value,
-            operations=len(world.operations),
-            journal_entries=len(world.journal),
-            journal_digest=digest,
-        )
+        result = {
+            "format": RESULT_FORMAT,
+            "version": artifact.version,
+            "scenario_id": artifact.scenario_id,
+            "outcome": "pass",
+            "disposition": world.disposition.value,
+            "operations": len(world.operations),
+            "journal_entries": len(world.journal),
+            "journal_digest": digest,
+        }
+        if isinstance(artifact, ScenarioArtifactV1):
+            return ReplayResultV1.model_validate(result, strict=True)
+        result["failure"] = artifact.expected.failure
+        return ReplayResult.model_validate(result, strict=True)
     finally:
         world.close()
+
+
+def _replay_operations(world: World, artifact: AnyScenarioArtifact) -> None:
+    position = 0
+    while position < len(artifact.operations):
+        expected = artifact.operations[position]
+        following = artifact.operations[position + 1] if position + 1 < len(artifact.operations) else None
+        paired_failure = (
+            following if isinstance(following, FailureOperation) and following.accepted_operations == 1 else None
+        )
+        before = len(world.operations)
+        failed = False
+        try:
+            _replay_operation(world, expected)
+        except BudgetExhausted, InvariantViolation:
+            failed = True
+        actual = world.operations[before:]
+        expected_actual = tuple(artifact.operations[before : before + len(actual)])
+        if not actual or actual != expected_actual:
+            raise ReplayMismatch(
+                f"DST operation {expected.position} diverged: expected {expected_actual!r}, observed {actual!r}"
+            )
+        position += len(actual)
+        if failed:
+            if not isinstance(actual[-1], FailureOperation) or position != len(artifact.operations):
+                raise ReplayMismatch("DST replay failed outside its exact terminal failure operation")
+            return
+        if paired_failure is not None:
+            raise ReplayMismatch(f"DST operation {expected.position} did not reproduce its terminal failed attempt")
+        if len(actual) != 1 or isinstance(expected, FailureOperation):
+            raise ReplayMismatch(f"DST expected failure operation {expected.position} did not fail")
 
 
 def _replay_operation(world: World, expected: ExpandedOperation) -> None:
@@ -1237,6 +1536,76 @@ def _replay_operation(world: World, expected: ExpandedOperation) -> None:
             world.begin_fair(generation=generation)
         case FinishOperation(disposition=disposition, generation=generation):
             world.finish(Disposition(disposition), generation=generation)
+        case FailureOperation(attempt=attempt):
+            _replay_attempt(world, attempt)
+
+
+def _replay_attempt(world: World, attempt: OperationAttempt) -> None:
+    match attempt:
+        case SubmitAttempt(command=command, generation=generation):
+            world.submit(command, generation=generation)
+        case StepAttempt():
+            world.step()
+        case FaultAttempt(fault=fault, generation=generation):
+            world.activate_fault(fault, generation=generation)
+        case ObserveAttempt(request=request, generation=generation, poll=poll):
+            world.observe(request, generation=generation, poll=poll)
+        case CrashAttempt(cut=cut, generation=generation):
+            world.crash(cut, generation=generation)
+        case RestartAttempt():
+            world.restart()
+        case FairAttempt(generation=generation):
+            world.begin_fair(generation=generation)
+        case FinishAttempt(disposition=disposition, generation=generation):
+            world.finish(Disposition(disposition), generation=generation)
+
+
+def _attempt_produced_operation(attempt: OperationAttempt, operation: ExpandedOperation) -> bool:
+    match attempt, operation:
+        case (
+            SubmitAttempt(command=attempted, generation=attempted_generation),
+            ExecuteOperation(source="authored", command=accepted, generation=accepted_generation),
+        ):
+            return attempted == accepted and attempted_generation == accepted_generation
+        case StepAttempt(), ExecuteOperation(source="profile"):
+            return True
+        case (
+            FaultAttempt(fault=attempted, generation=attempted_generation),
+            FaultOperation(fault=accepted, generation=accepted_generation),
+        ):
+            return attempted == accepted and attempted_generation == accepted_generation
+        case (
+            ObserveAttempt(
+                request=attempted,
+                generation=attempted_generation,
+                poll=attempted_poll,
+            ),
+            ObserveOperation(request=accepted, observation=observation, poll=accepted_poll),
+        ):
+            return (
+                attempted == accepted
+                and attempted_generation == observation.generation
+                and attempted_poll == accepted_poll
+            )
+        case (
+            CrashAttempt(cut=attempted_cut, generation=attempted_generation),
+            CrashOperation(cut=accepted_cut, generation=accepted_generation),
+        ):
+            return attempted_cut == accepted_cut and attempted_generation == accepted_generation
+        case RestartAttempt(), RestartOperation():
+            return True
+        case (
+            FairAttempt(generation=attempted_generation),
+            FairOperation(generation=accepted_generation),
+        ):
+            return attempted_generation == accepted_generation
+        case (
+            FinishAttempt(disposition=attempted, generation=attempted_generation),
+            FinishOperation(disposition=accepted, generation=accepted_generation),
+        ):
+            return attempted == accepted and attempted_generation == accepted_generation
+        case _:
+            return False
 
 
 def _identity_key(identity: ComponentIdentity) -> tuple[str, int, str]:
@@ -1264,11 +1633,16 @@ __all__ = [
     "API_COMPATIBILITY",
     "ARTIFACT_FORMAT",
     "ARTIFACT_VERSION",
+    "LEGACY_API_COMPATIBILITY",
+    "LEGACY_ARTIFACT_VERSION",
     "RESULT_FORMAT",
     "ActionDisposition",
+    "AnyReplayResult",
+    "AnyScenarioArtifact",
     "ApplyResult",
     "Budget",
     "BudgetExhausted",
+    "BudgetFailure",
     "CheckResult",
     "Checker",
     "CheckerIdentity",
@@ -1277,10 +1651,12 @@ __all__ = [
     "Disposition",
     "DstError",
     "ExecuteOperation",
+    "FailureOperation",
     "Fault",
     "FaultDisposition",
     "GenerationStart",
     "InvariantViolation",
+    "InvariantFailure",
     "JournalEntry",
     "Observation",
     "ObservationRequest",
@@ -1288,8 +1664,10 @@ __all__ = [
     "ProfileIdentity",
     "ReplayMismatch",
     "ReplayResult",
+    "ReplayResultV1",
     "RunUntilFailed",
     "ScenarioArtifact",
+    "ScenarioArtifactV1",
     "ScenarioContext",
     "ScenarioProfile",
     "ScenarioRegistry",

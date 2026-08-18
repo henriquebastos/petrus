@@ -2,8 +2,8 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 is Done and DS2's supported petrus.testing.dst/v1 executable-world vertical slice is implemented; broader DS2 fault/bound/failure-retention work remains active
-updated: 2026-08-17
+status_reason: CV19.DS1 is Done and DS2's supported petrus.testing.dst/v2 executable world now retains and replays exact budget/checker failures; seeded choices, broader fault adapters/bounds, and DS3–DS4 generation/campaign work remain active
+updated: 2026-08-18
 related:
   - ../../../../src/petrus/simulation.py
   - ../../../../tests/petrus/impetus/instance/test_instance_replay_properties.py
@@ -138,8 +138,9 @@ the minimized expanded scenario becomes the durable regression fixture.
    scheduler with faulting adapters and crash reconstruction. Its generic
    executor/profile design and supported test-kit surface are accepted. The
    first public-Engine crash/recovery slice and strict world replay are
-   implemented; seeded choices, the broader fault/cut matrix, remaining
-   bounds, and interpreter-failure retention keep DS2 active.
+   implemented, and version 2 now retains exact action-budget and checker
+   failures while replaying retained version 1 artifacts unchanged. Seeded
+   choices, the broader fault/cut matrix, and remaining bounds keep DS2 active.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)
    adds broad and targeted workload generation, independent models/checkers,
    shrinking, semantic coverage, and durable replay fixtures.

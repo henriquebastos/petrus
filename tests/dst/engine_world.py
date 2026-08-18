@@ -18,6 +18,7 @@ from petrus.testing.dst import (
     ActionDisposition,
     ApplyResult,
     Budget,
+    BudgetExhausted,
     CheckResult,
     CheckerIdentity,
     Command,
@@ -25,6 +26,7 @@ from petrus.testing.dst import (
     Fault,
     FaultDisposition,
     GenerationStart,
+    InvariantViolation,
     Observation,
     ObservationRequest,
     ProfileIdentity,
@@ -40,7 +42,10 @@ INPUT = NetPath("input")
 DONE = NetPath("done")
 PROJECT = NetPath("project")
 INSTANCE_ID = "dst-world-projection-recovery"
-SCENARIO_ID = "projection-crash-recovery-world-v1"
+LEGACY_SCENARIO_ID = "projection-crash-recovery-world-v1"
+SCENARIO_ID = "projection-crash-recovery-world-v2"
+INVARIANT_FAILURE_SCENARIO_ID = "terminal-checker-failure-world-v2"
+BUDGET_FAILURE_SCENARIO_ID = "action-budget-exhaustion-world-v2"
 
 PROFILE_DEFINITION = {
     "commands": ["engine.complete", "engine.drive"],
@@ -75,6 +80,11 @@ CHECKER_IDENTITY = CheckerIdentity(
             ]
         }
     ),
+)
+TERMINAL_REFUSAL_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.deliberate-terminal-refusal",
+    version=1,
+    digest=digest_json({"property": "terminal firing is rejected to prove exact checker-failure replay"}),
 )
 WORLD_BUDGET = Budget(
     actions=32,
@@ -353,6 +363,19 @@ class EngineHistoryChecker:
         )
 
 
+class TerminalRefusalChecker:
+    """Deliberate independent failure used to prove failed-attempt retention."""
+
+    identity = TERMINAL_REFUSAL_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.safety", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        value = cast(dict[str, JsonValue], observation.value)
+        records = cast(list[JsonValue], value["record_types"])
+        terminal = FiringCompleted.__name__ in records
+        return CheckResult(passed=not terminal, detail={"terminal_firing": terminal})
+
+
 def execute_projection_story(history_path: Path) -> tuple[World, EngineProfile, Timeline]:
     """Author the vertical scenario as an imperative debugger-like pytest story."""
 
@@ -399,5 +422,56 @@ def build_projection_artifact(history_path: Path) -> ScenarioArtifact:
     world, _, _ = execute_projection_story(history_path)
     try:
         return world.artifact(SCENARIO_ID)
+    finally:
+        world.close()
+
+
+def build_invariant_failure_artifact(history_path: Path) -> ScenarioArtifact:
+    profile = EngineProfile(history_path)
+    world = World(
+        profile,
+        WORLD_BUDGET,
+        checkers=(EngineHistoryChecker(), TerminalRefusalChecker()),
+    )
+    timeline = world.timeline()
+    try:
+        timeline.run_until(
+            "activity-requested",
+            lambda observation: cast(dict[str, JsonValue], observation.value)["pending"] == [1],
+        )
+        timeline.command("engine.complete", {"occurrence": 1, "result": {"value": 3}})
+        try:
+            world.step()
+        except InvariantViolation:
+            pass
+        else:
+            raise AssertionError("the deliberate terminal checker did not reject the Engine boundary")
+        return world.artifact(INVARIANT_FAILURE_SCENARIO_ID)
+    finally:
+        world.close()
+
+
+def build_budget_failure_artifact(history_path: Path) -> ScenarioArtifact:
+    profile = EngineProfile(history_path)
+    budget = Budget(
+        actions=1,
+        queued_commands=8,
+        timer_advances=0,
+        logical_instant=0,
+        reloads=0,
+        predicate_polls=1,
+        artifact_bytes=262_144,
+    )
+    world = World(profile, budget)
+    timeline = world.timeline()
+    try:
+        world.step()
+        try:
+            timeline.observe("activity-requested")
+        except BudgetExhausted:
+            pass
+        else:
+            raise AssertionError("the deliberate action budget did not exhaust")
+        return world.artifact(BUDGET_FAILURE_SCENARIO_ID)
     finally:
         world.close()

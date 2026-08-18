@@ -1,8 +1,9 @@
 # Deterministic Simulation Testing
 
 **Status:** CV19 correctness contract. The strict internal DS1 artifact and the
-supported DS2 executable-World vertical slice are shipped; broader fault
-adapters, failure retention, generation, and campaign qualification remain.
+supported DS2 executable-World vertical slice are shipped, including exact
+budget/checker-failure replay; broader fault adapters, generation, and campaign
+qualification remain.
 
 This document owns Petrus's deterministic simulation testing (DST) contract.
 DST drives the production `Engine`, `Coordinator`, `Instance`, `HistoryStore`,
@@ -14,9 +15,11 @@ The first internal implementation profile is named `engine-coordinator-v1`.
 The strict scenario and replay artifact which pin that profile are specified by
 [`dst-scenario-v1`](dst-scenario-v1.md) and tracked by
 [CV19.DS1.TS2](../project/roadmap/cv19-deterministic-simulation-testing/cv19-ds1-ts2-strict-scenario-replay-contract.md).
-The separately accepted supported kernel and its new artifact are specified by
-[`dst-world-v1`](dst-world-v1.md). This document remains the authority for the
-cross-profile correctness properties, cuts, bounds, and evidence limits.
+The separately accepted supported kernel and its current artifact are specified
+by [`dst-world-v2`](dst-world-v2.md); version 1 remains supported for strict
+decode and replay under [`dst-world-v1`](dst-world-v1.md). This document remains
+the authority for the cross-profile correctness properties, cuts, bounds, and
+evidence limits.
 
 ## Driver route for correctness-sensitive work
 
@@ -103,10 +106,11 @@ The existing hosted simulation profile and result contract remain unchanged:
 - `engine-coordinator-v1` is an internal DST scenario/replay profile. It may
   exercise handlers and a scripted `Dispatch`, but it does not add fields,
   interpretations, or capabilities to `implementation-free-v1`.
-- `petrus.testing.dst/v1` is a supported cross-project **test-kit** API with a
-  distinct `petrus-dst-world` artifact. Its accepted compatibility contract is
-  [`dst-world-v1`](dst-world-v1.md); it is not a hosted-simulation product API
-  and is not re-exported from the Petrus package root.
+- `petrus.testing.dst/v2` is the current supported cross-project **test-kit**
+  API with a distinct `petrus-dst-world` artifact. Its compatibility contract
+  is [`dst-world-v2`](dst-world-v2.md); strict version 1 decode/replay remains
+  supported by [`dst-world-v1`](dst-world-v1.md). Neither is a hosted-simulation
+  product API or re-exported from the Petrus package root.
 - A supported test-kit API is not implied by an internal replay fixture. Every
   future profile still requires an exact identity/digest, and any new supported
   surface requires its own compatibility decision.

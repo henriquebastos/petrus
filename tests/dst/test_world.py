@@ -17,6 +17,9 @@ from petrus.testing import dst
 from petrus.testing.dst import (
     API_COMPATIBILITY,
     ARTIFACT_FORMAT,
+    ARTIFACT_VERSION,
+    LEGACY_API_COMPATIBILITY,
+    LEGACY_ARTIFACT_VERSION,
     ActionDisposition,
     ApplyResult,
     Budget,
@@ -26,6 +29,7 @@ from petrus.testing.dst import (
     Command,
     Disposition,
     DstError,
+    FailureOperation,
     GenerationStart,
     InvariantViolation,
     Observation,
@@ -35,6 +39,7 @@ from petrus.testing.dst import (
     ReplayMismatch,
     RunUntilFailed,
     ScenarioRegistry,
+    ScenarioArtifactV1,
     ScheduledCommand,
     ScenarioContext,
     StaleGeneration,
@@ -45,17 +50,25 @@ from petrus.testing.dst import (
     replay,
 )
 from tests.dst.engine_world import (
+    BUDGET_FAILURE_SCENARIO_ID,
     CHECKER_IDENTITY,
+    INVARIANT_FAILURE_SCENARIO_ID,
+    LEGACY_SCENARIO_ID,
     PROFILE_IDENTITY,
     SCENARIO_ID,
     WORLD_BUDGET,
     EngineHistoryChecker,
     EngineProfile,
+    TerminalRefusalChecker,
+    build_budget_failure_artifact,
+    build_invariant_failure_artifact,
     build_projection_artifact,
     execute_projection_story,
 )
 
-FIXTURE = Path("tests/dst/fixtures/projection-crash-recovery-world-v1.json")
+LEGACY_FIXTURE = Path("tests/dst/fixtures/projection-crash-recovery-world-v1.json")
+BUDGET_FAILURE_FIXTURE = Path("tests/dst/fixtures/action-budget-exhaustion-world-v2.json")
+INVARIANT_FAILURE_FIXTURE = Path("tests/dst/fixtures/terminal-checker-failure-world-v2.json")
 
 
 class QueueProfile:
@@ -130,6 +143,55 @@ class RejectingChecker:
 
     def check(self, observation: Observation) -> CheckResult:
         return CheckResult(passed=False, detail={"values": observation.value})
+
+
+class RejectBadValueChecker:
+    identity = CheckerIdentity(
+        name="petrus.testing.reject-bad-value",
+        version=1,
+        digest=dst.digest_json({"property": "queue values never contain bad"}),
+    )
+    request = ObservationRequest(name="queue.state", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        value = observation.value
+        assert isinstance(value, dict)
+        values = value["values"]
+        assert isinstance(values, list)
+        return CheckResult(passed="bad" not in values, detail={"values": values})
+
+
+class PassingBadValueChecker(RejectBadValueChecker):
+    def check(self, observation: Observation) -> CheckResult:
+        value = observation.value
+        assert isinstance(value, dict)
+        values = value["values"]
+        assert isinstance(values, list)
+        return CheckResult(passed=True, detail={"values": values})
+
+
+class RaisingReservedExceptionChecker:
+    identity = CheckerIdentity(
+        name="petrus.testing.raises-reserved-exception",
+        version=1,
+        digest=dst.digest_json({"bug": "raises instead of returning a check result"}),
+    )
+    request = ObservationRequest(name="queue.state", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        value = observation.value
+        assert isinstance(value, dict)
+        values = value["values"]
+        assert isinstance(values, list)
+        if values:
+            raise InvariantViolation("checker implementation raised the reserved exception")
+        return CheckResult(passed=True, detail={"values": values})
+
+
+class RaisingReservedExceptionProfile(QueueProfile):
+    def apply(self, generation, command: Command, context: ScenarioContext) -> ApplyResult:
+        del generation, command, context
+        raise BudgetExhausted("profile-owned", 1)
 
 
 def test_world_owns_stable_ids_total_tie_order_and_logical_time() -> None:
@@ -305,8 +367,9 @@ def test_action_timer_and_logical_time_budgets_end_explicitly() -> None:
         action_world.step()
         with pytest.raises(BudgetExhausted, match="actions"):
             action_world.step()
-        with pytest.raises(DstError, match="does not retain interpreter failure"):
-            action_world.artifact("budget-exhaustion")
+        artifact = action_world.artifact("budget-exhaustion")
+        assert artifact.expected.disposition == Disposition.BUDGET_EXHAUSTED.value
+        assert isinstance(artifact.operations[-1], FailureOperation)
     finally:
         action_world.close()
 
@@ -379,23 +442,33 @@ def test_queue_reload_and_artifact_byte_budgets_end_explicitly() -> None:
         reload_world.restart()
     reload_world.close()
 
-    value = json.loads(FIXTURE.read_bytes())
+    value = json.loads(LEGACY_FIXTURE.read_bytes())
     value["budget"]["artifact_bytes"] = 1
-    artifact = dst.ScenarioArtifact.model_validate(value, strict=True)
+    artifact = ScenarioArtifactV1.model_validate(value, strict=True)
     with pytest.raises(ValueError, match="artifact has"):
         encode_artifact(artifact)
 
 
-def test_executable_story_generates_the_retained_strict_artifact(tmp_path: Path) -> None:
+def test_executable_story_generates_a_strict_version_two_artifact(tmp_path: Path) -> None:
     artifact = build_projection_artifact(tmp_path / "authored-history.jsonl")
 
     assert artifact.format == ARTIFACT_FORMAT
+    assert artifact.version == ARTIFACT_VERSION
     assert artifact.api == API_COMPATIBILITY
     assert artifact.scenario_id == SCENARIO_ID
     assert artifact.profile == PROFILE_IDENTITY
     assert artifact.checkers == [CHECKER_IDENTITY]
     assert decode_artifact(encode_artifact(artifact)) == artifact
-    assert encode_artifact(artifact) == FIXTURE.read_bytes().rstrip(b"\n")
+
+
+def test_legacy_version_one_artifact_remains_byte_exact() -> None:
+    artifact = load_artifact(LEGACY_FIXTURE)
+
+    assert isinstance(artifact, ScenarioArtifactV1)
+    assert artifact.version == LEGACY_ARTIFACT_VERSION
+    assert artifact.api == LEGACY_API_COMPATIBILITY
+    assert artifact.scenario_id == LEGACY_SCENARIO_ID
+    assert encode_artifact(artifact) == LEGACY_FIXTURE.read_bytes().rstrip(b"\n")
 
 
 def test_retained_artifact_replays_through_the_same_interpreter(tmp_path: Path) -> None:
@@ -404,7 +477,7 @@ def test_retained_artifact_replays_through_the_same_interpreter(tmp_path: Path) 
     registry.register_profile(profile)
     registry.register_checker(EngineHistoryChecker())
 
-    result = replay(load_artifact(FIXTURE), registry)
+    result = replay(load_artifact(LEGACY_FIXTURE), registry)
 
     assert result.outcome == "pass"
     assert result.disposition == Disposition.CONVERGED.value
@@ -413,8 +486,8 @@ def test_retained_artifact_replays_through_the_same_interpreter(tmp_path: Path) 
     assert profile.closes == 1
 
 
-def test_manual_replay_route_is_deterministic() -> None:
-    command = [sys.executable, "-m", "tests.dst.replay_world", str(FIXTURE)]
+def test_legacy_manual_replay_route_is_deterministic() -> None:
+    command = [sys.executable, "-m", "tests.dst.replay_world", str(LEGACY_FIXTURE)]
     first = subprocess.run(command, check=True, capture_output=True, text=True)
     second = subprocess.run(command, check=True, capture_output=True, text=True)
 
@@ -422,8 +495,171 @@ def test_manual_replay_route_is_deterministic() -> None:
     assert first.stderr == second.stderr == ""
     assert first.stdout == second.stdout
     assert result["format"] == "petrus-dst-world-replay-result"
-    assert result["scenario_id"] == SCENARIO_ID
+    assert result["scenario_id"] == LEGACY_SCENARIO_ID
     assert result["outcome"] == "pass"
+    assert "failure" not in result
+
+
+@pytest.mark.parametrize(
+    ("build", "fixture", "scenario_id", "disposition", "operations"),
+    [
+        (
+            build_budget_failure_artifact,
+            BUDGET_FAILURE_FIXTURE,
+            BUDGET_FAILURE_SCENARIO_ID,
+            Disposition.BUDGET_EXHAUSTED,
+            2,
+        ),
+        (
+            build_invariant_failure_artifact,
+            INVARIANT_FAILURE_FIXTURE,
+            INVARIANT_FAILURE_SCENARIO_ID,
+            Disposition.INVARIANT_FAILURE,
+            6,
+        ),
+    ],
+)
+def test_failed_attempt_artifacts_are_exact_and_replayable(
+    tmp_path: Path,
+    build,
+    fixture: Path,
+    scenario_id: str,
+    disposition: Disposition,
+    operations: int,
+) -> None:
+    artifact = build(tmp_path / f"author-{scenario_id}.jsonl")
+    assert encode_artifact(artifact) == fixture.read_bytes().rstrip(b"\n")
+    assert artifact.expected.disposition == disposition.value
+    assert artifact.expected.failure is not None
+    assert isinstance(artifact.operations[-1], FailureOperation)
+
+    registry = ScenarioRegistry()
+    registry.register_profile(EngineProfile(tmp_path / f"replay-{scenario_id}.jsonl"))
+    registry.register_checker(EngineHistoryChecker())
+    registry.register_checker(TerminalRefusalChecker())
+    result = replay(load_artifact(fixture), registry)
+
+    assert result.version == ARTIFACT_VERSION
+    assert result.scenario_id == scenario_id
+    assert result.outcome == "pass"
+    assert result.disposition == disposition.value
+    assert result.failure == artifact.expected.failure
+    assert result.operations == operations
+
+
+def test_authored_command_checker_failure_replays_the_submit_attempt() -> None:
+    budget = Budget(
+        actions=4,
+        queued_commands=2,
+        timer_advances=1,
+        logical_instant=5,
+        reloads=0,
+        predicate_polls=1,
+        artifact_bytes=65_536,
+    )
+    world = World(QueueProfile(), budget, checkers=(RejectBadValueChecker(),))
+    timeline = world.timeline()
+    try:
+        world.step()
+        world.step()
+        with pytest.raises(InvariantViolation, match="reject-bad-value"):
+            timeline.command("queue.record", {"id": "bad"})
+        artifact = world.artifact("authored-checker-failure")
+    finally:
+        world.close()
+
+    failure = artifact.operations[-1]
+    assert isinstance(failure, FailureOperation)
+    assert failure.attempt.kind == "submit"
+    assert failure.accepted_operations == 1
+
+    registry = ScenarioRegistry()
+    registry.register_profile(QueueProfile())
+    registry.register_checker(RejectBadValueChecker())
+    result = replay(artifact, registry)
+    assert result.disposition == Disposition.INVARIANT_FAILURE.value
+    assert result.failure == artifact.expected.failure
+
+
+def test_replay_does_not_apply_an_accepted_failed_attempt_twice() -> None:
+    budget = Budget(
+        actions=4,
+        queued_commands=2,
+        timer_advances=1,
+        logical_instant=5,
+        reloads=0,
+        predicate_polls=1,
+        artifact_bytes=65_536,
+    )
+    world = World(QueueProfile(), budget, checkers=(RejectBadValueChecker(),))
+    try:
+        world.step()
+        world.step()
+        with pytest.raises(InvariantViolation, match="reject-bad-value"):
+            world.timeline().command("queue.record", {"id": "bad"})
+        artifact = world.artifact("accepted-failed-attempt")
+    finally:
+        world.close()
+
+    replay_profile = QueueProfile()
+    registry = ScenarioRegistry()
+    registry.register_profile(replay_profile)
+    registry.register_checker(PassingBadValueChecker())
+    with pytest.raises(ReplayMismatch, match="did not reproduce its terminal failed attempt"):
+        replay(artifact, registry)
+
+    assert replay_profile.values == ["queue-00000001", "queue-00000002", "bad"]
+
+
+def test_profile_and_checker_exceptions_are_not_reclassified_as_world_failures() -> None:
+    budget = Budget(
+        actions=4,
+        queued_commands=2,
+        timer_advances=1,
+        logical_instant=5,
+        reloads=0,
+        predicate_polls=1,
+        artifact_bytes=65_536,
+    )
+    profile_world = World(RaisingReservedExceptionProfile(), budget)
+    try:
+        with pytest.raises(BudgetExhausted, match="profile-owned"):
+            profile_world.step()
+        assert profile_world.disposition is None
+        assert all(not isinstance(operation, FailureOperation) for operation in profile_world.operations)
+        assert all(entry.kind != "failure" for entry in profile_world.journal)
+    finally:
+        profile_world.close()
+
+    checker_world = World(QueueProfile(), budget, checkers=(RaisingReservedExceptionChecker(),))
+    try:
+        with pytest.raises(InvariantViolation, match="checker implementation"):
+            checker_world.step()
+        assert checker_world.disposition is None
+        assert all(not isinstance(operation, FailureOperation) for operation in checker_world.operations)
+        assert all(entry.kind != "failure" for entry in checker_world.journal)
+    finally:
+        checker_world.close()
+
+
+@pytest.mark.parametrize(
+    ("fixture", "disposition"),
+    [
+        (BUDGET_FAILURE_FIXTURE, Disposition.BUDGET_EXHAUSTED),
+        (INVARIANT_FAILURE_FIXTURE, Disposition.INVARIANT_FAILURE),
+    ],
+)
+def test_failed_attempt_manual_replay_is_deterministic(fixture: Path, disposition: Disposition) -> None:
+    command = [sys.executable, "-m", "tests.dst.replay_world", str(fixture)]
+    first = subprocess.run(command, check=True, capture_output=True, text=True)
+    second = subprocess.run(command, check=True, capture_output=True, text=True)
+
+    result = json.loads(first.stdout)
+    assert first.stderr == second.stderr == ""
+    assert first.stdout == second.stdout
+    assert result["version"] == ARTIFACT_VERSION
+    assert result["disposition"] == disposition.value
+    assert result["failure"]["kind"] == disposition.value
 
 
 def test_crash_revokes_before_drop_and_close_remains_distinct(tmp_path: Path) -> None:
@@ -508,7 +744,7 @@ def test_supported_surface_has_no_root_reexports_or_private_runtime_handles() ->
     ],
 )
 def test_unknown_mismatched_or_non_strict_artifacts_refuse(mutate) -> None:
-    value = deepcopy(json.loads(FIXTURE.read_bytes()))
+    value = deepcopy(json.loads(LEGACY_FIXTURE.read_bytes()))
     mutate(value)
 
     with pytest.raises((ValidationError, ValueError)):
@@ -522,8 +758,34 @@ def test_duplicate_and_nonfinite_artifact_data_refuses() -> None:
         decode_artifact(b'{"value":NaN}')
 
 
+def test_version_two_failure_artifact_requires_one_exact_terminal_failure() -> None:
+    value = deepcopy(json.loads(INVARIANT_FAILURE_FIXTURE.read_bytes()))
+    value["operations"].pop()
+
+    with pytest.raises(ValidationError, match="exactly one failure operation"):
+        decode_artifact(json.dumps(value, allow_nan=False).encode())
+
+    value = deepcopy(json.loads(BUDGET_FAILURE_FIXTURE.read_bytes()))
+    value["operations"][-1]["accepted_operations"] = 1
+    with pytest.raises(ValidationError, match="does not identify its accepted operation"):
+        decode_artifact(json.dumps(value, allow_nan=False).encode())
+
+
+def test_failure_replay_refuses_a_changed_expected_failure_location(tmp_path: Path) -> None:
+    value = deepcopy(json.loads(BUDGET_FAILURE_FIXTURE.read_bytes()))
+    changed = "DST budget 'actions' exhausted somewhere else"
+    value["operations"][-1]["failure"]["error"] = changed
+    value["expected"]["failure"]["error"] = changed
+    artifact = decode_artifact(json.dumps(value, allow_nan=False).encode())
+    registry = ScenarioRegistry()
+    registry.register_profile(EngineProfile(tmp_path / "changed-failure.jsonl"))
+
+    with pytest.raises(ReplayMismatch, match="operation 1 diverged"):
+        replay(artifact, registry)
+
+
 def test_replay_fails_closed_on_manifest_or_journal_digest_mismatch(tmp_path: Path) -> None:
-    checker_value = deepcopy(json.loads(FIXTURE.read_bytes()))
+    checker_value = deepcopy(json.loads(LEGACY_FIXTURE.read_bytes()))
     checker_value["checkers"][0]["version"] = 2
     checker_artifact = decode_artifact(json.dumps(checker_value, allow_nan=False).encode())
     registry = ScenarioRegistry()
@@ -533,7 +795,7 @@ def test_replay_fails_closed_on_manifest_or_journal_digest_mismatch(tmp_path: Pa
     with pytest.raises(ValueError, match="checker is not registered exactly"):
         replay(checker_artifact, registry)
 
-    digest_value = deepcopy(json.loads(FIXTURE.read_bytes()))
+    digest_value = deepcopy(json.loads(LEGACY_FIXTURE.read_bytes()))
     digest_value["expected"]["journal_digest"] = "sha256:" + "0" * 64
     digest_artifact = decode_artifact(json.dumps(digest_value, allow_nan=False).encode())
     digest_registry = ScenarioRegistry()
@@ -545,7 +807,7 @@ def test_replay_fails_closed_on_manifest_or_journal_digest_mismatch(tmp_path: Pa
 
 
 def test_registry_fails_closed_on_profile_or_checker_identity_mismatch(tmp_path: Path) -> None:
-    artifact = load_artifact(FIXTURE)
+    artifact = load_artifact(LEGACY_FIXTURE)
     registry = ScenarioRegistry()
     registry.register_profile(EngineProfile(tmp_path / "identity-history.jsonl"))
 

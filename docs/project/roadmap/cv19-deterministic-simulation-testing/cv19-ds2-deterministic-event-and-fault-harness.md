@@ -2,13 +2,14 @@
 code: CV19.DS2
 level: Delivery Story
 status: Active
-status_reason: The accepted petrus.testing.dst/v1 kernel and public-Engine crash/recovery vertical slice are implemented; DS2 remains active for seeded choices, broader cuts/adapters/bounds, and interpreter-failure retention
-updated: 2026-08-17
+status_reason: The accepted petrus.testing.dst/v2 kernel retains and replays exact budget/checker failures while preserving v1 replay; DS2 remains active for seeded choices and broader cuts/adapters/bounds
+updated: 2026-08-18
 related:
   - index.md
   - cv19-ds1-correctness-and-simulation-contract.md
   - ../../decisions/records/2026-08-17T2249Z-ship-a-supported-cross-project-dst-test-kit.md
   - ../../../process/dst-world-v1.md
+  - ../../../process/dst-world-v2.md
 ---
 
 # CV19.DS2 — Deterministic event and fault harness
@@ -175,9 +176,10 @@ format rather than silently widening that fixture contract.
 
 ## Implemented vertical slice
 
-The first accepted slice now ships under the supported defining module
-`petrus.testing.dst` with API identity `petrus.testing.dst/v1`. Its distinct
-strict artifact is `petrus-dst-world` version 1; DS1's
+The accepted kernel ships under the supported defining module
+`petrus.testing.dst`. The current API identity is `petrus.testing.dst/v2` and
+its current strict artifact is `petrus-dst-world` version 2. The loader and
+same interpreter retain strict version 1 decode/replay compatibility; DS1's
 `petrus-dst-scenario` version 1 remains byte-for-byte unchanged.
 
 The slice proves one executable pytest World/Timeline story through the real
@@ -207,13 +209,16 @@ all generic budget classes, total queue ordering, logical-time advancement,
 fair-phase interference refusal, pending-work refusal for every authored
 ending, stale-generation rejection, strict JSON/artifact refusal, exact
 registry/digest matching, same-interpreter replay, and deterministic replay
-CLI output.
+CLI output. Version 2 additionally retains the exact attempted operation for
+action-budget exhaustion and checker refusal, reproduces both failures through
+the same interpreter, refuses shifted or mismatched failures, and does not
+misclassify profile/checker implementation exceptions as World failures.
 
 ### Acceptance assessment after the slice
 
 | Done condition | Slice result |
 | --- | --- |
-| 1. Accepted defining-module compatibility surface | Met by the accepted decision, `petrus.testing.dst/v1`, exact identities, no root/private exports, and [`dst-world-v1`](../../../process/dst-world-v1.md). |
+| 1. Accepted defining-module compatibility surface | Met by the accepted decision, current `petrus.testing.dst/v2`, explicit legacy constants/models, exact identities, no root/private exports, and the versioned [`dst-world-v2`](../../../process/dst-world-v2.md) and [`dst-world-v1`](../../../process/dst-world-v1.md) contracts. |
 | 2. Imperative story emits replay data | Met by `tests/dst/engine_world.py` and the retained world fixture. |
 | 3. Same-interpreter replay agreement | Met for the projection refusal/crash/recovery story, including exact operations, checker observations, disposition, and journal digest. |
 | 4. Seeded repeatability | Partial: deterministic stable IDs and total ordering are proved, but explicit separable seeded choice streams remain. |
@@ -224,26 +229,34 @@ CLI output.
 | 9. Hermetic real-runtime execution | Met for the vertical slice: no credentials, providers, network sleeps, or substitute Petrus semantics. |
 | 10. Repository gates | Met for this slice: focused DST, full, and both release-order suites pass. |
 
-Version 1 artifacts intentionally retain only authored endings. Live budget
-and checker failures are explicit, but the format refuses to claim replay for
-an interpreter failure whose attempted operation is not yet serialized.
-Failure-attempt retention requires an explicit artifact evolution before DS2
-can close; it is not hidden as a passing replay.
+Version 1 artifacts intentionally retain only authored endings. Version 2
+removes that format limit: it preserves one exact terminal failed attempt plus
+its budget or checker detail, and replay succeeds only when the same interpreter
+reproduces the same operation boundary, checks, disposition, and digest. A
+successful replay reports `outcome: pass` separately from the retained
+`budget_exhausted` or `invariant_failure` disposition; it does not relabel the
+counterexample itself as passing behavior.
 
 ### Executed evidence
 
-- `UV_FROZEN=1 uv run pytest -q tests/dst` — 45 passed.
+- `UV_FROZEN=1 uv run pytest -q tests/dst` — 55 passed.
 - `UV_FROZEN=1 uv run python -m tests.dst.replay_world
   tests/dst/fixtures/projection-crash-recovery-world-v1.json` — `pass`,
   `converged`, 15 operations, 25 journal entries, digest
   `sha256:609247836dae1f306b34e5d7308901c10f95db2207fa0e583c446d98354cab74`.
-- `scripts/check full` — 2,226 passed.
-- `scripts/check release` — default order 2,226 passed; additional fixed order
-  2,226 passed with 17 intentionally deselected by the release profile.
+- The same replay route over `action-budget-exhaustion-world-v2.json` returned
+  `pass` / `budget_exhausted`, 2 operations, 4 journal entries, and digest
+  `sha256:8020031489a668e435820458f07d412bfae5bfe4b816e6c8a2e5e5e80dd63275`.
+- The same replay route over `terminal-checker-failure-world-v2.json` returned
+  `pass` / `invariant_failure`, 6 operations, 15 journal entries, and digest
+  `sha256:82ca298ed8946a75b35e65b7c8609d1d03ebebf4546f10bde88ebfbccea5a9b1`.
+- `scripts/check full` — 2,236 passed.
+- `scripts/check release` — default order 2,236 passed; additional fixed order
+  2,236 passed with 17 intentionally deselected by the release profile.
 - `UV_FROZEN=1 uv run ast-grep test --skip-snapshot-tests` — all 19
   architectural rule fixtures passed, including the runtime-neutral supported
   test-kit boundary.
-- `UV_FROZEN=1 uv build --out-dir /tmp/petrus-dst-dist` plus wheel listing —
+- `UV_FROZEN=1 uv build --out-dir /tmp/petrus-dst-v2-dist` plus wheel listing —
   built the sdist and wheel and confirmed both `petrus/testing/__init__.py` and
   `petrus/testing/dst.py` are packaged.
 
