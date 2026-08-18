@@ -458,15 +458,35 @@ route returns `outcome: "pass"`, `quiescent`, 19 operations, 31 journal entries
 including 12 checker evaluations, and digest
 `sha256:1c49f2de218e8579894a9f55248e81b3e058a977a2ebffecd82b19880661dbf0`.
 
+### Joined lifecycle cancellation acknowledgement loss
+
+[`joined-cancellation-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-cancellation-ack-loss-world-v3.json)
+proves the accepted side of that real Absurd/PostgreSQL cancellation boundary.
+Production commits `ScopeReset`, turns the real running task into a durable
+cancellation tombstone in the following transaction, and then loses that
+transaction's acknowledgement. Detached PostgreSQL truth shows generation 2,
+exactly one cancelled task, and no semantic terminal or projection while the
+writing Engine poisons.
+
+The World revokes and drops only the Engine generation while preserving the
+external Worker. Fresh public `load_engine` recognizes the existing tombstone
+without another `cancel_task`, handler `prepare`, semantic append, or task.
+The old Worker's completion remains fenced as stale. The independent checker
+requires one accepted reset and one accepted cancellation transaction, then
+compares those facts with detached History and task custody at every legal
+boundary. The retained route returns `outcome: "pass"`, `quiescent`, 19
+operations, 31 journal entries including 12 checker evaluations, and digest
+`sha256:c369eda31394c6de8287f23ea462c448fd2a7fb4e894a9ad163fd8b99c44630b`.
+
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. Six joined-provider profiles now prove real joined-transaction
+generator. Seven joined-provider profiles now prove real joined-transaction
 commit refusal, pre-commit task-spawn failure, post-commit begin and terminal
 acknowledgement loss, accepted-terminal/refused-projection recovery, and
-post-reset cancellation-tombstone recovery without widening the World
-contract; the broader delivery, Dispatch, lifecycle, and transaction fault
-matrix remains in CV19.DS2. Version 4 subsequently adds
+both refused and accepted-but-unacknowledged post-reset cancellation-tombstone
+recovery without widening the World contract; the broader delivery, Dispatch,
+lifecycle, and transaction fault matrix remains in CV19.DS2. Version 4 subsequently adds
 profile-retained-data and hidden-pending-work bounds without changing version 3
 replay, and runner v1 contains complete Worlds under a separate wall-clock
 process budget. Stateful generation, shrinking, broad independent

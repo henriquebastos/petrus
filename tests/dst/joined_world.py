@@ -61,6 +61,7 @@ PROJECTION_SCENARIO_ID = "joined-projection-commit-refusal-world-v3"
 ACK_LOSS_SCENARIO_ID = "joined-begin-ack-loss-world-v3"
 TERMINAL_ACK_LOSS_SCENARIO_ID = "joined-terminal-ack-loss-world-v3"
 CANCELLATION_SCENARIO_ID = "joined-cancellation-commit-refusal-world-v3"
+CANCELLATION_ACK_LOSS_SCENARIO_ID = "joined-cancellation-ack-loss-world-v3"
 
 PROFILE_IDENTITY = ProfileIdentity(
     name="petrus.engine.joined-begin-commit-refusal",
@@ -209,6 +210,38 @@ CANCELLATION_PROFILE_IDENTITY = ProfileIdentity(
         }
     ),
 )
+CANCELLATION_ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.joined-cancellation-ack-loss",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": [
+                "engine.drive",
+                "scope.open",
+                "scope.reset",
+                "source.deliver",
+                "worker.claim",
+                "worker.complete-stale",
+            ],
+            "fault": {
+                "disposition": "raise",
+                "name": "history.lose-ack",
+                "target": "cancellation_committed",
+            },
+            "instance": INSTANCE_ID,
+            "observations": [
+                "engine.joined-accepted-cancellation-authority",
+                "joined-cancellation-ack-ready",
+                "joined-cancellation-ack-lost",
+                "joined-cancellation-ack-recovered",
+                "joined-cancellation-ack-worker-fenced",
+            ],
+            "provider": "petrus.engine.absurd",
+            "property": "an accepted post-reset cancellation survives loss of its commit acknowledgement",
+            "queue": QUEUE,
+        }
+    ),
+)
 CHECKER_IDENTITY = CheckerIdentity(
     name="petrus.engine.joined-commit-authority",
     version=1,
@@ -249,6 +282,18 @@ CANCELLATION_CHECKER_IDENTITY = CheckerIdentity(
             "property": (
                 "accepted reset authority survives a refused cancellation transaction; fresh load creates one "
                 "tombstone and fences the stale Worker without semantic terminal or projection"
+            )
+        }
+    ),
+)
+CANCELLATION_ACK_LOSS_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.joined-accepted-cancellation-authority",
+    version=1,
+    digest=digest_json(
+        {
+            "property": (
+                "an acknowledgement-lost cancellation has one accepted reset and tombstone; fresh load and a "
+                "stale Worker cannot add a task, terminal, or projection"
             )
         }
     ),
@@ -320,6 +365,7 @@ class JoinedFaultConnection:
         terminal_ack_lost: Callable[[], None],
         lifecycle_attempts: list[dict[str, JsonValue]],
         cancellation_refused: Callable[[], None],
+        cancellation_ack_lost: Callable[[], None],
     ) -> None:
         self._delegate = delegate
         self._attempts = attempts
@@ -330,6 +376,7 @@ class JoinedFaultConnection:
         self._terminal_ack_lost = terminal_ack_lost
         self._lifecycle_attempts = lifecycle_attempts
         self._cancellation_refused = cancellation_refused
+        self._cancellation_ack_lost = cancellation_ack_lost
         self._record_types: list[str] = []
         self._dispatch_attempted = False
         self._cancellation_attempted = False
@@ -339,6 +386,7 @@ class JoinedFaultConnection:
         self._commit_ack_loss: str | None = None
         self._terminal_ack_loss: str | None = None
         self._cancellation_refusal: str | None = None
+        self._cancellation_ack_loss: str | None = None
 
     def __getattr__(self, name: str):
         return getattr(self._delegate, name)
@@ -402,10 +450,16 @@ class JoinedFaultConnection:
             raise RuntimeError("joined terminal acknowledgement loss is already armed")
         self._terminal_ack_loss = message
 
+    def lose_cancellation_commit_ack(self, message: str) -> None:
+        if self._cancellation_ack_loss is not None:
+            raise RuntimeError("joined cancellation acknowledgement loss is already armed")
+        self._cancellation_ack_loss = message
+
     def commit(self) -> None:
         joined_begin = ActivityRequested.__name__ in self._record_types
         activity_terminal = ActivityCompleted.__name__ in self._record_types
         scope_reset = ScopeReset.__name__ in self._record_types
+        cancellation_attempted = self._cancellation_attempted
         tracked = joined_begin or any(
             name in self._record_types for name in (ActivityCompleted.__name__, FiringCompleted.__name__)
         )
@@ -421,7 +475,7 @@ class JoinedFaultConnection:
             self._attempts.append(self._attempt(False))
             self._projection_refused()
             raise OSError(message)
-        if self._cancellation_attempted and self._cancellation_refusal is not None:
+        if cancellation_attempted and self._cancellation_refusal is not None:
             message = self._cancellation_refusal
             self._cancellation_refusal = None
             self._lifecycle_attempts.append(self._lifecycle_attempt(False, "cancellation"))
@@ -432,7 +486,7 @@ class JoinedFaultConnection:
             self._attempts.append(self._attempt(True))
         if scope_reset:
             self._lifecycle_attempts.append(self._lifecycle_attempt(True, "scope_reset"))
-        if self._cancellation_attempted:
+        if cancellation_attempted:
             self._lifecycle_attempts.append(self._lifecycle_attempt(True, "cancellation"))
         self._clear_transaction()
         if joined_begin and self._commit_ack_loss is not None:
@@ -444,6 +498,11 @@ class JoinedFaultConnection:
             message = self._terminal_ack_loss
             self._terminal_ack_loss = None
             self._terminal_ack_lost()
+            raise OSError(message)
+        if cancellation_attempted and self._cancellation_ack_loss is not None:
+            message = self._cancellation_ack_loss
+            self._cancellation_ack_loss = None
+            self._cancellation_ack_lost()
             raise OSError(message)
 
     def rollback(self) -> None:
@@ -504,6 +563,7 @@ class JoinedBeginProfile:
         self.dispatch_refusals = 0
         self.projection_refusals = 0
         self.cancellation_refusals = 0
+        self.cancellation_ack_losses = 0
         self.commit_ack_losses = 0
         self.terminal_ack_losses = 0
         self.worker_completions = 0
@@ -625,6 +685,7 @@ class JoinedBeginProfile:
             self._terminal_ack_lost,
             self.lifecycle_attempts,
             self._cancellation_refused,
+            self._cancellation_ack_lost,
         )
         listener = psycopg.connect(self.dsn, autocommit=True)
         bridge = JoinedBridge(self._prepared)
@@ -737,6 +798,9 @@ class JoinedBeginProfile:
 
     def _cancellation_refused(self) -> None:
         self.cancellation_refusals += 1
+
+    def _cancellation_ack_lost(self) -> None:
+        self.cancellation_ack_losses += 1
 
     def _commit_ack_lost(self) -> None:
         self.commit_ack_losses += 1
@@ -1098,6 +1162,36 @@ class JoinedCancellationProfile(JoinedBeginProfile):
         )
 
 
+class JoinedCancellationAckLossProfile(JoinedCancellationProfile):
+    """Public Absurd profile losing acknowledgement after tombstone acceptance."""
+
+    identity = CANCELLATION_ACK_LOSS_PROFILE_IDENTITY
+    fault_name = "history.lose-ack"
+    fault_disposition = FaultDisposition.RAISE
+    refused_observation = "joined-cancellation-ack-lost"
+    recovered_observation = "joined-cancellation-ack-recovered"
+    refusal_field = "cancellation_ack_losses"
+    _observations = {
+        "engine.joined-accepted-cancellation-authority",
+        "joined-cancellation-ack-ready",
+        "joined-cancellation-ack-lost",
+        "joined-cancellation-ack-recovered",
+        "joined-cancellation-ack-worker-fenced",
+    }
+    _observation_fields = (
+        *JoinedCancellationProfile._observation_fields,
+        "cancellation_ack_losses",
+    )
+
+    def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
+        generation.connection.lose_cancellation_commit_ack(message)
+
+    def _observation_state(self, generation: JoinedGeneration) -> dict[str, JsonValue]:
+        state = super()._observation_state(generation)
+        state["cancellation_ack_losses"] = self.cancellation_ack_losses
+        return state
+
+
 class JoinedCommitAuthorityChecker:
     """Independent durable-authority check over provider transaction outcomes."""
 
@@ -1420,6 +1514,89 @@ class JoinedCancellationAuthorityChecker:
                 "attempts_exact": attempts_exact,
                 "canonical_resets": canonical_resets,
                 "cancellation_refusals": cancellation_refusals,
+                "lifecycle_exact": lifecycle_exact,
+                "stale_worker_refusals": stale_refusals,
+                "task_state": None if not tasks else tasks[0]["state"],
+            },
+        )
+
+
+class JoinedAcceptedCancellationAuthorityChecker:
+    """Independent accepted-tombstone authority from PostgreSQL and Worker facts."""
+
+    identity = CANCELLATION_ACK_LOSS_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.joined-accepted-cancellation-authority", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        value = cast(dict[str, JsonValue], observation.value)
+        records = cast(list[JsonValue], value["record_types"])
+        attempts = cast(list[dict[str, JsonValue]], value["transaction_attempts"])
+        lifecycle_attempts = cast(list[dict[str, JsonValue]], value["lifecycle_attempts"])
+        tasks = cast(list[dict[str, JsonValue]], value["durable_tasks"])
+        source = {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["ExternalEventDelivered", "FiringBegun", "TokensProduced", "FiringCompleted"],
+        }
+        begin = {
+            "accepted": True,
+            "dispatch_attempted": True,
+            "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
+        }
+        attempts_exact = attempts in ([], [source], [source, begin])
+        accepted_begins = sum(attempt == begin for attempt in attempts)
+        scope_resets = cast(int, value["scope_resets"])
+        accepted_cancellation = {"accepted": True, "phase": "cancellation", "record_types": []}
+        expected_lifecycle: list[dict[str, JsonValue]] = []
+        if scope_resets:
+            expected_lifecycle = [
+                {"accepted": True, "phase": "scope_reset", "record_types": ["ScopeReset"]},
+                accepted_cancellation,
+            ]
+        accepted_cancellations = lifecycle_attempts.count(accepted_cancellation)
+        lifecycle_exact = lifecycle_attempts == expected_lifecycle
+        expected_key = f"{INSTANCE_ID}:occurrence-2"
+        worker_claims = cast(int, value["worker_claims"])
+        if accepted_cancellations:
+            expected_tasks: list[dict[str, JsonValue]] = [{"idempotency": expected_key, "state": "cancelled"}]
+        elif worker_claims:
+            expected_tasks = [{"idempotency": expected_key, "state": "running"}]
+        elif accepted_begins:
+            expected_tasks = [{"idempotency": expected_key, "state": "pending"}]
+        else:
+            expected_tasks = []
+        canonical_sources = records.count(ExternalEventDelivered.__name__)
+        canonical_opens = records.count(ScopeOpened.__name__)
+        canonical_resets = records.count(ScopeReset.__name__)
+        requested = records.count(ActivityRequested.__name__)
+        completed = records.count(ActivityCompleted.__name__)
+        projected = records.count(FiringCompleted.__name__) - canonical_sources
+        stale_refusals = cast(int, value["stale_worker_refusals"])
+        ack_losses = cast(int, value["cancellation_ack_losses"])
+        passed = (
+            attempts_exact
+            and lifecycle_exact
+            and canonical_opens == cast(int, value["scope_opens"]) <= 1
+            and canonical_sources == cast(int, value["source_deliveries"]) <= 1
+            and canonical_resets == scope_resets <= 1
+            and requested == accepted_begins <= 1
+            and cast(int, value["prepare_calls"]) == accepted_begins
+            and tasks == expected_tasks
+            and 0 <= worker_claims <= accepted_begins
+            and cast(int, value["cancellation_refusals"]) == 0
+            and 0 <= accepted_cancellations <= scope_resets
+            and 0 <= ack_losses <= accepted_cancellations
+            and 0 <= stale_refusals <= accepted_cancellations
+            and completed == projected == 0
+        )
+        return CheckResult(
+            passed=passed,
+            detail={
+                "accepted_begins": accepted_begins,
+                "accepted_cancellations": accepted_cancellations,
+                "ack_losses": ack_losses,
+                "attempts_exact": attempts_exact,
+                "canonical_resets": canonical_resets,
                 "lifecycle_exact": lifecycle_exact,
                 "stale_worker_refusals": stale_refusals,
                 "task_state": None if not tasks else tasks[0]["state"],
@@ -1895,6 +2072,92 @@ def build_joined_cancellation_artifact(dsn: str) -> ScenarioArtifactV3:
     world, _, _ = execute_joined_cancellation_story(dsn)
     try:
         artifact = world.artifact(CANCELLATION_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_joined_cancellation_ack_loss_story(
+    dsn: str,
+) -> tuple[World, JoinedCancellationAckLossProfile, Timeline]:
+    """Lose accepted tombstone acknowledgement, reload, and fence the stale Worker."""
+
+    profile = JoinedCancellationAckLossProfile(dsn)
+    world = World(profile, CANCELLATION_WORLD_BUDGET, checkers=(JoinedAcceptedCancellationAuthorityChecker(),))
+    timeline = world.timeline()
+
+    timeline.command("scope.open", {"name": "draft"})
+    timeline.command(
+        "source.deliver",
+        {"identity": "draft-input-3", "scope": "draft", "value": 3},
+    )
+    ready = timeline.run_until(
+        "joined-cancellation-ack-ready",
+        lambda observation: (
+            cast(dict[str, JsonValue], observation.value)["durable_tasks"]
+            == [{"idempotency": f"{INSTANCE_ID}:occurrence-2", "state": "pending"}]
+        ),
+    )
+    ready_value = cast(dict[str, JsonValue], ready.value)
+    assert ready_value["prepare_calls"] == 1
+    assert ready_value["frontier"] == 11
+
+    timeline.command("worker.claim", {})
+    claimed = timeline.observe("joined-cancellation-ack-ready")
+    claimed_value = cast(dict[str, JsonValue], claimed.value)
+    assert claimed_value["durable_tasks"] == [{"idempotency": f"{INSTANCE_ID}:occurrence-2", "state": "running"}]
+    assert claimed_value["worker_claims"] == 1
+
+    timeline.activate_fault(
+        "history.lose-ack",
+        "cancellation_committed",
+        disposition=FaultDisposition.RAISE,
+        payload={"message": "dst joined cancellation acknowledgement lost"},
+    )
+    timeline.command("scope.reset", {"name": "draft"})
+    lost = timeline.observe("joined-cancellation-ack-lost")
+    lost_value = cast(dict[str, JsonValue], lost.value)
+    assert lost_value["frontier"] == 12
+    assert lost_value["record_types"][-1] == ScopeReset.__name__
+    assert lost_value["durable_tasks"] == [{"idempotency": f"{INSTANCE_ID}:occurrence-2", "state": "cancelled"}]
+    assert lost_value["lifecycle_attempts"] == [
+        {"accepted": True, "phase": "scope_reset", "record_types": ["ScopeReset"]},
+        {"accepted": True, "phase": "cancellation", "record_types": []},
+    ]
+    assert lost_value["cancellation_ack_losses"] == lost_value["scope_resets"] == 1
+    assert lost_value["status"] == "poisoned"
+
+    stale = timeline
+    timeline.crash("joined_cancellation_committed_ack_lost")
+    world.restart()
+    timeline = world.timeline()
+    recovered = timeline.run_until(
+        "joined-cancellation-ack-recovered",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["drive_calls"] == 2,
+    )
+    recovered_value = cast(dict[str, JsonValue], recovered.value)
+    assert recovered_value["frontier"] == 12
+    assert recovered_value["prepare_calls"] == 1
+    assert recovered_value["durable_tasks"] == lost_value["durable_tasks"]
+    assert recovered_value["lifecycle_attempts"] == lost_value["lifecycle_attempts"]
+
+    timeline.command("worker.complete-stale", {})
+    fenced = timeline.observe("joined-cancellation-ack-worker-fenced")
+    fenced_value = cast(dict[str, JsonValue], fenced.value)
+    assert fenced_value["durable_tasks"] == recovered_value["durable_tasks"]
+    assert fenced_value["stale_worker_refusals"] == 1
+    assert ActivityCompleted.__name__ not in fenced_value["record_types"]
+
+    timeline.begin_fair()
+    timeline.finish(Disposition.QUIESCENT)
+    return world, profile, stale
+
+
+def build_joined_cancellation_ack_loss_artifact(dsn: str) -> ScenarioArtifactV3:
+    world, _, _ = execute_joined_cancellation_ack_loss_story(dsn)
+    try:
+        artifact = world.artifact(CANCELLATION_ACK_LOSS_SCENARIO_ID)
         assert isinstance(artifact, ScenarioArtifactV3)
         return artifact
     finally:

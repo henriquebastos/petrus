@@ -16,15 +16,18 @@ from petrus.testing.dst import (
 )
 from tests.dst.joined_world import (
     ACK_LOSS_SCENARIO_ID,
+    CANCELLATION_ACK_LOSS_SCENARIO_ID,
     CANCELLATION_SCENARIO_ID,
     DISPATCH_SCENARIO_ID,
     PROJECTION_SCENARIO_ID,
     SCENARIO_ID,
     TERMINAL_ACK_LOSS_SCENARIO_ID,
+    JoinedAcceptedCancellationAuthorityChecker,
     JoinedAcceptedTerminalAuthorityChecker,
     JoinedBeginProfile,
     JoinedBeginAckLossProfile,
     JoinedAcceptedBeginAuthorityChecker,
+    JoinedCancellationAckLossProfile,
     JoinedCancellationAuthorityChecker,
     JoinedCancellationProfile,
     JoinedCommitAuthorityChecker,
@@ -34,6 +37,7 @@ from tests.dst.joined_world import (
     JoinedTerminalAckLossProfile,
     build_joined_begin_artifact,
     build_joined_ack_loss_artifact,
+    build_joined_cancellation_ack_loss_artifact,
     build_joined_dispatch_artifact,
     build_joined_cancellation_artifact,
     build_joined_projection_artifact,
@@ -47,6 +51,7 @@ PROJECTION_FIXTURE = Path("tests/dst/fixtures/joined-projection-commit-refusal-w
 ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-begin-ack-loss-world-v3.json")
 TERMINAL_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-terminal-ack-loss-world-v3.json")
 CANCELLATION_FIXTURE = Path("tests/dst/fixtures/joined-cancellation-commit-refusal-world-v3.json")
+CANCELLATION_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-cancellation-ack-loss-world-v3.json")
 
 
 def test_joined_begin_commit_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
@@ -471,3 +476,97 @@ def test_joined_cancellation_checker_refuses_a_tombstone_after_refused_only_tran
     assert result.passed is False
     assert result.detail["accepted_cancellations"] == 0
     assert result.detail["task_state"] == "cancelled"
+
+
+def test_joined_cancellation_ack_loss_is_exact_and_replayable(absurd_dsn: str) -> None:
+    with isolated_absurd_database(absurd_dsn) as authored_dsn:
+        artifact = build_joined_cancellation_ack_loss_artifact(authored_dsn)
+
+    assert artifact.scenario_id == CANCELLATION_ACK_LOSS_SCENARIO_ID
+    assert artifact.origin is None
+    assert encode_artifact(artifact) == CANCELLATION_ACK_LOSS_FIXTURE.read_bytes().rstrip(b"\n")
+
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedCancellationAckLossProfile(replay_dsn))
+        registry.register_checker(JoinedAcceptedCancellationAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.version == RESULT_VERSION
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.QUIESCENT.value
+    assert result.operations == len(artifact.operations)
+
+
+def test_retained_joined_cancellation_ack_loss_replays_without_the_authored_scenario(absurd_dsn: str) -> None:
+    artifact = load_artifact(CANCELLATION_ACK_LOSS_FIXTURE)
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedCancellationAckLossProfile(replay_dsn))
+        registry.register_checker(JoinedAcceptedCancellationAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.scenario_id == CANCELLATION_ACK_LOSS_SCENARIO_ID
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.QUIESCENT.value
+
+
+def test_joined_accepted_cancellation_checker_refuses_ack_loss_without_accepted_tombstone() -> None:
+    checker = JoinedAcceptedCancellationAuthorityChecker()
+    observation = Observation(
+        name="engine.joined-accepted-cancellation-authority",
+        value={
+            "cancellation_ack_losses": 1,
+            "cancellation_refusals": 0,
+            "durable_tasks": [{"idempotency": "dst-world-joined-begin-refusal:occurrence-2", "state": "cancelled"}],
+            "lifecycle_attempts": [
+                {"accepted": True, "phase": "scope_reset", "record_types": ["ScopeReset"]},
+            ],
+            "prepare_calls": 1,
+            "record_types": [
+                "InstanceCreated",
+                "DeliveryRegistrationOpened",
+                "ScopeOpened",
+                "ExternalEventDelivered",
+                "FiringBegun",
+                "TokensProduced",
+                "FiringCompleted",
+                "CandidateSelected",
+                "FiringBegun",
+                "TokensConsumed",
+                "ActivityRequested",
+                "ScopeReset",
+            ],
+            "scope_opens": 1,
+            "scope_resets": 1,
+            "source_deliveries": 1,
+            "stale_worker_refusals": 0,
+            "transaction_attempts": [
+                {
+                    "accepted": True,
+                    "dispatch_attempted": False,
+                    "record_types": [
+                        "ExternalEventDelivered",
+                        "FiringBegun",
+                        "TokensProduced",
+                        "FiringCompleted",
+                    ],
+                },
+                {
+                    "accepted": True,
+                    "dispatch_attempted": True,
+                    "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
+                },
+            ],
+            "worker_claims": 1,
+        },
+        instant=0,
+        generation=1,
+        sequence=0,
+    )
+
+    result: CheckResult = checker.check(observation)
+
+    assert result.passed is False
+    assert result.detail["accepted_cancellations"] == 0
+    assert result.detail["ack_losses"] == 1

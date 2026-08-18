@@ -41,9 +41,10 @@ and no live provider or multi-host support is claimed.
   supported executable World now retains exact failures, seeded provenance,
   public-Engine crash/cut replays, versioned profile-resource bounds, and real
   Absurd/PostgreSQL begin, terminal, projection, and lifecycle-cancellation
-  qualification. Petrus owns the reusable substrate; applications such as
-  Hamsterdan own their domain models and provider fault worlds. Broader
-  transaction/fault qualification remains before DS2 closes.
+  refusal/acknowledgement-loss qualification. Petrus owns the reusable
+  substrate; applications such as Hamsterdan own their domain models and
+  provider fault worlds. Broader transaction/fault qualification remains
+  before DS2 closes.
 
 Application-specific and site-operation plans are not part of this source
 tree.
