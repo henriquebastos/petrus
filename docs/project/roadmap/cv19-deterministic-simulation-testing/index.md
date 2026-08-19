@@ -2,7 +2,7 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 is Done and DS2 now proves split request/cancellation refusal plus paired joined initial-creation, identified/stale-scope delivery, completed-terminal, failed-terminal, successful/failed projection, canonical reset, and post-fence cancellation refusal/acknowledgement-loss recovery together with joined begin recovery over real Absurd/PostgreSQL in addition to bounded World v4, process containment, and LocalDispatch provider time; broader cuts and DS3–DS4 remain active
+status_reason: CV19.DS1 is Done and DS2 now proves split request/cancellation refusal plus paired joined initial-creation, identified/stale/future-scope delivery, completed-terminal, failed-terminal, successful/failed projection, canonical reset, and post-fence cancellation refusal/acknowledgement-loss recovery together with joined begin recovery over real Absurd/PostgreSQL in addition to bounded World v4, process containment, and LocalDispatch provider time; broader cuts and DS3–DS4 remain active
 updated: 2026-08-19
 related:
   - ../../../../src/petrus/simulation.py
@@ -222,6 +222,10 @@ the minimized expanded scenario becomes the durable regression fixture.
    twenty-fourth refuses `ScopedDeliveryDropped` for an identified stale-scope
    delivery and proves fresh load records it once. A twenty-fifth loses the
    accepted drop acknowledgement and proves exact redelivery returns the prior
+   disposition without another transaction. A twenty-sixth refuses
+   `ScopedDeliveryQuarantined` for an identified future-scope delivery and
+   proves fresh load records it once. A twenty-seventh loses the accepted
+   quarantine acknowledgement and proves exact redelivery returns the prior
    disposition without another transaction. The broader fault/cut matrix keeps
    DS2 active.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)

@@ -36,6 +36,8 @@ from tests.dst.joined_world import (
     SCENARIO_ID,
     SCOPED_DROP_ACK_LOSS_SCENARIO_ID,
     SCOPED_DROP_REFUSAL_SCENARIO_ID,
+    SCOPED_QUARANTINE_ACK_LOSS_SCENARIO_ID,
+    SCOPED_QUARANTINE_REFUSAL_SCENARIO_ID,
     TERMINAL_ACK_LOSS_SCENARIO_ID,
     TERMINAL_REFUSAL_SCENARIO_ID,
     JoinedAcceptedCancellationAuthorityChecker,
@@ -68,6 +70,7 @@ from tests.dst.joined_world import (
     JoinedFailureRefusalProfile,
     JoinedAcceptedResetAuthorityChecker,
     JoinedAcceptedScopedDropAuthorityChecker,
+    JoinedAcceptedScopedQuarantineAuthorityChecker,
     JoinedProjectionAuthorityChecker,
     JoinedAcceptedProjectionAuthorityChecker,
     JoinedProjectionAckLossProfile,
@@ -78,6 +81,9 @@ from tests.dst.joined_world import (
     JoinedScopedDropAckLossProfile,
     JoinedScopedDropAuthorityChecker,
     JoinedScopedDropRefusalProfile,
+    JoinedScopedQuarantineAckLossProfile,
+    JoinedScopedQuarantineAuthorityChecker,
+    JoinedScopedQuarantineRefusalProfile,
     JoinedTerminalAuthorityChecker,
     JoinedTerminalAckLossProfile,
     JoinedTerminalRefusalProfile,
@@ -102,6 +108,8 @@ from tests.dst.joined_world import (
     build_joined_reset_refusal_artifact,
     build_joined_scoped_drop_ack_loss_artifact,
     build_joined_scoped_drop_refusal_artifact,
+    build_joined_scoped_quarantine_ack_loss_artifact,
+    build_joined_scoped_quarantine_refusal_artifact,
     build_joined_terminal_ack_loss_artifact,
     build_joined_terminal_refusal_artifact,
 )
@@ -130,6 +138,8 @@ OPEN_REFUSAL_FIXTURE = Path("tests/dst/fixtures/joined-open-commit-refusal-world
 OPEN_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-open-ack-loss-world-v3.json")
 SCOPED_DROP_REFUSAL_FIXTURE = Path("tests/dst/fixtures/joined-scoped-drop-commit-refusal-world-v3.json")
 SCOPED_DROP_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-scoped-drop-ack-loss-world-v3.json")
+SCOPED_QUARANTINE_REFUSAL_FIXTURE = Path("tests/dst/fixtures/joined-scoped-quarantine-commit-refusal-world-v3.json")
+SCOPED_QUARANTINE_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-scoped-quarantine-ack-loss-world-v3.json")
 
 
 def test_joined_begin_commit_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
@@ -510,6 +520,137 @@ def test_joined_scoped_drop_checkers_reject_phantom_and_unaccepted_ack_loss() ->
 
     assert phantom_result.passed is False
     assert phantom_result.detail["accepted_drops"] == 0
+    assert missing_result.passed is False
+    assert missing_result.detail["ack_losses"] == 1
+
+
+def test_joined_scoped_quarantine_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
+    with isolated_absurd_database(absurd_dsn) as authored_dsn:
+        artifact = build_joined_scoped_quarantine_refusal_artifact(authored_dsn)
+
+    assert artifact.scenario_id == SCOPED_QUARANTINE_REFUSAL_SCENARIO_ID
+    assert artifact.origin is None
+    assert encode_artifact(artifact) == SCOPED_QUARANTINE_REFUSAL_FIXTURE.read_bytes().rstrip(b"\n")
+
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedScopedQuarantineRefusalProfile(replay_dsn))
+        registry.register_checker(JoinedScopedQuarantineAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.EXTERNAL_WAIT.value
+
+
+def test_retained_joined_scoped_quarantine_refusal_replays_without_authored_scenario(absurd_dsn: str) -> None:
+    artifact = load_artifact(SCOPED_QUARANTINE_REFUSAL_FIXTURE)
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedScopedQuarantineRefusalProfile(replay_dsn))
+        registry.register_checker(JoinedScopedQuarantineAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.scenario_id == SCOPED_QUARANTINE_REFUSAL_SCENARIO_ID
+    assert result.outcome == "pass"
+
+
+def test_joined_scoped_quarantine_ack_loss_is_exact_and_replayable(absurd_dsn: str) -> None:
+    with isolated_absurd_database(absurd_dsn) as authored_dsn:
+        artifact = build_joined_scoped_quarantine_ack_loss_artifact(authored_dsn)
+
+    assert artifact.scenario_id == SCOPED_QUARANTINE_ACK_LOSS_SCENARIO_ID
+    assert artifact.origin is None
+    assert encode_artifact(artifact) == SCOPED_QUARANTINE_ACK_LOSS_FIXTURE.read_bytes().rstrip(b"\n")
+
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedScopedQuarantineAckLossProfile(replay_dsn))
+        registry.register_checker(JoinedAcceptedScopedQuarantineAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.EXTERNAL_WAIT.value
+
+
+def test_retained_joined_scoped_quarantine_ack_loss_replays_without_authored_scenario(absurd_dsn: str) -> None:
+    artifact = load_artifact(SCOPED_QUARANTINE_ACK_LOSS_FIXTURE)
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedScopedQuarantineAckLossProfile(replay_dsn))
+        registry.register_checker(JoinedAcceptedScopedQuarantineAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.scenario_id == SCOPED_QUARANTINE_ACK_LOSS_SCENARIO_ID
+    assert result.outcome == "pass"
+
+
+def test_joined_scoped_quarantine_checkers_reject_phantom_and_unaccepted_ack_loss() -> None:
+    lifecycle_attempts = [
+        {"accepted": True, "phase": "scope_open", "record_types": ["ScopeOpened"]},
+    ]
+    lifecycle_records = [{"generation": 1, "kind": "opened", "name": "draft"}]
+    base = {
+        "lifecycle_attempts": lifecycle_attempts,
+        "lifecycle_records": lifecycle_records,
+        "record_types": ["InstanceCreated", "DeliveryRegistrationOpened", "ScopeOpened"],
+        "scope_opens": 1,
+        "scoped_quarantine_ack_losses": 0,
+        "scoped_quarantine_refusals": 0,
+    }
+    phantom = Observation(
+        name="engine.joined-scoped-quarantine-authority",
+        value={
+            **base,
+            "canonical_quarantines": [
+                {
+                    "identity": "future-draft-3",
+                    "scope_generation": 2,
+                    "scope_name": "draft",
+                    "source": "source",
+                    "value": 3,
+                }
+            ],
+            "record_types": [*base["record_types"], "ScopedDeliveryQuarantined"],
+            "scoped_delivery_attempts": [
+                {
+                    "disposition": "refused_expected",
+                    "identity": "future-draft-3",
+                    "scope_generation": 2,
+                    "value": 3,
+                }
+            ],
+            "scoped_quarantine_refusals": 1,
+            "transaction_attempts": [
+                {
+                    "accepted": False,
+                    "dispatch_attempted": False,
+                    "record_types": ["ScopedDeliveryQuarantined"],
+                }
+            ],
+        },
+        instant=0,
+        generation=1,
+        sequence=0,
+    )
+    ack_without_acceptance = Observation(
+        name="engine.joined-accepted-scoped-quarantine-authority",
+        value={
+            **base,
+            "canonical_quarantines": [],
+            "scoped_delivery_attempts": [],
+            "scoped_quarantine_ack_losses": 1,
+            "transaction_attempts": [],
+        },
+        instant=0,
+        generation=1,
+        sequence=0,
+    )
+
+    phantom_result = JoinedScopedQuarantineAuthorityChecker().check(phantom)
+    missing_result = JoinedAcceptedScopedQuarantineAuthorityChecker().check(ack_without_acceptance)
+
+    assert phantom_result.passed is False
+    assert phantom_result.detail["accepted_quarantines"] == 0
     assert missing_result.passed is False
     assert missing_result.detail["ack_losses"] == 1
 

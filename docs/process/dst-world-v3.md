@@ -476,6 +476,31 @@ Independent checkers compare accepted/refused transaction facts with detached
 lifecycle and delivery records; mutation checks reject both a phantom drop
 after rollback and acknowledgement loss without accepted authority.
 
+### Joined future-scope quarantine transaction pair
+
+[`joined-scoped-quarantine-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-scoped-quarantine-commit-refusal-world-v3.json)
+opens lifecycle generation 1 and submits an identified delivery against the
+future exact generation 2. The test connection refuses
+`ScopedDeliveryQuarantined` before PostgreSQL acceptance. Detached truth
+retains the current lifecycle but no disposition or accepted identity; fresh
+public load records the quarantine once, and exact redelivery returns the prior
+`quarantined` acknowledgement without another transaction. The retained route
+has 12 operations, 20 journal entries including 8 checker evaluations,
+disposition `external_wait`, and artifact digest
+`sha256:b55032380b61df27a99d0b256a2ec2a84f677a122a95f53950205b66d7ca4935`.
+
+[`joined-scoped-quarantine-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-scoped-quarantine-ack-loss-world-v3.json)
+commits that same future-generation disposition and loses its acknowledgement.
+Fresh public load reconstructs the accepted identity, and exact redelivery
+returns the prior `quarantined` disposition without another History
+transaction. The retained route has 10 operations, 17 journal entries
+including 7 checker evaluations, disposition `external_wait`, and artifact
+digest
+`sha256:8fd756a54297965afba4f9011d85674f578f21a96c58f3d7e910cd60558c2f1a`.
+Independent checkers compare accepted/refused transaction facts with detached
+lifecycle and delivery records; mutation checks reject both a phantom
+quarantine after rollback and acknowledgement loss without accepted authority.
+
 ### Joined begin acknowledgement loss
 
 [`joined-begin-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-begin-ack-loss-world-v3.json)
@@ -767,12 +792,12 @@ inventing internal state; fresh load must expose the canonical generation.
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. Twenty-five joined-provider profiles now prove paired initial
-creation, identified/stale-scope delivery, completed-terminal, failed-terminal,
-successful/failed projection, canonical-open, canonical-reset, and
-terminal-close commit refusal/acknowledgement loss, plus real joined-begin
-commit refusal, pre-commit task-spawn failure, post-commit begin acknowledgement
-loss, and both refused and accepted-but-unacknowledged post-reset
+generator. Twenty-seven joined-provider profiles now prove paired initial
+creation, identified/stale/future-scope delivery, completed-terminal,
+failed-terminal, successful/failed projection, canonical-open, canonical-reset,
+and terminal-close commit refusal/acknowledgement loss, plus real joined-begin
+commit refusal, pre-commit task-spawn failure, post-commit begin
+acknowledgement loss, and both refused and accepted-but-unacknowledged post-reset
 cancellation-tombstone recovery without widening the World contract; the
 broader delivery, Dispatch, lifecycle, and transaction fault matrix remains in
 CV19.DS2. Version 4
