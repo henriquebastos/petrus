@@ -6,7 +6,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import cast
 
-from hypothesis import event, settings, strategies as st
+from hypothesis import event, strategies as st
 from hypothesis.stateful import (
     RuleBasedStateMachine,
     initialize,
@@ -25,6 +25,7 @@ from petrus.testing.dst import (
     World,
     replay,
 )
+from tests.dst.campaign import campaign_settings, record_campaign_case
 from tests.dst.delivery_world import DeliveryAuthorityChecker, DeliveryEngineProfile
 
 GENERATED_WORLD_BUDGET = Budget(
@@ -41,6 +42,7 @@ GENERATED_WORLD_BUDGET = Budget(
 class _DeliveryScheduleMachine(RuleBasedStateMachine):
     """Author generated external facts without defining Engine semantics."""
 
+    campaign_profile: str
     required_coverage: frozenset[str] = frozenset()
 
     def __init__(self) -> None:
@@ -113,6 +115,7 @@ class _DeliveryScheduleMachine(RuleBasedStateMachine):
             assert result.disposition == Disposition.EXTERNAL_WAIT.value
             assert result.operations == len(artifact.operations)
             assert result.journal_digest == artifact.expected.journal_digest
+            record_campaign_case(self.campaign_profile, artifact)
         finally:
             self._world.close()
             self._temporary.cleanup()
@@ -120,6 +123,8 @@ class _DeliveryScheduleMachine(RuleBasedStateMachine):
 
 class BroadDeliveryScheduleMachine(_DeliveryScheduleMachine):
     """Preserve independent identity and payload dimensions with little structure."""
+
+    campaign_profile = "delivery-broad"
 
     @precondition(lambda self: not self._poisoned)
     @rule(
@@ -143,6 +148,7 @@ class BroadDeliveryScheduleMachine(_DeliveryScheduleMachine):
 class FocusedDeliveryScheduleMachine(_DeliveryScheduleMachine):
     """Exercise redelivery conflicts and recovery in every targeted example."""
 
+    campaign_profile = "delivery-focused"
     required_coverage = frozenset(
         {
             "delivery:applied",
@@ -192,22 +198,12 @@ class FocusedDeliveryScheduleMachine(_DeliveryScheduleMachine):
 def test_broad_generated_delivery_schedules_replay_exactly() -> None:
     run_state_machine_as_test(
         BroadDeliveryScheduleMachine,
-        settings=settings(
-            max_examples=30,
-            stateful_step_count=8,
-            derandomize=True,
-            deadline=None,
-        ),
+        settings=campaign_settings("delivery-broad"),
     )
 
 
 def test_focused_generated_delivery_schedules_cover_high_value_boundaries_and_replay_exactly() -> None:
     run_state_machine_as_test(
         FocusedDeliveryScheduleMachine,
-        settings=settings(
-            max_examples=20,
-            stateful_step_count=6,
-            derandomize=True,
-            deadline=None,
-        ),
+        settings=campaign_settings("delivery-focused"),
     )

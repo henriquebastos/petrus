@@ -48,8 +48,10 @@ safety-preserving livelock. A test-only rescheduling mutation produces an exact
 v4 budget-failure artifact which Hypothesis reduces and replay reproduces; the
 same unmutated expanded schedule is retained as a green regression. A versioned
 semantic-coverage report records reached, broad-only, unreachable, and
-intentionally ungenerated dimensions. Bounded campaign operations and
-production-boundary qualification remain with DS4.
+intentionally ungenerated dimensions. DS4 now exposes the ordinary generated
+profiles and a larger seed-addressed campaign through pytest, with a bounded
+payload-free report. Failure promotion and production-boundary qualification
+remain.
 
 This document owns Petrus's deterministic simulation testing (DST) contract.
 DST drives the production `Engine`, `Coordinator`, `Instance`, `HistoryStore`,
@@ -227,6 +229,74 @@ History, Dispatch, profile, and checker objects.
 This is bounded safety evidence, not the fair-liveness or shrink/promotion
 claim. Those remain owned by CV19.DS3.TS3. Real Absurd/PostgreSQL transactional
 cuts remain separately qualified DS2 evidence and a DS4 campaign boundary.
+
+## Ordinary and scheduled campaign tiers
+
+Generated DST remains a self-contained pytest world under `tests/dst`; there
+is no second runner semantics or separate scripts-owned test tree. The
+ordinary gate is:
+
+```sh
+uv run pytest -q tests/dst --forbid-skips
+```
+
+That complete corpus includes retained replay, failure, process-containment,
+and real joined PostgreSQL/Absurd profiles, so it uses the repository's pinned
+Docker PostgreSQL harness. The four generated state-machine tests themselves
+are credential-free Local/JSONL/SQLite tests and run on every normal full and
+release gate.
+
+The larger credential-free operation is:
+
+```sh
+uv run python -m tests.dst.campaign \
+  --tier scheduled \
+  --campaign-id "$(date -u +%G-W%V)" \
+  --report /tmp/petrus-dst-campaign.json
+```
+
+Run it weekly against current main, before release qualification, or on demand
+for a generated profile change. The explicit campaign id derives one isolated
+32-bit Hypothesis seed per profile with SHA-256. The report retains each seed,
+so a profile can be rerun with the same campaign id; expanded World artifacts,
+not those seeds, remain execution/replay authority. Hypothesis's example
+database is disabled. Every case enters the existing World interpreter, runs
+the profile's independent checker cadence, finishes explicitly, and replays
+from fresh profile/checker/runtime objects before contributing a report row.
+
+| Profile family | Ordinary target / steps | Scheduled target / steps |
+| --- | ---: | ---: |
+| identified delivery, broad | 30 / 8 | 120 / 10 |
+| identified delivery, focused | 20 / 6 | 80 / 8 |
+| cross-layer runtime, broad | 16 / 5 | 64 / 7 |
+| cross-layer runtime, focused | 10 / 4 | 40 / 6 |
+
+`max_examples` is a Hypothesis accepted-example target, not an absolute count
+of machine constructions: rejected candidates and shrink work may construct
+additional cases. The operation therefore requires at least the target and
+caps recorded case summaries at ten times it. It also caps each payload-free
+summary at 16 KiB, the final report at 1 MiB, artifacts at their exact World
+budget (and the 4 MiB format ceiling), selected profile execution at 120
+seconds, the four-profile operation at 510 seconds, and concurrency at one.
+Profile resource ceilings remain exact in each artifact and are copied into
+the report; scenario payloads, results, external facts, and provider data are
+not.
+
+The report states selected and deselected profiles, exact repository/runtime
+identity, elapsed time, actual case count, maximum artifact size, commands,
+fault cuts, crash cuts, checker triggers, operation and action dispositions,
+and explicit unmodeled boundaries. A timeout, nonzero pytest result, too few
+cases, case-log/report overage, unknown selection, or duplicate selection is a
+visible failure; no partial run is labeled pass. Campaign process timeout is
+harness containment, never a deterministic liveness disposition.
+
+On the 2026-W34 reference orb, the complete scheduled tier targeted 304
+accepted examples, recorded 452 generated/shrink cases, and completed serially
+in 34.8 seconds. The largest artifact was 288,032 bytes and the report was
+8,039 bytes; observed command maximum resident set was about 105 MiB. These
+measurements are a capacity sketch for this commit and environment, not a
+performance guarantee or substitute for the enforced semantic/resource
+bounds.
 
 ## Runtime nondeterminism inventory
 

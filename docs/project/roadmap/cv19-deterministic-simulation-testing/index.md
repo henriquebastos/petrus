@@ -2,7 +2,7 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 through DS3 are Done with supported deterministic replay, generated safety and fair-liveness evidence, exact failure shrinking/promotion, and semantic coverage; DS4 is active on bounded campaign operations and production-boundary qualification
+status_reason: CV19.DS1 through DS3 are Done and DS4 now has bounded ordinary/scheduled campaign tiers; failure operations and complementary production-boundary qualification remain active
 updated: 2026-08-19
 related:
   - ../../../../src/petrus/simulation.py
@@ -251,8 +251,10 @@ the minimized expanded scenario becomes the durable regression fixture.
    retained regression, and records reached, broad-only, unreachable, and
    intentionally ungenerated semantic dimensions.
 4. [CV19.DS4 — Campaign and production-boundary qualification](cv19-ds4-campaign-and-production-boundary-qualification.md)
-   is Active. It establishes PR/nightly campaign tiers and proves how
-   simulation composes with real storage, transport, and process-kill tests
+   is Active. Its first Technical Story keeps ordinary generation in pytest and
+   adds one bounded, seed-addressed scheduled cohort with payload-free semantic
+   reporting. Remaining work rehearses failure retention/promotion and proves
+   how simulation composes with real storage, transport, and process-kill tests
    without overstating either layer.
 
 ## Done condition

@@ -38,6 +38,8 @@ Python ≥3.14, managed with `uv`. Python source lives in `src/petrus/`; tests m
 - Checkpoint confidence: `scripts/check full`
 - Release qualification: `scripts/check release`
 - Periodic semantic mutation diagnostic: `scripts/check mutation`
+- Ordinary DST corpus: `uv run pytest -q tests/dst --forbid-skips`
+- Larger generated DST campaign: `uv run python -m tests.dst.campaign --tier scheduled --campaign-id "$(date -u +%G-W%V)" --report /tmp/petrus-dst-campaign.json`
 
 The full profile and release qualification's cumulative full pass run the
 complete hermetic pytest suite on four bounded xdist workers, report the 20
@@ -50,6 +52,19 @@ by exact node under their recorded authority and environment. They are
 deselected—not reported as green-suite skips—by `full` and `release`. Release
 qualification then retains one serial hermetic run under its additional fixed
 seed so that pass still exercises one exact global order.
+
+The ordinary generated DST examples are normal pytest tests and therefore run
+inside `full` and `release`; the complete `tests/dst` corpus also includes
+PostgreSQL-backed joined-provider profiles and needs the Docker harness below.
+The larger scheduled campaign is credential-free and uses only Local/JSONL/
+SQLite profile dependencies. Run it weekly against the current main commit,
+before release qualification, or explicitly while changing a generated
+profile. Its campaign identity deterministically derives and retains an
+isolated Hypothesis seed for each selected profile, so using the UTC ISO week
+rotates discovery while preserving exact reproduction. The command exits
+nonzero and writes a failed report on a profile timeout, pytest failure, or
+missing/budget-exceeding case summaries. It never substitutes for the focused
+real PostgreSQL, Worker-process, or ZeroMQ qualification routes.
 
 The mutation profile is deliberately separate from `quick`, `full`, and
 `release`. It runs mutmut over an explicit allowlist of fast pure semantic

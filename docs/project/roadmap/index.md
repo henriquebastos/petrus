@@ -54,8 +54,10 @@ and no live provider or multi-host support is claimed.
   Activity/retry, lifecycle, crash/load, Dispatch-refusal, and
   projection-refusal schedules under all eight applicable safety families,
   then separately qualifies fair convergence, minimized failure replay and
-  promotion, and semantic coverage. DS4 is Active for bounded campaign
-  operations and complementary real-backend, process, and transport evidence.
+  promotion, and semantic coverage. DS4's first Technical Story now supplies
+  bounded ordinary/scheduled campaign tiers with exact profile seeds and
+  payload-free reach reports; failure operations and complementary
+  real-backend, process, and transport evidence remain Active.
 
 Application-specific and site-operation plans are not part of this source
 tree.

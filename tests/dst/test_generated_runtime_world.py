@@ -7,7 +7,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import cast
 
-from hypothesis import event, settings, strategies as st
+from hypothesis import event, strategies as st
 from hypothesis.stateful import (
     RuleBasedStateMachine,
     initialize,
@@ -19,6 +19,7 @@ from hypothesis.stateful import (
 from pydantic import JsonValue
 
 from petrus.testing.dst import ActionDisposition, Disposition, FaultDisposition, ScenarioRegistry, World, replay
+from tests.dst.campaign import campaign_settings, record_campaign_case
 from tests.dst.generated_runtime_world import (
     SCENARIO_ID,
     GeneratedRuntimeAuthorityChecker,
@@ -121,6 +122,8 @@ def test_cross_layer_checker_rejects_independent_authority_divergence(tmp_path: 
 class _ReplayableRuntimeMachine(RuleBasedStateMachine):
     """Common fresh-object artifact replay and detached-authority checks."""
 
+    campaign_profile: str
+
     def __init__(self) -> None:
         super().__init__()
         self._temporary = TemporaryDirectory(prefix="petrus-generated-runtime-")
@@ -181,6 +184,7 @@ class _ReplayableRuntimeMachine(RuleBasedStateMachine):
             assert result.disposition == Disposition.EXTERNAL_WAIT.value
             assert result.operations == len(artifact.operations)
             assert result.journal_digest == artifact.expected.journal_digest
+            record_campaign_case(self.campaign_profile, artifact)
         finally:
             self._world.close()
             self._temporary.cleanup()
@@ -188,6 +192,8 @@ class _ReplayableRuntimeMachine(RuleBasedStateMachine):
 
 class FocusedRuntimeScheduleMachine(_ReplayableRuntimeMachine):
     """Guarantee every high-value cross-layer dimension in every example."""
+
+    campaign_profile = "runtime-focused"
 
     @initialize(
         first_value=st.integers(min_value=-3, max_value=3),
@@ -226,6 +232,8 @@ class FocusedRuntimeScheduleMachine(_ReplayableRuntimeMachine):
 
 class BroadRuntimeScheduleMachine(_ReplayableRuntimeMachine):
     """Vary faults, retry, cut placement, and terminal fencing with little global structure."""
+
+    campaign_profile = "runtime-broad"
 
     def __init__(self) -> None:
         super().__init__()
@@ -398,22 +406,12 @@ class BroadRuntimeScheduleMachine(_ReplayableRuntimeMachine):
 def test_focused_generated_runtime_schedules_replay_exactly() -> None:
     run_state_machine_as_test(
         FocusedRuntimeScheduleMachine,
-        settings=settings(
-            max_examples=10,
-            stateful_step_count=4,
-            derandomize=True,
-            deadline=None,
-        ),
+        settings=campaign_settings("runtime-focused"),
     )
 
 
 def test_broad_generated_runtime_schedules_replay_exactly() -> None:
     run_state_machine_as_test(
         BroadRuntimeScheduleMachine,
-        settings=settings(
-            max_examples=16,
-            stateful_step_count=5,
-            derandomize=True,
-            deadline=None,
-        ),
+        settings=campaign_settings("runtime-broad"),
     )
