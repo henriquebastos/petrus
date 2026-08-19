@@ -694,12 +694,34 @@ derive authority from detached PostgreSQL History, accepted/refused lifecycle
 transactions, and Absurd custody; terminal close remains distinct from reset
 because no successor lifecycle generation is opened.
 
+### Joined lifecycle open transaction pair
+
+[`joined-open-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-open-commit-refusal-world-v3.json)
+refuses canonical `ScopeOpened` before PostgreSQL acceptance. Fresh public load
+observes no active scope, and retry opens `draft:1` exactly once. The retained
+route has 9 operations, 15 journal entries including 6 checker evaluations,
+disposition `external_wait`, and artifact digest
+`sha256:515023a8cbdb6bc378b203d118536c74eac65359bc8c28f136bdead182913ec4`.
+
+[`joined-open-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-open-ack-loss-world-v3.json)
+commits `ScopeOpened` and loses its acknowledgement before the exact scope
+handle returns. Fresh public load reconstructs `draft:1` from detached History
+without another open or generation 2. The retained route has 7 operations, 12
+journal entries including 5 checker evaluations, disposition `external_wait`,
+and artifact digest
+`sha256:db4f216651754d4bb02d9373be13d698326b03d672dbb16346afba33fb60d982`.
+
+The shared independent checker compares accepted/refused PostgreSQL transaction
+facts, canonical `ScopeOpened` records, and the detached public active-scope
+view. A poisoned writer reports that live view as unavailable rather than
+inventing internal state; fresh load must expose the canonical generation.
+
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. Nineteen joined-provider profiles now prove paired initial
+generator. Twenty-one joined-provider profiles now prove paired initial
 creation, identified-delivery, completed-terminal, failed-terminal, projection,
-canonical-reset, and terminal-close commit refusal/acknowledgement loss, plus real joined-begin
+canonical-open, canonical-reset, and terminal-close commit refusal/acknowledgement loss, plus real joined-begin
 commit refusal, pre-commit task-spawn failure, post-commit begin acknowledgement
 loss, and both refused and accepted-but-unacknowledged post-reset
 cancellation-tombstone recovery without widening the World contract; the

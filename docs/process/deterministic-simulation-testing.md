@@ -432,7 +432,11 @@ source firing, or output token. A sixteenth refuses canonical `ScopeClosed`
 before acceptance and proves fresh load retains the active scope and its
 Worker authority. A seventeenth loses the accepted close acknowledgement and
 proves fresh load reconstructs terminal scope authority, repairs one task
-tombstone, and fences stale completion. They do not simulate or claim PostgreSQL power
+tombstone, and fences stale completion. A further pair refuses canonical
+`ScopeOpened` before acceptance or loses its accepted acknowledgement, proving
+fresh load respectively retains absence for a generation-1 retry or
+reconstructs exactly generation 1 without opening generation 2. They do not
+simulate or claim PostgreSQL power
 loss, transport, or provider-wide fidelity.
 
 ## Correctness position

@@ -75,6 +75,8 @@ RESET_REFUSAL_SCENARIO_ID = "joined-reset-commit-refusal-world-v3"
 RESET_ACK_LOSS_SCENARIO_ID = "joined-reset-ack-loss-world-v3"
 CLOSE_REFUSAL_SCENARIO_ID = "joined-close-commit-refusal-world-v3"
 CLOSE_ACK_LOSS_SCENARIO_ID = "joined-close-ack-loss-world-v3"
+OPEN_REFUSAL_SCENARIO_ID = "joined-open-commit-refusal-world-v3"
+OPEN_ACK_LOSS_SCENARIO_ID = "joined-open-ack-loss-world-v3"
 CANCELLATION_SCENARIO_ID = "joined-cancellation-commit-refusal-world-v3"
 CANCELLATION_ACK_LOSS_SCENARIO_ID = "joined-cancellation-ack-loss-world-v3"
 
@@ -450,6 +452,41 @@ CLOSE_ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
         }
     ),
 )
+OPEN_REFUSAL_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.joined-open-commit-refusal",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": ["scope.open"],
+            "fault": {"disposition": "refuse", "name": "history.commit-refuse", "target": "scope_open"},
+            "instance": INSTANCE_ID,
+            "observations": [
+                "engine.joined-open-authority",
+                "joined-open-refused",
+                "joined-open-absent",
+                "joined-open-recovered",
+            ],
+            "provider": "petrus.engine.absurd",
+            "property": "a refused ScopeOpened leaves no active lifecycle generation",
+            "queue": QUEUE,
+        }
+    ),
+)
+OPEN_ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.joined-open-ack-loss",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": ["scope.open"],
+            "fault": {"disposition": "raise", "name": "history.lose-ack", "target": "scope_open_committed"},
+            "instance": INSTANCE_ID,
+            "observations": ["engine.joined-open-authority", "joined-open-ack-lost", "joined-open-ack-recovered"],
+            "provider": "petrus.engine.absurd",
+            "property": "an accepted ScopeOpened survives loss of its commit acknowledgement without opening a successor",
+            "queue": QUEUE,
+        }
+    ),
+)
 CANCELLATION_PROFILE_IDENTITY = ProfileIdentity(
     name="petrus.engine.joined-cancellation-commit-refusal",
     version=1,
@@ -628,6 +665,13 @@ CLOSE_ACK_LOSS_CHECKER_IDENTITY = CheckerIdentity(
         {"property": "an acknowledgement-lost ScopeClosed reconstructs terminal authority and one task tombstone"}
     ),
 )
+OPEN_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.joined-open-authority",
+    version=1,
+    digest=digest_json(
+        {"property": "accepted PostgreSQL ScopeOpened transactions alone authorize one active generation"}
+    ),
+)
 CANCELLATION_CHECKER_IDENTITY = CheckerIdentity(
     name="petrus.engine.joined-cancellation-authority",
     version=1,
@@ -735,6 +779,9 @@ class JoinedFaultConnection:
         reset_ack_lost: Callable[[], None],
         close_refused: Callable[[], None],
         close_ack_lost: Callable[[], None],
+        open_refused: Callable[[], None],
+        open_ack_lost: Callable[[], None],
+        track_scope_open: bool,
         cancellation_refused: Callable[[], None],
         cancellation_ack_lost: Callable[[], None],
     ) -> None:
@@ -754,6 +801,9 @@ class JoinedFaultConnection:
         self._reset_ack_lost = reset_ack_lost
         self._close_refused = close_refused
         self._close_ack_lost = close_ack_lost
+        self._open_refused = open_refused
+        self._open_ack_lost = open_ack_lost
+        self._track_scope_open = track_scope_open
         self._cancellation_refused = cancellation_refused
         self._cancellation_ack_lost = cancellation_ack_lost
         self._record_types: list[str] = []
@@ -772,6 +822,8 @@ class JoinedFaultConnection:
         self._reset_ack_loss: str | None = None
         self._close_refusal: str | None = None
         self._close_ack_loss: str | None = None
+        self._open_refusal: str | None = None
+        self._open_ack_loss: str | None = None
         self._cancellation_refusal: str | None = None
         self._cancellation_ack_loss: str | None = None
 
@@ -862,6 +914,16 @@ class JoinedFaultConnection:
             raise RuntimeError("joined scope-close acknowledgement loss is already armed")
         self._close_ack_loss = message
 
+    def refuse_scope_open_commit(self, message: str) -> None:
+        if self._open_refusal is not None:
+            raise RuntimeError("joined scope-open refusal is already armed")
+        self._open_refusal = message
+
+    def lose_scope_open_commit_ack(self, message: str) -> None:
+        if self._open_ack_loss is not None:
+            raise RuntimeError("joined scope-open acknowledgement loss is already armed")
+        self._open_ack_loss = message
+
     def refuse_cancellation_commit(self, message: str) -> None:
         if self._cancellation_refusal is not None:
             raise RuntimeError("joined cancellation refusal is already armed")
@@ -891,6 +953,7 @@ class JoinedFaultConnection:
         projection_completed = FiringCompleted.__name__ in self._record_types
         scope_reset = ScopeReset.__name__ in self._record_types
         scope_close = ScopeClosed.__name__ in self._record_types
+        scope_open = self._track_scope_open and ScopeOpened.__name__ in self._record_types
         cancellation_attempted = self._cancellation_attempted
         tracked = joined_begin or any(
             name in self._record_types
@@ -937,6 +1000,12 @@ class JoinedFaultConnection:
             self._lifecycle_attempts.append(self._lifecycle_attempt(False, "scope_close"))
             self._close_refused()
             raise OSError(message)
+        if scope_open and self._open_refusal is not None:
+            message = self._open_refusal
+            self._open_refusal = None
+            self._lifecycle_attempts.append(self._lifecycle_attempt(False, "scope_open"))
+            self._open_refused()
+            raise OSError(message)
         if cancellation_attempted and self._cancellation_refusal is not None:
             message = self._cancellation_refusal
             self._cancellation_refusal = None
@@ -950,6 +1019,8 @@ class JoinedFaultConnection:
             self._lifecycle_attempts.append(self._lifecycle_attempt(True, "scope_reset"))
         if scope_close:
             self._lifecycle_attempts.append(self._lifecycle_attempt(True, "scope_close"))
+        if scope_open:
+            self._lifecycle_attempts.append(self._lifecycle_attempt(True, "scope_open"))
         if cancellation_attempted:
             self._lifecycle_attempts.append(self._lifecycle_attempt(True, "cancellation"))
         self._clear_transaction()
@@ -982,6 +1053,11 @@ class JoinedFaultConnection:
             message = self._close_ack_loss
             self._close_ack_loss = None
             self._close_ack_lost()
+            raise OSError(message)
+        if scope_open and self._open_ack_loss is not None:
+            message = self._open_ack_loss
+            self._open_ack_loss = None
+            self._open_ack_lost()
             raise OSError(message)
         if cancellation_attempted and self._cancellation_ack_loss is not None:
             message = self._cancellation_ack_loss
@@ -1037,6 +1113,7 @@ class JoinedBeginProfile:
     refused_observation = "joined-begin-refused"
     recovered_observation = "joined-begin-recovered"
     refusal_field = "commit_refusals"
+    track_scope_open = False
 
     def __init__(self, dsn: str) -> None:
         self.dsn = dsn
@@ -1054,6 +1131,8 @@ class JoinedBeginProfile:
         self.reset_ack_losses = 0
         self.close_refusals = 0
         self.close_ack_losses = 0
+        self.open_refusals = 0
+        self.open_ack_losses = 0
         self.cancellation_refusals = 0
         self.cancellation_ack_losses = 0
         self.commit_ack_losses = 0
@@ -1185,6 +1264,9 @@ class JoinedBeginProfile:
             self._reset_ack_lost,
             self._close_refused,
             self._close_ack_lost,
+            self._open_refused,
+            self._open_ack_lost,
+            self.track_scope_open,
             self._cancellation_refused,
             self._cancellation_ack_lost,
         )
@@ -1251,6 +1333,8 @@ class JoinedBeginProfile:
                 "reset_ack_losses": self.reset_ack_losses,
                 "close_refusals": self.close_refusals,
                 "close_ack_losses": self.close_ack_losses,
+                "open_refusals": self.open_refusals,
+                "open_ack_losses": self.open_ack_losses,
                 "status": status,
                 "terminal_refusals": self.terminal_refusals,
                 "terminal_ack_losses": self.terminal_ack_losses,
@@ -1329,6 +1413,12 @@ class JoinedBeginProfile:
 
     def _close_ack_lost(self) -> None:
         self.close_ack_losses += 1
+
+    def _open_refused(self) -> None:
+        self.open_refusals += 1
+
+    def _open_ack_lost(self) -> None:
+        self.open_ack_losses += 1
 
     def _cancellation_refused(self) -> None:
         self.cancellation_refusals += 1
@@ -2233,6 +2323,109 @@ class JoinedCloseAckLossProfile(JoinedCloseRefusalProfile):
         return state
 
 
+class JoinedOpenRefusalProfile(JoinedCancellationProfile):
+    """Public Absurd profile refusing the canonical ScopeOpened transaction."""
+
+    identity = OPEN_REFUSAL_PROFILE_IDENTITY
+    fault_name = "history.commit-refuse"
+    fault_target = "scope_open"
+    refused_observation = "joined-open-refused"
+    recovered_observation = "joined-open-recovered"
+    refusal_field = "open_refusals"
+    track_scope_open = True
+    _observations = {
+        "engine.joined-open-authority",
+        "joined-open-refused",
+        "joined-open-absent",
+        "joined-open-recovered",
+    }
+    _observation_fields = (
+        "active_scopes",
+        "canonical_scopes",
+        "drops",
+        "frontier",
+        "lifecycle_attempts",
+        "open_ack_losses",
+        "open_refusals",
+        "record_types",
+        "scope_opens",
+        "status",
+    )
+
+    def validate(self, command: Command) -> Command:
+        if command.name == "scope.open" and command.payload == {"name": "draft"}:
+            return command
+        raise ValueError(f"unsupported joined-open command {command.name!r}")
+
+    def load(self, context: ScenarioContext) -> GenerationStart[JoinedGeneration]:
+        del context
+        return GenerationStart(self._open(create=False), ())
+
+    def apply(
+        self,
+        generation: JoinedGeneration,
+        command: Command,
+        context: ScenarioContext,
+    ) -> ApplyResult:
+        del command
+        expected = self._configure_faults(generation, context)
+        try:
+            scope = generation.engine.open_scope("draft")
+        except OSError as error:
+            if str(error) not in expected:
+                raise
+            generation.poisoned = True
+            self.scope_opens += 1
+            return ApplyResult(
+                disposition=ActionDisposition.REFUSED_EXPECTED.value,
+                value={"error": str(error), "frontier": self._frontier()},
+                scheduled=[],
+            )
+        self.scope_opens += 1
+        return self._applied({"frontier": self._frontier(), "generation": scope.generation})
+
+    def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
+        generation.connection.refuse_scope_open_commit(message)
+
+    def _observation_state(self, generation: JoinedGeneration) -> dict[str, JsonValue]:
+        state = super()._observation_state(generation)
+        with psycopg.connect(self.dsn, autocommit=True) as probe:
+            records = PostgresHistoryStore(probe, INSTANCE_ID).records
+        state.update(
+            {
+                "active_scopes": None
+                if generation.poisoned
+                else {name: scope.generation for name, scope in sorted(generation.engine.active_scopes.items())},
+                "canonical_scopes": [
+                    {"generation": record.scope.generation, "name": record.scope.name}
+                    for record in records
+                    if isinstance(record, ScopeOpened)
+                ],
+                "open_ack_losses": self.open_ack_losses,
+                "open_refusals": self.open_refusals,
+            }
+        )
+        return state
+
+
+class JoinedOpenAckLossProfile(JoinedOpenRefusalProfile):
+    """Public Absurd profile losing acknowledgement after ScopeOpened acceptance."""
+
+    identity = OPEN_ACK_LOSS_PROFILE_IDENTITY
+    fault_name = "history.lose-ack"
+    fault_target = "scope_open_committed"
+    fault_disposition = FaultDisposition.RAISE
+    observations = {
+        "engine.joined-open-authority",
+        "joined-open-ack-lost",
+        "joined-open-ack-recovered",
+    }
+    _observations = observations
+
+    def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
+        generation.connection.lose_scope_open_commit_ack(message)
+
+
 class JoinedCancellationAckLossProfile(JoinedCancellationProfile):
     """Public Absurd profile losing acknowledgement after tombstone acceptance."""
 
@@ -3117,6 +3310,60 @@ class JoinedAcceptedCloseAuthorityChecker:
         detail["accepted_closes"] = detail.pop("accepted_resets")
         detail["canonical_closes"] = detail.pop("canonical_resets")
         return CheckResult(passed=result.passed, detail=detail)
+
+
+class JoinedOpenAuthorityChecker:
+    """Independent scope-open authority from PostgreSQL transaction and History facts."""
+
+    identity = OPEN_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.joined-open-authority", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        value = cast(dict[str, JsonValue], observation.value)
+        attempts = cast(list[dict[str, JsonValue]], value["lifecycle_attempts"])
+        refused_attempt = {"accepted": False, "phase": "scope_open", "record_types": ["ScopeOpened"]}
+        accepted_attempt = {**refused_attempt, "accepted": True}
+        attempts_exact = attempts in (
+            [],
+            [refused_attempt],
+            [refused_attempt, accepted_attempt],
+            [accepted_attempt],
+        )
+        accepted = attempts.count(accepted_attempt)
+        refused = attempts.count(refused_attempt)
+        canonical = cast(list[JsonValue], value["canonical_scopes"])
+        active = value["active_scopes"]
+        expected: list[JsonValue] = [{"generation": 1, "name": "draft"}] if accepted else []
+        expected_active: dict[str, JsonValue] = {"draft": 1} if accepted else {}
+        ack_losses = cast(int, value["open_ack_losses"])
+        drops = cast(int, value["drops"])
+        live_coherent = active == expected_active or (
+            active is None and drops == 0 and cast(int, value["scope_opens"]) == 1
+        )
+        canonical_types = cast(list[JsonValue], value["record_types"])
+        passed = (
+            attempts_exact
+            and accepted <= 1
+            and refused == cast(int, value["open_refusals"]) <= 1
+            and ack_losses <= accepted
+            and cast(int, value["scope_opens"]) == len(attempts)
+            and canonical == expected
+            and canonical_types.count(ScopeOpened.__name__) == accepted
+            and cast(int, value["frontier"]) == 2 + accepted
+            and live_coherent
+        )
+        return CheckResult(
+            passed=passed,
+            detail={
+                "accepted_opens": accepted,
+                "ack_losses": ack_losses,
+                "active_scopes": active,
+                "attempts_exact": attempts_exact,
+                "canonical_scopes": canonical,
+                "live_coherent": live_coherent,
+                "refused_opens": refused,
+            },
+        )
 
 
 class JoinedCancellationAuthorityChecker:
@@ -4707,6 +4954,107 @@ def build_joined_close_ack_loss_artifact(dsn: str) -> ScenarioArtifactV3:
     world, _, _ = execute_joined_close_ack_loss_story(dsn)
     try:
         artifact = world.artifact(CLOSE_ACK_LOSS_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_joined_open_refusal_story(dsn: str) -> tuple[World, JoinedOpenRefusalProfile, Timeline]:
+    """Refuse scope creation, reload absence, then open generation one exactly once."""
+
+    profile = JoinedOpenRefusalProfile(dsn)
+    world = World(profile, WORLD_BUDGET, checkers=(JoinedOpenAuthorityChecker(),))
+    timeline = world.timeline()
+    timeline.activate_fault(
+        "history.commit-refuse",
+        "scope_open",
+        disposition=FaultDisposition.REFUSE,
+        payload={"message": "dst joined scope open commit refused"},
+    )
+    refused_command = timeline.command("scope.open", {"name": "draft"})
+    assert refused_command.disposition == ActionDisposition.REFUSED_EXPECTED.value
+    refused = cast(dict[str, JsonValue], timeline.observe("joined-open-refused").value)
+    assert refused["frontier"] == 2
+    assert refused["canonical_scopes"] == []
+    assert refused["active_scopes"] is None
+    assert refused["lifecycle_attempts"] == [
+        {"accepted": False, "phase": "scope_open", "record_types": ["ScopeOpened"]}
+    ]
+
+    stale = timeline
+    timeline.crash("joined_scope_open_commit_refused")
+    world.restart()
+    timeline = world.timeline()
+    absent = cast(dict[str, JsonValue], timeline.observe("joined-open-absent").value)
+    assert absent["frontier"] == 2
+    assert absent["canonical_scopes"] == []
+    assert absent["active_scopes"] == {}
+
+    accepted_command = timeline.command("scope.open", {"name": "draft"})
+    assert accepted_command.disposition == ActionDisposition.APPLIED.value
+    recovered = cast(dict[str, JsonValue], timeline.observe("joined-open-recovered").value)
+    assert recovered["frontier"] == 3
+    assert recovered["canonical_scopes"] == [{"generation": 1, "name": "draft"}]
+    assert recovered["active_scopes"] == {"draft": 1}
+    assert recovered["lifecycle_attempts"][-1] == {
+        "accepted": True,
+        "phase": "scope_open",
+        "record_types": ["ScopeOpened"],
+    }
+
+    timeline.finish(Disposition.EXTERNAL_WAIT)
+    return world, profile, stale
+
+
+def build_joined_open_refusal_artifact(dsn: str) -> ScenarioArtifactV3:
+    world, _, _ = execute_joined_open_refusal_story(dsn)
+    try:
+        artifact = world.artifact(OPEN_REFUSAL_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_joined_open_ack_loss_story(dsn: str) -> tuple[World, JoinedOpenAckLossProfile, Timeline]:
+    """Lose accepted scope-open acknowledgement, then reconstruct generation one."""
+
+    profile = JoinedOpenAckLossProfile(dsn)
+    world = World(profile, WORLD_BUDGET, checkers=(JoinedOpenAuthorityChecker(),))
+    timeline = world.timeline()
+    timeline.activate_fault(
+        "history.lose-ack",
+        "scope_open_committed",
+        disposition=FaultDisposition.RAISE,
+        payload={"message": "dst joined scope open acknowledgement lost"},
+    )
+    lost_command = timeline.command("scope.open", {"name": "draft"})
+    assert lost_command.disposition == ActionDisposition.REFUSED_EXPECTED.value
+    lost = cast(dict[str, JsonValue], timeline.observe("joined-open-ack-lost").value)
+    assert lost["frontier"] == 3
+    assert lost["canonical_scopes"] == [{"generation": 1, "name": "draft"}]
+    assert lost["active_scopes"] is None
+    assert lost["lifecycle_attempts"] == [{"accepted": True, "phase": "scope_open", "record_types": ["ScopeOpened"]}]
+
+    stale = timeline
+    timeline.crash("joined_scope_open_committed_ack_lost")
+    world.restart()
+    timeline = world.timeline()
+    recovered = cast(dict[str, JsonValue], timeline.observe("joined-open-ack-recovered").value)
+    assert recovered["frontier"] == 3
+    assert recovered["canonical_scopes"] == lost["canonical_scopes"]
+    assert recovered["active_scopes"] == {"draft": 1}
+    assert recovered["scope_opens"] == recovered["open_ack_losses"] == 1
+
+    timeline.finish(Disposition.EXTERNAL_WAIT)
+    return world, profile, stale
+
+
+def build_joined_open_ack_loss_artifact(dsn: str) -> ScenarioArtifactV3:
+    world, _, _ = execute_joined_open_ack_loss_story(dsn)
+    try:
+        artifact = world.artifact(OPEN_ACK_LOSS_SCENARIO_ID)
         assert isinstance(artifact, ScenarioArtifactV3)
         return artifact
     finally:

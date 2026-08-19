@@ -20,6 +20,8 @@ from tests.dst.joined_world import (
     CANCELLATION_SCENARIO_ID,
     CLOSE_ACK_LOSS_SCENARIO_ID,
     CLOSE_REFUSAL_SCENARIO_ID,
+    OPEN_ACK_LOSS_SCENARIO_ID,
+    OPEN_REFUSAL_SCENARIO_ID,
     DELIVERY_ACK_LOSS_SCENARIO_ID,
     DELIVERY_REFUSAL_SCENARIO_ID,
     DISPATCH_SCENARIO_ID,
@@ -44,6 +46,9 @@ from tests.dst.joined_world import (
     JoinedCloseAckLossProfile,
     JoinedCloseRefusalAuthorityChecker,
     JoinedCloseRefusalProfile,
+    JoinedOpenAckLossProfile,
+    JoinedOpenAuthorityChecker,
+    JoinedOpenRefusalProfile,
     JoinedCommitAuthorityChecker,
     JoinedDeliveryAckLossProfile,
     JoinedDeliveryAuthorityChecker,
@@ -71,6 +76,8 @@ from tests.dst.joined_world import (
     build_joined_cancellation_artifact,
     build_joined_close_ack_loss_artifact,
     build_joined_close_refusal_artifact,
+    build_joined_open_ack_loss_artifact,
+    build_joined_open_refusal_artifact,
     build_joined_delivery_ack_loss_artifact,
     build_joined_delivery_refusal_artifact,
     build_joined_failure_ack_loss_artifact,
@@ -101,6 +108,8 @@ DELIVERY_REFUSAL_FIXTURE = Path("tests/dst/fixtures/joined-delivery-commit-refus
 DELIVERY_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-delivery-ack-loss-world-v3.json")
 CLOSE_REFUSAL_FIXTURE = Path("tests/dst/fixtures/joined-close-commit-refusal-world-v3.json")
 CLOSE_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-close-ack-loss-world-v3.json")
+OPEN_REFUSAL_FIXTURE = Path("tests/dst/fixtures/joined-open-commit-refusal-world-v3.json")
+OPEN_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-open-ack-loss-world-v3.json")
 
 
 def test_joined_begin_commit_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
@@ -1033,6 +1042,112 @@ def test_retained_joined_close_ack_loss_replays_without_the_authored_scenario(ab
 
     assert result.scenario_id == CLOSE_ACK_LOSS_SCENARIO_ID
     assert result.outcome == "pass"
+
+
+def test_joined_open_commit_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
+    with isolated_absurd_database(absurd_dsn) as authored_dsn:
+        artifact = build_joined_open_refusal_artifact(authored_dsn)
+
+    assert artifact.scenario_id == OPEN_REFUSAL_SCENARIO_ID
+    assert artifact.origin is None
+    assert encode_artifact(artifact) == OPEN_REFUSAL_FIXTURE.read_bytes().rstrip(b"\n")
+
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedOpenRefusalProfile(replay_dsn))
+        registry.register_checker(JoinedOpenAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.EXTERNAL_WAIT.value
+
+
+def test_retained_joined_open_refusal_replays_without_the_authored_scenario(absurd_dsn: str) -> None:
+    artifact = load_artifact(OPEN_REFUSAL_FIXTURE)
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedOpenRefusalProfile(replay_dsn))
+        registry.register_checker(JoinedOpenAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.scenario_id == OPEN_REFUSAL_SCENARIO_ID
+    assert result.outcome == "pass"
+
+
+def test_joined_open_ack_loss_is_exact_and_replayable(absurd_dsn: str) -> None:
+    with isolated_absurd_database(absurd_dsn) as authored_dsn:
+        artifact = build_joined_open_ack_loss_artifact(authored_dsn)
+
+    assert artifact.scenario_id == OPEN_ACK_LOSS_SCENARIO_ID
+    assert artifact.origin is None
+    assert encode_artifact(artifact) == OPEN_ACK_LOSS_FIXTURE.read_bytes().rstrip(b"\n")
+
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedOpenAckLossProfile(replay_dsn))
+        registry.register_checker(JoinedOpenAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.EXTERNAL_WAIT.value
+
+
+def test_retained_joined_open_ack_loss_replays_without_the_authored_scenario(absurd_dsn: str) -> None:
+    artifact = load_artifact(OPEN_ACK_LOSS_FIXTURE)
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedOpenAckLossProfile(replay_dsn))
+        registry.register_checker(JoinedOpenAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.scenario_id == OPEN_ACK_LOSS_SCENARIO_ID
+    assert result.outcome == "pass"
+
+
+def test_joined_open_checker_rejects_phantom_scope_and_ack_loss() -> None:
+    checker = JoinedOpenAuthorityChecker()
+    base = {
+        "active_scopes": {},
+        "canonical_scopes": [],
+        "drops": 0,
+        "frontier": 2,
+        "lifecycle_attempts": [],
+        "open_ack_losses": 0,
+        "open_refusals": 0,
+        "record_types": ["InstanceCreated", "DeliveryRegistrationOpened"],
+        "scope_opens": 0,
+    }
+    phantom = Observation(
+        name="engine.joined-open-authority",
+        value={
+            **base,
+            "active_scopes": None,
+            "canonical_scopes": [{"generation": 1, "name": "draft"}],
+            "frontier": 3,
+            "lifecycle_attempts": [{"accepted": False, "phase": "scope_open", "record_types": ["ScopeOpened"]}],
+            "open_refusals": 1,
+            "record_types": [*base["record_types"], "ScopeOpened"],
+            "scope_opens": 1,
+        },
+        instant=0,
+        generation=1,
+        sequence=0,
+    )
+    ack_without_acceptance = Observation(
+        name="engine.joined-open-authority",
+        value={**base, "active_scopes": None, "open_ack_losses": 1, "scope_opens": 1},
+        instant=0,
+        generation=1,
+        sequence=0,
+    )
+
+    phantom_result: CheckResult = checker.check(phantom)
+    missing_result: CheckResult = checker.check(ack_without_acceptance)
+
+    assert phantom_result.passed is False
+    assert phantom_result.detail["accepted_opens"] == 0
+    assert missing_result.passed is False
+    assert missing_result.detail["ack_losses"] == 1
 
 
 def test_retained_joined_reset_ack_loss_replays_without_the_authored_scenario(absurd_dsn: str) -> None:

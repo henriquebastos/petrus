@@ -211,8 +211,11 @@ the minimized expanded scenario becomes the durable regression fixture.
    acceptance and proves fresh load retains the active scope and Worker
    authority. A nineteenth loses the accepted close acknowledgement and proves
    fresh load reconstructs terminal scope authority, repairs one tombstone,
-   and fences stale completion without opening a successor generation. The
-   broader fault/cut matrix keeps DS2 active.
+   and fences stale completion without opening a successor generation. A
+   twentieth refuses canonical `ScopeOpened`, reconstructs absence, and retries
+   generation 1 exactly once. A twenty-first loses the accepted open
+   acknowledgement and reconstructs exactly generation 1 without opening
+   generation 2. The broader fault/cut matrix keeps DS2 active.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)
    adds broad and targeted workload generation, independent models/checkers,
    shrinking, semantic coverage, and durable replay fixtures.
