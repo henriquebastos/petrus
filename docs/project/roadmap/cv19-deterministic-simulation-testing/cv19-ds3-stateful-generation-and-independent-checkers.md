@@ -2,7 +2,7 @@
 code: CV19.DS3
 level: Delivery Story
 status: Active
-status_reason: TS1's broad and focused generated identified-delivery schedules replay exactly through the supported interpreter; TS2 is active on the one-run cross-layer production-Engine campaign
+status_reason: TS1 and TS2 now generate and exactly replay both identified-delivery and complete cross-layer public-Engine schedules; TS3 is active on fair convergence, shrinking, failure promotion, and semantic coverage before DS3 closes
 updated: 2026-08-19
 related:
   - index.md
@@ -51,11 +51,15 @@ sophisticated generator or a mirrored fake to define correctness by accident.
    one already-qualified public-Engine profile and requires every successful
    expanded schedule to replay through the same interpreter.
 2. [CV19.DS3.TS2 — Cross-layer stateful runtime campaign](cv19-ds3-ts2-cross-layer-stateful-runtime-campaign.md)
-   is Active. It combines delivery, logical time, Activity outcomes, retries,
-   lifecycle, crash/load, and two fault classes under one production-Engine
-   profile with independent authority folds.
+   is Done. One bounded public-Engine profile combines identified delivery,
+   exact redelivery, logical time, Activity outcomes and retry, lifecycle
+   reset/late-terminal fencing, abrupt crash/load, Dispatch refusal, and
+   History projection refusal. Broad and focused Hypothesis families replay
+   every successful current-v4 expanded artifact from fresh objects while
+   continuous detached checkers exercise all eight applicable CV19 safety
+   families and explicit profile resources.
 3. [CV19.DS3.TS3 — Fair shrinking and semantic coverage](cv19-ds3-ts3-fair-shrinking-and-semantic-coverage.md)
-   is Planned. It qualifies fair convergence, generated-failure shrinking and
+   is Active. It qualifies fair convergence, generated-failure shrinking and
    promotion, broad-generator blind-spot resistance, and durable semantic
    coverage reporting.
 

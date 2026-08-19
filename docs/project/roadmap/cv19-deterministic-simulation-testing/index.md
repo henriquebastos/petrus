@@ -2,7 +2,7 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 and DS2 are Done; the supported bounded World, process containment, provider-time control, and declared initial real Absurd/PostgreSQL cut matrix are accepted, and DS3 stateful generation/checker work is now active before DS4 campaign qualification
+status_reason: CV19.DS1 and DS2 are Done and DS3 now has replayable identified-delivery plus complete cross-layer generated safety campaigns; DS3.TS3 is active on fair convergence, shrinking, and semantic coverage before DS4 qualification
 updated: 2026-08-19
 related:
   - ../../../../src/petrus/simulation.py
@@ -242,11 +242,12 @@ the minimized expanded scenario becomes the durable regression fixture.
    an empty delivery door without another seal attempt. This completes DS2's
    declared initial cut matrix without claiming exhaustive adapter pairings.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)
-   is Active. Its first Technical Story now runs broad and focused
-   identified-delivery state machines through the supported World and replays
-   every successful expanded schedule from fresh objects. The active next
-   Technical Story owns the one-run cross-layer campaign before fair-phase,
-   shrinking, semantic-coverage, and durable failure-promotion qualification.
+   is Active. Its first two Technical Stories run broad and focused
+   identified-delivery plus cross-layer public-Engine state machines through
+   the supported World, continuously check all applicable safety families, and
+   replay every successful current-v4 expanded schedule from fresh objects.
+   The active final Technical Story owns fair-phase, shrinking,
+   semantic-coverage, and durable failure-promotion qualification.
 4. [CV19.DS4 — Campaign and production-boundary qualification](cv19-ds4-campaign-and-production-boundary-qualification.md)
    establishes PR/nightly campaign tiers and proves how simulation composes
    with real storage, transport, and process-kill tests without overstating

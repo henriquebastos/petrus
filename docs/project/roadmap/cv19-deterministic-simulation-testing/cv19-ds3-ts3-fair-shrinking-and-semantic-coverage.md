@@ -1,8 +1,8 @@
 ---
 code: CV19.DS3.TS3
 level: Technical Story
-status: Planned
-status_reason: TS3 follows cross-layer generation and will qualify fair convergence, minimized failure promotion, and semantic coverage before DS3 closes
+status: Active
+status_reason: TS2's complete cross-layer broad/focused campaign and eight-property checker are Done; TS3 now owns fair convergence, minimized failed-artifact promotion, and semantic coverage before DS3 closes
 updated: 2026-08-19
 related:
   - index.md

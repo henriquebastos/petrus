@@ -50,7 +50,12 @@ and no live provider or multi-host support is claimed.
   reconstruction.
   Petrus owns the reusable substrate; applications such as Hamsterdan own their
   domain models and provider fault worlds. DS3 is Active for stateful
-  generation, broad independent checkers, shrinking, and falsification.
+  generation, broad independent checkers, shrinking, and falsification. Its
+  complete cross-layer public-Engine profile now generates and exactly replays
+  delivery, timer, Activity/retry, lifecycle, crash/load, Dispatch-refusal, and
+  projection-refusal schedules under all eight applicable safety families;
+  fair convergence, minimized failure promotion, and semantic coverage remain
+  active before DS3 closes.
 
 Application-specific and site-operation plans are not part of this source
 tree.

@@ -36,8 +36,14 @@ containment with acknowledged-prefix diagnostics. Generation and campaign
 qualification remain. DS3's first generated slice now runs broad and focused
 identified-delivery Hypothesis state machines directly under `tests/dst`; every
 successful expanded World schedule replays from fresh profile, checker, and
-Engine objects. Composite cross-layer generation, fair liveness, shrinking,
-semantic coverage, and campaign qualification remain.
+Engine objects. Its second generated slice now composes one production public
+Engine with JSONL History and LocalDispatch, spanning identified delivery and
+redelivery, logical timers, Activity retry/terminal projection, lifecycle
+reset and late-terminal fencing, abrupt reload, and paired Dispatch/History
+faults. Broad and focused state machines continuously exercise all eight
+applicable safety families and replay current-v4 artifacts from fresh objects.
+Fair liveness, shrinking, semantic coverage, and campaign qualification
+remain.
 
 This document owns Petrus's deterministic simulation testing (DST) contract.
 DST drives the production `Engine`, `Coordinator`, `Instance`, `HistoryStore`,
@@ -166,6 +172,51 @@ and `petrus-simulation-result` version 1 byte-compatible [E].
 | DST scenario replay | The production runtime obeys the checkers under one exact bounded schedule and fault script. | Correctness outside its profile and bounds. |
 | Generated DST campaign | Many seed-addressed schedules satisfy the profile's checkers and replay exactly. | Real transport/provider conformance or a mathematical proof. |
 | Real-adapter qualification | A named History/Dispatch/transport combination obeys its contract under real timing and failure controls. | Every implementation of the abstract contract. |
+
+## Current generated safety campaign
+
+[`generated_runtime_world.py`](../../tests/dst/generated_runtime_world.py) is
+the first one-run cross-layer DS3 profile. It is intentionally test-owned and
+contains one opaque production `Engine`; it does not compose multiple Worlds
+or expose Coordinator, Instance, History, or Dispatch handles to generators or
+checkers. Its imperative scenario, broad state machine, focused state machine,
+and artifact replay all submit the same normalized commands to one supported
+World interpreter.
+
+The profile's closed commands are scope open/reset, identified source deliver,
+Engine drive, and Worker claim/fail/complete. Its qualified faults refuse
+Dispatch custody after the canonical `ActivityRequested` prefix and refuse a
+work projection History batch after `ActivityCompleted` freezes. Abrupt drop
+revokes the generation and fresh `Engine.load` either republishes the stable
+request or projects the frozen terminal without Worker re-execution.
+
+Every atomic action and fresh load runs a detached checker over:
+
+- live marking/watermark versus canonical History replay;
+- a small independent occurrence/terminal/reset fold versus live in-flight and
+  lifecycle state;
+- dense correlated occurrences and unique firing terminal families;
+- request, Dispatch, and Worker invocation identity plus one preparation;
+- stateful proof that execution counts cannot increase after terminal freeze;
+- authored delivery identity and exact-redelivery acknowledgement authority;
+- lifecycle reset, cancellation, and late-terminal quarantine;
+- refused projection versus accepted firing completion; and
+- retry/timer/History/external-fact bounds.
+
+Current v4 budgets cap 96 World actions, 8 queued commands, one advance to
+logical instant 5, 4 reloads, 24 predicate polls, a 512 KiB artifact, one live
+Worker claim, 2 pending Dispatch tasks, 2 in-flight occurrences, 32 logical
+Dispatch facts, 64 modeled external facts, 128 History records, 64 KiB of
+History bytes, 8 marking tokens, and 8 KiB of detached marking data. Focused
+generation runs 10 examples with 4 post-spine steps; broad generation runs 16
+examples with 5 steps and fewer global ordering constraints. Every successful
+example finishes explicitly and replays its expanded operations,
+checker/resource samples, disposition, and journal digest from fresh Engine,
+History, Dispatch, profile, and checker objects.
+
+This is bounded safety evidence, not the fair-liveness or shrink/promotion
+claim. Those remain owned by CV19.DS3.TS3. Real Absurd/PostgreSQL transactional
+cuts remain separately qualified DS2 evidence and a DS4 campaign boundary.
 
 ## Runtime nondeterminism inventory
 
