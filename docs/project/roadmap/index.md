@@ -56,8 +56,9 @@ and no live provider or multi-host support is claimed.
   then separately qualifies fair convergence, minimized failure replay and
   promotion, and semantic coverage. DS4's first Technical Story now supplies
   bounded ordinary/scheduled campaign tiers with exact profile seeds and
-  payload-free reach reports; failure operations and complementary
-  real-backend, process, and transport evidence remain Active.
+  payload-free reach reports; its second now qualifies exact minimized-failure
+  retention/replay and ordinary regression promotion. Complementary
+  real-backend, process, and transport evidence remains Active.
 
 Application-specific and site-operation plans are not part of this source
 tree.

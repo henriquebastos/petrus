@@ -20,7 +20,6 @@ from petrus.testing.dst import (
     ExecuteOperation,
     FailureOperation,
     RunUntilFailed,
-    ScenarioArtifact,
     ScenarioRegistry,
     World,
     encode_artifact,
@@ -33,6 +32,7 @@ from tests.dst.generated_runtime_qualification import (
     MINIMIZED_SCENARIO_ID,
     LivelockMutationProfile,
     build_broad_only_artifact,
+    build_livelock_failure_artifact,
     build_minimized_fair_regression_artifact,
     establish_fair_spine,
     semantic_coverage_report,
@@ -49,32 +49,6 @@ from tests.dst.generated_runtime_world import (
 FIXTURES = Path(__file__).parent / "fixtures"
 MINIMIZED_FIXTURE = FIXTURES / "generated-runtime-minimized-fair-regression-v4.json"
 COVERAGE_FIXTURE = FIXTURES / "generated-runtime-semantic-coverage-v1.json"
-
-
-def _livelock_artifact(
-    root: Path,
-    *,
-    retry: bool,
-    perturbations: tuple[str, ...],
-) -> ScenarioArtifact:
-    profile = LivelockMutationProfile(root / "history.jsonl", root / "dispatch.db")
-    world = World(profile, FAIR_BUDGET, checkers=(GeneratedRuntimeAuthorityChecker(),))
-    try:
-        establish_fair_spine(
-            world,
-            identity="shrinking-livelock-event",
-            value=0,
-            retry=retry,
-            perturbations=perturbations,
-        )
-        with pytest.raises(BudgetExhausted, match="actions"):
-            while world.pending():
-                world.step()
-        artifact = world.artifact("generated-runtime-minimized-livelock-mutation-v4")
-        assert isinstance(artifact, ScenarioArtifact)
-        return artifact
-    finally:
-        world.close()
 
 
 def test_fair_phase_converges_and_minimized_regression_replays_exactly(tmp_path: Path) -> None:
@@ -200,7 +174,7 @@ def test_hypothesis_shrinks_safety_preserving_livelock_and_failure_replays(tmp_p
 
     def reproduces(candidate: tuple[bool, tuple[str, ...]]) -> bool:
         retry, perturbations = candidate
-        artifact = _livelock_artifact(
+        artifact = build_livelock_failure_artifact(
             tmp_path / f"search-{next(cases)}",
             retry=retry,
             perturbations=perturbations,
@@ -211,7 +185,7 @@ def test_hypothesis_shrinks_safety_preserving_livelock_and_failure_replays(tmp_p
         st.booleans(),
         st.lists(st.sampled_from(("observe", "crash_reload")), max_size=3).map(tuple),
     )
-    unreduced = _livelock_artifact(
+    unreduced = build_livelock_failure_artifact(
         tmp_path / "unreduced",
         retry=True,
         perturbations=("observe", "crash_reload", "observe"),
@@ -229,7 +203,7 @@ def test_hypothesis_shrinks_safety_preserving_livelock_and_failure_replays(tmp_p
     )
     assert minimized == (False, ())
 
-    artifact = _livelock_artifact(
+    artifact = build_livelock_failure_artifact(
         tmp_path / "minimized",
         retry=minimized[0],
         perturbations=minimized[1],

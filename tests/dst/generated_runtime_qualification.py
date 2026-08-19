@@ -10,6 +10,7 @@ from pydantic import JsonValue
 
 from petrus.testing.dst import (
     ApplyResult,
+    BudgetExhausted,
     Disposition,
     ProfileIdentity,
     ScenarioArtifact,
@@ -29,6 +30,7 @@ from tests.dst.generated_runtime_world import (
 
 MINIMIZED_SCENARIO_ID = "generated-runtime-minimized-fair-regression-v4"
 BROAD_ONLY_SCENARIO_ID = "generated-runtime-broad-retry-reset-v4"
+MUTATION_SCENARIO_ID = "generated-runtime-minimized-livelock-mutation-v4"
 DISCOVERY_SEED = 19_003
 
 FAIR_BUDGET = WORLD_BUDGET.model_copy(
@@ -102,6 +104,44 @@ def establish_fair_spine(
     timeline.command("worker.complete", {"result": {"value": value}})
     timeline.command("engine.drive", {})
     timeline.begin_fair()
+
+
+def build_livelock_failure_artifact(
+    root: Path,
+    *,
+    retry: bool,
+    perturbations: Iterable[str],
+) -> ScenarioArtifact:
+    """Build one exact safety-green, fair-liveness-failing mutation artifact."""
+
+    root.mkdir(parents=True, exist_ok=True)
+    profile = LivelockMutationProfile(root / "history.jsonl", root / "dispatch.db")
+    world = World(
+        profile,
+        FAIR_BUDGET,
+        checkers=(GeneratedRuntimeAuthorityChecker(),),
+        seed=DISCOVERY_SEED,
+    )
+    try:
+        establish_fair_spine(
+            world,
+            identity="shrinking-livelock-event",
+            value=0,
+            retry=retry,
+            perturbations=perturbations,
+        )
+        try:
+            while world.pending():
+                world.step()
+        except BudgetExhausted:
+            pass
+        else:
+            raise AssertionError("livelock mutation unexpectedly converged within its action budget")
+        artifact = world.artifact(MUTATION_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifact)
+        return artifact
+    finally:
+        world.close()
 
 
 def build_minimized_fair_regression_artifact(

@@ -23,6 +23,7 @@ from tests.dst.engine_world import (
     TerminalRefusalChecker,
 )
 from tests.dst.generated_runtime_world import GeneratedRuntimeAuthorityChecker, GeneratedRuntimeProfile
+from tests.dst.generated_runtime_qualification import LivelockMutationProfile
 from tests.dst.lifecycle_world import (
     CancellationAuthorityChecker,
     LifecycleAuthorityChecker,
@@ -54,6 +55,12 @@ def replay_path(path: Path):
             GeneratedRuntimeProfile(
                 Path(directory) / "generated-runtime-history.jsonl",
                 Path(directory) / "generated-runtime-dispatch.db",
+            )
+        )
+        registry.register_profile(
+            LivelockMutationProfile(
+                Path(directory) / "generated-runtime-mutation-history.jsonl",
+                Path(directory) / "generated-runtime-mutation-dispatch.db",
             )
         )
         registry.register_profile(

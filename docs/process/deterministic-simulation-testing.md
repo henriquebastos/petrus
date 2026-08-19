@@ -50,8 +50,10 @@ same unmutated expanded schedule is retained as a green regression. A versioned
 semantic-coverage report records reached, broad-only, unreachable, and
 intentionally ungenerated dimensions. DS4 now exposes the ordinary generated
 profiles and a larger seed-addressed campaign through pytest, with a bounded
-payload-free report. Failure promotion and production-boundary qualification
-remain.
+payload-free report. Its failure workflow also reproduces, exactly replays,
+minimizes, retains, and replays the test-only fair-liveness mutation before
+verifying the ordinary promoted green fixture. Production-boundary
+qualification remains.
 
 This document owns Petrus's deterministic simulation testing (DST) contract.
 DST drives the production `Engine`, `Coordinator`, `Instance`, `HistoryStore`,
@@ -297,6 +299,49 @@ in 34.8 seconds. The largest artifact was 288,032 bytes and the report was
 measurements are a capacity sketch for this commit and environment, not a
 performance guarantee or substitute for the enforced semantic/resource
 bounds.
+
+## Failure retention and promotion operation
+
+The bounded rehearsal route is:
+
+```sh
+uv run python -m tests.dst.failure demonstrate \
+  --output /tmp/petrus-dst-failure
+uv run python -m tests.dst.failure replay /tmp/petrus-dst-failure
+```
+
+Run both commands from the repository root. Demonstration first generates the
+already-qualified test-only rescheduling mutation with optional retry,
+observation, and crash/load noise; reproduces and exactly replays its
+`budget_exhausted` failure; uses deterministic Hypothesis generation/shrinking
+to remove that noise; exactly replays the minimum; then retains the minimum and
+verifies the ordinary unmutated green regression. It does not change production
+runtime code or claim that a test mutation was a discovered production defect.
+
+The bundle contains exactly canonical `scenario.json` bytes and one strict
+`manifest.json`. The artifact remains execution authority. The manifest pins
+its byte digest, profile/API version, failure, seed, shrink lineage,
+repository/runtime/dependency identity, payload-free semantic reach, replay
+route, and promoted-fixture digest. Its command template is run from the
+repository root with `{bundle}` replaced by the bundle path. Replay checks
+manifest/artifact agreement before entering the same registered World replay
+route and verifies both the exact failure journal and the green promotion.
+
+Retention scans the complete artifact and manifest for credential-like field
+names and values and fails closed before publishing. It never edits or masks
+replay data: an application profile must normalize sensitive values before
+they enter World. The artifact ceiling remains 4 MiB, the manifest ceiling is
+256 KiB, and the complete two-file bundle ceiling is 4,456,448 bytes. Unknown
+schema fields/versions, duplicate JSON fields, extra files, byte tampering,
+provenance mismatch, unsafe values, and overage are replay refusals.
+
+The rehearsal's parent and minimized artifacts both consume the fixed 28-action
+failure budget, so total operation count is not a valid shrink measure. The
+retained evidence instead records movement of fair-phase entry from operation
+16 to operation 9, removal of one retry and three optional perturbations, and
+the corresponding canonical-byte reduction. The failed mutation itself is
+never promoted; `generated-runtime-minimized-fair-regression-v4.json` remains
+the ordinary unmutated regression.
 
 ## Runtime nondeterminism inventory
 

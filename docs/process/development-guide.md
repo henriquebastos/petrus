@@ -40,6 +40,8 @@ Python ≥3.14, managed with `uv`. Python source lives in `src/petrus/`; tests m
 - Periodic semantic mutation diagnostic: `scripts/check mutation`
 - Ordinary DST corpus: `uv run pytest -q tests/dst --forbid-skips`
 - Larger generated DST campaign: `uv run python -m tests.dst.campaign --tier scheduled --campaign-id "$(date -u +%G-W%V)" --report /tmp/petrus-dst-campaign.json`
+- DST failure-workflow rehearsal: `uv run python -m tests.dst.failure demonstrate --output /tmp/petrus-dst-failure`
+- Retained DST failure replay: `uv run python -m tests.dst.failure replay /tmp/petrus-dst-failure`
 
 The full profile and release qualification's cumulative full pass run the
 complete hermetic pytest suite on four bounded xdist workers, report the 20
@@ -65,6 +67,15 @@ rotates discovery while preserving exact reproduction. The command exits
 nonzero and writes a failed report on a profile timeout, pytest failure, or
 missing/budget-exceeding case summaries. It never substitutes for the focused
 real PostgreSQL, Worker-process, or ZeroMQ qualification routes.
+
+The failure-workflow rehearsal deliberately runs the test-only fair-liveness
+mutation, replays its exact failure, minimizes optional setup with Hypothesis,
+and atomically writes exactly `scenario.json` plus `manifest.json`. It refuses
+credential-like fields or values instead of rewriting replay-authoritative
+artifact bytes. Run both commands from the repository root; the manifest's
+`{bundle}` argument means the retained bundle path. This operation qualifies
+triage and promotion mechanics—it neither reports the deliberate mutation as
+a production defect nor substitutes for an ordinary promoted regression.
 
 The mutation profile is deliberately separate from `quick`, `full`, and
 `release`. It runs mutmut over an explicit allowlist of fast pure semantic

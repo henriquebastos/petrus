@@ -2,12 +2,13 @@
 code: CV19.DS4
 level: Delivery Story
 status: Active
-status_reason: TS1 now supplies bounded ordinary/scheduled campaign operations and semantic reports; DS4 continues with failure triage/promotion and complementary real-backend, process, and transport qualification
+status_reason: TS1 and TS2 now supply bounded campaigns plus exact failure retention/promotion; DS4 continues with complementary real-backend, process, and transport qualification
 updated: 2026-08-19
 related:
   - index.md
   - cv19-ds3-stateful-generation-and-independent-checkers.md
   - cv19-ds4-ts1-bounded-campaign-tiers.md
+  - cv19-ds4-ts2-failure-retention-and-promotion.md
 ---
 
 # CV19.DS4 — Campaign and production-boundary qualification
@@ -83,8 +84,9 @@ correctness claim.
 1. [CV19.DS4.TS1 — Bounded campaign tiers](cv19-ds4-ts1-bounded-campaign-tiers.md)
    is Done. It keeps ordinary generation in pytest and adds the larger bounded,
    seed-addressed campaign plus detached semantic reporting.
-2. Retain and rehearse the failed-artifact triage, redaction, minimization, and
-   regression-promotion workflow.
+2. [CV19.DS4.TS2 — Failure retention and promotion](cv19-ds4-ts2-failure-retention-and-promotion.md)
+   is Done. It retains and rehearses failed-artifact triage, credential
+   refusal, minimization, exact replay, and ordinary regression promotion.
 3. Assemble focused PostgreSQL transaction, real process-restart, pinned
    Absurd Worker, and ZeroMQ transport qualification without presenting those
    tests as simulated evidence.
