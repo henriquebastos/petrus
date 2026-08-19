@@ -85,8 +85,8 @@ minimized regressions rather than an opaque count of passing examples.
   same provider terminal, a combination absent from the focused spine.
 
 No production runtime, supported DST API, artifact format, Coordinator door,
-or real-backend claim changed. PostgreSQL/Absurd and campaign cadence remain
-owned by DS4.
+or real-backend claim changed. DS4 subsequently delivered the separately owned
+PostgreSQL/Absurd qualification and campaign cadence.
 
 ## Out of Scope
 

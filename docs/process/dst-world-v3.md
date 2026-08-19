@@ -870,7 +870,7 @@ facts, canonical `ScopeOpened` records, and the detached public active-scope
 view. A poisoned writer reports that live view as unavailable rather than
 inventing internal state; fresh load must expose the canonical generation.
 
-## Remaining CV19 scope
+## Compatibility boundary and completed evolution
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
 generator. Thirty-three joined-provider profiles now prove paired token-bearing
@@ -887,8 +887,11 @@ faulting. Version 4
 subsequently adds profile-retained-data and hidden-pending-work bounds without
 changing version 3 replay, and runner v1 contains complete Worlds under a
 separate wall-clock process budget. Stateful generation, shrinking, broad
-independent models/checkers, and semantic coverage remain in DS3; campaign and
-real-boundary qualification remain in DS4.
+independent models/checkers, semantic coverage, campaigns, and real-boundary
+qualification were subsequently delivered by
+[CV19.DS3–DS4](../project/roadmap/cv19-deterministic-simulation-testing/index.md).
+Those operations compose this strict contract; they do not widen version 3 or
+turn its non-exhaustive adapter matrix into an exhaustive claim.
 
 Nonzero LocalDispatch retry time crosses the explicit optional provider-clock
 contract accepted in the

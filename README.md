@@ -26,9 +26,10 @@ Petrus is pre-release software. The package metadata currently reports
 `0.0.0`; no PyPI publication is claimed. The language-neutral specification,
 Python kernel, durable History Stores, Engine, production local Activity
 execution, optional providers, observation, bounded simulation, and portable
-Net definitions are implemented and tested. Fabric is an unfinished prototype
-and is subject to rewrite; its existing call/spawn demonstrations are not a
-support or completion claim. See
+Net definitions are implemented and tested. Petrus also ships a supported
+deterministic-simulation test kit under `petrus.testing.dst`. Fabric is an
+unfinished prototype and is subject to rewrite; its existing call/spawn
+demonstrations are not a support or completion claim. See
 [`spec/OVERVIEW.md`](spec/OVERVIEW.md), the [project briefing](docs/project/briefing.md),
 and the [roadmap](docs/project/roadmap/index.md).
 
@@ -41,6 +42,21 @@ scripts/check full
 
 Use `scripts/check quick [PATH ...]` for static feedback and
 `scripts/check release` for the zero-skip release gate.
+
+## Deterministic simulation testing
+
+`petrus.testing.dst` is a supported, pytest-independent testing contract—not a
+Petrus runtime product API. It supplies one deterministic World interpreter,
+logical scheduling, bounded fault/crash operations, detached checker cadence,
+strict artifacts, exact replay, and process-level hang containment. A profile
+still owns its opaque host generation, application commands and observations,
+external-world truth, and independent domain oracle; the kit does not expose
+private Petrus runtime handles or replace production semantics.
+
+The current authoring contract is `petrus.testing.dst/v4`; strict artifacts
+from versions 1 through 3 remain replayable. See the
+[DST contract and operating routes](docs/process/deterministic-simulation-testing.md)
+and the self-contained [`tests/dst`](tests/dst/) examples.
 
 ## Agenticus support matrix
 

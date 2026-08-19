@@ -145,11 +145,13 @@ The second returns `invariant_failure` with 6 operations and 15 journal
 entries. Both return `outcome: "pass"` only because replay reproduced the exact
 retained failure.
 
-## Remaining CV19 scope
+## Compatibility boundary and completed evolution
 
 Version 2 removes the failed-case replay blocker for generated schedules and
 shrinking. It does not itself generate or shrink a schedule. Broader
 pre/post-durable fault adapters, wall-clock watchdog containment, generated
-semantic coverage, and real-boundary qualification remain owned by CV19.DS2–DS4.
-Version 4 subsequently adds profile-retained-data and hidden-pending-work
-bounds without changing version 2 replay.
+semantic coverage, and real-boundary qualification were delivered by
+[CV19.DS2–DS4](../project/roadmap/cv19-deterministic-simulation-testing/index.md)
+without changing version 2 replay. Version 4 subsequently adds
+profile-retained-data and hidden-pending-work bounds and remains the current
+authoring contract.

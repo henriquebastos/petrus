@@ -192,10 +192,11 @@ generation. Any mismatch raises `ReplayMismatch`; success returns one strict
 Version 1 artifacts retain authored endings (`converged`, `quiescent`,
 `external_wait`, or `quarantined`). The live World reports budget exhaustion
 and invariant failure explicitly, but version 1 refuses to emit a misleading
-artifact for those interpreter failures because it does not yet serialize the
-failed attempted operation. Retaining and replaying generated failure
-attempts is remaining CV19.DS2/DS3 work and requires an explicit artifact
-evolution.
+artifact for those interpreter failures because it does not serialize the
+failed attempted operation. That limitation is frozen version 1 compatibility,
+not a limitation of the current test kit: the supported
+[version 2 evolution](dst-world-v2.md) introduced exact failed-attempt retention
+and replay, and version 4 remains the current authoring contract.
 
 The first retained proof is
 [`projection-crash-recovery-world-v1.json`](../../tests/dst/fixtures/projection-crash-recovery-world-v1.json).

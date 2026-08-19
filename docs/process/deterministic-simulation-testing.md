@@ -1,60 +1,15 @@
 # Deterministic Simulation Testing
 
-**Status:** CV19 correctness contract. The strict internal DS1 artifact and the
-supported DS2 executable-World vertical slice are shipped, including exact
-budget/checker-failure replay, seeded choice provenance, and a pre-commit
-terminal History refusal. A lifecycle-reset race now also proves crash/load,
-late-terminal quarantine, exact duplicate acknowledgement, and cancellation
-repair after refusal at the durable reset fence. Focused profiles also prove
-deterministic Engine timer reconstruction and zero-backoff
-LocalDispatch retry reconstruction/exhaustion. A separate provider-clock
-profile proves delayed retry refusal immediately before availability and claim
-at the exact deadline across process loss. A complementary LocalDispatch
-profile proves successful-terminal custody and recollection across process loss;
-an identified-ingress profile proves source redelivery and identity conflict
-recovery. A delayed external-terminal profile proves volatile queue loss,
-external-truth reconstruction, and logical-time delivery. Broader fault
-adapters now include paired pre-commit refusal and post-commit acknowledgement
-loss plus refusal at the public Dispatch acceptance door after the canonical
-Activity request commits. Real Absurd/PostgreSQL profiles additionally prove
-paired identified-delivery refusal and acknowledgement loss, joined begin
-rollback and acknowledgement loss, paired completed-terminal refusal and
-acknowledgement loss, paired failed-terminal refusal and acknowledgement loss,
-paired projection refusal and acknowledgement loss, paired canonical reset
-refusal and post-commit acknowledgement loss, repair of a refused post-reset
-cancellation-tombstone transaction, and idempotent reconstruction after an
-accepted tombstone acknowledgement is lost. Initial source-registration
-creation is now qualified separately from token-bearing initialization through
-paired refusal and acknowledgement-loss profiles. Handler-result registration
-close/open effects now have the same paired qualification at the projection
-transaction boundary. Runtime-policy `seal` now proves a refused close-all
-leaves both armed keys canonical and an accepted-but-unacknowledged close-all
-reconstructs an empty delivery door without another seal attempt.
-Version 4 adds deterministic profile-retained-data and hidden-pending-work
-accounting, while outer runner version 1 adds process-isolated wall-clock
-containment with acknowledged-prefix diagnostics. Generation and campaign
-qualification are complete. DS3's first generated slice runs broad and focused
-identified-delivery Hypothesis state machines directly under `tests/dst`; every
-successful expanded World schedule replays from fresh profile, checker, and
-Engine objects. Its second generated slice now composes one production public
-Engine with JSONL History and LocalDispatch, spanning identified delivery and
-redelivery, logical timers, Activity retry/terminal projection, lifecycle
-reset and late-terminal fencing, abrupt reload, and paired Dispatch/History
-faults. Broad and focused state machines continuously exercise all eight
-applicable safety families and replay current-v4 artifacts from fresh objects.
-DS3 now separately qualifies fair quiescence, external prerequisites,
-inadequate fair declarations, bounded exhaustion, quarantine, and
-safety-preserving livelock. A test-only rescheduling mutation produces an exact
-v4 budget-failure artifact which Hypothesis reduces and replay reproduces; the
-same unmutated expanded schedule is retained as a green regression. A versioned
-semantic-coverage report records reached, broad-only, unreachable, and
-intentionally ungenerated dimensions. DS4 now exposes the ordinary generated
-profiles and a larger seed-addressed campaign through pytest, with a bounded
-payload-free report. Its failure workflow also reproduces, exactly replays,
-minimizes, retains, and replays the test-only fair-liveness mutation before
-verifying the ordinary promoted green fixture. Its complementary operation
-keeps real PostgreSQL transaction, Worker SIGKILL, and ZeroMQ process evidence
-distinct from simulated claims. CV19's accepted scope is complete.
+**Status:** CV19 is complete. The current supported cross-project kernel is
+`petrus.testing.dst/v4`; strict version 1 through 3 decode/replay compatibility
+and the separate `petrus.testing.dst.runner/v1` process watchdog remain
+supported. Ordinary generated pytest profiles, the larger scheduled campaign,
+exact failed-artifact retention/promotion, and complementary real PostgreSQL,
+Worker, and ZeroMQ qualification are all delivered. The
+[CV19 roadmap owner](../project/roadmap/cv19-deterministic-simulation-testing/index.md)
+and [closing worklog](worklog/entries/2026-08-19T0557Z-amp-cv19-production-boundaries-and-close.md)
+retain the delivery inventory and final acceptance evidence; this process
+document retains the current correctness contract and operating route.
 
 This document owns Petrus's deterministic simulation testing (DST) contract.
 DST drives the production `Engine`, `Coordinator`, `Instance`, `HistoryStore`,
@@ -293,13 +248,12 @@ cases, case-log/report overage, unknown selection, or duplicate selection is a
 visible failure; no partial run is labeled pass. Campaign process timeout is
 harness containment, never a deterministic liveness disposition.
 
-On the 2026-W34 reference orb, the complete scheduled tier targeted 304
-accepted examples, recorded 452 generated/shrink cases, and completed serially
-in 34.8 seconds. The largest artifact was 288,032 bytes and the report was
-8,039 bytes; observed command maximum resident set was about 105 MiB. These
-measurements are a capacity sketch for this commit and environment, not a
-performance guarantee or substitute for the enforced semantic/resource
-bounds.
+On the final 2026-W34 reference-orb run (`2026-W34-cv19-final`), the complete
+scheduled tier targeted 304 accepted examples, recorded 457 generated/shrink
+cases, and completed serially in 37.7 seconds. The largest artifact was 287,851
+bytes and the report was 8,051 bytes. These measurements are a capacity sketch
+for that commit and environment, not a performance guarantee or substitute for
+the enforced semantic/resource bounds.
 
 ## Failure retention and promotion operation
 

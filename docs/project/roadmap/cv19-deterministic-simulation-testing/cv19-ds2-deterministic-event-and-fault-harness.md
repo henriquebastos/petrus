@@ -785,13 +785,14 @@ seeded Engine scenario whose replay never consults the PRNG.
 | 5. Abrupt generation reconstruction | Met for the public-Engine profile, including revoke-before-drop and stale Timeline refusal. |
 | 6. Named cuts before/after durable acceptance | Met for the declared initial matrix: paired pre-commit refusal/post-commit acknowledgement-loss History cuts, token-bearing and source-registration initial creation, split Dispatch refusal after a durable request and lifecycle fence, joined begin+spawn commit refusal, task-spawn rollback, accepted-begin acknowledgement loss, identified/stale/future-scope delivery, completed/failed terminal and projection including handler registration effects, canonical open/reset/terminal close, runtime-policy source seal, post-reset cancellation-tombstone recovery, delayed external completion, lifecycle/timer reconstruction, LocalDispatch retry reconstruction/exhaustion, and provider-terminal custody before Engine collection. This is semantic-boundary coverage, not a claim that every adapter/fault pair is useful or qualified. |
 | 7. Complete bounds | Met for the generic harness: action, queue, logical-time/advance, reload, predicate, artifact, profile-retained-data, hidden-pending-work, process-progress, and wall-clock limits are executable and identify the ending bound. |
-| 8. Checker cadence and fair draining | Met: the kernel executes detached checkers at every legal atomic boundary and fresh load, and fair draining is explicit and bounded. Broad generated S1–S8 exploration remains DS3 scope. |
+| 8. Checker cadence and fair draining | Met: the kernel executes detached checkers at every legal atomic boundary and fresh load, and fair draining is explicit and bounded. Broad generated S1–S8 exploration was DS3 scope and is complete there. |
 | 9. Hermetic real-runtime execution | Met for the provider-neutral vertical slice: no credentials, external providers, network sleeps, or substitute Petrus semantics. The joined profiles are separately identified real-boundary qualification against disposable PostgreSQL/Absurd and claim only that composition's transaction contract. |
 | 10. Repository gates | Met: focused DST and project tests pass, and the current full and release gates pass all 2,380 tests in both release orders with 17 expected serial qualification deselections. |
 
 All ten conditions are met. CV19.DS2 is Done; stateful generation, broad
-independent property coverage, shrinking, and falsification now proceed under
-CV19.DS3 rather than extending this story into exhaustive adapter pairing.
+independent property coverage, shrinking, and falsification were completed
+under CV19.DS3 rather than extending this story into exhaustive adapter
+pairing.
 
 Version 1 artifacts intentionally retain only authored endings. Version 2
 removes that format limit: it preserves one exact terminal failed attempt plus
@@ -1068,7 +1069,8 @@ deterministic `FailureOperation` for a killed call.
 
 ## Out of scope
 
-- Broad random workload generation and shrinking; DS3 owns it.
+- Broad random workload generation and shrinking; DS3 delivered it outside
+  this story.
 - A declarative replacement for normal pytest scenario authoring or
   serialization of Python source, closures, callbacks, and assertions.
 - Application-domain World truth or business verbs. Applications may compose

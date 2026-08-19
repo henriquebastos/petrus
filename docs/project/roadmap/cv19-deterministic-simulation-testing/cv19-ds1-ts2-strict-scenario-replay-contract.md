@@ -75,7 +75,8 @@ contract instead of relying on a seed, closures, or live runtime objects.
   links and `git diff --check` also passed.
 - No public `petrus.simulation` or `implementation-free-v1` source, spec,
   fixture, or result contract changed. General scheduling, fault adapters,
-  generation, and campaign operations remain owned by DS2–DS4.
+  generation, and campaign operations were deliberately assigned to and later
+  delivered by DS2–DS4.
 
 ## Out of Scope
 

@@ -222,7 +222,7 @@ Common documentation surfaces:
 - `docs/project/roadmap/index.md` and roadmap item folders
 - `docs/project/debt/index.md` and `docs/project/debt/items/`
 - `docs/process/engineering-conventions.md`
-- `docs/process/worklog/index.md` (template; historical entries are not included)
+- `docs/process/worklog/index.md` and one-file milestone entries under `entries/`
 - `docs/product/principles.md`
 
 ## Agent Memory Mirrors Repo Docs

@@ -12,9 +12,18 @@ runtime capabilities include durable in-memory, JSONL, SQLite, and optional
 PostgreSQL History Stores; provider-neutral Engine composition; Local and
 optional Absurd Dispatch; Workers and optional ZeroMQ transport; Python DSL
 authoring and Graphviz rendering; read-only observation and capture protocols;
-bounded simulation; and portable canonical Net definitions. Fabric's existing
-call and spawn demonstrations are unfinished prototype evidence, not a
-completed capability or support claim; Fabric is subject to rewrite.
+bounded simulation; a supported cross-project deterministic-simulation test
+kit; and portable canonical Net definitions. Fabric's existing call and spawn
+demonstrations are unfinished prototype evidence, not a completed capability or
+support claim; Fabric is subject to rewrite.
+
+CV19 completed the pytest-independent `petrus.testing.dst/v4` World, strict
+version 1 through 4 artifact replay, process-isolated watchdog, generated
+checking/shrinking, bounded campaigns, exact failure promotion, and separate
+real PostgreSQL/Worker/ZeroMQ qualification. The kit owns deterministic
+scheduling and replay mechanics; application profiles retain their host,
+provider truth, commands, observations, and independent domain oracle. See the
+[current DST contract](../process/deterministic-simulation-testing.md).
 
 Shared durable Workers receive the authorizing Instance identity on each
 Attempt and may resolve host-composed scoped Activity implementations while

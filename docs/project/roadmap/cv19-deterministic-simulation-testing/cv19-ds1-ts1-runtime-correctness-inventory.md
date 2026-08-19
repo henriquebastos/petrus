@@ -63,8 +63,8 @@ matter, and what every bounded run must check.
   and drives production actions explicitly. It also states the stop rule if
   implementation discovers a bypassing choice.
 - The `implementation-free-v1` public result profile remains unchanged and is
-  explicitly separate from the planned internal `engine-coordinator-v1` DST
-  scenario profile.
+  explicitly separate from the then-planned internal `engine-coordinator-v1`
+  DST scenario profile subsequently delivered by DS1.TS2.
 - The evidence-focused test route passed **481 tests** across hosted
   simulation, Engine/Coordinator, identity, ingress, replay properties,
   timers, selection, History backends, Activity integration, Local/ZeroMQ,

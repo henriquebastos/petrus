@@ -7,6 +7,7 @@ related:
   - CV8
   - CV10
   - CV16
+  - CV19
   - docs/product/principles.md
   - docs/project/decisions/records/2026-08-13T1740Z-progressive-disclosure-preserves-runtime-power.md
   - docs/project/decisions/records/2026-07-28T0133Z-python-dsl-compiles-authored-specifications-to-canonical-nets.md
@@ -283,7 +284,7 @@ external effect into an unrecorded call.
 
 ## Candidate Value and delivery map
 
-### Candidate CV19 — Approachable Petrus
+### Candidate Value — Approachable Petrus
 
 **Intent:** let a developer author, validate, run, observe, resume, and extend a
 durable Petrus process from one coherent progressive surface while retaining
@@ -291,6 +292,12 @@ canonical artifacts and full lower-level control.
 
 This should be one Value because the user promise is end to end. Its work can
 expand into independently owned Delivery Stories after the candidate gate:
+
+This exploration originally used “CV19” as a provisional candidate label.
+[CV19](../../roadmap/cv19-deterministic-simulation-testing/index.md) was later
+allocated to deterministic simulation testing and is now Done. Exploration
+does not reserve the candidate's eventual roadmap code; allocate that code only
+if the Navigator promotes this Value.
 
 | Candidate Delivery Story | User-visible outcome | Existing owners composed | Dependency / evidence gate |
 | --- | --- | --- | --- |
@@ -304,10 +311,11 @@ Documentation and progressive disclosure are acceptance work in every Delivery
 Story, not a final documentation lane. Each story ships its runnable example,
 diagnostics, canonical artifact, and lower-level explanation together.
 
-Existing Values remain closed or blocked at their stated boundaries. CV19 would
-consume their public results. A missing consumer convenience is not permission
-to reopen CV8 semantics, promote private CV10 execution contracts, broaden
-CV16's support matrix, or move application lifecycle into Arx.
+Existing Values remain closed or blocked at their stated boundaries. This
+candidate would consume their public results. A missing consumer convenience is
+not permission to reopen CV8 semantics, promote private CV10 execution
+contracts, broaden CV16's support matrix, or move application lifecycle into
+Arx.
 
 ## Candidate evidence probes and order
 
@@ -423,7 +431,7 @@ implied by successful exploration.
 
 ## Driver recommendation
 
-Retain **one candidate CV19 — Approachable Petrus**, not multiple new Values.
+Retain **one candidate Value — Approachable Petrus**, not multiple new Values.
 Start with AX28 because it tests the stated dream directly and exposes which
 generic assembly is actually missing. Protect the descent seam with AX29 before
 promoting an authoring API. Then review the ES-003 default-surface choice; run

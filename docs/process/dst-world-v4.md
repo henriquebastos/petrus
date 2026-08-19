@@ -141,11 +141,14 @@ operation/journal boundary before the next attempt. A killed run retains an
 exact prefix and unfinished attempt but never fabricates a deterministic
 `FailureOperation` for a call that did not return.
 
-## Remaining CV19 scope
+## Completed CV19 boundary
 
 Version 4 closes generic profile-retained-data and hidden-pending-work
 accounting, and the separate runner v1 closes wall-clock process containment.
-The broader delivery/Dispatch/lifecycle/transaction fault matrix and an
-accepted deterministic LocalDispatch provider-time design remain in DS2.
-Stateful generation, shrinking, broad independent models/checkers, and semantic
-coverage remain in DS3; campaign and real-boundary qualification remain in DS4.
+The broader delivery/Dispatch/lifecycle/transaction fault matrix and
+deterministic LocalDispatch provider-time design are delivered by DS2;
+stateful generation, shrinking, broad independent models/checkers, and semantic
+coverage by DS3; and campaign/failure-promotion/real-boundary qualification by
+DS4. The [completed CV19 owner](../project/roadmap/cv19-deterministic-simulation-testing/index.md)
+retains their evidence. Those application profiles and operations compose the
+version 4 kernel without becoming additional generic API obligations.

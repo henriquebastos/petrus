@@ -65,11 +65,13 @@ semantic reach, and exclusions are visible.
   profiles, unmodeled boundaries, actual cases, elapsed time, and all enforced
   limits. Unknown/duplicate selections, missing cases, case-log overage,
   subprocess failure, and timeout are red rather than partial success.
-- The 2026-W34 four-profile route passed with isolated seeds, 304 accepted
-  targets, 452 recorded generated/shrink cases, 34.8 seconds elapsed, a largest
-  artifact of 288,032 bytes, and an 8,039-byte report. The complete ordinary
-  DST corpus passed 209 tests, the full repository gate passed 2,397 tests, and
-  release qualification passed 2,397 tests in both orders.
+- The TS1 acceptance run (`2026-W34`) passed all four profiles with isolated
+  seeds, 304 accepted targets, 452 recorded generated/shrink cases, 34.8
+  seconds elapsed, a largest artifact of 288,032 bytes, and an 8,039-byte
+  report. The complete ordinary DST corpus then passed 209 tests, the full
+  repository gate passed 2,397 tests, and release qualification passed 2,397
+  tests in both orders. DS4's later final acceptance run is retained separately
+  in the parent story and closing worklog.
 
 No production runtime, supported `petrus.testing.dst/v4` API, artifact schema,
 profile/checker identity, or scheduler behavior changed.

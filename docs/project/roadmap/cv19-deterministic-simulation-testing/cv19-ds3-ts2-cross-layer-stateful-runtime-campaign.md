@@ -128,7 +128,7 @@ recreate topology or call the production decision it judges.
 Real Absurd/PostgreSQL atomicity remains the stronger separately qualified DS2
 evidence and DS4 campaign boundary, not a claim made by this JSONL/LocalDispatch
 profile. Fair convergence, shrinking qualification, semantic coverage, and
-durable failed-schedule promotion remain TS3-owned.
+durable failed-schedule promotion were TS3-owned and are complete there.
 
 ## Out of Scope
 

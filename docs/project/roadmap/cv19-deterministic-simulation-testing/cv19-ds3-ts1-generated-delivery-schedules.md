@@ -109,7 +109,7 @@ compatibility version, persistent generated-success fixture, private Engine
 handle, decision record, or debt item was added. The fixed high-value prefix is
 deliberately a focused family rather than a claim that broad generation has the
 same reach. Composite dimensions, mutation shrinking, fair liveness, and
-semantic coverage remain explicitly owned by TS2 and TS3.
+semantic coverage were explicitly left to and delivered by TS2 and TS3.
 
 ## Out of Scope
 
