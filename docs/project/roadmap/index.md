@@ -36,21 +36,21 @@ and no live provider or multi-host support is claimed.
 ## Planned Values
 
 - [CV19 — Deterministic simulation testing](cv19-deterministic-simulation-testing/index.md):
-  DS1 has frozen the correctness and strict replay contracts and proved one
-  production projection-crash recovery from portable data. DS2 is active: its
-  supported executable World now retains exact failures, seeded provenance,
+  DS1 froze the correctness and strict replay contracts and proved one
+  production projection-crash recovery from portable data. DS2 is Done: its
+  supported executable World retains exact failures, seeded provenance,
   public-Engine crash/cut replays, versioned profile-resource bounds, and real
   Absurd/PostgreSQL token-bearing and source-registration initial creation,
   identified, stale-scope, and future-scope delivery, begin,
   completed/failed terminal, successful/failed projection with handler
-  registration effects, and lifecycle
-  open/reset/close/cancellation refusal/acknowledgement-loss qualification,
+  registration effects, and lifecycle open/reset/close/cancellation plus
+  runtime-policy source-seal refusal/acknowledgement-loss qualification,
   including exact ingress
   redelivery, provider-terminal recollection, and converged-state
   reconstruction.
   Petrus owns the reusable substrate; applications such as Hamsterdan own their
-  domain models and provider fault worlds. Broader transaction/fault
-  qualification remains before DS2 closes.
+  domain models and provider fault worlds. DS3 is Active for stateful
+  generation, broad independent checkers, shrinking, and falsification.
 
 Application-specific and site-operation plans are not part of this source
 tree.

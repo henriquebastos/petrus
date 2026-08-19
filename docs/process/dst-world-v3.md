@@ -713,6 +713,32 @@ detached public armed view. Mutation checks reject phantom effects after
 rollback, acknowledgement loss without acceptance, and stale armed state after
 load.
 
+### Joined runtime-policy source seal transaction pair
+
+[`joined-seal-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-seal-commit-refusal-world-v3.json)
+first uses a real Activity projection to arm `source/default` and
+`source/subscription`, then refuses the public `Engine.seal(source)`
+transaction containing both key-ordered `DeliveryRegistrationClosed` facts.
+Detached History exposes neither close. After abrupt drop, fresh public load
+exposes both keys still armed; one explicit normalized host retry commits both
+closes and terminates the instance. The retained route has 14 operations, 24
+journal entries including 10 checker evaluations, disposition `converged`,
+and journal digest
+`sha256:935344cd185b5ca7ca65b2447bd7151315a737bf526015bf84993ca5ce198e4a`.
+
+[`joined-seal-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-seal-ack-loss-world-v3.json)
+commits those two close facts and loses the transaction acknowledgement.
+Fresh public load reconstructs an empty armed view and `terminated` status
+without another seal attempt. The retained route has 12 operations, 21
+journal entries including 9 checker evaluations, disposition `converged`, and
+journal digest
+`sha256:8d03db3c9d21b30395d45815abf897b54647ba25bd22a368dff925cd926c7271`.
+The shared independent checker derives close-all authority only from detached
+accepted/refused PostgreSQL transaction facts and canonical registration
+History, then compares the public armed view. Mutation checks reject phantom
+closes after refusal, acknowledgement loss without acceptance, and an armed
+source after accepted reload.
+
 ### Joined lifecycle reset commit refusal
 
 [`joined-reset-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-reset-commit-refusal-world-v3.json)
@@ -847,16 +873,17 @@ inventing internal state; fresh load must expose the canonical generation.
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. Thirty-one joined-provider profiles now prove paired token-bearing
+generator. Thirty-three joined-provider profiles now prove paired token-bearing
 and source-registration initial creation, identified/stale/future-scope
 delivery, completed-terminal, failed-terminal, successful/failed projection,
 handler-registration projection effects, canonical-open, canonical-reset, and
-terminal-close commit refusal/acknowledgement loss, plus real joined-begin
-commit refusal, pre-commit task-spawn failure, post-commit begin
-acknowledgement loss, and both refused and accepted-but-unacknowledged post-reset
-cancellation-tombstone recovery without widening the World contract; the
-broader delivery, Dispatch, lifecycle, and transaction fault matrix remains in
-CV19.DS2. Version 4
+terminal-close and source-seal commit refusal/acknowledgement loss, plus real
+joined-begin commit refusal, pre-commit task-spawn failure, post-commit begin
+acknowledgement loss, and both refused and accepted-but-unacknowledged
+post-reset cancellation-tombstone recovery without widening the World
+contract. Together with the generic profiles this completes CV19.DS2's
+declared initial cut matrix; it does not claim exhaustive pairwise adapter
+faulting. Version 4
 subsequently adds profile-retained-data and hidden-pending-work bounds without
 changing version 3 replay, and runner v1 contains complete Worlds under a
 separate wall-clock process budget. Stateful generation, shrinking, broad

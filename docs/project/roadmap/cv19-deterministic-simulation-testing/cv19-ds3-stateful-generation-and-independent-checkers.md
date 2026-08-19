@@ -1,9 +1,9 @@
 ---
 code: CV19.DS3
 level: Delivery Story
-status: Planned
-status_reason: Existing property and crash tests do not yet generate cross-layer schedules or judge them with independent models and continuous checkers
-updated: 2026-08-17
+status: Active
+status_reason: CV19.DS2's supported interpreter, strict failure artifacts, process containment, and declared initial cut matrix are Done; DS3 now owns generated cross-layer schedules, broad independent models/checkers, shrinking, and falsification evidence
+updated: 2026-08-19
 related:
   - index.md
   - cv19-ds2-deterministic-event-and-fault-harness.md

@@ -2,7 +2,7 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 is Done and DS2 now proves split request/cancellation refusal plus paired joined token-bearing/source-registration initial creation, identified/stale/future-scope delivery, completed-terminal, failed-terminal, successful/failed projection including handler registration effects, canonical reset, and post-fence cancellation refusal/acknowledgement-loss recovery together with joined begin recovery over real Absurd/PostgreSQL in addition to bounded World v4, process containment, and LocalDispatch provider time; broader cuts and DS3–DS4 remain active
+status_reason: CV19.DS1 and DS2 are Done; the supported bounded World, process containment, provider-time control, and declared initial real Absurd/PostgreSQL cut matrix are accepted, and DS3 stateful generation/checker work is now active before DS4 campaign qualification
 updated: 2026-08-19
 related:
   - ../../../../src/petrus/simulation.py
@@ -135,10 +135,10 @@ the minimized expanded scenario becomes the durable regression fixture.
    one concrete production crash replay, and conditionally routes future
    correctness-sensitive work before a broad harness is built.
 2. [CV19.DS2 — Deterministic event and fault harness](cv19-ds2-deterministic-event-and-fault-harness.md)
-   runs production Engine/Coordinator behavior under one bounded logical event
-   scheduler with faulting adapters and crash reconstruction. Its generic
-   executor/profile design and supported test-kit surface are accepted. The
-   first public-Engine crash/recovery slice and strict world replay are
+   is Done. It runs production Engine/Coordinator behavior under one bounded
+   logical event scheduler with faulting adapters and crash reconstruction. Its
+   generic executor/profile design and supported test-kit surface are accepted.
+   The first public-Engine crash/recovery slice and strict world replay are
    implemented; version 2 retains exact action-budget/checker failures, and
    version 3 adds separable seeded authorities while replaying retained version
    1 and 2 artifacts unchanged. Version 4 adds exact profile-owned retained and
@@ -235,11 +235,15 @@ the minimized expanded scenario becomes the durable regression fixture.
    handler-authored registration close/open effects and proves fresh load
    applies the replacement exactly once. A thirty-first loses that accepted
    projection's acknowledgement and proves public load reconstructs only the
-   replacement registration without another projection. The broader fault/cut
-   matrix keeps DS2 active.
+   replacement registration without another projection. A thirty-second
+   refuses runtime-policy close-all over two armed keys, proves fresh load
+   retains both, and retries the normalized seal once. A thirty-third loses
+   acknowledgement after both closes commit and proves public load reconstructs
+   an empty delivery door without another seal attempt. This completes DS2's
+   declared initial cut matrix without claiming exhaustive adapter pairings.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)
-   adds broad and targeted workload generation, independent models/checkers,
-   shrinking, semantic coverage, and durable replay fixtures.
+   is Active. It adds broad and targeted workload generation, independent
+   models/checkers, shrinking, semantic coverage, and durable replay fixtures.
 4. [CV19.DS4 — Campaign and production-boundary qualification](cv19-ds4-campaign-and-production-boundary-qualification.md)
    establishes PR/nightly campaign tiers and proves how simulation composes
    with real storage, transport, and process-kill tests without overstating

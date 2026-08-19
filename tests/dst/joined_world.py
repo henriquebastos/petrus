@@ -17,6 +17,7 @@ from petrus.impetus.history import (
     ActivityFailed,
     ActivityRequested,
     CandidateSelected,
+    DeliveryRegistrationClosed,
     ExternalEventDelivered,
     FiringBegun,
     FiringCompleted,
@@ -962,6 +963,8 @@ class JoinedFaultConnection:
         close_ack_lost: Callable[[], None],
         open_refused: Callable[[], None],
         open_ack_lost: Callable[[], None],
+        seal_refused: Callable[[], None],
+        seal_ack_lost: Callable[[], None],
         track_scope_open: bool,
         cancellation_refused: Callable[[], None],
         cancellation_ack_lost: Callable[[], None],
@@ -988,6 +991,8 @@ class JoinedFaultConnection:
         self._close_ack_lost = close_ack_lost
         self._open_refused = open_refused
         self._open_ack_lost = open_ack_lost
+        self._seal_refused = seal_refused
+        self._seal_ack_lost = seal_ack_lost
         self._track_scope_open = track_scope_open
         self._cancellation_refused = cancellation_refused
         self._cancellation_ack_lost = cancellation_ack_lost
@@ -1013,6 +1018,8 @@ class JoinedFaultConnection:
         self._close_ack_loss: str | None = None
         self._open_refusal: str | None = None
         self._open_ack_loss: str | None = None
+        self._seal_refusal: str | None = None
+        self._seal_ack_loss: str | None = None
         self._cancellation_refusal: str | None = None
         self._cancellation_ack_loss: str | None = None
 
@@ -1133,6 +1140,16 @@ class JoinedFaultConnection:
             raise RuntimeError("joined scope-open acknowledgement loss is already armed")
         self._open_ack_loss = message
 
+    def refuse_seal_commit(self, message: str) -> None:
+        if self._seal_refusal is not None:
+            raise RuntimeError("joined source-seal refusal is already armed")
+        self._seal_refusal = message
+
+    def lose_seal_commit_ack(self, message: str) -> None:
+        if self._seal_ack_loss is not None:
+            raise RuntimeError("joined source-seal acknowledgement loss is already armed")
+        self._seal_ack_loss = message
+
     def refuse_cancellation_commit(self, message: str) -> None:
         if self._cancellation_refusal is not None:
             raise RuntimeError("joined cancellation refusal is already armed")
@@ -1167,6 +1184,9 @@ class JoinedFaultConnection:
         scope_reset = ScopeReset.__name__ in self._record_types
         scope_close = ScopeClosed.__name__ in self._record_types
         scope_open = self._track_scope_open and ScopeOpened.__name__ in self._record_types
+        source_seal = bool(self._record_types) and all(
+            record == DeliveryRegistrationClosed.__name__ for record in self._record_types
+        )
         cancellation_attempted = self._cancellation_attempted
         tracked = (
             joined_begin
@@ -1236,6 +1256,12 @@ class JoinedFaultConnection:
             self._lifecycle_attempts.append(self._lifecycle_attempt(False, "scope_open"))
             self._open_refused()
             raise OSError(message)
+        if source_seal and self._seal_refusal is not None:
+            message = self._seal_refusal
+            self._seal_refusal = None
+            self._lifecycle_attempts.append(self._lifecycle_attempt(False, "source_seal"))
+            self._seal_refused()
+            raise OSError(message)
         if cancellation_attempted and self._cancellation_refusal is not None:
             message = self._cancellation_refusal
             self._cancellation_refusal = None
@@ -1251,6 +1277,8 @@ class JoinedFaultConnection:
             self._lifecycle_attempts.append(self._lifecycle_attempt(True, "scope_close"))
         if scope_open:
             self._lifecycle_attempts.append(self._lifecycle_attempt(True, "scope_open"))
+        if source_seal:
+            self._lifecycle_attempts.append(self._lifecycle_attempt(True, "source_seal"))
         if cancellation_attempted:
             self._lifecycle_attempts.append(self._lifecycle_attempt(True, "cancellation"))
         self._clear_transaction()
@@ -1298,6 +1326,11 @@ class JoinedFaultConnection:
             message = self._open_ack_loss
             self._open_ack_loss = None
             self._open_ack_lost()
+            raise OSError(message)
+        if source_seal and self._seal_ack_loss is not None:
+            message = self._seal_ack_loss
+            self._seal_ack_loss = None
+            self._seal_ack_lost()
             raise OSError(message)
         if cancellation_attempted and self._cancellation_ack_loss is not None:
             message = self._cancellation_ack_loss
@@ -1377,6 +1410,8 @@ class JoinedBeginProfile:
         self.close_ack_losses = 0
         self.open_refusals = 0
         self.open_ack_losses = 0
+        self.seal_refusals = 0
+        self.seal_ack_losses = 0
         self.cancellation_refusals = 0
         self.cancellation_ack_losses = 0
         self.commit_ack_losses = 0
@@ -1514,6 +1549,8 @@ class JoinedBeginProfile:
             self._close_ack_lost,
             self._open_refused,
             self._open_ack_lost,
+            self._seal_refused,
+            self._seal_ack_lost,
             self.track_scope_open,
             self._cancellation_refused,
             self._cancellation_ack_lost,
@@ -1589,6 +1626,8 @@ class JoinedBeginProfile:
                 "close_ack_losses": self.close_ack_losses,
                 "open_refusals": self.open_refusals,
                 "open_ack_losses": self.open_ack_losses,
+                "seal_refusals": self.seal_refusals,
+                "seal_ack_losses": self.seal_ack_losses,
                 "status": status,
                 "terminal_refusals": self.terminal_refusals,
                 "terminal_ack_losses": self.terminal_ack_losses,
@@ -1685,6 +1724,12 @@ class JoinedBeginProfile:
 
     def _open_ack_lost(self) -> None:
         self.open_ack_losses += 1
+
+    def _seal_refused(self) -> None:
+        self.seal_refusals += 1
+
+    def _seal_ack_lost(self) -> None:
+        self.seal_ack_losses += 1
 
     def _cancellation_refused(self) -> None:
         self.cancellation_refusals += 1
