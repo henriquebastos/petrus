@@ -10,9 +10,9 @@ from pydantic import JsonValue
 
 from petrus.engine import Engine
 from petrus.engine.absurd import create_engine, load_engine
-from petrus.impetus.history import InstanceCreated, TokensInitialized
+from petrus.impetus.history import DeliveryRegistrationOpened, InstanceCreated, TokensInitialized
 from petrus.impetus.history_store.postgres import PostgresHistoryStore
-from petrus.impetus.petrinet import Marking, Net, NetPath, Place, Token
+from petrus.impetus.petrinet import Arc, Marking, Net, NetPath, Place, Token, Transition
 from petrus.testing.dst import (
     ActionDisposition,
     ApplyResult,
@@ -35,10 +35,16 @@ from petrus.testing.dst import (
 )
 
 INPUT = NetPath("input")
+SOURCE = NetPath("source")
+OUTPUT = NetPath("output")
 INSTANCE_ID = "dst-world-joined-creation"
 QUEUE = "dst_joined_creation"
+SOURCE_INSTANCE_ID = "dst-world-joined-source-creation"
+SOURCE_QUEUE = "dst_joined_source_creation"
 REFUSAL_SCENARIO_ID = "joined-creation-commit-refusal-world-v3"
 ACK_LOSS_SCENARIO_ID = "joined-creation-ack-loss-world-v3"
+SOURCE_REFUSAL_SCENARIO_ID = "joined-source-creation-commit-refusal-world-v3"
+SOURCE_ACK_LOSS_SCENARIO_ID = "joined-source-creation-ack-loss-world-v3"
 
 REFUSAL_PROFILE_IDENTITY = ProfileIdentity(
     name="petrus.engine.joined-creation-commit-refusal",
@@ -87,6 +93,53 @@ ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
         }
     ),
 )
+SOURCE_REFUSAL_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.joined-source-creation-commit-refusal",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": ["engine.create"],
+            "fault": {
+                "disposition": "refuse",
+                "name": "history.commit-refuse",
+                "target": "source_registration_initialized",
+            },
+            "instance": SOURCE_INSTANCE_ID,
+            "observations": [
+                "engine.joined-source-creation-authority",
+                "joined-source-creation-absent",
+                "joined-source-creation-recovered",
+                "joined-source-creation-refused",
+            ],
+            "provider": "petrus.engine.absurd",
+            "property": "a refused source creation leaves no canonical instance or initial registration",
+            "queue": SOURCE_QUEUE,
+        }
+    ),
+)
+SOURCE_ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.joined-source-creation-ack-loss",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": ["engine.create"],
+            "fault": {
+                "disposition": "raise",
+                "name": "history.lose-ack",
+                "target": "source_registration_initialized_committed",
+            },
+            "instance": SOURCE_INSTANCE_ID,
+            "observations": [
+                "engine.joined-source-creation-authority",
+                "joined-source-creation-ack-lost",
+                "joined-source-creation-ack-recovered",
+            ],
+            "provider": "petrus.engine.absurd",
+            "property": "an accepted initial source registration survives loss of its creation acknowledgement",
+            "queue": SOURCE_QUEUE,
+        }
+    ),
+)
 CHECKER_IDENTITY = CheckerIdentity(
     name="petrus.engine.joined-creation-authority",
     version=1,
@@ -95,6 +148,18 @@ CHECKER_IDENTITY = CheckerIdentity(
             "property": (
                 "accepted PostgreSQL creation transactions alone authorize one InstanceCreated identity and "
                 "initial marking"
+            )
+        }
+    ),
+)
+SOURCE_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.joined-source-creation-authority",
+    version=1,
+    digest=digest_json(
+        {
+            "property": (
+                "accepted PostgreSQL creation transactions alone authorize one instance and its initial source "
+                "registration"
             )
         }
     ),
@@ -116,6 +181,15 @@ def creation_net() -> Net:
         transitions=[],
         arcs=[],
         name="dst-world-joined-creation",
+    )
+
+
+def source_creation_net() -> Net:
+    return Net(
+        places=[Place(OUTPUT)],
+        transitions=[Transition(SOURCE)],
+        arcs=[Arc(SOURCE, OUTPUT)],
+        name="dst-world-joined-source-creation",
     )
 
 
@@ -196,6 +270,8 @@ class JoinedCreationProfile:
     """Opaque host generation which creates or loads only through public Engine doors."""
 
     identity = REFUSAL_PROFILE_IDENTITY
+    instance_id = INSTANCE_ID
+    queue = QUEUE
     fault_name = "history.commit-refuse"
     fault_target = "instance_created"
     fault_disposition = FaultDisposition.REFUSE
@@ -312,20 +388,26 @@ class JoinedCreationProfile:
         opener = create_engine if create else load_engine
         return opener(
             authority,
-            creation_net(),
-            INSTANCE_ID,
+            self._net(),
+            self.instance_id,
             listen=listener,
-            default_queue=QUEUE,
-            marking=Marking({INPUT: (Token("Initial", 1),)}) if create else None,
+            default_queue=self.queue,
+            marking=self._marking(create=create),
         )
+
+    def _net(self) -> Net:
+        return creation_net()
+
+    def _marking(self, *, create: bool) -> Marking | None:
+        return Marking({INPUT: (Token("Initial", 1),)}) if create else None
 
     def _frontier(self) -> int:
         with psycopg.connect(self.dsn, autocommit=True) as probe:
-            return len(PostgresHistoryStore(probe, INSTANCE_ID))
+            return len(PostgresHistoryStore(probe, self.instance_id))
 
     def _observation_state(self, generation: JoinedCreationGeneration) -> dict[str, JsonValue]:
         with psycopg.connect(self.dsn, autocommit=True) as probe:
-            records = PostgresHistoryStore(probe, INSTANCE_ID).records
+            records = PostgresHistoryStore(probe, self.instance_id).records
         engine_records = (
             [] if generation.engine is None else [type(record).__name__ for record in generation.engine.records]
         )
@@ -387,6 +469,73 @@ class JoinedCreationAckLossProfile(JoinedCreationProfile):
         "engine.joined-creation-authority",
         "joined-creation-ack-lost",
         "joined-creation-ack-recovered",
+    }
+
+
+class JoinedSourceCreationProfile(JoinedCreationProfile):
+    """Public Absurd profile refusing creation of one initial source registration."""
+
+    identity = SOURCE_REFUSAL_PROFILE_IDENTITY
+    instance_id = SOURCE_INSTANCE_ID
+    queue = SOURCE_QUEUE
+    fault_name = "history.commit-refuse"
+    fault_target = "source_registration_initialized"
+    fault_disposition = FaultDisposition.REFUSE
+    observations = {
+        "engine.joined-source-creation-authority",
+        "joined-source-creation-absent",
+        "joined-source-creation-recovered",
+        "joined-source-creation-refused",
+    }
+
+    def _net(self) -> Net:
+        return source_creation_net()
+
+    def _marking(self, *, create: bool) -> Marking | None:
+        del create
+        return None
+
+    def _observation_state(self, generation: JoinedCreationGeneration) -> dict[str, JsonValue]:
+        state = super()._observation_state(generation)
+        with psycopg.connect(self.dsn, autocommit=True) as probe:
+            records = PostgresHistoryStore(probe, self.instance_id).records
+        if generation.engine is None:
+            engine_armed: list[JsonValue] = []
+            engine_status: JsonValue = None
+        else:
+            snapshot = generation.engine.snapshot()
+            current = cast(dict[str, JsonValue], snapshot["current"])
+            engine_armed = cast(list[JsonValue], current["armed"])
+            engine_status = cast(JsonValue, current["status"])
+        state.update(
+            {
+                "canonical_registrations": [
+                    {
+                        "key": record.key,
+                        "occurrence": record.occurrence,
+                        "source": str(record.source),
+                    }
+                    for record in records
+                    if isinstance(record, DeliveryRegistrationOpened)
+                ],
+                "engine_armed": engine_armed,
+                "engine_status": engine_status,
+            }
+        )
+        return state
+
+
+class JoinedSourceCreationAckLossProfile(JoinedSourceCreationProfile):
+    """Public Absurd profile losing acknowledgement after source registration creation."""
+
+    identity = SOURCE_ACK_LOSS_PROFILE_IDENTITY
+    fault_name = "history.lose-ack"
+    fault_target = "source_registration_initialized_committed"
+    fault_disposition = FaultDisposition.RAISE
+    observations = {
+        "engine.joined-source-creation-authority",
+        "joined-source-creation-ack-lost",
+        "joined-source-creation-ack-recovered",
     }
 
 
@@ -453,6 +602,82 @@ class JoinedCreationAuthorityChecker:
                 "accepted_transactions": accepted,
                 "ack_losses": ack_losses,
                 "canonical_instances": canonical_instances,
+                "commit_refusals": commit_refusals,
+                "engine_coherent": engine_coherent,
+                "refused_transactions": refused,
+                "transactions_exact": transactions_exact,
+            },
+        )
+
+
+class JoinedSourceCreationAuthorityChecker:
+    """Independent initial source-registration authority from durable facts."""
+
+    identity = SOURCE_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.joined-source-creation-authority", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        value = cast(dict[str, JsonValue], observation.value)
+        transactions = cast(list[dict[str, JsonValue]], value["transaction_attempts"])
+        creation_attempts = cast(list[dict[str, JsonValue]], value["creation_attempts"])
+        refused_transaction = {
+            "accepted": False,
+            "record_types": ["InstanceCreated", "DeliveryRegistrationOpened"],
+        }
+        accepted_transaction = {**refused_transaction, "accepted": True}
+        transactions_exact = transactions in (
+            [],
+            [refused_transaction],
+            [refused_transaction, accepted_transaction],
+            [accepted_transaction],
+        )
+        accepted = sum(attempt.get("accepted") is True for attempt in transactions)
+        refused = sum(attempt.get("accepted") is False for attempt in transactions)
+        dispositions = [attempt["disposition"] for attempt in creation_attempts]
+        applied = dispositions.count(ActionDisposition.APPLIED.value)
+        reported_refused = dispositions.count(ActionDisposition.REFUSED_EXPECTED.value)
+        commit_refusals = cast(int, value["commit_refusals"])
+        ack_losses = cast(int, value["commit_ack_losses"])
+        canonical_types = cast(list[JsonValue], value["record_types"])
+        canonical_instances = cast(list[JsonValue], value["canonical_instances"])
+        canonical_registrations = cast(list[JsonValue], value["canonical_registrations"])
+        engine_present = cast(bool, value["engine_present"])
+        drops = cast(int, value["drops"])
+        expected_types: list[JsonValue] = ["InstanceCreated", "DeliveryRegistrationOpened"] if accepted else []
+        expected_instances: list[JsonValue] = [SOURCE_INSTANCE_ID] if accepted else []
+        expected_registrations: list[JsonValue] = (
+            [{"key": "default", "occurrence": None, "source": "source"}] if accepted else []
+        )
+        expected_armed: list[JsonValue] = [{"key": "default", "source": "source"}] if accepted else []
+        engine_coherent = (
+            (not engine_present and not accepted)
+            or (not engine_present and ack_losses == 1 and drops == 0)
+            or (
+                engine_present
+                and cast(list[JsonValue], value["engine_record_types"]) == expected_types
+                and cast(list[JsonValue], value["engine_armed"]) == expected_armed
+                and value["engine_status"] == "awaiting"
+            )
+        )
+        passed = (
+            transactions_exact
+            and len(transactions) == len(creation_attempts)
+            and accepted == applied + ack_losses <= 1
+            and refused == commit_refusals <= 1
+            and reported_refused == commit_refusals + ack_losses <= 1
+            and canonical_types == expected_types
+            and canonical_instances == expected_instances
+            and canonical_registrations == expected_registrations
+            and cast(list[JsonValue], value["canonical_tokens"]) == []
+            and cast(int, value["frontier"]) == len(expected_types)
+            and engine_coherent
+        )
+        return CheckResult(
+            passed=passed,
+            detail={
+                "accepted_transactions": accepted,
+                "ack_losses": ack_losses,
+                "canonical_registrations": canonical_registrations,
                 "commit_refusals": commit_refusals,
                 "engine_coherent": engine_coherent,
                 "refused_transactions": refused,
@@ -579,6 +804,129 @@ def build_joined_creation_ack_loss_artifact(dsn: str) -> ScenarioArtifactV3:
     world, _, _ = execute_joined_creation_ack_loss_story(dsn)
     try:
         artifact = world.artifact(ACK_LOSS_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_joined_source_creation_refusal_story(
+    dsn: str,
+) -> tuple[World, JoinedSourceCreationProfile, Timeline]:
+    """Refuse source initialization, load absence, then create it exactly once."""
+
+    profile = JoinedSourceCreationProfile(dsn)
+    world = World(profile, WORLD_BUDGET, checkers=(JoinedSourceCreationAuthorityChecker(),))
+    timeline = world.timeline()
+
+    timeline.activate_fault(
+        "history.commit-refuse",
+        "source_registration_initialized",
+        disposition=FaultDisposition.REFUSE,
+        payload={"message": "dst joined source registration initialization commit refused"},
+    )
+    refused_command = timeline.command("engine.create", {})
+    assert refused_command.disposition == ActionDisposition.REFUSED_EXPECTED.value
+    refused = cast(dict[str, JsonValue], timeline.observe("joined-source-creation-refused").value)
+    assert refused["frontier"] == 0
+    assert refused["record_types"] == []
+    assert refused["canonical_instances"] == []
+    assert refused["canonical_registrations"] == []
+    assert refused["engine_present"] is False
+    assert refused["transaction_attempts"] == [
+        {"accepted": False, "record_types": ["InstanceCreated", "DeliveryRegistrationOpened"]}
+    ]
+
+    stale = timeline
+    timeline.crash("joined_source_creation_commit_refused")
+    world.restart()
+    timeline = world.timeline()
+    absent = cast(dict[str, JsonValue], timeline.observe("joined-source-creation-absent").value)
+    assert absent["frontier"] == 0
+    assert absent["engine_present"] is False
+
+    accepted_command = timeline.command("engine.create", {})
+    assert accepted_command.disposition == ActionDisposition.APPLIED.value
+    recovered = cast(dict[str, JsonValue], timeline.observe("joined-source-creation-recovered").value)
+    assert recovered["frontier"] == 2
+    assert recovered["record_types"] == ["InstanceCreated", "DeliveryRegistrationOpened"]
+    assert recovered["canonical_instances"] == [SOURCE_INSTANCE_ID]
+    assert recovered["canonical_registrations"] == [{"key": "default", "occurrence": None, "source": "source"}]
+    assert recovered["engine_present"] is True
+    assert recovered["engine_record_types"] == recovered["record_types"]
+    assert recovered["engine_armed"] == [{"key": "default", "source": "source"}]
+    assert recovered["engine_status"] == "awaiting"
+    assert recovered["transaction_attempts"] == [
+        {"accepted": False, "record_types": ["InstanceCreated", "DeliveryRegistrationOpened"]},
+        {"accepted": True, "record_types": ["InstanceCreated", "DeliveryRegistrationOpened"]},
+    ]
+
+    timeline.finish(Disposition.EXTERNAL_WAIT)
+    return world, profile, stale
+
+
+def build_joined_source_creation_refusal_artifact(dsn: str) -> ScenarioArtifactV3:
+    world, _, _ = execute_joined_source_creation_refusal_story(dsn)
+    try:
+        artifact = world.artifact(SOURCE_REFUSAL_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_joined_source_creation_ack_loss_story(
+    dsn: str,
+) -> tuple[World, JoinedSourceCreationAckLossProfile, Timeline]:
+    """Lose source initialization acknowledgement, then reconstruct it exactly."""
+
+    profile = JoinedSourceCreationAckLossProfile(dsn)
+    world = World(profile, WORLD_BUDGET, checkers=(JoinedSourceCreationAuthorityChecker(),))
+    timeline = world.timeline()
+
+    timeline.activate_fault(
+        "history.lose-ack",
+        "source_registration_initialized_committed",
+        disposition=FaultDisposition.RAISE,
+        payload={"message": "dst joined source registration initialization acknowledgement lost"},
+    )
+    lost_command = timeline.command("engine.create", {})
+    assert lost_command.disposition == ActionDisposition.REFUSED_EXPECTED.value
+    lost = cast(dict[str, JsonValue], timeline.observe("joined-source-creation-ack-lost").value)
+    assert lost["frontier"] == 2
+    assert lost["record_types"] == ["InstanceCreated", "DeliveryRegistrationOpened"]
+    assert lost["canonical_instances"] == [SOURCE_INSTANCE_ID]
+    assert lost["canonical_registrations"] == [{"key": "default", "occurrence": None, "source": "source"}]
+    assert lost["engine_present"] is False
+    assert lost["commit_ack_losses"] == 1
+    assert lost["transaction_attempts"] == [
+        {"accepted": True, "record_types": ["InstanceCreated", "DeliveryRegistrationOpened"]}
+    ]
+
+    stale = timeline
+    timeline.crash("joined_source_creation_committed_ack_lost")
+    world.restart()
+    timeline = world.timeline()
+    recovered = cast(dict[str, JsonValue], timeline.observe("joined-source-creation-ack-recovered").value)
+    assert recovered["frontier"] == 2
+    assert recovered["record_types"] == lost["record_types"]
+    assert recovered["canonical_instances"] == lost["canonical_instances"]
+    assert recovered["canonical_registrations"] == lost["canonical_registrations"]
+    assert recovered["engine_present"] is True
+    assert recovered["engine_record_types"] == recovered["record_types"]
+    assert recovered["engine_armed"] == [{"key": "default", "source": "source"}]
+    assert recovered["engine_status"] == "awaiting"
+    assert recovered["creation_attempts"] == [{"disposition": ActionDisposition.REFUSED_EXPECTED.value, "frontier": 2}]
+    assert recovered["transaction_attempts"] == lost["transaction_attempts"]
+
+    timeline.finish(Disposition.EXTERNAL_WAIT)
+    return world, profile, stale
+
+
+def build_joined_source_creation_ack_loss_artifact(dsn: str) -> ScenarioArtifactV3:
+    world, _, _ = execute_joined_source_creation_ack_loss_story(dsn)
+    try:
+        artifact = world.artifact(SOURCE_ACK_LOSS_SCENARIO_ID)
         assert isinstance(artifact, ScenarioArtifactV3)
         return artifact
     finally:

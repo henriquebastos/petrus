@@ -225,6 +225,33 @@ The retained route returns `outcome: "pass"`, `external_wait`, 7 operations,
 13 journal entries including 5 checker evaluations, and digest
 `sha256:cc2123263ec933f7fb57c21c05a19f2a44dcb413556bb239ee1816596bd80836`.
 
+### Joined initial source-registration transaction pair
+
+[`joined-source-creation-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-source-creation-commit-refusal-world-v3.json)
+qualifies the distinct initial-construction shape for a net with a source
+transition and no initial marking. Production prepares `InstanceCreated` and
+`DeliveryRegistrationOpened` in one PostgreSQL transaction. The test
+connection refuses that transaction before acceptance, so detached truth
+contains neither instance nor registration. After abrupt drop, fresh profile
+load observes absence; retrying the same normalized `engine.create` command
+commits the identity and default registration exactly once. Public snapshot
+then reports one armed `source` registration and `awaiting` status. The
+retained route has 9 operations, 16 journal entries including 6 checker
+evaluations, disposition `external_wait`, and journal digest
+`sha256:fd75f35182dff7f1459ccb62ced71bc1ef3820f275987623ee9e5e03d2f95891`.
+
+[`joined-source-creation-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-source-creation-ack-loss-world-v3.json)
+commits that same two-record batch and then loses the acknowledgement before
+an Engine is returned. Fresh public `load_engine` reconstructs the exact
+instance and armed registration without another creation transaction. Its
+retained route has 7 operations, 13 journal entries including 5 checker
+evaluations, disposition `external_wait`, and journal digest
+`sha256:f2b3ee631609f46d598aa3662ea73fd27f9d9d94e921251dcabecc06d0dec6a3`.
+The independent checker compares accepted/refused PostgreSQL transactions with
+detached History and public snapshot facts; mutation checks reject both a
+phantom registration after rollback and acknowledgement loss without accepted
+authority.
+
 ### Joined Dispatch refusal before commit
 
 [`joined-dispatch-refusal-world-v3.json`](../../tests/dst/fixtures/joined-dispatch-refusal-world-v3.json)
@@ -792,10 +819,11 @@ inventing internal state; fresh load must expose the canonical generation.
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. Twenty-seven joined-provider profiles now prove paired initial
-creation, identified/stale/future-scope delivery, completed-terminal,
-failed-terminal, successful/failed projection, canonical-open, canonical-reset,
-and terminal-close commit refusal/acknowledgement loss, plus real joined-begin
+generator. Twenty-nine joined-provider profiles now prove paired token-bearing
+and source-registration initial creation, identified/stale/future-scope
+delivery, completed-terminal, failed-terminal, successful/failed projection,
+canonical-open, canonical-reset, and terminal-close commit
+refusal/acknowledgement loss, plus real joined-begin
 commit refusal, pre-commit task-spawn failure, post-commit begin
 acknowledgement loss, and both refused and accepted-but-unacknowledged post-reset
 cancellation-tombstone recovery without widening the World contract; the
