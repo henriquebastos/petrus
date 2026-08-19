@@ -33,7 +33,7 @@ reconstructs an empty delivery door without another seal attempt.
 Version 4 adds deterministic profile-retained-data and hidden-pending-work
 accounting, while outer runner version 1 adds process-isolated wall-clock
 containment with acknowledged-prefix diagnostics. Generation and campaign
-qualification remain. DS3's first generated slice now runs broad and focused
+qualification are complete. DS3's first generated slice runs broad and focused
 identified-delivery Hypothesis state machines directly under `tests/dst`; every
 successful expanded World schedule replays from fresh profile, checker, and
 Engine objects. Its second generated slice now composes one production public
@@ -52,8 +52,9 @@ intentionally ungenerated dimensions. DS4 now exposes the ordinary generated
 profiles and a larger seed-addressed campaign through pytest, with a bounded
 payload-free report. Its failure workflow also reproduces, exactly replays,
 minimizes, retains, and replays the test-only fair-liveness mutation before
-verifying the ordinary promoted green fixture. Production-boundary
-qualification remains.
+verifying the ordinary promoted green fixture. Its complementary operation
+keeps real PostgreSQL transaction, Worker SIGKILL, and ZeroMQ process evidence
+distinct from simulated claims. CV19's accepted scope is complete.
 
 This document owns Petrus's deterministic simulation testing (DST) contract.
 DST drives the production `Engine`, `Coordinator`, `Instance`, `HistoryStore`,
@@ -229,8 +230,8 @@ checker/resource samples, disposition, and journal digest from fresh Engine,
 History, Dispatch, profile, and checker objects.
 
 This is bounded safety evidence, not the fair-liveness or shrink/promotion
-claim. Those remain owned by CV19.DS3.TS3. Real Absurd/PostgreSQL transactional
-cuts remain separately qualified DS2 evidence and a DS4 campaign boundary.
+claim. CV19.DS3.TS3 qualifies those separately. Real Absurd/PostgreSQL
+transactional cuts remain separate DS2 evidence and a DS4 campaign boundary.
 
 ## Ordinary and scheduled campaign tiers
 
@@ -342,6 +343,54 @@ retained evidence instead records movement of fair-phase entry from operation
 the corresponding canonical-byte reduction. The failed mutation itself is
 never promoted; `generated-runtime-minimized-fair-regression-v4.json` remains
 the ordinary unmutated regression.
+
+## Complementary production-boundary operation
+
+Deterministic World evidence does not substitute for real adapter, process,
+lease, or transport behavior. Run the bounded complementary cohort from the
+repository root:
+
+```sh
+uv run python -m tests.dst.boundaries \
+  --report /tmp/petrus-dst-boundaries.json
+```
+
+The child pytest process selects six existing owner nodes; the operation adds
+no second fault implementation:
+
+1. deterministic Dispatch refusal, abrupt World generation drop, fresh public
+   Engine load, stable redispatch, and exact replay;
+2. a real joined PostgreSQL History/Absurd begin staged in one transaction,
+   followed by authority-connection drop, server rollback of both sides, and
+   fresh completion from the prior committed fact;
+3. abandonment of real post-commit authority objects followed by fresh
+   PostgreSQL/Absurd reconstruction of one occurrence and one provider task;
+4. real Worker SIGKILL after an external-effect commit but before terminal
+   report, followed by lease-expiry redelivery, one idempotent effect, and one
+   canonical terminal;
+5. real ZeroMQ dispatch-server process death after terminal commit but before
+   acknowledgement, followed by exact redelivery to a replacement server; and
+6. real ZeroMQ dispatch-server death with a live lease/checkpoint, followed by
+   restart, preserved details, epoch-2 reclaim after expiry, and completion.
+
+The report retains only exact node identity, evidence kind, cut, recovery,
+justified claim, selected/deselected profiles, repository/dependency identity,
+elapsed time, fixed bounds, and known omissions. It contains no test output,
+DSN, provider payload, or replay claim. Empty, duplicate, unknown, skipped,
+failed, timed-out, or oversized cohorts are not pass. One serial child is
+bounded to 120 seconds, a 5-second terminate/kill grace, an 8 KiB console-only
+failure tail, and a 256 KiB report.
+
+The deterministic and real post-commit routes share one contract: accepted
+`ActivityRequested` authority survives generation loss and recovery reuses the
+stable invocation identity. They are not equivalent mechanisms. World uses a
+deterministic opaque-generation drop and scripted Dispatch refusal; the real
+route reconstructs through PostgreSQL and pinned Absurd but abandons authority
+objects in-process. Real connection drop while a joined transaction is open
+exercises PostgreSQL server-abort semantics, but it is not authority-process
+SIGKILL. Actual authority SIGKILL during that open transaction, database power
+loss/failover/corruption, nonlocal network partitions, and live provider or
+application authority remain unmodeled.
 
 ## Runtime nondeterminism inventory
 

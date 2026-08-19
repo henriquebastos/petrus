@@ -1,14 +1,15 @@
 ---
 code: CV19.DS4
 level: Delivery Story
-status: Active
-status_reason: TS1 and TS2 now supply bounded campaigns plus exact failure retention/promotion; DS4 continues with complementary real-backend, process, and transport qualification
+status: Done
+status_reason: Three completed Technical Stories now provide bounded campaigns, exact safe failure retention/promotion, and claim-limited complementary real transaction/process/transport qualification
 updated: 2026-08-19
 related:
   - index.md
   - cv19-ds3-stateful-generation-and-independent-checkers.md
   - cv19-ds4-ts1-bounded-campaign-tiers.md
   - cv19-ds4-ts2-failure-retention-and-promotion.md
+  - cv19-ds4-ts3-production-boundary-qualification.md
 ---
 
 # CV19.DS4 — Campaign and production-boundary qualification
@@ -52,9 +53,9 @@ correctness claim.
 
 1. A fresh checkout can run the ordinary deterministic gate and one documented
    larger bounded campaign without hidden infrastructure or credentials.
-2. A deliberately failing scenario produces a redacted useful artifact and
-   exact replay; the retained minimized regression fails before and passes
-   after the corresponding legitimate fix.
+2. A deliberately failing scenario produces a credential-refused,
+   data-minimized useful artifact and exact replay; the retained minimized
+   regression fails before and passes after the corresponding legitimate fix.
 3. Campaign timeout, event, memory/state, artifact, and concurrency limits fail
    visibly with no silent truncation presented as success.
 4. Real-backend/process routes cover at least one transaction crash cut, one
@@ -87,12 +88,36 @@ correctness claim.
 2. [CV19.DS4.TS2 — Failure retention and promotion](cv19-ds4-ts2-failure-retention-and-promotion.md)
    is Done. It retains and rehearses failed-artifact triage, credential
    refusal, minimization, exact replay, and ordinary regression promotion.
-3. Assemble focused PostgreSQL transaction, real process-restart, pinned
-   Absurd Worker, and ZeroMQ transport qualification without presenting those
-   tests as simulated evidence.
-4. Measure the accepted capacity, update release guidance and claim limits,
-   run full/release qualification, and close the Value only after independent
-   review.
+3. [CV19.DS4.TS3 — Production-boundary qualification](cv19-ds4-ts3-production-boundary-qualification.md)
+   is Done. It assembles focused PostgreSQL transaction, real process-kill/
+   restart, pinned Absurd Worker, and ZeroMQ transport evidence without
+   presenting those owner tests as simulated evidence.
+4. Accepted capacity, release guidance, claim limits, full/release
+   qualification, and the focused independent overclaim review are complete.
+
+## Delivered evidence
+
+- Ordinary generated profiles remain normal pytest tests. The current
+  scheduled cohort targeted 304 accepted examples, recorded 457 generated or
+  shrink candidates under exact profile seeds, selected all four profiles,
+  wrote an 8,051-byte payload-free report, and completed in 37.7 seconds.
+- The deliberate liveness mutation completed reproduce, exact replay,
+  minimization, bounded two-file retention, retained replay, and verification
+  of the existing ordinary unmutated regression. Credential-like data,
+  tampering, unknown schema, extra files, and overage fail closed.
+- The six-profile complementary cohort selected all routes, completed in 7.1
+  seconds, and wrote a 5,397-byte claim report. Its real transaction,
+  reconstruction, Worker, and transport evidence remains explicitly distinct
+  from deterministic World evidence.
+- Ordinary DST passed 218 tests with skips forbidden. Full passed 2,406 tests;
+  release passed 2,406 tests in bounded-parallel and fixed-serial orders.
+- Focused independent review found no need to merge the transaction cut and
+  actual process-restart obligations. Authority SIGKILL during an open
+  transaction remains named as stronger unmodeled evidence, not implied proof.
+
+No bounded campaign or test establishes exhaustive schedules, real provider
+authority, exactly-once external effects, database power-loss behavior, or
+absence of bugs.
 
 ## Out of scope
 

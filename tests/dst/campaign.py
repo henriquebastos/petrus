@@ -304,7 +304,7 @@ def run_campaign(
         "format": REPORT_FORMAT,
         "outcome": "pass" if exit_code == 0 else "fail",
         "profiles": results,
-        "repository": _repository_identity(),
+        "repository": repository_identity(),
         "runtime": {
             "hypothesis": importlib.metadata.version("hypothesis"),
             "petrus": importlib.metadata.version("petrus"),
@@ -394,7 +394,7 @@ def _load_cases(path: Path, *, byte_limit: int) -> list[dict[str, JsonValue]]:
     return cases
 
 
-def _repository_identity() -> dict[str, JsonValue]:
+def repository_identity() -> dict[str, JsonValue]:
     root = Path(__file__).parents[2]
     commit = subprocess.run(
         ["git", "rev-parse", "HEAD"],
@@ -404,7 +404,7 @@ def _repository_identity() -> dict[str, JsonValue]:
         check=True,
     ).stdout.strip()
     if not re.fullmatch(r"[0-9a-f]{40}", commit):
-        raise ValueError("DST campaign requires an exact Git commit identity")
+        raise ValueError("DST operation requires an exact Git commit identity")
     dirty = bool(
         subprocess.run(
             ["git", "status", "--short"],

@@ -32,13 +32,9 @@ and no live provider or multi-host support is claimed.
 - CV16: Agenticus infrastructure and one supported scripted Pi A2 Local host
   lifecycle. Live-provider profiles remain qualification-only or unsupported.
 - CV17–CV18: hosted bounded simulation and portable canonical Net definitions.
-
-## Planned Values
-
 - [CV19 — Deterministic simulation testing](cv19-deterministic-simulation-testing/index.md):
-  DS1 froze the correctness and strict replay contracts and proved one
-  production projection-crash recovery from portable data. DS2 is Done: its
-  supported executable World retains exact failures, seeded provenance,
+  DS1 froze correctness and strict replay contracts. DS2's supported
+  executable World retains exact failures, seeded provenance,
   public-Engine crash/cut replays, versioned profile-resource bounds, and real
   Absurd/PostgreSQL token-bearing and source-registration initial creation,
   identified, stale-scope, and future-scope delivery, begin,
@@ -54,14 +50,16 @@ and no live provider or multi-host support is claimed.
   Activity/retry, lifecycle, crash/load, Dispatch-refusal, and
   projection-refusal schedules under all eight applicable safety families,
   then separately qualifies fair convergence, minimized failure replay and
-  promotion, and semantic coverage. DS4's first Technical Story now supplies
-  bounded ordinary/scheduled campaign tiers with exact profile seeds and
-  payload-free reach reports; its second now qualifies exact minimized-failure
-  retention/replay and ordinary regression promotion. Complementary
-  real-backend, process, and transport evidence remains Active.
+  promotion, and semantic coverage. DS4 supplies bounded ordinary/scheduled
+  campaigns, exact safe failure retention/promotion, and a separate
+  claim-limited operation over real PostgreSQL, Worker SIGKILL, and ZeroMQ
+  process evidence. CV19 is Done; its explicit unmodeled boundaries remain
+  limits, not unfinished accepted scope.
 
-Application-specific and site-operation plans are not part of this source
-tree.
+## Planned Values
+
+No project Values are currently planned here. Application-specific and
+site-operation plans are not part of this source tree.
 
 ## Structure and states
 

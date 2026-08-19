@@ -163,7 +163,7 @@ def test_campaign_timeout_is_a_visible_failure(
     monkeypatch.setattr(campaign.subprocess, "run", timeout)
     monkeypatch.setattr(
         campaign,
-        "_repository_identity",
+        "repository_identity",
         lambda: {"commit": "0" * 40, "dirty": False},
     )
     report_path = tmp_path / "timeout.json"
@@ -197,7 +197,7 @@ def test_campaign_case_log_overage_writes_a_failed_report(
     monkeypatch.setattr(campaign.subprocess, "run", overflow)
     monkeypatch.setattr(
         campaign,
-        "_repository_identity",
+        "repository_identity",
         lambda: {"commit": "0" * 40, "dirty": False},
     )
     report_path = tmp_path / "case-overage.json"

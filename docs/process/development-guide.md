@@ -42,6 +42,7 @@ Python ≥3.14, managed with `uv`. Python source lives in `src/petrus/`; tests m
 - Larger generated DST campaign: `uv run python -m tests.dst.campaign --tier scheduled --campaign-id "$(date -u +%G-W%V)" --report /tmp/petrus-dst-campaign.json`
 - DST failure-workflow rehearsal: `uv run python -m tests.dst.failure demonstrate --output /tmp/petrus-dst-failure`
 - Retained DST failure replay: `uv run python -m tests.dst.failure replay /tmp/petrus-dst-failure`
+- DST production-boundary qualification: `uv run python -m tests.dst.boundaries --report /tmp/petrus-dst-boundaries.json`
 
 The full profile and release qualification's cumulative full pass run the
 complete hermetic pytest suite on four bounded xdist workers, report the 20
@@ -76,6 +77,16 @@ artifact bytes. Run both commands from the repository root; the manifest's
 `{bundle}` argument means the retained bundle path. This operation qualifies
 triage and promotion mechanics—it neither reports the deliberate mutation as
 a production defect nor substitutes for an ordinary promoted regression.
+
+The production-boundary operation needs the ordinary Docker-backed PostgreSQL
+harness and runs six exact owner nodes in one bounded child: deterministic
+Dispatch-refusal crash/load, real open-transaction connection drop, real
+post-commit PostgreSQL/Absurd reconstruction, Worker SIGKILL and lease
+redelivery, and two ZeroMQ dispatch-server kill/restart routes. Its report
+states each claim and the simulated/real non-equivalence. In particular,
+connection drop exercises real server abort semantics but is not mislabeled as
+an authority OS kill; SIGKILL of an authority while its transaction is open
+remains explicitly unmodeled.
 
 The mutation profile is deliberately separate from `quick`, `full`, and
 `release`. It runs mutmut over an explicit allowlist of fast pure semantic
