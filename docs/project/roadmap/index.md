@@ -40,7 +40,7 @@ and no live provider or multi-host support is claimed.
   production projection-crash recovery from portable data. DS2 is active: its
   supported executable World now retains exact failures, seeded provenance,
   public-Engine crash/cut replays, versioned profile-resource bounds, and real
-  Absurd/PostgreSQL initial creation, identified delivery, begin,
+  Absurd/PostgreSQL initial creation, identified and stale-scope delivery, begin,
   completed/failed terminal, successful/failed projection, and lifecycle
   open/reset/close/cancellation refusal/acknowledgement-loss qualification,
   including exact ingress

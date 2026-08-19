@@ -34,6 +34,8 @@ from tests.dst.joined_world import (
     RESET_ACK_LOSS_SCENARIO_ID,
     RESET_REFUSAL_SCENARIO_ID,
     SCENARIO_ID,
+    SCOPED_DROP_ACK_LOSS_SCENARIO_ID,
+    SCOPED_DROP_REFUSAL_SCENARIO_ID,
     TERMINAL_ACK_LOSS_SCENARIO_ID,
     TERMINAL_REFUSAL_SCENARIO_ID,
     JoinedAcceptedCancellationAuthorityChecker,
@@ -65,6 +67,7 @@ from tests.dst.joined_world import (
     JoinedFailureProjectionRefusalProfile,
     JoinedFailureRefusalProfile,
     JoinedAcceptedResetAuthorityChecker,
+    JoinedAcceptedScopedDropAuthorityChecker,
     JoinedProjectionAuthorityChecker,
     JoinedAcceptedProjectionAuthorityChecker,
     JoinedProjectionAckLossProfile,
@@ -72,6 +75,9 @@ from tests.dst.joined_world import (
     JoinedResetAckLossProfile,
     JoinedResetRefusalAuthorityChecker,
     JoinedResetRefusalProfile,
+    JoinedScopedDropAckLossProfile,
+    JoinedScopedDropAuthorityChecker,
+    JoinedScopedDropRefusalProfile,
     JoinedTerminalAuthorityChecker,
     JoinedTerminalAckLossProfile,
     JoinedTerminalRefusalProfile,
@@ -94,6 +100,8 @@ from tests.dst.joined_world import (
     build_joined_projection_artifact,
     build_joined_reset_ack_loss_artifact,
     build_joined_reset_refusal_artifact,
+    build_joined_scoped_drop_ack_loss_artifact,
+    build_joined_scoped_drop_refusal_artifact,
     build_joined_terminal_ack_loss_artifact,
     build_joined_terminal_refusal_artifact,
 )
@@ -120,6 +128,8 @@ CLOSE_REFUSAL_FIXTURE = Path("tests/dst/fixtures/joined-close-commit-refusal-wor
 CLOSE_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-close-ack-loss-world-v3.json")
 OPEN_REFUSAL_FIXTURE = Path("tests/dst/fixtures/joined-open-commit-refusal-world-v3.json")
 OPEN_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-open-ack-loss-world-v3.json")
+SCOPED_DROP_REFUSAL_FIXTURE = Path("tests/dst/fixtures/joined-scoped-drop-commit-refusal-world-v3.json")
+SCOPED_DROP_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-scoped-drop-ack-loss-world-v3.json")
 
 
 def test_joined_begin_commit_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
@@ -354,6 +364,152 @@ def test_joined_delivery_checker_refuses_phantom_acceptance_and_ack_loss() -> No
 
     assert phantom_result.passed is False
     assert phantom_result.detail["accepted_transactions"] == 0
+    assert missing_result.passed is False
+    assert missing_result.detail["ack_losses"] == 1
+
+
+def test_joined_scoped_drop_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
+    with isolated_absurd_database(absurd_dsn) as authored_dsn:
+        artifact = build_joined_scoped_drop_refusal_artifact(authored_dsn)
+
+    assert artifact.scenario_id == SCOPED_DROP_REFUSAL_SCENARIO_ID
+    assert artifact.origin is None
+    assert encode_artifact(artifact) == SCOPED_DROP_REFUSAL_FIXTURE.read_bytes().rstrip(b"\n")
+
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedScopedDropRefusalProfile(replay_dsn))
+        registry.register_checker(JoinedScopedDropAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.EXTERNAL_WAIT.value
+
+
+def test_retained_joined_scoped_drop_refusal_replays_without_authored_scenario(absurd_dsn: str) -> None:
+    artifact = load_artifact(SCOPED_DROP_REFUSAL_FIXTURE)
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedScopedDropRefusalProfile(replay_dsn))
+        registry.register_checker(JoinedScopedDropAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.scenario_id == SCOPED_DROP_REFUSAL_SCENARIO_ID
+    assert result.outcome == "pass"
+
+
+def test_joined_scoped_drop_ack_loss_is_exact_and_replayable(absurd_dsn: str) -> None:
+    with isolated_absurd_database(absurd_dsn) as authored_dsn:
+        artifact = build_joined_scoped_drop_ack_loss_artifact(authored_dsn)
+
+    assert artifact.scenario_id == SCOPED_DROP_ACK_LOSS_SCENARIO_ID
+    assert artifact.origin is None
+    assert encode_artifact(artifact) == SCOPED_DROP_ACK_LOSS_FIXTURE.read_bytes().rstrip(b"\n")
+
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedScopedDropAckLossProfile(replay_dsn))
+        registry.register_checker(JoinedAcceptedScopedDropAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.EXTERNAL_WAIT.value
+
+
+def test_retained_joined_scoped_drop_ack_loss_replays_without_authored_scenario(absurd_dsn: str) -> None:
+    artifact = load_artifact(SCOPED_DROP_ACK_LOSS_FIXTURE)
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedScopedDropAckLossProfile(replay_dsn))
+        registry.register_checker(JoinedAcceptedScopedDropAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.scenario_id == SCOPED_DROP_ACK_LOSS_SCENARIO_ID
+    assert result.outcome == "pass"
+
+
+def test_joined_scoped_drop_checkers_reject_phantom_and_unaccepted_ack_loss() -> None:
+    lifecycle_attempts = [
+        {"accepted": True, "phase": "scope_open", "record_types": ["ScopeOpened"]},
+        {"accepted": True, "phase": "scope_reset", "record_types": ["ScopeReset"]},
+    ]
+    lifecycle_records = [
+        {"generation": 1, "kind": "opened", "name": "draft"},
+        {
+            "closed_generation": 1,
+            "kind": "reset",
+            "name": "draft",
+            "opened_generation": 2,
+        },
+    ]
+    base = {
+        "lifecycle_attempts": lifecycle_attempts,
+        "lifecycle_records": lifecycle_records,
+        "record_types": [
+            "InstanceCreated",
+            "DeliveryRegistrationOpened",
+            "ScopeOpened",
+            "ScopeReset",
+        ],
+        "scope_opens": 1,
+        "scope_resets": 1,
+        "scoped_drop_ack_losses": 0,
+        "scoped_drop_refusals": 0,
+    }
+    phantom = Observation(
+        name="engine.joined-scoped-drop-authority",
+        value={
+            **base,
+            "canonical_drops": [
+                {
+                    "identity": "stale-draft-3",
+                    "scope_generation": 1,
+                    "scope_name": "draft",
+                    "source": "source",
+                    "value": 3,
+                }
+            ],
+            "record_types": [*base["record_types"], "ScopedDeliveryDropped"],
+            "scoped_delivery_attempts": [
+                {
+                    "disposition": "refused_expected",
+                    "identity": "stale-draft-3",
+                    "scope_generation": 1,
+                    "value": 3,
+                }
+            ],
+            "scoped_drop_refusals": 1,
+            "transaction_attempts": [
+                {
+                    "accepted": False,
+                    "dispatch_attempted": False,
+                    "record_types": ["ScopedDeliveryDropped"],
+                }
+            ],
+        },
+        instant=0,
+        generation=1,
+        sequence=0,
+    )
+    ack_without_acceptance = Observation(
+        name="engine.joined-accepted-scoped-drop-authority",
+        value={
+            **base,
+            "canonical_drops": [],
+            "scoped_delivery_attempts": [],
+            "scoped_drop_ack_losses": 1,
+            "transaction_attempts": [],
+        },
+        instant=0,
+        generation=1,
+        sequence=0,
+    )
+
+    phantom_result = JoinedScopedDropAuthorityChecker().check(phantom)
+    missing_result = JoinedAcceptedScopedDropAuthorityChecker().check(ack_without_acceptance)
+
+    assert phantom_result.passed is False
+    assert phantom_result.detail["accepted_drops"] == 0
     assert missing_result.passed is False
     assert missing_result.detail["ack_losses"] == 1
 

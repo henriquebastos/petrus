@@ -24,11 +24,13 @@ from petrus.impetus.history import (
     ScopeClosed,
     ScopeOpened,
     ScopeReset,
+    ScopedDeliveryDropped,
     TokensProduced,
 )
 from petrus.impetus.history_store.postgres import PostgresHistoryStore
-from petrus.impetus.instance import PriorAcknowledgement
+from petrus.impetus.instance import DeliveryDisposition, PriorAcknowledgement, ScopedDeliveryAcknowledgement
 from petrus.impetus.petrinet import Arc, Marking, Net, NetPath, Place, Token, Transition
+from petrus.impetus.scope import LifecycleScope
 from petrus.motus.activity import ActivityFailure, ActivityInvocation
 from petrus.motus.dispatch import ActivityAttempt
 from petrus.motus.dispatch.absurd import AbsurdWorkerDispatch
@@ -67,6 +69,8 @@ PROJECTION_ACK_LOSS_SCENARIO_ID = "joined-projection-ack-loss-world-v3"
 ACK_LOSS_SCENARIO_ID = "joined-begin-ack-loss-world-v3"
 DELIVERY_REFUSAL_SCENARIO_ID = "joined-delivery-commit-refusal-world-v3"
 DELIVERY_ACK_LOSS_SCENARIO_ID = "joined-delivery-ack-loss-world-v3"
+SCOPED_DROP_REFUSAL_SCENARIO_ID = "joined-scoped-drop-commit-refusal-world-v3"
+SCOPED_DROP_ACK_LOSS_SCENARIO_ID = "joined-scoped-drop-ack-loss-world-v3"
 TERMINAL_REFUSAL_SCENARIO_ID = "joined-terminal-commit-refusal-world-v3"
 TERMINAL_ACK_LOSS_SCENARIO_ID = "joined-terminal-ack-loss-world-v3"
 FAILURE_REFUSAL_SCENARIO_ID = "joined-failure-commit-refusal-world-v3"
@@ -239,6 +243,51 @@ DELIVERY_ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
             ],
             "provider": "petrus.engine.absurd",
             "property": "an accepted identified delivery survives acknowledgement loss and redelivers idempotently",
+        }
+    ),
+)
+SCOPED_DROP_REFUSAL_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.joined-scoped-drop-commit-refusal",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": ["scope.open", "scope.reset", "source.deliver-stale"],
+            "fault": {
+                "disposition": "refuse",
+                "name": "history.commit-refuse",
+                "target": "scoped_delivery_dropped",
+            },
+            "instance": INSTANCE_ID,
+            "observations": [
+                "engine.joined-scoped-drop-authority",
+                "joined-scoped-drop-refused",
+                "joined-scoped-drop-recovered",
+                "joined-scoped-drop-redelivered",
+            ],
+            "provider": "petrus.engine.absurd",
+            "property": "a refused stale-scope delivery remains unaccepted and fresh load may drop it once",
+        }
+    ),
+)
+SCOPED_DROP_ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.joined-scoped-drop-ack-loss",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": ["scope.open", "scope.reset", "source.deliver-stale"],
+            "fault": {
+                "disposition": "raise",
+                "name": "history.lose-ack",
+                "target": "scoped_delivery_dropped_committed",
+            },
+            "instance": INSTANCE_ID,
+            "observations": [
+                "engine.joined-accepted-scoped-drop-authority",
+                "joined-scoped-drop-ack-lost",
+                "joined-scoped-drop-ack-recovered",
+            ],
+            "provider": "petrus.engine.absurd",
+            "property": "an accepted stale-scope drop survives acknowledgement loss and redelivers idempotently",
         }
     ),
 )
@@ -635,6 +684,20 @@ DELIVERY_CHECKER_IDENTITY = CheckerIdentity(
         }
     ),
 )
+SCOPED_DROP_REFUSAL_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.joined-scoped-drop-authority",
+    version=1,
+    digest=digest_json(
+        {"property": "only an accepted stale-scope transaction authorizes one durable dropped delivery"}
+    ),
+)
+SCOPED_DROP_ACK_LOSS_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.joined-accepted-scoped-drop-authority",
+    version=1,
+    digest=digest_json(
+        {"property": "an acknowledgement-lost stale-scope drop remains singular and redelivers idempotently"}
+    ),
+)
 TERMINAL_ACK_LOSS_CHECKER_IDENTITY = CheckerIdentity(
     name="petrus.engine.joined-accepted-terminal-authority",
     version=1,
@@ -821,6 +884,8 @@ class JoinedFaultConnection:
         dispatch_refused: Callable[[], None],
         delivery_refused: Callable[[], None],
         delivery_ack_lost: Callable[[], None],
+        scoped_drop_refused: Callable[[], None],
+        scoped_drop_ack_lost: Callable[[], None],
         terminal_refused: Callable[[], None],
         projection_refused: Callable[[], None],
         projection_ack_lost: Callable[[], None],
@@ -843,6 +908,8 @@ class JoinedFaultConnection:
         self._dispatch_refused = dispatch_refused
         self._delivery_refused = delivery_refused
         self._delivery_ack_lost = delivery_ack_lost
+        self._scoped_drop_refused = scoped_drop_refused
+        self._scoped_drop_ack_lost = scoped_drop_ack_lost
         self._terminal_refused = terminal_refused
         self._projection_refused = projection_refused
         self._projection_ack_lost = projection_ack_lost
@@ -865,6 +932,8 @@ class JoinedFaultConnection:
         self._dispatch_refusal: str | None = None
         self._delivery_refusal: str | None = None
         self._delivery_ack_loss: str | None = None
+        self._scoped_drop_refusal: str | None = None
+        self._scoped_drop_ack_loss: str | None = None
         self._terminal_refusal: str | None = None
         self._projection_refusal: str | None = None
         self._projection_ack_loss: str | None = None
@@ -930,6 +999,16 @@ class JoinedFaultConnection:
         if self._delivery_ack_loss is not None:
             raise RuntimeError("joined delivery acknowledgement loss is already armed")
         self._delivery_ack_loss = message
+
+    def refuse_scoped_drop_commit(self, message: str) -> None:
+        if self._scoped_drop_refusal is not None:
+            raise RuntimeError("joined scoped-drop refusal is already armed")
+        self._scoped_drop_refusal = message
+
+    def lose_scoped_drop_commit_ack(self, message: str) -> None:
+        if self._scoped_drop_ack_loss is not None:
+            raise RuntimeError("joined scoped-drop acknowledgement loss is already armed")
+        self._scoped_drop_ack_loss = message
 
     def refuse_projection_commit(self, message: str) -> None:
         if self._projection_refusal is not None:
@@ -998,6 +1077,7 @@ class JoinedFaultConnection:
 
     def commit(self) -> None:
         source_delivery = ExternalEventDelivered.__name__ in self._record_types
+        scoped_drop = ScopedDeliveryDropped.__name__ in self._record_types
         joined_begin = ActivityRequested.__name__ in self._record_types
         activity_terminal = any(
             name in self._record_types for name in (ActivityCompleted.__name__, ActivityFailed.__name__)
@@ -1009,13 +1089,17 @@ class JoinedFaultConnection:
         scope_close = ScopeClosed.__name__ in self._record_types
         scope_open = self._track_scope_open and ScopeOpened.__name__ in self._record_types
         cancellation_attempted = self._cancellation_attempted
-        tracked = joined_begin or any(
-            name in self._record_types
-            for name in (
-                ActivityCompleted.__name__,
-                ActivityFailed.__name__,
-                FiringCompleted.__name__,
-                FiringFailed.__name__,
+        tracked = (
+            joined_begin
+            or scoped_drop
+            or any(
+                name in self._record_types
+                for name in (
+                    ActivityCompleted.__name__,
+                    ActivityFailed.__name__,
+                    FiringCompleted.__name__,
+                    FiringFailed.__name__,
+                )
             )
         )
         if source_delivery and self._delivery_refusal is not None:
@@ -1023,6 +1107,12 @@ class JoinedFaultConnection:
             self._delivery_refusal = None
             self._attempts.append(self._attempt(False))
             self._delivery_refused()
+            raise OSError(message)
+        if scoped_drop and self._scoped_drop_refusal is not None:
+            message = self._scoped_drop_refusal
+            self._scoped_drop_refusal = None
+            self._attempts.append(self._attempt(False))
+            self._scoped_drop_refused()
             raise OSError(message)
         if joined_begin and self._commit_refusal is not None:
             message = self._commit_refusal
@@ -1082,6 +1172,11 @@ class JoinedFaultConnection:
             message = self._delivery_ack_loss
             self._delivery_ack_loss = None
             self._delivery_ack_lost()
+            raise OSError(message)
+        if scoped_drop and self._scoped_drop_ack_loss is not None:
+            message = self._scoped_drop_ack_loss
+            self._scoped_drop_ack_loss = None
+            self._scoped_drop_ack_lost()
             raise OSError(message)
         if joined_begin and self._commit_ack_loss is not None:
             message = self._commit_ack_loss
@@ -1178,6 +1273,8 @@ class JoinedBeginProfile:
         self.dispatch_refusals = 0
         self.delivery_refusals = 0
         self.delivery_ack_losses = 0
+        self.scoped_drop_refusals = 0
+        self.scoped_drop_ack_losses = 0
         self.terminal_refusals = 0
         self.projection_refusals = 0
         self.projection_ack_losses = 0
@@ -1308,6 +1405,8 @@ class JoinedBeginProfile:
             self._dispatch_refused,
             self._delivery_refused,
             self._delivery_ack_lost,
+            self._scoped_drop_refused,
+            self._scoped_drop_ack_lost,
             self._terminal_refused,
             self._projection_refused,
             self._projection_ack_lost,
@@ -1375,6 +1474,8 @@ class JoinedBeginProfile:
                 "dispatch_refusals": self.dispatch_refusals,
                 "delivery_refusals": self.delivery_refusals,
                 "delivery_ack_losses": self.delivery_ack_losses,
+                "scoped_drop_refusals": self.scoped_drop_refusals,
+                "scoped_drop_ack_losses": self.scoped_drop_ack_losses,
                 "drops": self.drops,
                 "drive_calls": self.drive_calls,
                 "durable_tasks": tasks,
@@ -1446,6 +1547,12 @@ class JoinedBeginProfile:
 
     def _delivery_ack_lost(self) -> None:
         self.delivery_ack_losses += 1
+
+    def _scoped_drop_refused(self) -> None:
+        self.scoped_drop_refusals += 1
+
+    def _scoped_drop_ack_lost(self) -> None:
+        self.scoped_drop_ack_losses += 1
 
     def _projection_refused(self) -> None:
         self.projection_refusals += 1
@@ -2582,6 +2689,184 @@ class JoinedCancellationAckLossProfile(JoinedCancellationProfile):
         return state
 
 
+class JoinedScopedDropRefusalProfile(JoinedCancellationProfile):
+    """Public Absurd profile refusing one stale-scope delivery disposition."""
+
+    identity = SCOPED_DROP_REFUSAL_PROFILE_IDENTITY
+    fault_name = "history.commit-refuse"
+    fault_target = "scoped_delivery_dropped"
+    fault_disposition = FaultDisposition.REFUSE
+    track_scope_open = True
+    authority_observation = "engine.joined-scoped-drop-authority"
+    _observations = {
+        authority_observation,
+        "joined-scoped-drop-refused",
+        "joined-scoped-drop-recovered",
+        "joined-scoped-drop-redelivered",
+    }
+    _observation_fields = (
+        "canonical_drops",
+        "drops",
+        "frontier",
+        "lifecycle_attempts",
+        "lifecycle_records",
+        "record_types",
+        "scope_opens",
+        "scope_resets",
+        "scoped_delivery_attempts",
+        "scoped_drop_ack_losses",
+        "scoped_drop_refusals",
+        "status",
+        "transaction_attempts",
+    )
+
+    def __init__(self, dsn: str) -> None:
+        super().__init__(dsn)
+        self.scoped_delivery_attempts: list[dict[str, JsonValue]] = []
+
+    def validate(self, command: Command) -> Command:
+        if command.name in {"scope.open", "scope.reset"} and command.payload == {"name": "draft"}:
+            return command
+        if command.name == "source.deliver-stale" and command.payload == {
+            "identity": "stale-draft-3",
+            "scope_generation": 1,
+            "value": 3,
+        }:
+            return command
+        raise ValueError(f"unsupported joined scoped-drop command {command.name!r}")
+
+    def load(self, context: ScenarioContext) -> GenerationStart[JoinedGeneration]:
+        del context
+        return GenerationStart(self._open(create=False), ())
+
+    def apply(
+        self,
+        generation: JoinedGeneration,
+        command: Command,
+        context: ScenarioContext,
+    ) -> ApplyResult:
+        if command.name != "source.deliver-stale":
+            return super().apply(generation, command, context)
+        payload = cast(dict[str, JsonValue], command.payload)
+        identity = cast(str, payload["identity"])
+        value = cast(int, payload["value"])
+        scope_generation = cast(int, payload["scope_generation"])
+        was_recorded = bool(self._canonical_drops())
+        expected = self._configure_faults(generation, context)
+        try:
+            outcome = generation.engine.deliver(
+                SOURCE,
+                Token("Input", value),
+                identity=identity,
+                scope=LifecycleScope("draft", scope_generation),
+            )
+        except OSError as error:
+            if str(error) not in expected:
+                raise
+            generation.poisoned = True
+            disposition = ActionDisposition.REFUSED_EXPECTED
+            result: dict[str, JsonValue] = {"error": str(error)}
+        else:
+            if not isinstance(outcome, ScopedDeliveryAcknowledgement):
+                raise AssertionError("stale-scope delivery did not return a scoped acknowledgement")
+            if outcome.disposition is not DeliveryDisposition.DROPPED:
+                raise AssertionError("stale generation was not dropped")
+            disposition = ActionDisposition.IDEMPOTENT if was_recorded else ActionDisposition.APPLIED
+            result = {"delivery_disposition": outcome.disposition.value}
+        attempt: dict[str, JsonValue] = {
+            "disposition": disposition.value,
+            "identity": identity,
+            "scope_generation": scope_generation,
+            "value": value,
+        }
+        self.scoped_delivery_attempts.append(attempt)
+        return ApplyResult(
+            disposition=disposition.value,
+            value={**result, "attempt": attempt, "frontier": self._frontier()},
+            scheduled=[],
+        )
+
+    def observe(
+        self,
+        generation: JoinedGeneration,
+        request: ObservationRequest,
+        context: ScenarioContext,
+    ) -> JsonValue:
+        del context
+        if request.name not in self._observations:
+            raise ValueError(f"unknown joined scoped-drop observation {request.name!r}")
+        if request.payload not in (None, {}):
+            raise ValueError("joined scoped-drop observations do not accept parameters")
+        state = self._observation_state(generation)
+        return {field: state[field] for field in self._observation_fields}
+
+    def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
+        generation.connection.refuse_scoped_drop_commit(message)
+
+    def _canonical_drops(self) -> list[dict[str, JsonValue]]:
+        with psycopg.connect(self.dsn, autocommit=True) as probe:
+            records = PostgresHistoryStore(probe, INSTANCE_ID).records
+        return [
+            {
+                "identity": record.identity,
+                "scope_generation": record.scope.generation,
+                "scope_name": record.scope.name,
+                "source": str(record.source),
+                "value": record.tokens[0].data,
+            }
+            for record in records
+            if isinstance(record, ScopedDeliveryDropped)
+        ]
+
+    def _observation_state(self, generation: JoinedGeneration) -> dict[str, JsonValue]:
+        state = super()._observation_state(generation)
+        with psycopg.connect(self.dsn, autocommit=True) as probe:
+            records = PostgresHistoryStore(probe, INSTANCE_ID).records
+        lifecycle_records: list[dict[str, JsonValue]] = []
+        for record in records:
+            if isinstance(record, ScopeOpened):
+                lifecycle_records.append(
+                    {"generation": record.scope.generation, "kind": "opened", "name": record.scope.name}
+                )
+            elif isinstance(record, ScopeReset):
+                lifecycle_records.append(
+                    {
+                        "closed_generation": record.closed.generation,
+                        "kind": "reset",
+                        "name": record.closed.name,
+                        "opened_generation": record.opened.generation,
+                    }
+                )
+        state.update(
+            {
+                "canonical_drops": self._canonical_drops(),
+                "lifecycle_records": lifecycle_records,
+                "scoped_delivery_attempts": self.scoped_delivery_attempts,
+                "scoped_drop_ack_losses": self.scoped_drop_ack_losses,
+                "scoped_drop_refusals": self.scoped_drop_refusals,
+            }
+        )
+        return state
+
+
+class JoinedScopedDropAckLossProfile(JoinedScopedDropRefusalProfile):
+    """Public Absurd profile losing acknowledgement after stale-scope drop."""
+
+    identity = SCOPED_DROP_ACK_LOSS_PROFILE_IDENTITY
+    fault_name = "history.lose-ack"
+    fault_target = "scoped_delivery_dropped_committed"
+    fault_disposition = FaultDisposition.RAISE
+    authority_observation = "engine.joined-accepted-scoped-drop-authority"
+    _observations = {
+        authority_observation,
+        "joined-scoped-drop-ack-lost",
+        "joined-scoped-drop-ack-recovered",
+    }
+
+    def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
+        generation.connection.lose_scoped_drop_commit_ack(message)
+
+
 class JoinedCommitAuthorityChecker:
     """Independent durable-authority check over provider transaction outcomes."""
 
@@ -2703,6 +2988,133 @@ class JoinedDeliveryAuthorityChecker:
                 "transactions_exact": transactions_exact,
             },
         )
+
+
+def _check_scoped_drop(observation: Observation, *, acknowledgement_loss: bool) -> CheckResult:
+    value = cast(dict[str, JsonValue], observation.value)
+    canonical = cast(list[dict[str, JsonValue]], value["canonical_drops"])
+    delivery_attempts = cast(list[dict[str, JsonValue]], value["scoped_delivery_attempts"])
+    transactions = cast(list[dict[str, JsonValue]], value["transaction_attempts"])
+    lifecycle_attempts = cast(list[dict[str, JsonValue]], value["lifecycle_attempts"])
+    lifecycle_records = cast(list[dict[str, JsonValue]], value["lifecycle_records"])
+    drop_transaction = {
+        "dispatch_attempted": False,
+        "record_types": [ScopedDeliveryDropped.__name__],
+    }
+    transactions_exact = all(
+        {key: attempt[key] for key in drop_transaction} == drop_transaction for attempt in transactions
+    )
+    accepted = sum(attempt["accepted"] is True for attempt in transactions)
+    refused = sum(attempt["accepted"] is False for attempt in transactions)
+    expected_open = {"accepted": True, "phase": "scope_open", "record_types": ["ScopeOpened"]}
+    expected_reset = {"accepted": True, "phase": "scope_reset", "record_types": ["ScopeReset"]}
+    expected_open_record = {"generation": 1, "kind": "opened", "name": "draft"}
+    expected_reset_record = {
+        "closed_generation": 1,
+        "kind": "reset",
+        "name": "draft",
+        "opened_generation": 2,
+    }
+    lifecycle_exact = (lifecycle_attempts, lifecycle_records) in (
+        ([], []),
+        ([expected_open], [expected_open_record]),
+        ([expected_open, expected_reset], [expected_open_record, expected_reset_record]),
+    )
+    lifecycle_ready = lifecycle_attempts == [expected_open, expected_reset]
+    refusal_faults = cast(int, value["scoped_drop_refusals"])
+    ack_losses = cast(int, value["scoped_drop_ack_losses"])
+    reported = [cast(str, attempt["disposition"]) for attempt in delivery_attempts]
+    if acknowledgement_loss:
+        expected_acceptance = [True] if accepted else []
+        expected_reported = [ActionDisposition.REFUSED_EXPECTED.value] if accepted else []
+        if len(delivery_attempts) == 2:
+            expected_reported.append(ActionDisposition.IDEMPOTENT.value)
+    else:
+        expected_acceptance = [False] if refused else []
+        expected_reported = [ActionDisposition.REFUSED_EXPECTED.value] if refused else []
+        if accepted:
+            expected_acceptance.append(True)
+            expected_reported.append(ActionDisposition.APPLIED.value)
+            if len(delivery_attempts) == 3:
+                expected_reported.append(ActionDisposition.IDEMPOTENT.value)
+    payloads_exact = all(
+        {
+            "identity": attempt["identity"],
+            "scope_generation": attempt["scope_generation"],
+            "value": attempt["value"],
+        }
+        == {"identity": "stale-draft-3", "scope_generation": 1, "value": 3}
+        for attempt in delivery_attempts
+    )
+    expected_canonical: list[dict[str, JsonValue]] = (
+        [
+            {
+                "identity": "stale-draft-3",
+                "scope_generation": 1,
+                "scope_name": "draft",
+                "source": "source",
+                "value": 3,
+            }
+        ]
+        if accepted
+        else []
+    )
+    record_types = cast(list[JsonValue], value["record_types"])
+    expected_records = ["InstanceCreated", "DeliveryRegistrationOpened"]
+    if lifecycle_attempts:
+        expected_records.append("ScopeOpened")
+    if len(lifecycle_attempts) == 2:
+        expected_records.append("ScopeReset")
+    if accepted:
+        expected_records.append("ScopedDeliveryDropped")
+    transaction_acceptance = [cast(bool, attempt["accepted"]) for attempt in transactions]
+    passed = (
+        lifecycle_exact
+        and transactions_exact
+        and transaction_acceptance == expected_acceptance
+        and reported == expected_reported
+        and payloads_exact
+        and canonical == expected_canonical
+        and record_types == expected_records
+        and (not delivery_attempts or lifecycle_ready)
+        and refused == refusal_faults <= 1
+        and ack_losses <= accepted <= 1
+        and refusal_faults + ack_losses <= 1
+        and cast(int, value["scope_opens"]) == len(lifecycle_records[:1])
+        and cast(int, value["scope_resets"]) == sum(record["kind"] == "reset" for record in lifecycle_records)
+    )
+    return CheckResult(
+        passed=passed,
+        detail={
+            "accepted_drops": accepted,
+            "ack_losses": ack_losses,
+            "canonical_drops": len(canonical),
+            "lifecycle_ready": lifecycle_ready,
+            "refused_drops": refused,
+            "reported_dispositions": reported,
+            "transactions_exact": transactions_exact,
+        },
+    )
+
+
+class JoinedScopedDropAuthorityChecker:
+    """Independent stale-scope drop authority from PostgreSQL transaction facts."""
+
+    identity = SCOPED_DROP_REFUSAL_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.joined-scoped-drop-authority", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        return _check_scoped_drop(observation, acknowledgement_loss=False)
+
+
+class JoinedAcceptedScopedDropAuthorityChecker:
+    """Independent accepted stale-scope drop authority from durable facts."""
+
+    identity = SCOPED_DROP_ACK_LOSS_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.joined-accepted-scoped-drop-authority", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        return _check_scoped_drop(observation, acknowledgement_loss=True)
 
 
 class JoinedProjectionAuthorityChecker:
@@ -5384,6 +5796,131 @@ def build_joined_failure_projection_ack_loss_artifact(dsn: str) -> ScenarioArtif
     world, _, _ = execute_joined_failure_projection_ack_loss_story(dsn)
     try:
         artifact = world.artifact(FAILURE_PROJECTION_ACK_LOSS_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+_STALE_DELIVERY = {"identity": "stale-draft-3", "scope_generation": 1, "value": 3}
+
+
+def execute_joined_scoped_drop_refusal_story(
+    dsn: str,
+) -> tuple[World, JoinedScopedDropRefusalProfile, Timeline]:
+    """Refuse one stale-scope drop, reload, then accept and redeliver it exactly."""
+
+    profile = JoinedScopedDropRefusalProfile(dsn)
+    world = World(profile, WORLD_BUDGET, checkers=(JoinedScopedDropAuthorityChecker(),))
+    timeline = world.timeline()
+    timeline.command("scope.open", {"name": "draft"})
+    timeline.command("scope.reset", {"name": "draft"})
+    timeline.activate_fault(
+        "history.commit-refuse",
+        "scoped_delivery_dropped",
+        disposition=FaultDisposition.REFUSE,
+        payload={"message": "dst joined scoped delivery drop commit refused"},
+    )
+    timeline.command("source.deliver-stale", _STALE_DELIVERY)
+    refused = cast(dict[str, JsonValue], timeline.observe("joined-scoped-drop-refused").value)
+    assert refused["frontier"] == 4
+    assert refused["canonical_drops"] == []
+    assert refused["scoped_drop_refusals"] == 1
+    assert refused["transaction_attempts"] == [
+        {"accepted": False, "dispatch_attempted": False, "record_types": ["ScopedDeliveryDropped"]}
+    ]
+
+    stale = timeline
+    timeline.crash("joined_scoped_drop_commit_refused")
+    world.restart()
+    timeline = world.timeline()
+    recovered = cast(dict[str, JsonValue], timeline.observe("joined-scoped-drop-recovered").value)
+    assert recovered["canonical_drops"] == []
+    assert recovered["record_types"] == refused["record_types"]
+
+    timeline.command("source.deliver-stale", _STALE_DELIVERY)
+    accepted = cast(dict[str, JsonValue], timeline.observe("joined-scoped-drop-recovered").value)
+    assert accepted["frontier"] == 5
+    assert accepted["canonical_drops"] == [
+        {
+            "identity": "stale-draft-3",
+            "scope_generation": 1,
+            "scope_name": "draft",
+            "source": "source",
+            "value": 3,
+        }
+    ]
+    assert accepted["transaction_attempts"][-1] == {
+        "accepted": True,
+        "dispatch_attempted": False,
+        "record_types": ["ScopedDeliveryDropped"],
+    }
+
+    timeline.command("source.deliver-stale", _STALE_DELIVERY)
+    redelivered = cast(dict[str, JsonValue], timeline.observe("joined-scoped-drop-redelivered").value)
+    assert redelivered["canonical_drops"] == accepted["canonical_drops"]
+    assert redelivered["transaction_attempts"] == accepted["transaction_attempts"]
+    assert redelivered["scoped_delivery_attempts"][-1]["disposition"] == ActionDisposition.IDEMPOTENT.value
+    timeline.finish(Disposition.EXTERNAL_WAIT)
+    return world, profile, stale
+
+
+def build_joined_scoped_drop_refusal_artifact(dsn: str) -> ScenarioArtifactV3:
+    world, _, _ = execute_joined_scoped_drop_refusal_story(dsn)
+    try:
+        artifact = world.artifact(SCOPED_DROP_REFUSAL_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_joined_scoped_drop_ack_loss_story(
+    dsn: str,
+) -> tuple[World, JoinedScopedDropAckLossProfile, Timeline]:
+    """Lose one accepted stale-scope drop acknowledgement and redeliver after load."""
+
+    profile = JoinedScopedDropAckLossProfile(dsn)
+    world = World(profile, WORLD_BUDGET, checkers=(JoinedAcceptedScopedDropAuthorityChecker(),))
+    timeline = world.timeline()
+    timeline.command("scope.open", {"name": "draft"})
+    timeline.command("scope.reset", {"name": "draft"})
+    timeline.activate_fault(
+        "history.lose-ack",
+        "scoped_delivery_dropped_committed",
+        disposition=FaultDisposition.RAISE,
+        payload={"message": "dst joined scoped delivery drop acknowledgement lost"},
+    )
+    timeline.command("source.deliver-stale", _STALE_DELIVERY)
+    lost = cast(dict[str, JsonValue], timeline.observe("joined-scoped-drop-ack-lost").value)
+    assert lost["frontier"] == 5
+    assert lost["record_types"][-1] == ScopedDeliveryDropped.__name__
+    assert lost["scoped_drop_ack_losses"] == 1
+    assert lost["transaction_attempts"] == [
+        {"accepted": True, "dispatch_attempted": False, "record_types": ["ScopedDeliveryDropped"]}
+    ]
+
+    stale = timeline
+    timeline.crash("joined_scoped_drop_committed_ack_lost")
+    world.restart()
+    timeline = world.timeline()
+    recovered = cast(dict[str, JsonValue], timeline.observe("joined-scoped-drop-ack-recovered").value)
+    assert recovered["canonical_drops"] == lost["canonical_drops"]
+    assert recovered["record_types"] == lost["record_types"]
+
+    timeline.command("source.deliver-stale", _STALE_DELIVERY)
+    redelivered = cast(dict[str, JsonValue], timeline.observe("joined-scoped-drop-ack-recovered").value)
+    assert redelivered["canonical_drops"] == lost["canonical_drops"]
+    assert redelivered["transaction_attempts"] == lost["transaction_attempts"]
+    assert redelivered["scoped_delivery_attempts"][-1]["disposition"] == ActionDisposition.IDEMPOTENT.value
+    timeline.finish(Disposition.EXTERNAL_WAIT)
+    return world, profile, stale
+
+
+def build_joined_scoped_drop_ack_loss_artifact(dsn: str) -> ScenarioArtifactV3:
+    world, _, _ = execute_joined_scoped_drop_ack_loss_story(dsn)
+    try:
+        artifact = world.artifact(SCOPED_DROP_ACK_LOSS_SCENARIO_ID)
         assert isinstance(artifact, ScenarioArtifactV3)
         return artifact
     finally:
