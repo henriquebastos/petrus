@@ -1,8 +1,8 @@
 ---
 code: CV19.DS3
 level: Delivery Story
-status: Active
-status_reason: TS1 and TS2 now generate and exactly replay both identified-delivery and complete cross-layer public-Engine schedules; TS3 is active on fair convergence, shrinking, failure promotion, and semantic coverage before DS3 closes
+status: Done
+status_reason: Three Technical Stories now provide broad/focused generated schedules, independent continuous safety checks, fair-liveness classification, exact failed-attempt shrinking/replay, a promoted minimized regression, and retained semantic coverage
 updated: 2026-08-19
 related:
   - index.md
@@ -59,9 +59,12 @@ sophisticated generator or a mirrored fake to define correctness by accident.
    continuous detached checkers exercise all eight applicable CV19 safety
    families and explicit profile resources.
 3. [CV19.DS3.TS3 — Fair shrinking and semantic coverage](cv19-ds3-ts3-fair-shrinking-and-semantic-coverage.md)
-   is Active. It qualifies fair convergence, generated-failure shrinking and
-   promotion, broad-generator blind-spot resistance, and durable semantic
-   coverage reporting.
+   is Done. A safety-preserving test-only livelock mutation proves exact v4
+   failed-attempt replay and Hypothesis reduction; the unmutated minimized
+   schedule is a retained green replay. Explicit fair quiescence, external
+   wait, inadequate declaration, exhaustion, quarantine, and livelock evidence
+   remain distinct, while a versioned semantic report records reached and
+   excluded dimensions plus a broad-only retry/reset combination.
 
 ## Acceptance / Done condition
 

@@ -42,8 +42,14 @@ redelivery, logical timers, Activity retry/terminal projection, lifecycle
 reset and late-terminal fencing, abrupt reload, and paired Dispatch/History
 faults. Broad and focused state machines continuously exercise all eight
 applicable safety families and replay current-v4 artifacts from fresh objects.
-Fair liveness, shrinking, semantic coverage, and campaign qualification
-remain.
+DS3 now separately qualifies fair quiescence, external prerequisites,
+inadequate fair declarations, bounded exhaustion, quarantine, and
+safety-preserving livelock. A test-only rescheduling mutation produces an exact
+v4 budget-failure artifact which Hypothesis reduces and replay reproduces; the
+same unmutated expanded schedule is retained as a green regression. A versioned
+semantic-coverage report records reached, broad-only, unreachable, and
+intentionally ungenerated dimensions. Bounded campaign operations and
+production-boundary qualification remain with DS4.
 
 This document owns Petrus's deterministic simulation testing (DST) contract.
 DST drives the production `Engine`, `Coordinator`, `Instance`, `HistoryStore`,
@@ -103,9 +109,13 @@ Promote a counterexample to `tests/dst/fixtures/` only after minimizing it
 without removing the failing property or consequential cut. Retain strict
 profile/version, commit/runtime/dependency provenance, original seed, shrink
 lineage, expanded schedule, bounds, and exact expectations; pair it with an
-ordinary deterministic replay test. Generated shrinking remains DS3-owned,
-and promoting an internal artifact does not change the public
-`implementation-free-v1` contract.
+ordinary deterministic replay test. The expanded artifact is replay authority.
+When the active strict format does not carry all discovery lineage, preserve
+the missing commit, dependency, property, and before/after shrink metadata in
+the story's tracked promotion/worklog record rather than widening the format
+silently. Generated shrinking is now qualified by DS3, and promoting an
+internal artifact does not change the public `implementation-free-v1`
+contract.
 
 Production correctness must never depend on Python `assert`, which optimized
 Python may remove. Use explicit validation, refusal, or failure paths for
@@ -521,8 +531,9 @@ Petrus's correctness evidence rests on four composable facts:
    collaborators rather than retained live objects [E];
 3. independent checkers compare each bounded execution and fresh replay to
    safety and fair-liveness obligations [contract above]; and
-4. exact seed-addressed artifacts turn every discovered counterexample into a
-   deterministic regression rather than a transcript [planned by CV19.DS2/DS3].
+4. exact expanded artifacts turn discovered counterexamples into deterministic
+   regressions rather than transcripts; seeds remain discovery metadata, not
+   replay authority [E].
 
 This is an evidence program, not a claim that arbitrary application code,
 external providers, or unbounded executions are correct. The confidence grows

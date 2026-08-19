@@ -49,13 +49,13 @@ and no live provider or multi-host support is claimed.
   redelivery, provider-terminal recollection, and converged-state
   reconstruction.
   Petrus owns the reusable substrate; applications such as Hamsterdan own their
-  domain models and provider fault worlds. DS3 is Active for stateful
-  generation, broad independent checkers, shrinking, and falsification. Its
-  complete cross-layer public-Engine profile now generates and exactly replays
-  delivery, timer, Activity/retry, lifecycle, crash/load, Dispatch-refusal, and
-  projection-refusal schedules under all eight applicable safety families;
-  fair convergence, minimized failure promotion, and semantic coverage remain
-  active before DS3 closes.
+  domain models and provider fault worlds. DS3 is Done: its cross-layer
+  public-Engine profile generates and exactly replays delivery, timer,
+  Activity/retry, lifecycle, crash/load, Dispatch-refusal, and
+  projection-refusal schedules under all eight applicable safety families,
+  then separately qualifies fair convergence, minimized failure replay and
+  promotion, and semantic coverage. DS4 is Active for bounded campaign
+  operations and complementary real-backend, process, and transport evidence.
 
 Application-specific and site-operation plans are not part of this source
 tree.

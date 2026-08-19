@@ -1144,8 +1144,21 @@ def execute_generated_runtime_story(
     return world, profile
 
 
-def build_generated_runtime_artifact(history_path: Path, dispatch_path: Path) -> ScenarioArtifact:
-    world, _ = execute_generated_runtime_story(history_path, dispatch_path)
+def build_generated_runtime_artifact(
+    history_path: Path,
+    dispatch_path: Path,
+    *,
+    first_value: int = 3,
+    second_value: int = 7,
+    retry_error: str = "generated retry",
+) -> ScenarioArtifact:
+    world, _ = execute_generated_runtime_story(
+        history_path,
+        dispatch_path,
+        first_value=first_value,
+        second_value=second_value,
+        retry_error=retry_error,
+    )
     try:
         artifact = world.artifact(SCENARIO_ID)
         assert isinstance(artifact, ScenarioArtifact)

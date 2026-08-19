@@ -1,9 +1,9 @@
 ---
 code: CV19.DS4
 level: Delivery Story
-status: Planned
-status_reason: DST does not yet have bounded CI operations, retained failure artifacts, or a qualified relationship with real Petrus backends and transports
-updated: 2026-08-17
+status: Active
+status_reason: DS3 now supplies generated safety/fair-liveness, shrinking, promotion, and semantic-coverage evidence; DS4 owns bounded campaign operations and the remaining real-backend, process, and transport qualification
+updated: 2026-08-19
 related:
   - index.md
   - cv19-ds3-stateful-generation-and-independent-checkers.md

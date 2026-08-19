@@ -22,6 +22,7 @@ from tests.dst.engine_world import (
     ResourceBoundedEngineProfile,
     TerminalRefusalChecker,
 )
+from tests.dst.generated_runtime_world import GeneratedRuntimeAuthorityChecker, GeneratedRuntimeProfile
 from tests.dst.lifecycle_world import (
     CancellationAuthorityChecker,
     LifecycleAuthorityChecker,
@@ -49,6 +50,12 @@ def replay_path(path: Path):
         registry.register_profile(HistoryAckLossEngineProfile(Path(directory) / "history-ack-loss.jsonl"))
         registry.register_profile(HistoryRefusalEngineProfile(Path(directory) / "history-refusal.jsonl"))
         registry.register_profile(ResourceBoundedEngineProfile(Path(directory) / "resource-history.jsonl"))
+        registry.register_profile(
+            GeneratedRuntimeProfile(
+                Path(directory) / "generated-runtime-history.jsonl",
+                Path(directory) / "generated-runtime-dispatch.db",
+            )
+        )
         registry.register_profile(
             LifecycleCancellationRefusalProfile(Path(directory) / "lifecycle-cancellation-history.jsonl")
         )
@@ -80,6 +87,7 @@ def replay_path(path: Path):
         registry.register_checker(DispatchAuthorityChecker())
         registry.register_checker(DelayedRetryAuthorityChecker())
         registry.register_checker(EngineHistoryChecker())
+        registry.register_checker(GeneratedRuntimeAuthorityChecker())
         registry.register_checker(LifecycleAuthorityChecker())
         registry.register_checker(RetryAuthorityChecker())
         registry.register_checker(TerminalAuthorityChecker())

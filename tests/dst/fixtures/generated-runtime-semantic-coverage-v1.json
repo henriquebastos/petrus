@@ -1,0 +1,117 @@
+{
+  "broad_only": [
+    "retry-then-reset-before-terminal"
+  ],
+  "checker": {
+    "digest": "sha256:060290886e0a3a7501f5744c478de5a3269cd305e20cee28ed07692aed57501e",
+    "name": "petrus.engine.generated-runtime-authority",
+    "version": 1
+  },
+  "format": "petrus-dst-semantic-coverage",
+  "intentionally_ungenerated": [
+    {
+      "dimension": "conflicting-identified-redelivery",
+      "owner": "retained DS2 identified-ingress profile"
+    },
+    {
+      "dimension": "permanent-fault-during-fair-phase",
+      "owner": "excluded by the CV19 fair-environment precondition"
+    },
+    {
+      "dimension": "postgresql-absurd-transaction-boundaries",
+      "owner": "CV19.DS4 production-boundary qualification"
+    },
+    {
+      "dimension": "application-human-or-provider-prerequisite",
+      "owner": "application scenario profile, not Petrus's generic profile"
+    }
+  ],
+  "profile": {
+    "digest": "sha256:faeb7373e2c70a936abf70e8c484c045c747706ef75f86bc8ad2b76b8a02d08e",
+    "name": "petrus.engine.generated-runtime",
+    "version": 1
+  },
+  "reached": {
+    "boundaries": [
+      "action:applied",
+      "action:idempotent",
+      "action:refused_expected",
+      "logical-time:deadline",
+      "source-value:negative",
+      "source-value:positive",
+      "source-value:zero",
+      "worker-epoch:1",
+      "worker-epoch:2"
+    ],
+    "checker_activations": [
+      "crash:generated_dispatch_refused",
+      "crash:generated_projection_refused",
+      "create",
+      "engine.drive",
+      "fault:dispatch.refuse",
+      "fault:history.refuse",
+      "load",
+      "scope.open",
+      "scope.reset",
+      "source.deliver",
+      "worker.claim",
+      "worker.complete",
+      "worker.fail"
+    ],
+    "crash_cuts": [
+      "generated_dispatch_refused",
+      "generated_projection_refused"
+    ],
+    "events": [
+      "engine.drive",
+      "scope.open",
+      "scope.reset",
+      "source.deliver",
+      "worker.claim",
+      "worker.complete",
+      "worker.fail"
+    ],
+    "faults": [
+      "dispatch.refuse@activity_requested",
+      "history.refuse@projection_committed"
+    ],
+    "lifecycle": [
+      "abrupt-crash",
+      "fresh-load",
+      "scope-open",
+      "scope-reset"
+    ],
+    "recoveries": [
+      "generated_dispatch_refused->fresh-load",
+      "generated_projection_refused->fresh-load"
+    ],
+    "terminals": [
+      "external_wait",
+      "late-terminal-quarantined",
+      "provider-completed",
+      "retry-claimed",
+      "retryable-failure",
+      "semantic-projection-completed",
+      "timer-matured"
+    ]
+  },
+  "scenarios": [
+    "generated-runtime-cross-layer-world-v4",
+    "generated-runtime-broad-retry-reset-v4"
+  ],
+  "unreachable": [
+    {
+      "dimension": "authored-external-wait-after-fair-begin",
+      "reason": "World rejects this disposition after the fair declaration"
+    },
+    {
+      "dimension": "stale-generation-authored-command",
+      "reason": "generation revocation rejects the old Timeline before profile application"
+    },
+    {
+      "dimension": "worker-attempt-epoch-three",
+      "reason": "the profile's two-attempt policy and closed command schema refuse a third epoch"
+    }
+  ],
+  "version": 1
+}
