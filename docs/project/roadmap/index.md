@@ -41,8 +41,9 @@ and no live provider or multi-host support is claimed.
   supported executable World now retains exact failures, seeded provenance,
   public-Engine crash/cut replays, versioned profile-resource bounds, and real
   Absurd/PostgreSQL initial creation, identified delivery, begin,
-  completed/failed terminal, projection, and lifecycle open/reset/close/cancellation
-  refusal/acknowledgement-loss qualification, including exact ingress
+  completed/failed terminal, successful/failed projection, and lifecycle
+  open/reset/close/cancellation refusal/acknowledgement-loss qualification,
+  including exact ingress
   redelivery, provider-terminal recollection, and converged-state
   reconstruction.
   Petrus owns the reusable substrate; applications such as Hamsterdan own their

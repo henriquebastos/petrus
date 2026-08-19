@@ -71,6 +71,8 @@ TERMINAL_REFUSAL_SCENARIO_ID = "joined-terminal-commit-refusal-world-v3"
 TERMINAL_ACK_LOSS_SCENARIO_ID = "joined-terminal-ack-loss-world-v3"
 FAILURE_REFUSAL_SCENARIO_ID = "joined-failure-commit-refusal-world-v3"
 FAILURE_ACK_LOSS_SCENARIO_ID = "joined-failure-ack-loss-world-v3"
+FAILURE_PROJECTION_REFUSAL_SCENARIO_ID = "joined-failure-projection-commit-refusal-world-v3"
+FAILURE_PROJECTION_ACK_LOSS_SCENARIO_ID = "joined-failure-projection-ack-loss-world-v3"
 RESET_REFUSAL_SCENARIO_ID = "joined-reset-commit-refusal-world-v3"
 RESET_ACK_LOSS_SCENARIO_ID = "joined-reset-ack-loss-world-v3"
 CLOSE_REFUSAL_SCENARIO_ID = "joined-close-commit-refusal-world-v3"
@@ -328,6 +330,44 @@ FAILURE_ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
             ],
             "provider": "petrus.engine.absurd",
             "property": "an accepted ActivityFailed survives loss of its commit acknowledgement",
+            "queue": QUEUE,
+        }
+    ),
+)
+FAILURE_PROJECTION_REFUSAL_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.joined-failure-projection-commit-refusal",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": ["engine.drive", "worker.claim", "worker.fail"],
+            "fault": {"disposition": "refuse", "name": "history.commit-refuse", "target": "firing_failed"},
+            "instance": INSTANCE_ID,
+            "observations": [
+                "engine.joined-failure-projection-authority",
+                "joined-failure-projection-refused",
+                "joined-failure-projection-recovered",
+            ],
+            "provider": "petrus.engine.absurd",
+            "property": "accepted ActivityFailed survives refusal and fresh-load repair of FiringFailed",
+            "queue": QUEUE,
+        }
+    ),
+)
+FAILURE_PROJECTION_ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
+    name="petrus.engine.joined-failure-projection-ack-loss",
+    version=1,
+    digest=digest_json(
+        {
+            "commands": ["engine.drive", "worker.claim", "worker.fail"],
+            "fault": {"disposition": "raise", "name": "history.lose-ack", "target": "firing_failed_committed"},
+            "instance": INSTANCE_ID,
+            "observations": [
+                "engine.joined-accepted-failure-projection-authority",
+                "joined-failure-projection-ack-lost",
+                "joined-failure-projection-ack-recovered",
+            ],
+            "provider": "petrus.engine.absurd",
+            "property": "accepted FiringFailed survives loss of its commit acknowledgement without duplication",
             "queue": QUEUE,
         }
     ),
@@ -626,6 +666,18 @@ FAILURE_ACK_LOSS_CHECKER_IDENTITY = CheckerIdentity(
     digest=digest_json(
         {"property": ("an acknowledgement-lost ActivityFailed remains singular and authorizes one FiringFailed")}
     ),
+)
+FAILURE_PROJECTION_REFUSAL_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.joined-failure-projection-authority",
+    version=1,
+    digest=digest_json(
+        {"property": "one accepted ActivityFailed authorizes one FiringFailed after projection refusal"}
+    ),
+)
+FAILURE_PROJECTION_ACK_LOSS_CHECKER_IDENTITY = CheckerIdentity(
+    name="petrus.engine.joined-accepted-failure-projection-authority",
+    version=1,
+    digest=digest_json({"property": "an acknowledgement-lost FiringFailed remains singular after fresh load"}),
 )
 RESET_REFUSAL_CHECKER_IDENTITY = CheckerIdentity(
     name="petrus.engine.joined-reset-refusal-authority",
@@ -950,7 +1002,9 @@ class JoinedFaultConnection:
         activity_terminal = any(
             name in self._record_types for name in (ActivityCompleted.__name__, ActivityFailed.__name__)
         )
-        projection_completed = FiringCompleted.__name__ in self._record_types
+        projection_completed = any(
+            record in self._record_types for record in (FiringCompleted.__name__, FiringFailed.__name__)
+        )
         scope_reset = ScopeReset.__name__ in self._record_types
         scope_close = ScopeClosed.__name__ in self._record_types
         scope_open = self._track_scope_open and ScopeOpened.__name__ in self._record_types
@@ -982,7 +1036,7 @@ class JoinedFaultConnection:
             self._attempts.append(self._attempt(False))
             self._terminal_refused()
             raise OSError(message)
-        if FiringCompleted.__name__ in self._record_types and self._projection_refusal is not None:
+        if projection_completed and self._projection_refusal is not None:
             message = self._projection_refusal
             self._projection_refusal = None
             self._attempts.append(self._attempt(False))
@@ -1914,6 +1968,78 @@ class JoinedFailureAckLossProfile(JoinedFailureRefusalProfile):
 
     def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
         generation.connection.lose_activity_terminal_commit_ack(message)
+
+
+class JoinedFailureProjectionRefusalProfile(JoinedFailureRefusalProfile):
+    """Public Absurd profile refusing FiringFailed after accepted ActivityFailed."""
+
+    identity = FAILURE_PROJECTION_REFUSAL_PROFILE_IDENTITY
+    fault_target = "firing_failed"
+    refused_observation = "joined-failure-projection-refused"
+    recovered_observation = "joined-failure-projection-recovered"
+    refusal_field = "projection_refusals"
+
+    def observe(
+        self,
+        generation: JoinedGeneration,
+        request: ObservationRequest,
+        context: ScenarioContext,
+    ) -> JsonValue:
+        if request.name == "engine.joined-failure-projection-authority":
+            if request.payload not in (None, {}):
+                raise ValueError("joined failure-projection authority observation does not accept parameters")
+            state = self._observation_state(generation)
+            fields = (
+                "durable_tasks",
+                "prepare_calls",
+                "projection_refusals",
+                "record_types",
+                "transaction_attempts",
+                "worker_failures",
+            )
+            return {field: state[field] for field in fields}
+        value = cast(dict[str, JsonValue], super().observe(generation, request, context))
+        return {**value, "projection_refusals": self.projection_refusals}
+
+    def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
+        generation.connection.refuse_projection_commit(message)
+
+
+class JoinedFailureProjectionAckLossProfile(JoinedFailureProjectionRefusalProfile):
+    """Public Absurd profile losing acknowledgement after FiringFailed acceptance."""
+
+    identity = FAILURE_PROJECTION_ACK_LOSS_PROFILE_IDENTITY
+    fault_name = "history.lose-ack"
+    fault_target = "firing_failed_committed"
+    fault_disposition = FaultDisposition.RAISE
+    refused_observation = "joined-failure-projection-ack-lost"
+    recovered_observation = "joined-failure-projection-ack-recovered"
+    refusal_field = "projection_ack_losses"
+
+    def observe(
+        self,
+        generation: JoinedGeneration,
+        request: ObservationRequest,
+        context: ScenarioContext,
+    ) -> JsonValue:
+        if request.name == "engine.joined-accepted-failure-projection-authority":
+            if request.payload not in (None, {}):
+                raise ValueError("joined accepted failure-projection authority observation does not accept parameters")
+            state = self._observation_state(generation)
+            fields = (
+                "durable_tasks",
+                "prepare_calls",
+                "projection_ack_losses",
+                "record_types",
+                "transaction_attempts",
+                "worker_failures",
+            )
+            return {field: state[field] for field in fields}
+        value = cast(dict[str, JsonValue], super().observe(generation, request, context))
+        return {**value, "projection_ack_losses": self.projection_ack_losses}
+
+    def _arm_refusal(self, generation: JoinedGeneration, message: str) -> None:
+        generation.connection.lose_projection_commit_ack(message)
 
 
 class JoinedTerminalAckLossProfile(JoinedProjectionProfile):
@@ -2958,6 +3084,101 @@ class JoinedAcceptedFailureAuthorityChecker:
                 "worker_failures": worker_failures,
             },
         )
+
+
+def _check_failure_projection(observation: Observation, *, acknowledgement_loss: bool) -> CheckResult:
+    value = cast(dict[str, JsonValue], observation.value)
+    records = cast(list[JsonValue], value["record_types"])
+    attempts = cast(list[dict[str, JsonValue]], value["transaction_attempts"])
+    tasks = cast(list[dict[str, JsonValue]], value["durable_tasks"])
+    begin = {
+        "accepted": True,
+        "dispatch_attempted": True,
+        "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
+    }
+    failure = {
+        "accepted": True,
+        "dispatch_attempted": False,
+        "record_types": ["ActivityFailed"],
+    }
+    projection_refused = {
+        "accepted": False,
+        "dispatch_attempted": False,
+        "record_types": ["FiringFailed"],
+    }
+    projection_accepted = {**projection_refused, "accepted": True}
+    if acknowledgement_loss:
+        attempts_exact = attempts in ([], [begin], [begin, failure], [begin, failure, projection_accepted])
+    else:
+        attempts_exact = attempts in (
+            [],
+            [begin],
+            [begin, failure],
+            [begin, failure, projection_refused],
+            [begin, failure, projection_refused, projection_accepted],
+        )
+    accepted_begins = attempts.count(begin)
+    accepted_failures = attempts.count(failure)
+    refused_projections = attempts.count(projection_refused)
+    accepted_projections = attempts.count(projection_accepted)
+    expected_key = f"{INSTANCE_ID}:occurrence-1"
+    tasks_exact = tasks == [] or tasks in (
+        [{"idempotency": expected_key, "state": "pending"}],
+        [{"idempotency": expected_key, "state": "running"}],
+        [{"idempotency": expected_key, "state": "failed"}],
+    )
+    failed_custody = tasks == [{"idempotency": expected_key, "state": "failed"}]
+    fault_count = cast(int, value["projection_ack_losses" if acknowledgement_loss else "projection_refusals"])
+    fault_exact = (
+        0 <= fault_count <= accepted_projections if acknowledgement_loss else fault_count == refused_projections <= 1
+    )
+    passed = (
+        attempts_exact
+        and records.count(CandidateSelected.__name__)
+        == records.count(FiringBegun.__name__)
+        == records.count(ActivityRequested.__name__)
+        == accepted_begins
+        == len(tasks)
+        and cast(int, value["prepare_calls"]) == accepted_begins
+        and records.count(ActivityFailed.__name__) == accepted_failures <= cast(int, value["worker_failures"]) <= 1
+        and records.count(FiringFailed.__name__) == accepted_projections <= accepted_failures
+        and records.count(FiringCompleted.__name__) == records.count(TokensProduced.__name__) == 0
+        and failed_custody == (cast(int, value["worker_failures"]) == 1)
+        and tasks_exact
+        and fault_exact
+    )
+    return CheckResult(
+        passed=passed,
+        detail={
+            "accepted_failures": accepted_failures,
+            "accepted_projections": accepted_projections,
+            "attempts_exact": attempts_exact,
+            "canonical_projections": records.count(FiringFailed.__name__),
+            "failed_custody": failed_custody,
+            "fault_count": fault_count,
+            "refused_projections": refused_projections,
+        },
+    )
+
+
+class JoinedFailureProjectionAuthorityChecker:
+    """Independent failed-projection authority from PostgreSQL and Worker facts."""
+
+    identity = FAILURE_PROJECTION_REFUSAL_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.joined-failure-projection-authority", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        return _check_failure_projection(observation, acknowledgement_loss=False)
+
+
+class JoinedAcceptedFailureProjectionAuthorityChecker:
+    """Independent accepted failed-projection authority from durable facts."""
+
+    identity = FAILURE_PROJECTION_ACK_LOSS_CHECKER_IDENTITY
+    request = ObservationRequest(name="engine.joined-accepted-failure-projection-authority", payload={})
+
+    def check(self, observation: Observation) -> CheckResult:
+        return _check_failure_projection(observation, acknowledgement_loss=True)
 
 
 class JoinedAcceptedTerminalAuthorityChecker:
@@ -5055,6 +5276,114 @@ def build_joined_open_ack_loss_artifact(dsn: str) -> ScenarioArtifactV3:
     world, _, _ = execute_joined_open_ack_loss_story(dsn)
     try:
         artifact = world.artifact(OPEN_ACK_LOSS_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_joined_failure_projection_refusal_story(
+    dsn: str,
+) -> tuple[World, JoinedFailureProjectionRefusalProfile, Timeline]:
+    """Accept ActivityFailed, refuse FiringFailed, then repair it once after load."""
+
+    profile = JoinedFailureProjectionRefusalProfile(dsn)
+    world = World(profile, WORLD_BUDGET, checkers=(JoinedFailureProjectionAuthorityChecker(),))
+    timeline = world.timeline()
+    timeline.command("engine.drive", {})
+    timeline.command("worker.claim", {})
+    timeline.command("worker.fail", {"error": "dst joined terminal failure"})
+    timeline.activate_fault(
+        "history.commit-refuse",
+        "firing_failed",
+        disposition=FaultDisposition.REFUSE,
+        payload={"message": "dst joined failed projection commit refused"},
+    )
+    timeline.command("engine.drive", {})
+    refused = cast(dict[str, JsonValue], timeline.observe("joined-failure-projection-refused").value)
+    assert refused["record_types"][-1] == ActivityFailed.__name__
+    assert FiringFailed.__name__ not in cast(list[JsonValue], refused["record_types"])
+    assert refused["frontier"] == 7
+    assert refused["projection_refusals"] == refused["worker_failures"] == 1
+
+    stale = timeline
+    timeline.crash("joined_failure_projection_commit_refused")
+    world.restart()
+    timeline = world.timeline()
+    recovered = timeline.run_until(
+        "joined-failure-projection-recovered",
+        lambda observation: (
+            FiringFailed.__name__
+            in cast(list[JsonValue], cast(dict[str, JsonValue], observation.value)["record_types"])
+        ),
+    )
+    recovered_value = cast(dict[str, JsonValue], recovered.value)
+    assert recovered_value["frontier"] == 8
+    assert cast(list[JsonValue], recovered_value["record_types"])[-2:] == [
+        ActivityFailed.__name__,
+        FiringFailed.__name__,
+    ]
+    assert recovered_value["transaction_attempts"][-2:] == [
+        {"accepted": False, "dispatch_attempted": False, "record_types": ["FiringFailed"]},
+        {"accepted": True, "dispatch_attempted": False, "record_types": ["FiringFailed"]},
+    ]
+    timeline.finish(Disposition.QUARANTINED)
+    return world, profile, stale
+
+
+def build_joined_failure_projection_refusal_artifact(dsn: str) -> ScenarioArtifactV3:
+    world, _, _ = execute_joined_failure_projection_refusal_story(dsn)
+    try:
+        artifact = world.artifact(FAILURE_PROJECTION_REFUSAL_SCENARIO_ID)
+        assert isinstance(artifact, ScenarioArtifactV3)
+        return artifact
+    finally:
+        world.close()
+
+
+def execute_joined_failure_projection_ack_loss_story(
+    dsn: str,
+) -> tuple[World, JoinedFailureProjectionAckLossProfile, Timeline]:
+    """Lose accepted FiringFailed acknowledgement, then load exact terminal truth."""
+
+    profile = JoinedFailureProjectionAckLossProfile(dsn)
+    world = World(profile, WORLD_BUDGET, checkers=(JoinedAcceptedFailureProjectionAuthorityChecker(),))
+    timeline = world.timeline()
+    timeline.command("engine.drive", {})
+    timeline.command("worker.claim", {})
+    timeline.command("worker.fail", {"error": "dst joined terminal failure"})
+    timeline.activate_fault(
+        "history.lose-ack",
+        "firing_failed_committed",
+        disposition=FaultDisposition.RAISE,
+        payload={"message": "dst joined failed projection acknowledgement lost"},
+    )
+    timeline.command("engine.drive", {})
+    lost = cast(dict[str, JsonValue], timeline.observe("joined-failure-projection-ack-lost").value)
+    assert lost["frontier"] == 8
+    assert cast(list[JsonValue], lost["record_types"])[-2:] == [ActivityFailed.__name__, FiringFailed.__name__]
+    assert lost["projection_ack_losses"] == lost["worker_failures"] == 1
+
+    stale = timeline
+    timeline.crash("joined_failure_projection_committed_ack_lost")
+    world.restart()
+    timeline = world.timeline()
+    recovered = timeline.run_until(
+        "joined-failure-projection-ack-recovered",
+        lambda observation: cast(dict[str, JsonValue], observation.value)["drive_calls"] == 3,
+    )
+    recovered_value = cast(dict[str, JsonValue], recovered.value)
+    assert recovered_value["frontier"] == 8
+    assert recovered_value["record_types"] == lost["record_types"]
+    assert recovered_value["transaction_attempts"] == lost["transaction_attempts"]
+    timeline.finish(Disposition.QUARANTINED)
+    return world, profile, stale
+
+
+def build_joined_failure_projection_ack_loss_artifact(dsn: str) -> ScenarioArtifactV3:
+    world, _, _ = execute_joined_failure_projection_ack_loss_story(dsn)
+    try:
+        artifact = world.artifact(FAILURE_PROJECTION_ACK_LOSS_SCENARIO_ID)
         assert isinstance(artifact, ScenarioArtifactV3)
         return artifact
     finally:

@@ -26,6 +26,8 @@ from tests.dst.joined_world import (
     DELIVERY_REFUSAL_SCENARIO_ID,
     DISPATCH_SCENARIO_ID,
     FAILURE_ACK_LOSS_SCENARIO_ID,
+    FAILURE_PROJECTION_ACK_LOSS_SCENARIO_ID,
+    FAILURE_PROJECTION_REFUSAL_SCENARIO_ID,
     FAILURE_REFUSAL_SCENARIO_ID,
     PROJECTION_ACK_LOSS_SCENARIO_ID,
     PROJECTION_SCENARIO_ID,
@@ -55,8 +57,12 @@ from tests.dst.joined_world import (
     JoinedDeliveryRefusalProfile,
     JoinedDispatchProfile,
     JoinedAcceptedFailureAuthorityChecker,
+    JoinedAcceptedFailureProjectionAuthorityChecker,
     JoinedFailureAckLossProfile,
     JoinedFailureAuthorityChecker,
+    JoinedFailureProjectionAckLossProfile,
+    JoinedFailureProjectionAuthorityChecker,
+    JoinedFailureProjectionRefusalProfile,
     JoinedFailureRefusalProfile,
     JoinedAcceptedResetAuthorityChecker,
     JoinedProjectionAuthorityChecker,
@@ -81,6 +87,8 @@ from tests.dst.joined_world import (
     build_joined_delivery_ack_loss_artifact,
     build_joined_delivery_refusal_artifact,
     build_joined_failure_ack_loss_artifact,
+    build_joined_failure_projection_ack_loss_artifact,
+    build_joined_failure_projection_refusal_artifact,
     build_joined_failure_refusal_artifact,
     build_joined_projection_ack_loss_artifact,
     build_joined_projection_artifact,
@@ -95,6 +103,8 @@ FIXTURE = Path("tests/dst/fixtures/joined-begin-commit-refusal-world-v3.json")
 DISPATCH_FIXTURE = Path("tests/dst/fixtures/joined-dispatch-refusal-world-v3.json")
 FAILURE_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-failure-ack-loss-world-v3.json")
 FAILURE_REFUSAL_FIXTURE = Path("tests/dst/fixtures/joined-failure-commit-refusal-world-v3.json")
+FAILURE_PROJECTION_REFUSAL_FIXTURE = Path("tests/dst/fixtures/joined-failure-projection-commit-refusal-world-v3.json")
+FAILURE_PROJECTION_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-failure-projection-ack-loss-world-v3.json")
 PROJECTION_FIXTURE = Path("tests/dst/fixtures/joined-projection-commit-refusal-world-v3.json")
 PROJECTION_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-projection-ack-loss-world-v3.json")
 RESET_ACK_LOSS_FIXTURE = Path("tests/dst/fixtures/joined-reset-ack-loss-world-v3.json")
@@ -541,6 +551,120 @@ def test_retained_joined_failure_ack_loss_replays_without_the_authored_scenario(
     assert result.scenario_id == FAILURE_ACK_LOSS_SCENARIO_ID
     assert result.outcome == "pass"
     assert result.disposition == Disposition.QUARANTINED.value
+
+
+def test_joined_failure_projection_refusal_is_exact_and_replayable(absurd_dsn: str) -> None:
+    with isolated_absurd_database(absurd_dsn) as authored_dsn:
+        artifact = build_joined_failure_projection_refusal_artifact(authored_dsn)
+
+    assert artifact.scenario_id == FAILURE_PROJECTION_REFUSAL_SCENARIO_ID
+    assert artifact.origin is None
+    assert encode_artifact(artifact) == FAILURE_PROJECTION_REFUSAL_FIXTURE.read_bytes().rstrip(b"\n")
+
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedFailureProjectionRefusalProfile(replay_dsn))
+        registry.register_checker(JoinedFailureProjectionAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.QUARANTINED.value
+
+
+def test_retained_joined_failure_projection_refusal_replays_without_authored_scenario(absurd_dsn: str) -> None:
+    artifact = load_artifact(FAILURE_PROJECTION_REFUSAL_FIXTURE)
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedFailureProjectionRefusalProfile(replay_dsn))
+        registry.register_checker(JoinedFailureProjectionAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.scenario_id == FAILURE_PROJECTION_REFUSAL_SCENARIO_ID
+    assert result.outcome == "pass"
+
+
+def test_joined_failure_projection_ack_loss_is_exact_and_replayable(absurd_dsn: str) -> None:
+    with isolated_absurd_database(absurd_dsn) as authored_dsn:
+        artifact = build_joined_failure_projection_ack_loss_artifact(authored_dsn)
+
+    assert artifact.scenario_id == FAILURE_PROJECTION_ACK_LOSS_SCENARIO_ID
+    assert artifact.origin is None
+    assert encode_artifact(artifact) == FAILURE_PROJECTION_ACK_LOSS_FIXTURE.read_bytes().rstrip(b"\n")
+
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedFailureProjectionAckLossProfile(replay_dsn))
+        registry.register_checker(JoinedAcceptedFailureProjectionAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.outcome == "pass"
+    assert result.disposition == Disposition.QUARANTINED.value
+
+
+def test_retained_joined_failure_projection_ack_loss_replays_without_authored_scenario(absurd_dsn: str) -> None:
+    artifact = load_artifact(FAILURE_PROJECTION_ACK_LOSS_FIXTURE)
+    with isolated_absurd_database(absurd_dsn) as replay_dsn:
+        registry = ScenarioRegistry()
+        registry.register_profile(JoinedFailureProjectionAckLossProfile(replay_dsn))
+        registry.register_checker(JoinedAcceptedFailureProjectionAuthorityChecker())
+        result = replay(artifact, registry)
+
+    assert result.scenario_id == FAILURE_PROJECTION_ACK_LOSS_SCENARIO_ID
+    assert result.outcome == "pass"
+
+
+def test_joined_failure_projection_checkers_reject_phantom_and_unaccepted_ack_loss() -> None:
+    begin = {
+        "accepted": True,
+        "dispatch_attempted": True,
+        "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
+    }
+    failure = {"accepted": True, "dispatch_attempted": False, "record_types": ["ActivityFailed"]}
+    base = {
+        "durable_tasks": [{"idempotency": "dst-world-joined-begin-refusal:occurrence-1", "state": "failed"}],
+        "prepare_calls": 1,
+        "record_types": [
+            "InstanceCreated",
+            "TokensInitialized",
+            "CandidateSelected",
+            "FiringBegun",
+            "TokensConsumed",
+            "ActivityRequested",
+            "ActivityFailed",
+        ],
+        "transaction_attempts": [begin, failure],
+        "worker_failures": 1,
+    }
+    phantom = Observation(
+        name="engine.joined-failure-projection-authority",
+        value={
+            **base,
+            "projection_refusals": 1,
+            "record_types": [*base["record_types"], "FiringFailed"],
+            "transaction_attempts": [
+                *base["transaction_attempts"],
+                {"accepted": False, "dispatch_attempted": False, "record_types": ["FiringFailed"]},
+            ],
+        },
+        instant=0,
+        generation=1,
+        sequence=0,
+    )
+    ack_without_acceptance = Observation(
+        name="engine.joined-accepted-failure-projection-authority",
+        value={**base, "projection_ack_losses": 1},
+        instant=0,
+        generation=1,
+        sequence=0,
+    )
+
+    phantom_result = JoinedFailureProjectionAuthorityChecker().check(phantom)
+    missing_result = JoinedAcceptedFailureProjectionAuthorityChecker().check(ack_without_acceptance)
+
+    assert phantom_result.passed is False
+    assert phantom_result.detail["canonical_projections"] == 1
+    assert missing_result.passed is False
+    assert missing_result.detail["fault_count"] == 1
 
 
 def test_joined_accepted_failure_checker_refuses_ack_loss_without_accepted_failure() -> None:

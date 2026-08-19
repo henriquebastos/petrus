@@ -547,6 +547,30 @@ rejects an acknowledgement-loss claim without it. The retained route returns
 checker evaluations, and digest
 `sha256:793402ed31fd80eb63a76c755ef31abdea120f9acb06cdb76cd7c74de6a1c9e1`.
 
+### Joined failed-firing projection transaction pair
+
+[`joined-failure-projection-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-failure-projection-commit-refusal-world-v3.json)
+starts after real Worker failure and accepted `ActivityFailed`, then refuses the
+separate transaction containing `FiringFailed`. Detached PostgreSQL truth
+retains failed provider custody and one canonical terminal failure but no
+failed-firing projection. Fresh public `load_engine` appends `FiringFailed`
+exactly once without another Worker failure, provider recollection, task, or
+handler `prepare`. The retained route has 12 operations, 21 journal entries
+including 9 checker evaluations, disposition `quarantined`, and artifact
+digest
+`sha256:6d73210128cfa3054e2845beda9de4070d9a4e3e31ae3ceb8d5b87af11b8f543`.
+
+[`joined-failure-projection-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-failure-projection-ack-loss-world-v3.json)
+commits `FiringFailed` and loses the transaction acknowledgement. Fresh public
+load reconstructs the already-quarantined state without another projection or
+provider operation. Its retained route has the same operation, checker, and
+journal counts and artifact digest
+`sha256:3324bfb058df3de2f1dda80391b210b5907b13fbd639c916ee13087b2b5a766b`.
+The pair's independent checkers derive authority from accepted/refused
+PostgreSQL transaction facts, failed Absurd custody, and recorded Worker
+failure; mutation checks reject both a phantom projection after refusal and an
+acknowledgement-loss claim without accepted projection authority.
+
 ### Joined terminal and refused projection commit
 
 [`joined-projection-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-projection-commit-refusal-world-v3.json)
@@ -719,9 +743,10 @@ inventing internal state; fresh load must expose the canonical generation.
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. Twenty-one joined-provider profiles now prove paired initial
-creation, identified-delivery, completed-terminal, failed-terminal, projection,
-canonical-open, canonical-reset, and terminal-close commit refusal/acknowledgement loss, plus real joined-begin
+generator. Twenty-three joined-provider profiles now prove paired initial
+creation, identified-delivery, completed-terminal, failed-terminal,
+successful/failed projection, canonical-open, canonical-reset, and
+terminal-close commit refusal/acknowledgement loss, plus real joined-begin
 commit refusal, pre-commit task-spawn failure, post-commit begin acknowledgement
 loss, and both refused and accepted-but-unacknowledged post-reset
 cancellation-tombstone recovery without widening the World contract; the

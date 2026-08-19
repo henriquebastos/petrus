@@ -2,8 +2,8 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 is Done and DS2 now proves split request/cancellation refusal plus paired joined initial-creation, identified-delivery, completed-terminal, failed-terminal, projection, canonical reset, and post-fence cancellation refusal/acknowledgement-loss recovery together with joined begin recovery over real Absurd/PostgreSQL in addition to bounded World v4, process containment, and LocalDispatch provider time; broader cuts and DS3–DS4 remain active
-updated: 2026-08-18
+status_reason: CV19.DS1 is Done and DS2 now proves split request/cancellation refusal plus paired joined initial-creation, identified-delivery, completed-terminal, failed-terminal, successful/failed projection, canonical reset, and post-fence cancellation refusal/acknowledgement-loss recovery together with joined begin recovery over real Absurd/PostgreSQL in addition to bounded World v4, process containment, and LocalDispatch provider time; broader cuts and DS3–DS4 remain active
+updated: 2026-08-19
 related:
   - ../../../../src/petrus/simulation.py
   - ../../../../tests/petrus/impetus/instance/test_instance_replay_properties.py
@@ -215,7 +215,11 @@ the minimized expanded scenario becomes the durable regression fixture.
    twentieth refuses canonical `ScopeOpened`, reconstructs absence, and retries
    generation 1 exactly once. A twenty-first loses the accepted open
    acknowledgement and reconstructs exactly generation 1 without opening
-   generation 2. The broader fault/cut matrix keeps DS2 active.
+   generation 2. A twenty-second refuses the `FiringFailed` projection after
+   accepted `ActivityFailed` and proves fresh load appends it exactly once. A
+   twenty-third loses the accepted `FiringFailed` acknowledgement and proves
+   fresh load does not append another or recollect provider custody. The
+   broader fault/cut matrix keeps DS2 active.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)
    adds broad and targeted workload generation, independent models/checkers,
    shrinking, semantic coverage, and durable replay fixtures.

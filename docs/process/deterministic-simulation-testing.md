@@ -435,8 +435,11 @@ proves fresh load reconstructs terminal scope authority, repairs one task
 tombstone, and fences stale completion. A further pair refuses canonical
 `ScopeOpened` before acceptance or loses its accepted acknowledgement, proving
 fresh load respectively retains absence for a generation-1 retry or
-reconstructs exactly generation 1 without opening generation 2. They do not
-simulate or claim PostgreSQL power
+reconstructs exactly generation 1 without opening generation 2. Another pair
+refuses `FiringFailed` before acceptance or loses its accepted
+acknowledgement, proving fresh load respectively appends the failed firing once
+or recognizes the existing projection without recollecting failed provider
+custody. They do not simulate or claim PostgreSQL power
 loss, transport, or provider-wide fidelity.
 
 ## Correctness position
