@@ -1519,7 +1519,6 @@ class JoinedBeginProfile:
             self._cancellation_ack_lost,
         )
         listener = psycopg.connect(self.dsn, autocommit=True)
-        bridge = JoinedBridge(self._prepared)
         opener = create_engine if create else load_engine
         engine = opener(
             connection,
@@ -1528,9 +1527,12 @@ class JoinedBeginProfile:
             listen=listener,
             default_queue=QUEUE,
             marking=self._marking(create=create),
-            handlers={"bridge": bridge},
+            handlers={"bridge": self._handler()},
         )
         return JoinedGeneration(engine, connection)
+
+    def _handler(self) -> JoinedBridge:
+        return JoinedBridge(self._prepared)
 
     def _net(self) -> Net:
         return application_net()

@@ -2,7 +2,7 @@
 code: CV19
 level: Value
 status: Active
-status_reason: CV19.DS1 is Done and DS2 now proves split request/cancellation refusal plus paired joined token-bearing/source-registration initial creation, identified/stale/future-scope delivery, completed-terminal, failed-terminal, successful/failed projection, canonical reset, and post-fence cancellation refusal/acknowledgement-loss recovery together with joined begin recovery over real Absurd/PostgreSQL in addition to bounded World v4, process containment, and LocalDispatch provider time; broader cuts and DS3–DS4 remain active
+status_reason: CV19.DS1 is Done and DS2 now proves split request/cancellation refusal plus paired joined token-bearing/source-registration initial creation, identified/stale/future-scope delivery, completed-terminal, failed-terminal, successful/failed projection including handler registration effects, canonical reset, and post-fence cancellation refusal/acknowledgement-loss recovery together with joined begin recovery over real Absurd/PostgreSQL in addition to bounded World v4, process containment, and LocalDispatch provider time; broader cuts and DS3–DS4 remain active
 updated: 2026-08-19
 related:
   - ../../../../src/petrus/simulation.py
@@ -231,7 +231,12 @@ the minimized expanded scenario becomes the durable regression fixture.
    proves fresh load observes no instance or registration, and retries creation
    exactly once. A twenty-ninth loses acknowledgement after that source-registration
    batch commits and proves public load reconstructs one armed registration without
-   another creation transaction. The broader fault/cut matrix keeps DS2 active.
+   another creation transaction. A thirtieth refuses a projection containing
+   handler-authored registration close/open effects and proves fresh load
+   applies the replacement exactly once. A thirty-first loses that accepted
+   projection's acknowledgement and proves public load reconstructs only the
+   replacement registration without another projection. The broader fault/cut
+   matrix keeps DS2 active.
 3. [CV19.DS3 — Stateful generation and independent checkers](cv19-ds3-stateful-generation-and-independent-checkers.md)
    adds broad and targeted workload generation, independent models/checkers,
    shrinking, semantic coverage, and durable replay fixtures.

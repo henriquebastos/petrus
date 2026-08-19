@@ -42,7 +42,8 @@ and no live provider or multi-host support is claimed.
   public-Engine crash/cut replays, versioned profile-resource bounds, and real
   Absurd/PostgreSQL token-bearing and source-registration initial creation,
   identified, stale-scope, and future-scope delivery, begin,
-  completed/failed terminal, successful/failed projection, and lifecycle
+  completed/failed terminal, successful/failed projection with handler
+  registration effects, and lifecycle
   open/reset/close/cancellation refusal/acknowledgement-loss qualification,
   including exact ingress
   redelivery, provider-terminal recollection, and converged-state

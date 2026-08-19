@@ -685,6 +685,34 @@ authority. The retained route returns `outcome: "pass"`, `converged`, 12
 operations, 21 journal entries including 9 checker evaluations, and digest
 `sha256:39110a67203cfcaa35ae527bfd9dbbd4a9ed33322b5e4fbf3cd29d5c4e83083d`.
 
+### Joined handler-registration projection transaction pair
+
+[`joined-registration-projection-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-registration-projection-commit-refusal-world-v3.json)
+qualifies an effectful Activity projection which closes the initial
+`source/default` registration and opens `source/replacement`. Production
+prepares `TokensProduced`, `DeliveryRegistrationClosed`,
+`DeliveryRegistrationOpened`, and `FiringCompleted` in one PostgreSQL
+transaction. Refusal leaves the frozen `ActivityCompleted` and completed
+provider custody authoritative while detached History retains only the default
+registration. After abrupt drop, fresh public load retries the deterministic
+projection once and public snapshot exposes only the replacement registration.
+The retained route has 12 operations, 21 journal entries including 9 checker
+evaluations, disposition `external_wait`, and journal digest
+`sha256:7c0d1b65029dd0ac9808b912e154c1df516ac23248efead9b73ebc73a97f906b`.
+
+[`joined-registration-projection-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-registration-projection-ack-loss-world-v3.json)
+commits that same four-record projection batch and loses its acknowledgement.
+Fresh public load reconstructs the replacement registration without another
+projection, Worker completion, or handler preparation. Its retained route has
+the same operation, journal, and checker counts, disposition `external_wait`,
+and journal digest
+`sha256:4b67d89b5c0f1e15daee1d2968617a0805bdfc2eea374ab4ab0872f020b3b22e`.
+The shared independent checker derives expected registration authority from
+accepted/refused transaction and canonical History facts, then compares the
+detached public armed view. Mutation checks reject phantom effects after
+rollback, acknowledgement loss without acceptance, and stale armed state after
+load.
+
 ### Joined lifecycle reset commit refusal
 
 [`joined-reset-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-reset-commit-refusal-world-v3.json)
@@ -819,11 +847,11 @@ inventing internal state; fresh load must expose the canonical generation.
 ## Remaining CV19 scope
 
 Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. Twenty-nine joined-provider profiles now prove paired token-bearing
+generator. Thirty-one joined-provider profiles now prove paired token-bearing
 and source-registration initial creation, identified/stale/future-scope
 delivery, completed-terminal, failed-terminal, successful/failed projection,
-canonical-open, canonical-reset, and terminal-close commit
-refusal/acknowledgement loss, plus real joined-begin
+handler-registration projection effects, canonical-open, canonical-reset, and
+terminal-close commit refusal/acknowledgement loss, plus real joined-begin
 commit refusal, pre-commit task-spawn failure, post-commit begin
 acknowledgement loss, and both refused and accepted-but-unacknowledged post-reset
 cancellation-tombstone recovery without widening the World contract; the
