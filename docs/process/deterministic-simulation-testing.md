@@ -33,7 +33,11 @@ reconstructs an empty delivery door without another seal attempt.
 Version 4 adds deterministic profile-retained-data and hidden-pending-work
 accounting, while outer runner version 1 adds process-isolated wall-clock
 containment with acknowledged-prefix diagnostics. Generation and campaign
-qualification remain.
+qualification remain. DS3's first generated slice now runs broad and focused
+identified-delivery Hypothesis state machines directly under `tests/dst`; every
+successful expanded World schedule replays from fresh profile, checker, and
+Engine objects. Composite cross-layer generation, fair liveness, shrinking,
+semantic coverage, and campaign qualification remain.
 
 This document owns Petrus's deterministic simulation testing (DST) contract.
 DST drives the production `Engine`, `Coordinator`, `Instance`, `HistoryStore`,

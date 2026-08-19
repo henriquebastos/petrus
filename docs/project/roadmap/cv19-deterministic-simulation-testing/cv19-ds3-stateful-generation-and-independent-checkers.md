@@ -2,11 +2,14 @@
 code: CV19.DS3
 level: Delivery Story
 status: Active
-status_reason: CV19.DS2's supported interpreter, strict failure artifacts, process containment, and declared initial cut matrix are Done; DS3 now owns generated cross-layer schedules, broad independent models/checkers, shrinking, and falsification evidence
+status_reason: TS1's broad and focused generated identified-delivery schedules replay exactly through the supported interpreter; TS2 is active on the one-run cross-layer production-Engine campaign
 updated: 2026-08-19
 related:
   - index.md
   - cv19-ds2-deterministic-event-and-fault-harness.md
+  - cv19-ds3-ts1-generated-delivery-schedules.md
+  - cv19-ds3-ts2-cross-layer-stateful-runtime-campaign.md
+  - cv19-ds3-ts3-fair-shrinking-and-semantic-coverage.md
 ---
 
 # CV19.DS3 — Stateful generation and independent checkers
@@ -40,6 +43,21 @@ sophisticated generator or a mirrored fake to define correctness by accident.
 - Report semantic coverage: event/fault kinds, boundary values, lifecycle and
   terminal states, crash cuts, recovery paths, checker activations, and
   unreachable or ungenerated dimensions.
+
+## Delivery
+
+1. [CV19.DS3.TS1 — Generated identified-delivery schedules](cv19-ds3-ts1-generated-delivery-schedules.md)
+   is Done. It establishes broad and focused Hypothesis state machines over
+   one already-qualified public-Engine profile and requires every successful
+   expanded schedule to replay through the same interpreter.
+2. [CV19.DS3.TS2 — Cross-layer stateful runtime campaign](cv19-ds3-ts2-cross-layer-stateful-runtime-campaign.md)
+   is Active. It combines delivery, logical time, Activity outcomes, retries,
+   lifecycle, crash/load, and two fault classes under one production-Engine
+   profile with independent authority folds.
+3. [CV19.DS3.TS3 — Fair shrinking and semantic coverage](cv19-ds3-ts3-fair-shrinking-and-semantic-coverage.md)
+   is Planned. It qualifies fair convergence, generated-failure shrinking and
+   promotion, broad-generator blind-spot resistance, and durable semantic
+   coverage reporting.
 
 ## Acceptance / Done condition
 
