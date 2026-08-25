@@ -58,7 +58,7 @@ dev = [
     "petrus[absurd]",
     "petrus[zeromq]",
     "petrus[github-app]",
-    "mutmut==3.6.0",
+    "mutmut==3.7.0",
     "pytest >=8.3",
     "pytest-randomly>=4,<5",
     "pytest-timeout>=2.4,<3",

@@ -92,7 +92,7 @@ The mutation profile is deliberately separate from `quick`, `full`, and
 `release`. It runs mutmut over an explicit allowlist of fast pure semantic
 targets and has no score threshold. Review `uv run mutmut results` and inspect a
 survivor with `uv run mutmut show MUTANT_NAME`; classify `no tests` separately
-instead of treating it as a survivor. In these curated targets, mutmut 3.6
+instead of treating it as a survivor. In these curated targets, mutmut 3.7
 skips the `@dataclass`-decorated Selection classes and `TokenQueue` properties;
 supported decorators such as `@classmethod` are still mutated. This profile
 therefore never represents whole-module mutation coverage. Add a target only

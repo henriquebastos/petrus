@@ -9,6 +9,7 @@ status_reason: >-
   diagnostic. Cosmic Ray's wider syntax and operator reach does not offset its
   annotation noise, full-command-per-mutant execution, serial local distributor,
   manual session invalidation, and coarser result classification for this project.
+  Subsequent Navigator direction accepted the bounded Mutmut 3.7 maintenance upgrade.
 opened: 2026-08-25
 updated: 2026-08-25
 related:
@@ -57,17 +58,17 @@ mutate decorators, properties, module-level code, or custom operators. Petrus's
 current profile does not need those capabilities enough to accept Cosmic Ray's
 costs and result noise.
 
-The bounded follow-up candidate is a maintenance upgrade from Mutmut 3.6.0 to
-3.7.0. Version 3.7 officially supports Python 3.14 and improves function,
-dependency, and configuration cache invalidation. `[D]` A local 3.7 probe
-produced the same current profile outcomes as 3.6. `[E]` This inquiry does not
-change the dependency or authorize that maintenance work.
+The Navigator subsequently authorized the bounded maintenance upgrade from
+Mutmut 3.6.0 to 3.7.0. Version 3.7 officially supports Python 3.14 and improves
+function, dependency, and configuration cache invalidation. `[D]` A local 3.7
+probe produced the same profile outcomes as 3.6. `[E]` The project now pins
+3.7.0 without changing the mutation scope or gate policy.
 
-## Current and proposed state
+## State transition
 
-### Current state
+### Previous state
 
-Petrus pins `mutmut==3.6.0`. `scripts/check mutation` selects:
+Petrus pinned `mutmut==3.6.0`. `scripts/check mutation` selected:
 
 - `fold_history` and `_cursor` in `petrus.impetus.selection`;
 - `TokenQueue` methods in `petrus.impetus.petrinet.marking`;
@@ -77,13 +78,12 @@ Petrus pins `mutmut==3.6.0`. `scripts/check mutation` selects:
 The development guide explicitly classifies `no tests` separately and warns
 that the profile does not represent whole-module mutation coverage. `[D]`
 
-### Proposed state
+### Implemented state
 
-Keep Mutmut and the bounded diagnostic contract. Consider upgrading the exact
-pin to 3.7.0 as separate Maintenance after ordinary dependency and command
-verification. Do not add Cosmic Ray as a second standing mutation system;
-retain it as an available one-off probe if future work specifically requires
-decorator, property, module-level, or custom-operator mutation.
+Petrus now pins `mutmut==3.7.0` and keeps the bounded diagnostic contract. It
+does not add Cosmic Ray as a second standing mutation system; Cosmic Ray remains
+available as a one-off probe if future work specifically requires decorator,
+property, module-level, or custom-operator mutation.
 
 ## Project-specific evidence
 
@@ -185,8 +185,8 @@ No tool switch and no standing dual-tool setup are recommended. No roadmap,
 debt, product principle, runtime documentation, or decision record changes are
 required. The current development guide remains accurate.
 
-Promote a maintenance change only if the Navigator chooses to upgrade Mutmut to
-3.7. Reopen the Cosmic Ray option if one of these conditions appears:
+The Navigator accepted the bounded Mutmut 3.7 maintenance upgrade. Reopen the
+Cosmic Ray option if one of these conditions appears:
 
 - mutation of properties, decorated classes, or module-level executable code
   becomes a required recurring diagnostic;
