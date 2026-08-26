@@ -2,33 +2,26 @@
 artifact: exploration
 code: ES-059
 title: MIT dataflow, Petri nets, and functional authoring for Petrus
-status: Thickening
+status: Completed
 status_reason: >-
-  Primary MIT dataflow papers, contemporary surveys, the formal Petri-net
-  comparison, functional-language implementation work, and current Petrus and
-  Hamsterdan source establish that Petrus is not repeating the failed
-  general-purpose dataflow-machine bet. The Navigator-authorized typed
-  functional vertical-slice experiment has now been executed inside ES-059
-  and classified promising: all fourteen mechanical completion conditions
-  passed, canonical execution, replay, resume, byte-stable lowering, and
-  full source-to-History attribution held, and the evidence supports "the
-  authoring surface is too low-level" over "the Petri model is wrong". Two
-  bounded follow-up experiments compared decision-structure spellings: the
-  single-transition algebraic case table is promising (byte-identical
-  canonical IR and History under a richer source), while the
-  one-guarded-transition-per-rung net is mixed (durable branch visibility
-  bought with unprovable exclusivity obligations and topology growth). A
-  fourth, the inscription net, tested the extreme — impure = transition,
-  pure = inscription/structure — and is promising with priced costs: a
-  seven-combinator kernel with compiler-generated exclusive guards and a
-  cover proof, one firing per observation, and pinned findings on fused
-  effects' failure blast radius and the data/structure boundary.
-  Promotion remains a Navigator decision; no kernel rewrite, Haskell
-  migration, or roadmap change follows from the experiments themselves.
+  The inquiry is answered: the MIT dataflow-machine history does not make
+  Petri nets a dead end for Petrus, and the executed experiments support
+  "the authoring surface is too low-level" over "the Petri model is wrong".
+  The typed functional vertical slice is promising (all fourteen completion
+  conditions passed; canonical execution, replay, resume, byte-stable
+  lowering, and full source-to-History attribution held). The
+  decision-structure comparisons closed with verdicts: the single-transition
+  algebraic case table is promising, the one-guarded-transition-per-rung net
+  is mixed, and the inscription net is promising with priced costs. The
+  remaining open question — what notation delivers the expressive authoring
+  surface — is handed to ES-060 as a dedicated design story. Promotion
+  remains a Navigator decision on ES-056's evidence gates; no kernel
+  rewrite, Haskell migration, or roadmap change follows from this story.
 opened: 2026-08-26
 updated: 2026-08-26
 related:
   - ES-056
+  - ES-060
   - docs/product/principles.md
   - docs/project/decisions/records/2026-08-13T1740Z-progressive-disclosure-preserves-runtime-power.md
 source_context:
@@ -734,3 +727,7 @@ candidate adoption Value and AX28/AX29 remain the promotion evidence gates;
 the report is now available evidence for them. ES-059 contributes the
 historical failure model, coarse-grain rule, functional-language rationale,
 and the executed bounded test of that direction.
+
+The story closed Completed on 2026-08-26. The open follow-up it exposed —
+designing the expressive authoring notation itself — is owned by ES-060,
+which reuses this story's experiment verdicts as settled evidence.
