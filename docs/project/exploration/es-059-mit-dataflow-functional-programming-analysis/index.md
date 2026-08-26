@@ -17,7 +17,12 @@ status_reason: >-
   single-transition algebraic case table is promising (byte-identical
   canonical IR and History under a richer source), while the
   one-guarded-transition-per-rung net is mixed (durable branch visibility
-  bought with unprovable exclusivity obligations and topology growth).
+  bought with unprovable exclusivity obligations and topology growth). A
+  fourth, the inscription net, tested the extreme — impure = transition,
+  pure = inscription/structure — and is promising with priced costs: a
+  seven-combinator kernel with compiler-generated exclusive guards and a
+  cover proof, one firing per observation, and pinned findings on fused
+  effects' failure blast radius and the data/structure boundary.
   Promotion remains a Navigator decision; no kernel rewrite, Haskell
   migration, or roadmap change follows from the experiments themselves.
 opened: 2026-08-26
@@ -642,6 +647,30 @@ keep one durable transition per decision and enrich the *source* (the case
 table), rather than multiplying transitions to make branching visible (the
 guarded net) — durable visibility of absorbed decisions is the one genuine
 argument the guarded variant leaves on the table.
+
+- [experiments/inscription-net](experiments/inscription-net/report.md)
+  (**promising** `[E]`, behavior-equivalent by design rather than
+  byte-equivalent): the fourth spelling takes the extreme — impure =
+  transition, pure = inscription/structure. A seven-combinator kernel over
+  typed ports plus eleven pure token METHODS as the guard vocabulary; the
+  compiler derives all ten transitions, fifty arcs, and eight guards, with
+  ordered choice generating mutually exclusive guards refined by a
+  compile-time cover proof over latch markings (the naive NOT-chain is
+  refuted `[X]`: over marking-state it is unsound, because guards cannot
+  test absence). The rung budget became structure (latch places, inhibitor
+  ordering, free per-generation reset via scope reset); head identity,
+  watermark ordering, and operation ids refused to become structure; the
+  `(lineage, fingerprint)` budget key was cut — a latch cannot be keyed by
+  data, the one named behavioral divergence outside the fixture. Effects
+  fuse into their deciding branch: exactly one firing per observation (108
+  History records vs 147), at three priced costs pinned by tests — in-flight
+  folded state, 18 predicate evaluations per decision, and a failure blast
+  radius: a terminal Activity failure destroys the folded watermark and
+  wedges the whole decision group, the seam a promoted design must close
+  with `FailureProjectingActivityHandler`. Token multiplicity sits outside
+  the cover proof's Boolean-occupancy model. One CEL arc filter lands in the
+  canonical Net v3 bytes; CEL guards are blocked by an addressing gap
+  (dotted place paths), pinned by test.
 
 Use one Hamsterdan vertical slice rather than a new tutorial or full rewrite:
 

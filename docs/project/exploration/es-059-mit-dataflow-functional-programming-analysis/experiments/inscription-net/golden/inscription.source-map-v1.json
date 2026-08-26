@@ -1,0 +1,273 @@
+{
+  "format": "petrus-experiment-source-map",
+  "version": 1,
+  "definition_sha256": "cc602704a67a17a5dbe67486c8379fbfefdc572e34ece9f4b5f3c8ff8cf80f8d",
+  "sources": [
+    {
+      "id": "readiness",
+      "file": "inet_scenario.py",
+      "line": 131,
+      "symbol": "readiness"
+    },
+    {
+      "id": "readiness.ci",
+      "file": "inet_scenario.py",
+      "line": 128,
+      "symbol": "ci"
+    },
+    {
+      "id": "readiness.decide",
+      "file": "inet_scenario.py",
+      "line": 140,
+      "symbol": "decide"
+    },
+    {
+      "id": "readiness.decide.foreign",
+      "file": "inet_scenario.py",
+      "line": 142,
+      "symbol": "foreign"
+    },
+    {
+      "id": "readiness.decide.human",
+      "file": "inet_scenario.py",
+      "line": 174,
+      "symbol": "human"
+    },
+    {
+      "id": "readiness.decide.human.human_needed",
+      "file": "inet_tokens.py",
+      "line": 157,
+      "symbol": "human_needed"
+    },
+    {
+      "id": "readiness.decide.publish",
+      "file": "inet_scenario.py",
+      "line": 144,
+      "symbol": "publish"
+    },
+    {
+      "id": "readiness.decide.publish.publish",
+      "file": "inet_scenario.py",
+      "line": 150,
+      "symbol": "publish"
+    },
+    {
+      "id": "readiness.decide.repair",
+      "file": "inet_scenario.py",
+      "line": 166,
+      "symbol": "repair"
+    },
+    {
+      "id": "readiness.decide.repair.repair",
+      "file": "inet_scenario.py",
+      "line": 172,
+      "symbol": "repair"
+    },
+    {
+      "id": "readiness.decide.republished",
+      "file": "inet_scenario.py",
+      "line": 152,
+      "symbol": "republished"
+    },
+    {
+      "id": "readiness.decide.rerun",
+      "file": "inet_scenario.py",
+      "line": 159,
+      "symbol": "rerun"
+    },
+    {
+      "id": "readiness.decide.rerun.rerun",
+      "file": "inet_scenario.py",
+      "line": 164,
+      "symbol": "rerun"
+    },
+    {
+      "id": "readiness.decide.stale",
+      "file": "inet_scenario.py",
+      "line": 143,
+      "symbol": "stale"
+    },
+    {
+      "id": "readiness.decide.unclassified",
+      "file": "inet_scenario.py",
+      "line": 181,
+      "symbol": "unclassified"
+    },
+    {
+      "id": "readiness.head",
+      "file": "inet_scenario.py",
+      "line": 118,
+      "symbol": "head"
+    },
+    {
+      "id": "readiness.latch.ladder.repair",
+      "file": "inet_scenario.py",
+      "line": 92,
+      "symbol": "ladder.repair"
+    },
+    {
+      "id": "readiness.latch.ladder.rerun",
+      "file": "inet_scenario.py",
+      "line": 91,
+      "symbol": "ladder.rerun"
+    },
+    {
+      "id": "readiness.latch.publication.admitted",
+      "file": "inet_scenario.py",
+      "line": 93,
+      "symbol": "publication.admitted"
+    },
+    {
+      "id": "readiness.lifecycle.branch",
+      "file": "inet_scenario.py",
+      "line": 133,
+      "symbol": "branch"
+    },
+    {
+      "id": "readiness.open_generation",
+      "file": "inet_scenario.py",
+      "line": 121,
+      "symbol": "open_generation"
+    },
+    {
+      "id": "readiness.open_generation.as_head_fact",
+      "file": "inet_tokens.py",
+      "line": 84,
+      "symbol": "as_head_fact"
+    },
+    {
+      "id": "readiness.open_generation.unseen_watermark",
+      "file": "inet_tokens.py",
+      "line": 87,
+      "symbol": "unseen_watermark"
+    }
+  ],
+  "elements": [
+    {
+      "kind": "place",
+      "path": "events.ci",
+      "source": "readiness.ci",
+      "role": "typed event port"
+    },
+    {
+      "kind": "place",
+      "path": "facts.repair_landed",
+      "source": "readiness.decide.repair.repair",
+      "role": "effect result fact"
+    },
+    {
+      "kind": "place",
+      "path": "facts.rerun_accepted",
+      "source": "readiness.decide.rerun.rerun",
+      "role": "effect result fact"
+    },
+    {
+      "kind": "place",
+      "path": "ladder.repair",
+      "source": "readiness.latch.ladder.repair",
+      "role": "structural latch"
+    },
+    {
+      "kind": "place",
+      "path": "ladder.rerun",
+      "source": "readiness.latch.ladder.rerun",
+      "role": "structural latch"
+    },
+    {
+      "kind": "place",
+      "path": "publication.admitted",
+      "source": "readiness.latch.publication.admitted",
+      "role": "structural latch"
+    },
+    {
+      "kind": "place",
+      "path": "readiness.head",
+      "source": "readiness.open_generation.as_head_fact",
+      "role": "seeded generation state"
+    },
+    {
+      "kind": "place",
+      "path": "readiness.watermark",
+      "source": "readiness.open_generation.unseen_watermark",
+      "role": "seeded generation state"
+    },
+    {
+      "kind": "place",
+      "path": "terminal.human_needed",
+      "source": "readiness.decide.human.human_needed",
+      "role": "terminal fact"
+    },
+    {
+      "kind": "place",
+      "path": "terminal.published",
+      "source": "readiness.decide.publish.publish",
+      "role": "effect result fact"
+    },
+    {
+      "kind": "transition",
+      "path": "decide.foreign",
+      "source": "readiness.decide.foreign",
+      "role": "guarded branch [foreign] — durable absorption"
+    },
+    {
+      "kind": "transition",
+      "path": "decide.human",
+      "source": "readiness.decide.human",
+      "role": "guarded branch [human] — decision producing a terminal fact"
+    },
+    {
+      "kind": "transition",
+      "path": "decide.publish",
+      "source": "readiness.decide.publish",
+      "role": "guarded branch [publish] — decision fused with the publish effect"
+    },
+    {
+      "kind": "transition",
+      "path": "decide.repair",
+      "source": "readiness.decide.repair",
+      "role": "guarded branch [repair] — decision fused with the repair effect"
+    },
+    {
+      "kind": "transition",
+      "path": "decide.republished",
+      "source": "readiness.decide.republished",
+      "role": "guarded branch [republished] — durable absorption"
+    },
+    {
+      "kind": "transition",
+      "path": "decide.rerun",
+      "source": "readiness.decide.rerun",
+      "role": "guarded branch [rerun] — decision fused with the rerun effect"
+    },
+    {
+      "kind": "transition",
+      "path": "decide.stale",
+      "source": "readiness.decide.stale",
+      "role": "guarded branch [stale] — durable absorption"
+    },
+    {
+      "kind": "transition",
+      "path": "decide.unclassified",
+      "source": "readiness.decide.unclassified",
+      "role": "guarded branch [unclassified] — durable absorption"
+    },
+    {
+      "kind": "transition",
+      "path": "ingress.ci",
+      "source": "readiness.ci",
+      "role": "typed scoped ingress"
+    },
+    {
+      "kind": "transition",
+      "path": "ingress.head",
+      "source": "readiness.head",
+      "role": "typed scoped ingress fused with the generation's opening fork"
+    }
+  ],
+  "lifecycle_scopes": [
+    {
+      "name": "branch",
+      "source": "readiness.lifecycle.branch"
+    }
+  ]
+}

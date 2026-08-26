@@ -1,0 +1,641 @@
+{
+  "format": "petrus-net-definition",
+  "version": 3,
+  "definition": {
+    "name": "readiness",
+    "time_domain": "integer",
+    "places": [
+      {
+        "path": "events.ci",
+        "color": "CIObserved"
+      },
+      {
+        "path": "facts.repair_landed",
+        "color": "RepairLanded"
+      },
+      {
+        "path": "facts.rerun_accepted",
+        "color": "RerunAccepted"
+      },
+      {
+        "path": "ladder.repair",
+        "color": "RepairRung"
+      },
+      {
+        "path": "ladder.rerun",
+        "color": "RerunRung"
+      },
+      {
+        "path": "publication.admitted",
+        "color": "PublicationClaim"
+      },
+      {
+        "path": "readiness.head",
+        "color": "HeadFact"
+      },
+      {
+        "path": "readiness.watermark",
+        "color": "EvidenceWatermark"
+      },
+      {
+        "path": "terminal.human_needed",
+        "color": "HumanNeeded"
+      },
+      {
+        "path": "terminal.published",
+        "color": "Published"
+      }
+    ],
+    "transitions": [
+      {
+        "path": "decide.foreign",
+        "handler": {
+          "kind": "anonymous",
+          "uri": "transition:/decide/foreign#handler"
+        },
+        "guards": [
+          {
+            "kind": "anonymous",
+            "uri": "transition:/decide/foreign#guard:$0"
+          }
+        ],
+        "timers": []
+      },
+      {
+        "path": "decide.human",
+        "handler": {
+          "kind": "anonymous",
+          "uri": "transition:/decide/human#handler"
+        },
+        "guards": [
+          {
+            "kind": "anonymous",
+            "uri": "transition:/decide/human#guard:$0"
+          }
+        ],
+        "timers": []
+      },
+      {
+        "path": "decide.publish",
+        "handler": {
+          "kind": "symbol",
+          "name": "publish",
+          "uri": "transition:/decide/publish#handler"
+        },
+        "guards": [
+          {
+            "kind": "anonymous",
+            "uri": "transition:/decide/publish#guard:$0"
+          }
+        ],
+        "timers": []
+      },
+      {
+        "path": "decide.repair",
+        "handler": {
+          "kind": "symbol",
+          "name": "repair",
+          "uri": "transition:/decide/repair#handler"
+        },
+        "guards": [
+          {
+            "kind": "anonymous",
+            "uri": "transition:/decide/repair#guard:$0"
+          }
+        ],
+        "timers": []
+      },
+      {
+        "path": "decide.republished",
+        "handler": {
+          "kind": "anonymous",
+          "uri": "transition:/decide/republished#handler"
+        },
+        "guards": [
+          {
+            "kind": "anonymous",
+            "uri": "transition:/decide/republished#guard:$0"
+          }
+        ],
+        "timers": []
+      },
+      {
+        "path": "decide.rerun",
+        "handler": {
+          "kind": "symbol",
+          "name": "rerun",
+          "uri": "transition:/decide/rerun#handler"
+        },
+        "guards": [
+          {
+            "kind": "anonymous",
+            "uri": "transition:/decide/rerun#guard:$0"
+          }
+        ],
+        "timers": []
+      },
+      {
+        "path": "decide.stale",
+        "handler": {
+          "kind": "anonymous",
+          "uri": "transition:/decide/stale#handler"
+        },
+        "guards": [
+          {
+            "kind": "anonymous",
+            "uri": "transition:/decide/stale#guard:$0"
+          }
+        ],
+        "timers": []
+      },
+      {
+        "path": "decide.unclassified",
+        "handler": {
+          "kind": "anonymous",
+          "uri": "transition:/decide/unclassified#handler"
+        },
+        "guards": [
+          {
+            "kind": "anonymous",
+            "uri": "transition:/decide/unclassified#guard:$0"
+          }
+        ],
+        "timers": []
+      },
+      {
+        "path": "ingress.ci",
+        "handler": null,
+        "guards": [],
+        "timers": []
+      },
+      {
+        "path": "ingress.head",
+        "handler": {
+          "kind": "anonymous",
+          "uri": "transition:/ingress/head#handler"
+        },
+        "guards": [],
+        "timers": []
+      }
+    ],
+    "arcs": [
+      {
+        "position": 0,
+        "source": "ingress.head",
+        "target": "readiness.head",
+        "mode": "consume",
+        "weight": 1,
+        "color": "HeadFact",
+        "filter": null
+      },
+      {
+        "position": 1,
+        "source": "ingress.head",
+        "target": "readiness.watermark",
+        "mode": "consume",
+        "weight": 1,
+        "color": "EvidenceWatermark",
+        "filter": null
+      },
+      {
+        "position": 2,
+        "source": "ingress.head",
+        "target": "ladder.rerun",
+        "mode": "consume",
+        "weight": 1,
+        "color": "RerunRung",
+        "filter": null
+      },
+      {
+        "position": 3,
+        "source": "ingress.head",
+        "target": "ladder.repair",
+        "mode": "consume",
+        "weight": 1,
+        "color": "RepairRung",
+        "filter": null
+      },
+      {
+        "position": 4,
+        "source": "ingress.ci",
+        "target": "events.ci",
+        "mode": "consume",
+        "weight": 1,
+        "color": "CIObserved",
+        "filter": null
+      },
+      {
+        "position": 5,
+        "source": "events.ci",
+        "target": "decide.foreign",
+        "mode": "consume",
+        "weight": 1,
+        "color": "CIObserved",
+        "filter": null
+      },
+      {
+        "position": 6,
+        "source": "readiness.watermark",
+        "target": "decide.foreign",
+        "mode": "consume",
+        "weight": 1,
+        "color": "EvidenceWatermark",
+        "filter": null
+      },
+      {
+        "position": 7,
+        "source": "readiness.head",
+        "target": "decide.foreign",
+        "mode": "read",
+        "weight": 1,
+        "color": "HeadFact",
+        "filter": null
+      },
+      {
+        "position": 8,
+        "source": "decide.foreign",
+        "target": "readiness.watermark",
+        "mode": "consume",
+        "weight": 1,
+        "color": "EvidenceWatermark",
+        "filter": null
+      },
+      {
+        "position": 9,
+        "source": "events.ci",
+        "target": "decide.stale",
+        "mode": "consume",
+        "weight": 1,
+        "color": "CIObserved",
+        "filter": null
+      },
+      {
+        "position": 10,
+        "source": "readiness.watermark",
+        "target": "decide.stale",
+        "mode": "consume",
+        "weight": 1,
+        "color": "EvidenceWatermark",
+        "filter": null
+      },
+      {
+        "position": 11,
+        "source": "readiness.head",
+        "target": "decide.stale",
+        "mode": "read",
+        "weight": 1,
+        "color": "HeadFact",
+        "filter": null
+      },
+      {
+        "position": 12,
+        "source": "decide.stale",
+        "target": "readiness.watermark",
+        "mode": "consume",
+        "weight": 1,
+        "color": "EvidenceWatermark",
+        "filter": null
+      },
+      {
+        "position": 13,
+        "source": "events.ci",
+        "target": "decide.publish",
+        "mode": "consume",
+        "weight": 1,
+        "color": "CIObserved",
+        "filter": {
+          "kind": "cel",
+          "expression": "conclusion == \"success\""
+        }
+      },
+      {
+        "position": 14,
+        "source": "readiness.watermark",
+        "target": "decide.publish",
+        "mode": "consume",
+        "weight": 1,
+        "color": "EvidenceWatermark",
+        "filter": null
+      },
+      {
+        "position": 15,
+        "source": "readiness.head",
+        "target": "decide.publish",
+        "mode": "read",
+        "weight": 1,
+        "color": "HeadFact",
+        "filter": null
+      },
+      {
+        "position": 16,
+        "source": "publication.admitted",
+        "target": "decide.publish",
+        "mode": "inhibit",
+        "weight": 1,
+        "color": "PublicationClaim",
+        "filter": null
+      },
+      {
+        "position": 17,
+        "source": "decide.publish",
+        "target": "readiness.watermark",
+        "mode": "consume",
+        "weight": 1,
+        "color": "EvidenceWatermark",
+        "filter": null
+      },
+      {
+        "position": 18,
+        "source": "decide.publish",
+        "target": "publication.admitted",
+        "mode": "consume",
+        "weight": 1,
+        "color": "PublicationClaim",
+        "filter": null
+      },
+      {
+        "position": 19,
+        "source": "decide.publish",
+        "target": "terminal.published",
+        "mode": "consume",
+        "weight": 1,
+        "color": "Published",
+        "filter": null
+      },
+      {
+        "position": 20,
+        "source": "events.ci",
+        "target": "decide.republished",
+        "mode": "consume",
+        "weight": 1,
+        "color": "CIObserved",
+        "filter": {
+          "kind": "cel",
+          "expression": "conclusion == \"success\""
+        }
+      },
+      {
+        "position": 21,
+        "source": "readiness.watermark",
+        "target": "decide.republished",
+        "mode": "consume",
+        "weight": 1,
+        "color": "EvidenceWatermark",
+        "filter": null
+      },
+      {
+        "position": 22,
+        "source": "publication.admitted",
+        "target": "decide.republished",
+        "mode": "consume",
+        "weight": 1,
+        "color": "PublicationClaim",
+        "filter": null
+      },
+      {
+        "position": 23,
+        "source": "readiness.head",
+        "target": "decide.republished",
+        "mode": "read",
+        "weight": 1,
+        "color": "HeadFact",
+        "filter": null
+      },
+      {
+        "position": 24,
+        "source": "decide.republished",
+        "target": "readiness.watermark",
+        "mode": "consume",
+        "weight": 1,
+        "color": "EvidenceWatermark",
+        "filter": null
+      },
+      {
+        "position": 25,
+        "source": "decide.republished",
+        "target": "publication.admitted",
+        "mode": "consume",
+        "weight": 1,
+        "color": "PublicationClaim",
+        "filter": null
+      },
+      {
+        "position": 26,
+        "source": "events.ci",
+        "target": "decide.rerun",
+        "mode": "consume",
+        "weight": 1,
+        "color": "CIObserved",
+        "filter": null
+      },
+      {
+        "position": 27,
+        "source": "readiness.watermark",
+        "target": "decide.rerun",
+        "mode": "consume",
+        "weight": 1,
+        "color": "EvidenceWatermark",
+        "filter": null
+      },
+      {
+        "position": 28,
+        "source": "ladder.rerun",
+        "target": "decide.rerun",
+        "mode": "consume",
+        "weight": 1,
+        "color": "RerunRung",
+        "filter": null
+      },
+      {
+        "position": 29,
+        "source": "readiness.head",
+        "target": "decide.rerun",
+        "mode": "read",
+        "weight": 1,
+        "color": "HeadFact",
+        "filter": null
+      },
+      {
+        "position": 30,
+        "source": "decide.rerun",
+        "target": "readiness.watermark",
+        "mode": "consume",
+        "weight": 1,
+        "color": "EvidenceWatermark",
+        "filter": null
+      },
+      {
+        "position": 31,
+        "source": "decide.rerun",
+        "target": "facts.rerun_accepted",
+        "mode": "consume",
+        "weight": 1,
+        "color": "RerunAccepted",
+        "filter": null
+      },
+      {
+        "position": 32,
+        "source": "events.ci",
+        "target": "decide.repair",
+        "mode": "consume",
+        "weight": 1,
+        "color": "CIObserved",
+        "filter": null
+      },
+      {
+        "position": 33,
+        "source": "readiness.watermark",
+        "target": "decide.repair",
+        "mode": "consume",
+        "weight": 1,
+        "color": "EvidenceWatermark",
+        "filter": null
+      },
+      {
+        "position": 34,
+        "source": "ladder.repair",
+        "target": "decide.repair",
+        "mode": "consume",
+        "weight": 1,
+        "color": "RepairRung",
+        "filter": null
+      },
+      {
+        "position": 35,
+        "source": "readiness.head",
+        "target": "decide.repair",
+        "mode": "read",
+        "weight": 1,
+        "color": "HeadFact",
+        "filter": null
+      },
+      {
+        "position": 36,
+        "source": "ladder.rerun",
+        "target": "decide.repair",
+        "mode": "inhibit",
+        "weight": 1,
+        "color": "RerunRung",
+        "filter": null
+      },
+      {
+        "position": 37,
+        "source": "decide.repair",
+        "target": "readiness.watermark",
+        "mode": "consume",
+        "weight": 1,
+        "color": "EvidenceWatermark",
+        "filter": null
+      },
+      {
+        "position": 38,
+        "source": "decide.repair",
+        "target": "facts.repair_landed",
+        "mode": "consume",
+        "weight": 1,
+        "color": "RepairLanded",
+        "filter": null
+      },
+      {
+        "position": 39,
+        "source": "events.ci",
+        "target": "decide.human",
+        "mode": "consume",
+        "weight": 1,
+        "color": "CIObserved",
+        "filter": null
+      },
+      {
+        "position": 40,
+        "source": "readiness.watermark",
+        "target": "decide.human",
+        "mode": "consume",
+        "weight": 1,
+        "color": "EvidenceWatermark",
+        "filter": null
+      },
+      {
+        "position": 41,
+        "source": "readiness.head",
+        "target": "decide.human",
+        "mode": "read",
+        "weight": 1,
+        "color": "HeadFact",
+        "filter": null
+      },
+      {
+        "position": 42,
+        "source": "ladder.rerun",
+        "target": "decide.human",
+        "mode": "inhibit",
+        "weight": 1,
+        "color": "RerunRung",
+        "filter": null
+      },
+      {
+        "position": 43,
+        "source": "ladder.repair",
+        "target": "decide.human",
+        "mode": "inhibit",
+        "weight": 1,
+        "color": "RepairRung",
+        "filter": null
+      },
+      {
+        "position": 44,
+        "source": "decide.human",
+        "target": "readiness.watermark",
+        "mode": "consume",
+        "weight": 1,
+        "color": "EvidenceWatermark",
+        "filter": null
+      },
+      {
+        "position": 45,
+        "source": "decide.human",
+        "target": "terminal.human_needed",
+        "mode": "consume",
+        "weight": 1,
+        "color": "HumanNeeded",
+        "filter": null
+      },
+      {
+        "position": 46,
+        "source": "events.ci",
+        "target": "decide.unclassified",
+        "mode": "consume",
+        "weight": 1,
+        "color": "CIObserved",
+        "filter": null
+      },
+      {
+        "position": 47,
+        "source": "readiness.watermark",
+        "target": "decide.unclassified",
+        "mode": "consume",
+        "weight": 1,
+        "color": "EvidenceWatermark",
+        "filter": null
+      },
+      {
+        "position": 48,
+        "source": "readiness.head",
+        "target": "decide.unclassified",
+        "mode": "read",
+        "weight": 1,
+        "color": "HeadFact",
+        "filter": null
+      },
+      {
+        "position": 49,
+        "source": "decide.unclassified",
+        "target": "readiness.watermark",
+        "mode": "consume",
+        "weight": 1,
+        "color": "EvidenceWatermark",
+        "filter": null
+      }
+    ],
+    "completion": null
+  }
+}

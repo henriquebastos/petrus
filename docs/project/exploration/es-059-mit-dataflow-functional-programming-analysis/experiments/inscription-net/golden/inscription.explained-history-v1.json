@@ -1,0 +1,3764 @@
+{
+  "format": "petrus-experiment-explained-history",
+  "version": 1,
+  "definition_sha256": "cc602704a67a17a5dbe67486c8379fbfefdc572e34ece9f4b5f3c8ff8cf80f8d",
+  "entries": [
+    {
+      "index": 0,
+      "record": "InstanceCreated",
+      "instant": 0,
+      "node": null,
+      "role": "authored machine",
+      "source": {
+        "id": "readiness",
+        "file": "inet_scenario.py",
+        "line": 131,
+        "symbol": "readiness"
+      },
+      "detail": {
+        "instance": "readiness-inscription",
+        "name": "readiness"
+      }
+    },
+    {
+      "index": 1,
+      "record": "DeliveryRegistrationOpened",
+      "instant": 0,
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {
+        "key": "default"
+      }
+    },
+    {
+      "index": 2,
+      "record": "DeliveryRegistrationOpened",
+      "instant": 0,
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with the generation's opening fork",
+      "source": {
+        "id": "readiness.head",
+        "file": "inet_scenario.py",
+        "line": 118,
+        "symbol": "head"
+      },
+      "detail": {
+        "key": "default"
+      }
+    },
+    {
+      "index": 3,
+      "record": "ScopeOpened",
+      "instant": 0,
+      "node": null,
+      "role": "lifecycle scope",
+      "source": {
+        "id": "readiness.lifecycle.branch",
+        "file": "inet_scenario.py",
+        "line": 133,
+        "symbol": "branch"
+      },
+      "detail": {}
+    },
+    {
+      "index": 4,
+      "record": "ExternalEventDelivered",
+      "instant": 0,
+      "occurrence": 1,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with the generation's opening fork",
+      "source": {
+        "id": "readiness.head",
+        "file": "inet_scenario.py",
+        "line": 118,
+        "symbol": "head"
+      },
+      "detail": {
+        "identity": "head-h1-g1",
+        "tokens": [
+          {
+            "color": "HeadObserved",
+            "data": {
+              "head": "h1",
+              "relation": "new",
+              "generation": 1,
+              "lineage": "L1"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 5,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 1,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with the generation's opening fork",
+      "source": {
+        "id": "readiness.head",
+        "file": "inet_scenario.py",
+        "line": 118,
+        "symbol": "head"
+      },
+      "detail": {}
+    },
+    {
+      "index": 6,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 1,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "readiness.head",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.as_head_fact",
+        "file": "inet_tokens.py",
+        "line": 84,
+        "symbol": "as_head_fact"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "HeadFact",
+            "data": {
+              "head": "h1",
+              "generation": 1,
+              "lineage": "L1"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 7,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 1,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "readiness.watermark",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.unseen_watermark",
+        "file": "inet_tokens.py",
+        "line": 87,
+        "symbol": "unseen_watermark"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "EvidenceWatermark",
+            "data": {
+              "seen": {
+                "run_id": 0,
+                "attempt": 0
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 8,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 1,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "ladder.rerun",
+      "role": "structural latch",
+      "source": {
+        "id": "readiness.latch.ladder.rerun",
+        "file": "inet_scenario.py",
+        "line": 91,
+        "symbol": "ladder.rerun"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "RerunRung",
+            "data": {}
+          }
+        ]
+      }
+    },
+    {
+      "index": 9,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 1,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "ladder.repair",
+      "role": "structural latch",
+      "source": {
+        "id": "readiness.latch.ladder.repair",
+        "file": "inet_scenario.py",
+        "line": 92,
+        "symbol": "ladder.repair"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "RepairRung",
+            "data": {}
+          }
+        ]
+      }
+    },
+    {
+      "index": 10,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 1,
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with the generation's opening fork",
+      "source": {
+        "id": "readiness.head",
+        "file": "inet_scenario.py",
+        "line": 118,
+        "symbol": "head"
+      },
+      "detail": {}
+    },
+    {
+      "index": 11,
+      "record": "ExternalEventDelivered",
+      "instant": 0,
+      "occurrence": 2,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {
+        "identity": "ci-10-1-g1",
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h1",
+              "evidence": {
+                "run_id": 10,
+                "attempt": 1
+              },
+              "conclusion": "success",
+              "fingerprint": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 12,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 2,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 13,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 2,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "events.ci",
+      "role": "typed event port",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h1",
+              "evidence": {
+                "run_id": 10,
+                "attempt": 1
+              },
+              "conclusion": "success",
+              "fingerprint": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 14,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 2,
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 15,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 3,
+      "node": "decide.publish",
+      "role": "guarded branch [publish] — decision fused with the publish effect",
+      "source": {
+        "id": "readiness.decide.publish",
+        "file": "inet_scenario.py",
+        "line": 144,
+        "symbol": "publish"
+      },
+      "detail": {}
+    },
+    {
+      "index": 16,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 3,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "decide.publish",
+      "role": "guarded branch [publish] — decision fused with the publish effect",
+      "source": {
+        "id": "readiness.decide.publish",
+        "file": "inet_scenario.py",
+        "line": 144,
+        "symbol": "publish"
+      },
+      "detail": {}
+    },
+    {
+      "index": 17,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 3,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "events.ci",
+      "role": "typed event port",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h1",
+              "evidence": {
+                "run_id": 10,
+                "attempt": 1
+              },
+              "conclusion": "success",
+              "fingerprint": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 18,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 3,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "readiness.watermark",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.unseen_watermark",
+        "file": "inet_tokens.py",
+        "line": 87,
+        "symbol": "unseen_watermark"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "EvidenceWatermark",
+            "data": {
+              "seen": {
+                "run_id": 0,
+                "attempt": 0
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 19,
+      "record": "TokensRead",
+      "instant": 0,
+      "occurrence": 3,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "readiness.head",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.as_head_fact",
+        "file": "inet_tokens.py",
+        "line": 84,
+        "symbol": "as_head_fact"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "HeadFact",
+            "data": {
+              "head": "h1",
+              "generation": 1,
+              "lineage": "L1"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 20,
+      "record": "ActivityRequested",
+      "instant": 0,
+      "occurrence": 3,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "decide.publish",
+      "role": "guarded branch [publish] — decision fused with the publish effect",
+      "source": {
+        "id": "readiness.decide.publish",
+        "file": "inet_scenario.py",
+        "line": 144,
+        "symbol": "publish"
+      },
+      "detail": {
+        "activity": "publish",
+        "input": {
+          "request": {
+            "operation": "publish:h1:g1",
+            "head": "h1",
+            "generation": 1
+          }
+        },
+        "correlation": "publish:h1:g1",
+        "idempotency": "publish:h1:g1"
+      }
+    },
+    {
+      "index": 21,
+      "record": "ActivityCompleted",
+      "instant": 0,
+      "occurrence": 3,
+      "node": "decide.publish",
+      "role": "guarded branch [publish] — decision fused with the publish effect",
+      "source": {
+        "id": "readiness.decide.publish",
+        "file": "inet_scenario.py",
+        "line": 144,
+        "symbol": "publish"
+      },
+      "detail": {
+        "result": {
+          "operation": "publish:h1:g1",
+          "head": "h1",
+          "generation": 1
+        }
+      }
+    },
+    {
+      "index": 22,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 3,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "readiness.watermark",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.unseen_watermark",
+        "file": "inet_tokens.py",
+        "line": 87,
+        "symbol": "unseen_watermark"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "EvidenceWatermark",
+            "data": {
+              "seen": {
+                "run_id": 10,
+                "attempt": 1
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 23,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 3,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "publication.admitted",
+      "role": "structural latch",
+      "source": {
+        "id": "readiness.latch.publication.admitted",
+        "file": "inet_scenario.py",
+        "line": 93,
+        "symbol": "publication.admitted"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "PublicationClaim",
+            "data": {}
+          }
+        ]
+      }
+    },
+    {
+      "index": 24,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 3,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "terminal.published",
+      "role": "effect result fact",
+      "source": {
+        "id": "readiness.decide.publish.publish",
+        "file": "inet_scenario.py",
+        "line": 150,
+        "symbol": "publish"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "Published",
+            "data": {
+              "operation": "publish:h1:g1",
+              "head": "h1",
+              "generation": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 25,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 3,
+      "node": "decide.publish",
+      "role": "guarded branch [publish] — decision fused with the publish effect",
+      "source": {
+        "id": "readiness.decide.publish",
+        "file": "inet_scenario.py",
+        "line": 144,
+        "symbol": "publish"
+      },
+      "detail": {}
+    },
+    {
+      "index": 26,
+      "record": "ScopeReset",
+      "instant": 0,
+      "node": null,
+      "role": "lifecycle scope",
+      "source": {
+        "id": "readiness.lifecycle.branch",
+        "file": "inet_scenario.py",
+        "line": 133,
+        "symbol": "branch"
+      },
+      "detail": {
+        "closed": {
+          "name": "branch",
+          "generation": 1
+        },
+        "opened": {
+          "name": "branch",
+          "generation": 2
+        },
+        "discarded": [
+          1,
+          6,
+          3,
+          4,
+          7,
+          8
+        ],
+        "cancelled": []
+      }
+    },
+    {
+      "index": 27,
+      "record": "ExternalEventDelivered",
+      "instant": 0,
+      "occurrence": 4,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with the generation's opening fork",
+      "source": {
+        "id": "readiness.head",
+        "file": "inet_scenario.py",
+        "line": 118,
+        "symbol": "head"
+      },
+      "detail": {
+        "identity": "head-h2-g2",
+        "tokens": [
+          {
+            "color": "HeadObserved",
+            "data": {
+              "head": "h2",
+              "relation": "superseded",
+              "generation": 2,
+              "lineage": "L2"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 28,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 4,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with the generation's opening fork",
+      "source": {
+        "id": "readiness.head",
+        "file": "inet_scenario.py",
+        "line": 118,
+        "symbol": "head"
+      },
+      "detail": {}
+    },
+    {
+      "index": 29,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 4,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.head",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.as_head_fact",
+        "file": "inet_tokens.py",
+        "line": 84,
+        "symbol": "as_head_fact"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "HeadFact",
+            "data": {
+              "head": "h2",
+              "generation": 2,
+              "lineage": "L2"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 30,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 4,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.watermark",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.unseen_watermark",
+        "file": "inet_tokens.py",
+        "line": 87,
+        "symbol": "unseen_watermark"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "EvidenceWatermark",
+            "data": {
+              "seen": {
+                "run_id": 0,
+                "attempt": 0
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 31,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 4,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ladder.rerun",
+      "role": "structural latch",
+      "source": {
+        "id": "readiness.latch.ladder.rerun",
+        "file": "inet_scenario.py",
+        "line": 91,
+        "symbol": "ladder.rerun"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "RerunRung",
+            "data": {}
+          }
+        ]
+      }
+    },
+    {
+      "index": 32,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 4,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ladder.repair",
+      "role": "structural latch",
+      "source": {
+        "id": "readiness.latch.ladder.repair",
+        "file": "inet_scenario.py",
+        "line": 92,
+        "symbol": "ladder.repair"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "RepairRung",
+            "data": {}
+          }
+        ]
+      }
+    },
+    {
+      "index": 33,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 4,
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with the generation's opening fork",
+      "source": {
+        "id": "readiness.head",
+        "file": "inet_scenario.py",
+        "line": 118,
+        "symbol": "head"
+      },
+      "detail": {}
+    },
+    {
+      "index": 34,
+      "record": "ExternalEventDelivered",
+      "instant": 0,
+      "occurrence": 5,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {
+        "identity": "ci-20-1-g2",
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 1
+              },
+              "conclusion": "failure",
+              "fingerprint": "build"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 35,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 5,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 36,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 5,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "events.ci",
+      "role": "typed event port",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 1
+              },
+              "conclusion": "failure",
+              "fingerprint": "build"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 37,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 5,
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 38,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 6,
+      "node": "decide.rerun",
+      "role": "guarded branch [rerun] — decision fused with the rerun effect",
+      "source": {
+        "id": "readiness.decide.rerun",
+        "file": "inet_scenario.py",
+        "line": 159,
+        "symbol": "rerun"
+      },
+      "detail": {}
+    },
+    {
+      "index": 39,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 6,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "decide.rerun",
+      "role": "guarded branch [rerun] — decision fused with the rerun effect",
+      "source": {
+        "id": "readiness.decide.rerun",
+        "file": "inet_scenario.py",
+        "line": 159,
+        "symbol": "rerun"
+      },
+      "detail": {}
+    },
+    {
+      "index": 40,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 6,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "events.ci",
+      "role": "typed event port",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 1
+              },
+              "conclusion": "failure",
+              "fingerprint": "build"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 41,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 6,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.watermark",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.unseen_watermark",
+        "file": "inet_tokens.py",
+        "line": 87,
+        "symbol": "unseen_watermark"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "EvidenceWatermark",
+            "data": {
+              "seen": {
+                "run_id": 0,
+                "attempt": 0
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 42,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 6,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ladder.rerun",
+      "role": "structural latch",
+      "source": {
+        "id": "readiness.latch.ladder.rerun",
+        "file": "inet_scenario.py",
+        "line": 91,
+        "symbol": "ladder.rerun"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "RerunRung",
+            "data": {}
+          }
+        ]
+      }
+    },
+    {
+      "index": 43,
+      "record": "TokensRead",
+      "instant": 0,
+      "occurrence": 6,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.head",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.as_head_fact",
+        "file": "inet_tokens.py",
+        "line": 84,
+        "symbol": "as_head_fact"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "HeadFact",
+            "data": {
+              "head": "h2",
+              "generation": 2,
+              "lineage": "L2"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 44,
+      "record": "ActivityRequested",
+      "instant": 0,
+      "occurrence": 6,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "decide.rerun",
+      "role": "guarded branch [rerun] — decision fused with the rerun effect",
+      "source": {
+        "id": "readiness.decide.rerun",
+        "file": "inet_scenario.py",
+        "line": 159,
+        "symbol": "rerun"
+      },
+      "detail": {
+        "activity": "rerun",
+        "input": {
+          "request": {
+            "operation": "rerun:L2:build",
+            "head": "h2",
+            "lineage": "L2",
+            "fingerprint": "build",
+            "evidence": {
+              "run_id": 20,
+              "attempt": 1
+            }
+          }
+        },
+        "correlation": "rerun:L2:build",
+        "idempotency": "rerun:L2:build"
+      }
+    },
+    {
+      "index": 45,
+      "record": "ActivityCompleted",
+      "instant": 0,
+      "occurrence": 6,
+      "node": "decide.rerun",
+      "role": "guarded branch [rerun] — decision fused with the rerun effect",
+      "source": {
+        "id": "readiness.decide.rerun",
+        "file": "inet_scenario.py",
+        "line": 159,
+        "symbol": "rerun"
+      },
+      "detail": {
+        "result": {
+          "operation": "rerun:L2:build",
+          "head": "h2"
+        }
+      }
+    },
+    {
+      "index": 46,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 6,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.watermark",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.unseen_watermark",
+        "file": "inet_tokens.py",
+        "line": 87,
+        "symbol": "unseen_watermark"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "EvidenceWatermark",
+            "data": {
+              "seen": {
+                "run_id": 20,
+                "attempt": 1
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 47,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 6,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "facts.rerun_accepted",
+      "role": "effect result fact",
+      "source": {
+        "id": "readiness.decide.rerun.rerun",
+        "file": "inet_scenario.py",
+        "line": 164,
+        "symbol": "rerun"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "RerunAccepted",
+            "data": {
+              "operation": "rerun:L2:build",
+              "head": "h2"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 48,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 6,
+      "node": "decide.rerun",
+      "role": "guarded branch [rerun] — decision fused with the rerun effect",
+      "source": {
+        "id": "readiness.decide.rerun",
+        "file": "inet_scenario.py",
+        "line": 159,
+        "symbol": "rerun"
+      },
+      "detail": {}
+    },
+    {
+      "index": 49,
+      "record": "ExternalEventDelivered",
+      "instant": 0,
+      "occurrence": 7,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {
+        "identity": "ci-20-1-g2-echo",
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 1
+              },
+              "conclusion": "failure",
+              "fingerprint": "build"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 50,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 7,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 51,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 7,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "events.ci",
+      "role": "typed event port",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 1
+              },
+              "conclusion": "failure",
+              "fingerprint": "build"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 52,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 7,
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 53,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 8,
+      "node": "decide.stale",
+      "role": "guarded branch [stale] — durable absorption",
+      "source": {
+        "id": "readiness.decide.stale",
+        "file": "inet_scenario.py",
+        "line": 143,
+        "symbol": "stale"
+      },
+      "detail": {}
+    },
+    {
+      "index": 54,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 8,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "decide.stale",
+      "role": "guarded branch [stale] — durable absorption",
+      "source": {
+        "id": "readiness.decide.stale",
+        "file": "inet_scenario.py",
+        "line": 143,
+        "symbol": "stale"
+      },
+      "detail": {}
+    },
+    {
+      "index": 55,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 8,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "events.ci",
+      "role": "typed event port",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 1
+              },
+              "conclusion": "failure",
+              "fingerprint": "build"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 56,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 8,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.watermark",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.unseen_watermark",
+        "file": "inet_tokens.py",
+        "line": 87,
+        "symbol": "unseen_watermark"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "EvidenceWatermark",
+            "data": {
+              "seen": {
+                "run_id": 20,
+                "attempt": 1
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 57,
+      "record": "TokensRead",
+      "instant": 0,
+      "occurrence": 8,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.head",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.as_head_fact",
+        "file": "inet_tokens.py",
+        "line": 84,
+        "symbol": "as_head_fact"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "HeadFact",
+            "data": {
+              "head": "h2",
+              "generation": 2,
+              "lineage": "L2"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 58,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 8,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.watermark",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.unseen_watermark",
+        "file": "inet_tokens.py",
+        "line": 87,
+        "symbol": "unseen_watermark"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "EvidenceWatermark",
+            "data": {
+              "seen": {
+                "run_id": 20,
+                "attempt": 1
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 59,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 8,
+      "node": "decide.stale",
+      "role": "guarded branch [stale] — durable absorption",
+      "source": {
+        "id": "readiness.decide.stale",
+        "file": "inet_scenario.py",
+        "line": 143,
+        "symbol": "stale"
+      },
+      "detail": {}
+    },
+    {
+      "index": 60,
+      "record": "ExternalEventDelivered",
+      "instant": 0,
+      "occurrence": 9,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {
+        "identity": "ci-20-2-g2",
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 2
+              },
+              "conclusion": "failure",
+              "fingerprint": "build"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 61,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 9,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 62,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 9,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "events.ci",
+      "role": "typed event port",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 2
+              },
+              "conclusion": "failure",
+              "fingerprint": "build"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 63,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 9,
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 64,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 10,
+      "node": "decide.repair",
+      "role": "guarded branch [repair] — decision fused with the repair effect",
+      "source": {
+        "id": "readiness.decide.repair",
+        "file": "inet_scenario.py",
+        "line": 166,
+        "symbol": "repair"
+      },
+      "detail": {}
+    },
+    {
+      "index": 65,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 10,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "decide.repair",
+      "role": "guarded branch [repair] — decision fused with the repair effect",
+      "source": {
+        "id": "readiness.decide.repair",
+        "file": "inet_scenario.py",
+        "line": 166,
+        "symbol": "repair"
+      },
+      "detail": {}
+    },
+    {
+      "index": 66,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 10,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "events.ci",
+      "role": "typed event port",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 2
+              },
+              "conclusion": "failure",
+              "fingerprint": "build"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 67,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 10,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.watermark",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.unseen_watermark",
+        "file": "inet_tokens.py",
+        "line": 87,
+        "symbol": "unseen_watermark"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "EvidenceWatermark",
+            "data": {
+              "seen": {
+                "run_id": 20,
+                "attempt": 1
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 68,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 10,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ladder.repair",
+      "role": "structural latch",
+      "source": {
+        "id": "readiness.latch.ladder.repair",
+        "file": "inet_scenario.py",
+        "line": 92,
+        "symbol": "ladder.repair"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "RepairRung",
+            "data": {}
+          }
+        ]
+      }
+    },
+    {
+      "index": 69,
+      "record": "TokensRead",
+      "instant": 0,
+      "occurrence": 10,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.head",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.as_head_fact",
+        "file": "inet_tokens.py",
+        "line": 84,
+        "symbol": "as_head_fact"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "HeadFact",
+            "data": {
+              "head": "h2",
+              "generation": 2,
+              "lineage": "L2"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 70,
+      "record": "ActivityRequested",
+      "instant": 0,
+      "occurrence": 10,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "decide.repair",
+      "role": "guarded branch [repair] — decision fused with the repair effect",
+      "source": {
+        "id": "readiness.decide.repair",
+        "file": "inet_scenario.py",
+        "line": 166,
+        "symbol": "repair"
+      },
+      "detail": {
+        "activity": "repair",
+        "input": {
+          "request": {
+            "operation": "repair:L2:build",
+            "head": "h2",
+            "lineage": "L2",
+            "fingerprint": "build",
+            "evidence": {
+              "run_id": 20,
+              "attempt": 2
+            }
+          }
+        },
+        "correlation": "repair:L2:build",
+        "idempotency": "repair:L2:build"
+      }
+    },
+    {
+      "index": 71,
+      "record": "ActivityCompleted",
+      "instant": 0,
+      "occurrence": 10,
+      "node": "decide.repair",
+      "role": "guarded branch [repair] — decision fused with the repair effect",
+      "source": {
+        "id": "readiness.decide.repair",
+        "file": "inet_scenario.py",
+        "line": 166,
+        "symbol": "repair"
+      },
+      "detail": {
+        "result": {
+          "operation": "repair:L2:build",
+          "head": "h2",
+          "repaired_head": "h2r"
+        }
+      }
+    },
+    {
+      "index": 72,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 10,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.watermark",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.unseen_watermark",
+        "file": "inet_tokens.py",
+        "line": 87,
+        "symbol": "unseen_watermark"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "EvidenceWatermark",
+            "data": {
+              "seen": {
+                "run_id": 20,
+                "attempt": 2
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 73,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 10,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "facts.repair_landed",
+      "role": "effect result fact",
+      "source": {
+        "id": "readiness.decide.repair.repair",
+        "file": "inet_scenario.py",
+        "line": 172,
+        "symbol": "repair"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "RepairLanded",
+            "data": {
+              "operation": "repair:L2:build",
+              "head": "h2",
+              "repaired_head": "h2r"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 74,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 10,
+      "node": "decide.repair",
+      "role": "guarded branch [repair] — decision fused with the repair effect",
+      "source": {
+        "id": "readiness.decide.repair",
+        "file": "inet_scenario.py",
+        "line": 166,
+        "symbol": "repair"
+      },
+      "detail": {}
+    },
+    {
+      "index": 75,
+      "record": "ScopeReset",
+      "instant": 0,
+      "node": null,
+      "role": "lifecycle scope",
+      "source": {
+        "id": "readiness.lifecycle.branch",
+        "file": "inet_scenario.py",
+        "line": 133,
+        "symbol": "branch"
+      },
+      "detail": {
+        "closed": {
+          "name": "branch",
+          "generation": 2
+        },
+        "opened": {
+          "name": "branch",
+          "generation": 3
+        },
+        "discarded": [
+          9,
+          19,
+          15,
+          20
+        ],
+        "cancelled": []
+      }
+    },
+    {
+      "index": 76,
+      "record": "ExternalEventDelivered",
+      "instant": 0,
+      "occurrence": 11,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with the generation's opening fork",
+      "source": {
+        "id": "readiness.head",
+        "file": "inet_scenario.py",
+        "line": 118,
+        "symbol": "head"
+      },
+      "detail": {
+        "identity": "head-h2r-g3",
+        "tokens": [
+          {
+            "color": "HeadObserved",
+            "data": {
+              "head": "h2r",
+              "relation": "confirmed",
+              "generation": 3,
+              "lineage": "L2"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 77,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 11,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with the generation's opening fork",
+      "source": {
+        "id": "readiness.head",
+        "file": "inet_scenario.py",
+        "line": 118,
+        "symbol": "head"
+      },
+      "detail": {}
+    },
+    {
+      "index": 78,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 11,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "readiness.head",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.as_head_fact",
+        "file": "inet_tokens.py",
+        "line": 84,
+        "symbol": "as_head_fact"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "HeadFact",
+            "data": {
+              "head": "h2r",
+              "generation": 3,
+              "lineage": "L2"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 79,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 11,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "readiness.watermark",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.unseen_watermark",
+        "file": "inet_tokens.py",
+        "line": 87,
+        "symbol": "unseen_watermark"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "EvidenceWatermark",
+            "data": {
+              "seen": {
+                "run_id": 0,
+                "attempt": 0
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 80,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 11,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "ladder.rerun",
+      "role": "structural latch",
+      "source": {
+        "id": "readiness.latch.ladder.rerun",
+        "file": "inet_scenario.py",
+        "line": 91,
+        "symbol": "ladder.rerun"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "RerunRung",
+            "data": {}
+          }
+        ]
+      }
+    },
+    {
+      "index": 81,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 11,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "ladder.repair",
+      "role": "structural latch",
+      "source": {
+        "id": "readiness.latch.ladder.repair",
+        "file": "inet_scenario.py",
+        "line": 92,
+        "symbol": "ladder.repair"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "RepairRung",
+            "data": {}
+          }
+        ]
+      }
+    },
+    {
+      "index": 82,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 11,
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with the generation's opening fork",
+      "source": {
+        "id": "readiness.head",
+        "file": "inet_scenario.py",
+        "line": 118,
+        "symbol": "head"
+      },
+      "detail": {}
+    },
+    {
+      "index": 83,
+      "record": "ExternalEventDelivered",
+      "instant": 0,
+      "occurrence": 12,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {
+        "identity": "ci-21-1-g3",
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2r",
+              "evidence": {
+                "run_id": 21,
+                "attempt": 1
+              },
+              "conclusion": "success",
+              "fingerprint": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 84,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 12,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 85,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 12,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "events.ci",
+      "role": "typed event port",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2r",
+              "evidence": {
+                "run_id": 21,
+                "attempt": 1
+              },
+              "conclusion": "success",
+              "fingerprint": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 86,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 12,
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 87,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 13,
+      "node": "decide.publish",
+      "role": "guarded branch [publish] — decision fused with the publish effect",
+      "source": {
+        "id": "readiness.decide.publish",
+        "file": "inet_scenario.py",
+        "line": 144,
+        "symbol": "publish"
+      },
+      "detail": {}
+    },
+    {
+      "index": 88,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 13,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "decide.publish",
+      "role": "guarded branch [publish] — decision fused with the publish effect",
+      "source": {
+        "id": "readiness.decide.publish",
+        "file": "inet_scenario.py",
+        "line": 144,
+        "symbol": "publish"
+      },
+      "detail": {}
+    },
+    {
+      "index": 89,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 13,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "events.ci",
+      "role": "typed event port",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2r",
+              "evidence": {
+                "run_id": 21,
+                "attempt": 1
+              },
+              "conclusion": "success",
+              "fingerprint": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 90,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 13,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "readiness.watermark",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.unseen_watermark",
+        "file": "inet_tokens.py",
+        "line": 87,
+        "symbol": "unseen_watermark"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "EvidenceWatermark",
+            "data": {
+              "seen": {
+                "run_id": 0,
+                "attempt": 0
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 91,
+      "record": "TokensRead",
+      "instant": 0,
+      "occurrence": 13,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "readiness.head",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.as_head_fact",
+        "file": "inet_tokens.py",
+        "line": 84,
+        "symbol": "as_head_fact"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "HeadFact",
+            "data": {
+              "head": "h2r",
+              "generation": 3,
+              "lineage": "L2"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 92,
+      "record": "ActivityRequested",
+      "instant": 0,
+      "occurrence": 13,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "decide.publish",
+      "role": "guarded branch [publish] — decision fused with the publish effect",
+      "source": {
+        "id": "readiness.decide.publish",
+        "file": "inet_scenario.py",
+        "line": 144,
+        "symbol": "publish"
+      },
+      "detail": {
+        "activity": "publish",
+        "input": {
+          "request": {
+            "operation": "publish:h2r:g3",
+            "head": "h2r",
+            "generation": 3
+          }
+        },
+        "correlation": "publish:h2r:g3",
+        "idempotency": "publish:h2r:g3"
+      }
+    },
+    {
+      "index": 93,
+      "record": "ActivityCompleted",
+      "instant": 0,
+      "occurrence": 13,
+      "node": "decide.publish",
+      "role": "guarded branch [publish] — decision fused with the publish effect",
+      "source": {
+        "id": "readiness.decide.publish",
+        "file": "inet_scenario.py",
+        "line": 144,
+        "symbol": "publish"
+      },
+      "detail": {
+        "result": {
+          "operation": "publish:h2r:g3",
+          "head": "h2r",
+          "generation": 3
+        }
+      }
+    },
+    {
+      "index": 94,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 13,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "readiness.watermark",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.unseen_watermark",
+        "file": "inet_tokens.py",
+        "line": 87,
+        "symbol": "unseen_watermark"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "EvidenceWatermark",
+            "data": {
+              "seen": {
+                "run_id": 21,
+                "attempt": 1
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 95,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 13,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "publication.admitted",
+      "role": "structural latch",
+      "source": {
+        "id": "readiness.latch.publication.admitted",
+        "file": "inet_scenario.py",
+        "line": 93,
+        "symbol": "publication.admitted"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "PublicationClaim",
+            "data": {}
+          }
+        ]
+      }
+    },
+    {
+      "index": 96,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 13,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "terminal.published",
+      "role": "effect result fact",
+      "source": {
+        "id": "readiness.decide.publish.publish",
+        "file": "inet_scenario.py",
+        "line": 150,
+        "symbol": "publish"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "Published",
+            "data": {
+              "operation": "publish:h2r:g3",
+              "head": "h2r",
+              "generation": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 97,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 13,
+      "node": "decide.publish",
+      "role": "guarded branch [publish] — decision fused with the publish effect",
+      "source": {
+        "id": "readiness.decide.publish",
+        "file": "inet_scenario.py",
+        "line": 144,
+        "symbol": "publish"
+      },
+      "detail": {}
+    },
+    {
+      "index": 98,
+      "record": "ScopeReset",
+      "instant": 0,
+      "node": null,
+      "role": "lifecycle scope",
+      "source": {
+        "id": "readiness.lifecycle.branch",
+        "file": "inet_scenario.py",
+        "line": 133,
+        "symbol": "branch"
+      },
+      "detail": {
+        "closed": {
+          "name": "branch",
+          "generation": 3
+        },
+        "opened": {
+          "name": "branch",
+          "generation": 4
+        },
+        "discarded": [
+          21,
+          26,
+          23,
+          24,
+          27,
+          28
+        ],
+        "cancelled": []
+      }
+    },
+    {
+      "index": 99,
+      "record": "ExternalEventDelivered",
+      "instant": 0,
+      "occurrence": 14,
+      "scope": {
+        "name": "branch",
+        "generation": 4
+      },
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with the generation's opening fork",
+      "source": {
+        "id": "readiness.head",
+        "file": "inet_scenario.py",
+        "line": 118,
+        "symbol": "head"
+      },
+      "detail": {
+        "identity": "head-h3-g4",
+        "tokens": [
+          {
+            "color": "HeadObserved",
+            "data": {
+              "head": "h3",
+              "relation": "superseded",
+              "generation": 4,
+              "lineage": "L4"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 100,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 14,
+      "scope": {
+        "name": "branch",
+        "generation": 4
+      },
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with the generation's opening fork",
+      "source": {
+        "id": "readiness.head",
+        "file": "inet_scenario.py",
+        "line": 118,
+        "symbol": "head"
+      },
+      "detail": {}
+    },
+    {
+      "index": 101,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 14,
+      "scope": {
+        "name": "branch",
+        "generation": 4
+      },
+      "node": "readiness.head",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.as_head_fact",
+        "file": "inet_tokens.py",
+        "line": 84,
+        "symbol": "as_head_fact"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "HeadFact",
+            "data": {
+              "head": "h3",
+              "generation": 4,
+              "lineage": "L4"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 102,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 14,
+      "scope": {
+        "name": "branch",
+        "generation": 4
+      },
+      "node": "readiness.watermark",
+      "role": "seeded generation state",
+      "source": {
+        "id": "readiness.open_generation.unseen_watermark",
+        "file": "inet_tokens.py",
+        "line": 87,
+        "symbol": "unseen_watermark"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "EvidenceWatermark",
+            "data": {
+              "seen": {
+                "run_id": 0,
+                "attempt": 0
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 103,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 14,
+      "scope": {
+        "name": "branch",
+        "generation": 4
+      },
+      "node": "ladder.rerun",
+      "role": "structural latch",
+      "source": {
+        "id": "readiness.latch.ladder.rerun",
+        "file": "inet_scenario.py",
+        "line": 91,
+        "symbol": "ladder.rerun"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "RerunRung",
+            "data": {}
+          }
+        ]
+      }
+    },
+    {
+      "index": 104,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 14,
+      "scope": {
+        "name": "branch",
+        "generation": 4
+      },
+      "node": "ladder.repair",
+      "role": "structural latch",
+      "source": {
+        "id": "readiness.latch.ladder.repair",
+        "file": "inet_scenario.py",
+        "line": 92,
+        "symbol": "ladder.repair"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "RepairRung",
+            "data": {}
+          }
+        ]
+      }
+    },
+    {
+      "index": 105,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 14,
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with the generation's opening fork",
+      "source": {
+        "id": "readiness.head",
+        "file": "inet_scenario.py",
+        "line": 118,
+        "symbol": "head"
+      },
+      "detail": {}
+    },
+    {
+      "index": 106,
+      "record": "ScopedDeliveryDropped",
+      "instant": 0,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {
+        "identity": "ci-stale-g3",
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h3",
+              "evidence": {
+                "run_id": 30,
+                "attempt": 1
+              },
+              "conclusion": "success",
+              "fingerprint": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 107,
+      "record": "ScopedDeliveryQuarantined",
+      "instant": 0,
+      "scope": {
+        "name": "branch",
+        "generation": 5
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "detail": {
+        "identity": "ci-future-g5",
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h3",
+              "evidence": {
+                "run_id": 30,
+                "attempt": 1
+              },
+              "conclusion": "success",
+              "fingerprint": null
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "occurrences": [
+    {
+      "occurrence": 1,
+      "transition": "ingress.head",
+      "source": {
+        "id": "readiness.head",
+        "file": "inet_scenario.py",
+        "line": 118,
+        "symbol": "head"
+      },
+      "accepted": [
+        {
+          "color": "HeadObserved",
+          "data": {
+            "head": "h1",
+            "relation": "new",
+            "generation": 1,
+            "lineage": "L1"
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "readiness.head",
+          "tokens": [
+            {
+              "color": "HeadFact",
+              "data": {
+                "head": "h1",
+                "generation": 1,
+                "lineage": "L1"
+              }
+            }
+          ]
+        },
+        {
+          "place": "readiness.watermark",
+          "tokens": [
+            {
+              "color": "EvidenceWatermark",
+              "data": {
+                "seen": {
+                  "run_id": 0,
+                  "attempt": 0
+                }
+              }
+            }
+          ]
+        },
+        {
+          "place": "ladder.rerun",
+          "tokens": [
+            {
+              "color": "RerunRung",
+              "data": {}
+            }
+          ]
+        },
+        {
+          "place": "ladder.repair",
+          "tokens": [
+            {
+              "color": "RepairRung",
+              "data": {}
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 2,
+      "transition": "ingress.ci",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "accepted": [
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h1",
+            "evidence": {
+              "run_id": 10,
+              "attempt": 1
+            },
+            "conclusion": "success",
+            "fingerprint": null
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "events.ci",
+          "tokens": [
+            {
+              "color": "CIObserved",
+              "data": {
+                "head": "h1",
+                "evidence": {
+                  "run_id": 10,
+                  "attempt": 1
+                },
+                "conclusion": "success",
+                "fingerprint": null
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 3,
+      "transition": "decide.publish",
+      "source": {
+        "id": "readiness.decide.publish",
+        "file": "inet_scenario.py",
+        "line": 144,
+        "symbol": "publish"
+      },
+      "accepted": [
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h1",
+            "evidence": {
+              "run_id": 10,
+              "attempt": 1
+            },
+            "conclusion": "success",
+            "fingerprint": null
+          }
+        },
+        {
+          "color": "EvidenceWatermark",
+          "data": {
+            "seen": {
+              "run_id": 0,
+              "attempt": 0
+            }
+          }
+        }
+      ],
+      "read": [
+        {
+          "color": "HeadFact",
+          "data": {
+            "head": "h1",
+            "generation": 1,
+            "lineage": "L1"
+          }
+        }
+      ],
+      "produced": [
+        {
+          "place": "readiness.watermark",
+          "tokens": [
+            {
+              "color": "EvidenceWatermark",
+              "data": {
+                "seen": {
+                  "run_id": 10,
+                  "attempt": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "place": "publication.admitted",
+          "tokens": [
+            {
+              "color": "PublicationClaim",
+              "data": {}
+            }
+          ]
+        },
+        {
+          "place": "terminal.published",
+          "tokens": [
+            {
+              "color": "Published",
+              "data": {
+                "operation": "publish:h1:g1",
+                "head": "h1",
+                "generation": 1
+              }
+            }
+          ]
+        }
+      ],
+      "activity": {
+        "activity": "publish",
+        "correlation": "publish:h1:g1",
+        "idempotency": "publish:h1:g1",
+        "result": {
+          "operation": "publish:h1:g1",
+          "head": "h1",
+          "generation": 1
+        }
+      },
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 4,
+      "transition": "ingress.head",
+      "source": {
+        "id": "readiness.head",
+        "file": "inet_scenario.py",
+        "line": 118,
+        "symbol": "head"
+      },
+      "accepted": [
+        {
+          "color": "HeadObserved",
+          "data": {
+            "head": "h2",
+            "relation": "superseded",
+            "generation": 2,
+            "lineage": "L2"
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "readiness.head",
+          "tokens": [
+            {
+              "color": "HeadFact",
+              "data": {
+                "head": "h2",
+                "generation": 2,
+                "lineage": "L2"
+              }
+            }
+          ]
+        },
+        {
+          "place": "readiness.watermark",
+          "tokens": [
+            {
+              "color": "EvidenceWatermark",
+              "data": {
+                "seen": {
+                  "run_id": 0,
+                  "attempt": 0
+                }
+              }
+            }
+          ]
+        },
+        {
+          "place": "ladder.rerun",
+          "tokens": [
+            {
+              "color": "RerunRung",
+              "data": {}
+            }
+          ]
+        },
+        {
+          "place": "ladder.repair",
+          "tokens": [
+            {
+              "color": "RepairRung",
+              "data": {}
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 5,
+      "transition": "ingress.ci",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "accepted": [
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h2",
+            "evidence": {
+              "run_id": 20,
+              "attempt": 1
+            },
+            "conclusion": "failure",
+            "fingerprint": "build"
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "events.ci",
+          "tokens": [
+            {
+              "color": "CIObserved",
+              "data": {
+                "head": "h2",
+                "evidence": {
+                  "run_id": 20,
+                  "attempt": 1
+                },
+                "conclusion": "failure",
+                "fingerprint": "build"
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 6,
+      "transition": "decide.rerun",
+      "source": {
+        "id": "readiness.decide.rerun",
+        "file": "inet_scenario.py",
+        "line": 159,
+        "symbol": "rerun"
+      },
+      "accepted": [
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h2",
+            "evidence": {
+              "run_id": 20,
+              "attempt": 1
+            },
+            "conclusion": "failure",
+            "fingerprint": "build"
+          }
+        },
+        {
+          "color": "EvidenceWatermark",
+          "data": {
+            "seen": {
+              "run_id": 0,
+              "attempt": 0
+            }
+          }
+        },
+        {
+          "color": "RerunRung",
+          "data": {}
+        }
+      ],
+      "read": [
+        {
+          "color": "HeadFact",
+          "data": {
+            "head": "h2",
+            "generation": 2,
+            "lineage": "L2"
+          }
+        }
+      ],
+      "produced": [
+        {
+          "place": "readiness.watermark",
+          "tokens": [
+            {
+              "color": "EvidenceWatermark",
+              "data": {
+                "seen": {
+                  "run_id": 20,
+                  "attempt": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "place": "facts.rerun_accepted",
+          "tokens": [
+            {
+              "color": "RerunAccepted",
+              "data": {
+                "operation": "rerun:L2:build",
+                "head": "h2"
+              }
+            }
+          ]
+        }
+      ],
+      "activity": {
+        "activity": "rerun",
+        "correlation": "rerun:L2:build",
+        "idempotency": "rerun:L2:build",
+        "result": {
+          "operation": "rerun:L2:build",
+          "head": "h2"
+        }
+      },
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 7,
+      "transition": "ingress.ci",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "accepted": [
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h2",
+            "evidence": {
+              "run_id": 20,
+              "attempt": 1
+            },
+            "conclusion": "failure",
+            "fingerprint": "build"
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "events.ci",
+          "tokens": [
+            {
+              "color": "CIObserved",
+              "data": {
+                "head": "h2",
+                "evidence": {
+                  "run_id": 20,
+                  "attempt": 1
+                },
+                "conclusion": "failure",
+                "fingerprint": "build"
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 8,
+      "transition": "decide.stale",
+      "source": {
+        "id": "readiness.decide.stale",
+        "file": "inet_scenario.py",
+        "line": 143,
+        "symbol": "stale"
+      },
+      "accepted": [
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h2",
+            "evidence": {
+              "run_id": 20,
+              "attempt": 1
+            },
+            "conclusion": "failure",
+            "fingerprint": "build"
+          }
+        },
+        {
+          "color": "EvidenceWatermark",
+          "data": {
+            "seen": {
+              "run_id": 20,
+              "attempt": 1
+            }
+          }
+        }
+      ],
+      "read": [
+        {
+          "color": "HeadFact",
+          "data": {
+            "head": "h2",
+            "generation": 2,
+            "lineage": "L2"
+          }
+        }
+      ],
+      "produced": [
+        {
+          "place": "readiness.watermark",
+          "tokens": [
+            {
+              "color": "EvidenceWatermark",
+              "data": {
+                "seen": {
+                  "run_id": 20,
+                  "attempt": 1
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 9,
+      "transition": "ingress.ci",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "accepted": [
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h2",
+            "evidence": {
+              "run_id": 20,
+              "attempt": 2
+            },
+            "conclusion": "failure",
+            "fingerprint": "build"
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "events.ci",
+          "tokens": [
+            {
+              "color": "CIObserved",
+              "data": {
+                "head": "h2",
+                "evidence": {
+                  "run_id": 20,
+                  "attempt": 2
+                },
+                "conclusion": "failure",
+                "fingerprint": "build"
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 10,
+      "transition": "decide.repair",
+      "source": {
+        "id": "readiness.decide.repair",
+        "file": "inet_scenario.py",
+        "line": 166,
+        "symbol": "repair"
+      },
+      "accepted": [
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h2",
+            "evidence": {
+              "run_id": 20,
+              "attempt": 2
+            },
+            "conclusion": "failure",
+            "fingerprint": "build"
+          }
+        },
+        {
+          "color": "EvidenceWatermark",
+          "data": {
+            "seen": {
+              "run_id": 20,
+              "attempt": 1
+            }
+          }
+        },
+        {
+          "color": "RepairRung",
+          "data": {}
+        }
+      ],
+      "read": [
+        {
+          "color": "HeadFact",
+          "data": {
+            "head": "h2",
+            "generation": 2,
+            "lineage": "L2"
+          }
+        }
+      ],
+      "produced": [
+        {
+          "place": "readiness.watermark",
+          "tokens": [
+            {
+              "color": "EvidenceWatermark",
+              "data": {
+                "seen": {
+                  "run_id": 20,
+                  "attempt": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "place": "facts.repair_landed",
+          "tokens": [
+            {
+              "color": "RepairLanded",
+              "data": {
+                "operation": "repair:L2:build",
+                "head": "h2",
+                "repaired_head": "h2r"
+              }
+            }
+          ]
+        }
+      ],
+      "activity": {
+        "activity": "repair",
+        "correlation": "repair:L2:build",
+        "idempotency": "repair:L2:build",
+        "result": {
+          "operation": "repair:L2:build",
+          "head": "h2",
+          "repaired_head": "h2r"
+        }
+      },
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 11,
+      "transition": "ingress.head",
+      "source": {
+        "id": "readiness.head",
+        "file": "inet_scenario.py",
+        "line": 118,
+        "symbol": "head"
+      },
+      "accepted": [
+        {
+          "color": "HeadObserved",
+          "data": {
+            "head": "h2r",
+            "relation": "confirmed",
+            "generation": 3,
+            "lineage": "L2"
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "readiness.head",
+          "tokens": [
+            {
+              "color": "HeadFact",
+              "data": {
+                "head": "h2r",
+                "generation": 3,
+                "lineage": "L2"
+              }
+            }
+          ]
+        },
+        {
+          "place": "readiness.watermark",
+          "tokens": [
+            {
+              "color": "EvidenceWatermark",
+              "data": {
+                "seen": {
+                  "run_id": 0,
+                  "attempt": 0
+                }
+              }
+            }
+          ]
+        },
+        {
+          "place": "ladder.rerun",
+          "tokens": [
+            {
+              "color": "RerunRung",
+              "data": {}
+            }
+          ]
+        },
+        {
+          "place": "ladder.repair",
+          "tokens": [
+            {
+              "color": "RepairRung",
+              "data": {}
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 12,
+      "transition": "ingress.ci",
+      "source": {
+        "id": "readiness.ci",
+        "file": "inet_scenario.py",
+        "line": 128,
+        "symbol": "ci"
+      },
+      "accepted": [
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h2r",
+            "evidence": {
+              "run_id": 21,
+              "attempt": 1
+            },
+            "conclusion": "success",
+            "fingerprint": null
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "events.ci",
+          "tokens": [
+            {
+              "color": "CIObserved",
+              "data": {
+                "head": "h2r",
+                "evidence": {
+                  "run_id": 21,
+                  "attempt": 1
+                },
+                "conclusion": "success",
+                "fingerprint": null
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 13,
+      "transition": "decide.publish",
+      "source": {
+        "id": "readiness.decide.publish",
+        "file": "inet_scenario.py",
+        "line": 144,
+        "symbol": "publish"
+      },
+      "accepted": [
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h2r",
+            "evidence": {
+              "run_id": 21,
+              "attempt": 1
+            },
+            "conclusion": "success",
+            "fingerprint": null
+          }
+        },
+        {
+          "color": "EvidenceWatermark",
+          "data": {
+            "seen": {
+              "run_id": 0,
+              "attempt": 0
+            }
+          }
+        }
+      ],
+      "read": [
+        {
+          "color": "HeadFact",
+          "data": {
+            "head": "h2r",
+            "generation": 3,
+            "lineage": "L2"
+          }
+        }
+      ],
+      "produced": [
+        {
+          "place": "readiness.watermark",
+          "tokens": [
+            {
+              "color": "EvidenceWatermark",
+              "data": {
+                "seen": {
+                  "run_id": 21,
+                  "attempt": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "place": "publication.admitted",
+          "tokens": [
+            {
+              "color": "PublicationClaim",
+              "data": {}
+            }
+          ]
+        },
+        {
+          "place": "terminal.published",
+          "tokens": [
+            {
+              "color": "Published",
+              "data": {
+                "operation": "publish:h2r:g3",
+                "head": "h2r",
+                "generation": 3
+              }
+            }
+          ]
+        }
+      ],
+      "activity": {
+        "activity": "publish",
+        "correlation": "publish:h2r:g3",
+        "idempotency": "publish:h2r:g3",
+        "result": {
+          "operation": "publish:h2r:g3",
+          "head": "h2r",
+          "generation": 3
+        }
+      },
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 14,
+      "transition": "ingress.head",
+      "source": {
+        "id": "readiness.head",
+        "file": "inet_scenario.py",
+        "line": 118,
+        "symbol": "head"
+      },
+      "accepted": [
+        {
+          "color": "HeadObserved",
+          "data": {
+            "head": "h3",
+            "relation": "superseded",
+            "generation": 4,
+            "lineage": "L4"
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "readiness.head",
+          "tokens": [
+            {
+              "color": "HeadFact",
+              "data": {
+                "head": "h3",
+                "generation": 4,
+                "lineage": "L4"
+              }
+            }
+          ]
+        },
+        {
+          "place": "readiness.watermark",
+          "tokens": [
+            {
+              "color": "EvidenceWatermark",
+              "data": {
+                "seen": {
+                  "run_id": 0,
+                  "attempt": 0
+                }
+              }
+            }
+          ]
+        },
+        {
+          "place": "ladder.rerun",
+          "tokens": [
+            {
+              "color": "RerunRung",
+              "data": {}
+            }
+          ]
+        },
+        {
+          "place": "ladder.repair",
+          "tokens": [
+            {
+              "color": "RepairRung",
+              "data": {}
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    }
+  ],
+  "decisions": [
+    {
+      "occurrence": 3,
+      "branch": "publish",
+      "transition": "decide.publish",
+      "role": "guarded branch [publish] — decision fused with the publish effect",
+      "source": {
+        "file": "inet_scenario.py",
+        "line": 144,
+        "symbol": "publish"
+      }
+    },
+    {
+      "occurrence": 6,
+      "branch": "rerun",
+      "transition": "decide.rerun",
+      "role": "guarded branch [rerun] — decision fused with the rerun effect",
+      "source": {
+        "file": "inet_scenario.py",
+        "line": 159,
+        "symbol": "rerun"
+      }
+    },
+    {
+      "occurrence": 8,
+      "branch": "stale",
+      "transition": "decide.stale",
+      "role": "guarded branch [stale] — durable absorption",
+      "source": {
+        "file": "inet_scenario.py",
+        "line": 143,
+        "symbol": "stale"
+      }
+    },
+    {
+      "occurrence": 10,
+      "branch": "repair",
+      "transition": "decide.repair",
+      "role": "guarded branch [repair] — decision fused with the repair effect",
+      "source": {
+        "file": "inet_scenario.py",
+        "line": 166,
+        "symbol": "repair"
+      }
+    },
+    {
+      "occurrence": 13,
+      "branch": "publish",
+      "transition": "decide.publish",
+      "role": "guarded branch [publish] — decision fused with the publish effect",
+      "source": {
+        "file": "inet_scenario.py",
+        "line": 144,
+        "symbol": "publish"
+      }
+    }
+  ]
+}

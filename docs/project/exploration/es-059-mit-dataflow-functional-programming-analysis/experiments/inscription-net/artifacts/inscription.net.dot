@@ -1,0 +1,99 @@
+digraph "impetus" {
+  graph [bgcolor="#0d1117", fontcolor="#e6edf3", fontname="Helvetica", label="readiness", labelloc="t", nodesep="0.6", pad="0.25", rankdir="TB", ranksep="1.0"];
+  node [fontcolor="#e6edf3", fontname="Helvetica"];
+  edge [fontcolor="#8b949e", fontname="Helvetica", fontsize="10"];
+  subgraph "cluster_0" {
+    graph [color="#8b949e", fillcolor="#161b22", fontcolor="#8b949e", label="events", style="filled", tooltip="events"];
+    "p0" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">ci</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">CIObserved</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="events.ci"];
+  }
+  subgraph "cluster_1" {
+    graph [color="#8b949e", fillcolor="#161b22", fontcolor="#8b949e", label="facts", style="filled", tooltip="facts"];
+    "p1" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">repair_landed</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">RepairLanded</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="facts.repair_landed"];
+    "p2" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">rerun_accepted</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">RerunAccepted</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="facts.rerun_accepted"];
+  }
+  subgraph "cluster_2" {
+    graph [color="#8b949e", fillcolor="#161b22", fontcolor="#8b949e", label="ladder", style="filled", tooltip="ladder"];
+    "p3" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">repair</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">RepairRung</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="ladder.repair"];
+    "p4" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">rerun</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">RerunRung</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="ladder.rerun"];
+  }
+  subgraph "cluster_3" {
+    graph [color="#8b949e", fillcolor="#161b22", fontcolor="#8b949e", label="publication", style="filled", tooltip="publication"];
+    "p5" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">admitted</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">PublicationClaim</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="publication.admitted"];
+  }
+  subgraph "cluster_4" {
+    graph [color="#8b949e", fillcolor="#161b22", fontcolor="#8b949e", label="readiness", style="filled", tooltip="readiness"];
+    "p6" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">head</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">HeadFact</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="readiness.head"];
+    "p7" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">watermark</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">EvidenceWatermark</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="readiness.watermark"];
+  }
+  subgraph "cluster_5" {
+    graph [color="#8b949e", fillcolor="#161b22", fontcolor="#8b949e", label="terminal", style="filled", tooltip="terminal"];
+    "p8" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">human_needed</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">HumanNeeded</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="terminal.human_needed"];
+    "p9" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">published</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">Published</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="terminal.published"];
+  }
+  subgraph "cluster_6" {
+    graph [color="#8b949e", fillcolor="#161b22", fontcolor="#8b949e", label="decide", style="filled", tooltip="decide"];
+    "t0" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">foreign</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">handler · guard</FONT></TD></TR></TABLE>>, shape="box", style="rounded,filled", tooltip="decide.foreign\nhandler: anonymous declaration\nguards: anonymous declaration"];
+    "t1" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">human</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">handler · guard</FONT></TD></TR></TABLE>>, shape="box", style="rounded,filled", tooltip="decide.human\nhandler: anonymous declaration\nguards: anonymous declaration"];
+    "t2" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">publish</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">handler: publish · guard</FONT></TD></TR></TABLE>>, shape="box", style="rounded,filled", tooltip="decide.publish\nhandler: publish\nguards: anonymous declaration"];
+    "t3" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">repair</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">handler: repair · guard</FONT></TD></TR></TABLE>>, shape="box", style="rounded,filled", tooltip="decide.repair\nhandler: repair\nguards: anonymous declaration"];
+    "t4" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">republished</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">handler · guard</FONT></TD></TR></TABLE>>, shape="box", style="rounded,filled", tooltip="decide.republished\nhandler: anonymous declaration\nguards: anonymous declaration"];
+    "t5" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">rerun</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">handler: rerun · guard</FONT></TD></TR></TABLE>>, shape="box", style="rounded,filled", tooltip="decide.rerun\nhandler: rerun\nguards: anonymous declaration"];
+    "t6" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">stale</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">handler · guard</FONT></TD></TR></TABLE>>, shape="box", style="rounded,filled", tooltip="decide.stale\nhandler: anonymous declaration\nguards: anonymous declaration"];
+    "t7" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">unclassified</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">handler · guard</FONT></TD></TR></TABLE>>, shape="box", style="rounded,filled", tooltip="decide.unclassified\nhandler: anonymous declaration\nguards: anonymous declaration"];
+  }
+  subgraph "cluster_7" {
+    graph [color="#8b949e", fillcolor="#161b22", fontcolor="#8b949e", label="ingress", style="filled", tooltip="ingress"];
+    "t8" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">ci</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">source</FONT></TD></TR></TABLE>>, penwidth="2", shape="box", style="rounded,filled,dashed", tooltip="ingress.ci\nsource transition"];
+    "t9" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">head</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">source · handler</FONT></TD></TR></TABLE>>, penwidth="2", shape="box", style="rounded,filled,dashed", tooltip="ingress.head\nsource transition\nhandler: anonymous declaration"];
+  }
+  "t9" -> "p6" [arrowhead="normal", color="#8b949e", label="HeadFact", style="solid", tooltip="ingress.head -> readiness.head"];
+  "t9" -> "p7" [arrowhead="normal", color="#8b949e", label="EvidenceWatermark", style="solid", tooltip="ingress.head -> readiness.watermark"];
+  "t9" -> "p4" [arrowhead="normal", color="#8b949e", label="RerunRung", style="solid", tooltip="ingress.head -> ladder.rerun"];
+  "t9" -> "p3" [arrowhead="normal", color="#8b949e", label="RepairRung", style="solid", tooltip="ingress.head -> ladder.repair"];
+  "t8" -> "p0" [arrowhead="normal", color="#8b949e", label="CIObserved", style="solid", tooltip="ingress.ci -> events.ci"];
+  "p0" -> "t0" [arrowhead="normal", color="#8b949e", label="CIObserved", style="solid", tooltip="events.ci -> decide.foreign"];
+  "p7" -> "t0" [arrowhead="normal", color="#8b949e", label="EvidenceWatermark", style="solid", tooltip="readiness.watermark -> decide.foreign"];
+  "p6" -> "t0" [arrowhead="normal", color="#58a6ff", label="read · HeadFact", style="dashed", tooltip="readiness.head -> decide.foreign"];
+  "t0" -> "p7" [arrowhead="normal", color="#8b949e", label="EvidenceWatermark", style="solid", tooltip="decide.foreign -> readiness.watermark"];
+  "p0" -> "t6" [arrowhead="normal", color="#8b949e", label="CIObserved", style="solid", tooltip="events.ci -> decide.stale"];
+  "p7" -> "t6" [arrowhead="normal", color="#8b949e", label="EvidenceWatermark", style="solid", tooltip="readiness.watermark -> decide.stale"];
+  "p6" -> "t6" [arrowhead="normal", color="#58a6ff", label="read · HeadFact", style="dashed", tooltip="readiness.head -> decide.stale"];
+  "t6" -> "p7" [arrowhead="normal", color="#8b949e", label="EvidenceWatermark", style="solid", tooltip="decide.stale -> readiness.watermark"];
+  "p0" -> "t2" [arrowhead="normal", color="#8b949e", label="CIObserved · filter: cel: conclusion == \"success\"", style="solid", tooltip="events.ci -> decide.publish"];
+  "p7" -> "t2" [arrowhead="normal", color="#8b949e", label="EvidenceWatermark", style="solid", tooltip="readiness.watermark -> decide.publish"];
+  "p6" -> "t2" [arrowhead="normal", color="#58a6ff", label="read · HeadFact", style="dashed", tooltip="readiness.head -> decide.publish"];
+  "p5" -> "t2" [arrowhead="odot", color="#f85149", label="inhibit · PublicationClaim", style="dashed", tooltip="publication.admitted -> decide.publish"];
+  "t2" -> "p7" [arrowhead="normal", color="#8b949e", label="EvidenceWatermark", style="solid", tooltip="decide.publish -> readiness.watermark"];
+  "t2" -> "p5" [arrowhead="normal", color="#8b949e", label="PublicationClaim", style="solid", tooltip="decide.publish -> publication.admitted"];
+  "t2" -> "p9" [arrowhead="normal", color="#8b949e", label="Published", style="solid", tooltip="decide.publish -> terminal.published"];
+  "p0" -> "t4" [arrowhead="normal", color="#8b949e", label="CIObserved · filter: cel: conclusion == \"success\"", style="solid", tooltip="events.ci -> decide.republished"];
+  "p7" -> "t4" [arrowhead="normal", color="#8b949e", label="EvidenceWatermark", style="solid", tooltip="readiness.watermark -> decide.republished"];
+  "p5" -> "t4" [arrowhead="normal", color="#8b949e", label="PublicationClaim", style="solid", tooltip="publication.admitted -> decide.republished"];
+  "p6" -> "t4" [arrowhead="normal", color="#58a6ff", label="read · HeadFact", style="dashed", tooltip="readiness.head -> decide.republished"];
+  "t4" -> "p7" [arrowhead="normal", color="#8b949e", label="EvidenceWatermark", style="solid", tooltip="decide.republished -> readiness.watermark"];
+  "t4" -> "p5" [arrowhead="normal", color="#8b949e", label="PublicationClaim", style="solid", tooltip="decide.republished -> publication.admitted"];
+  "p0" -> "t5" [arrowhead="normal", color="#8b949e", label="CIObserved", style="solid", tooltip="events.ci -> decide.rerun"];
+  "p7" -> "t5" [arrowhead="normal", color="#8b949e", label="EvidenceWatermark", style="solid", tooltip="readiness.watermark -> decide.rerun"];
+  "p4" -> "t5" [arrowhead="normal", color="#8b949e", label="RerunRung", style="solid", tooltip="ladder.rerun -> decide.rerun"];
+  "p6" -> "t5" [arrowhead="normal", color="#58a6ff", label="read · HeadFact", style="dashed", tooltip="readiness.head -> decide.rerun"];
+  "t5" -> "p7" [arrowhead="normal", color="#8b949e", label="EvidenceWatermark", style="solid", tooltip="decide.rerun -> readiness.watermark"];
+  "t5" -> "p2" [arrowhead="normal", color="#8b949e", label="RerunAccepted", style="solid", tooltip="decide.rerun -> facts.rerun_accepted"];
+  "p0" -> "t3" [arrowhead="normal", color="#8b949e", label="CIObserved", style="solid", tooltip="events.ci -> decide.repair"];
+  "p7" -> "t3" [arrowhead="normal", color="#8b949e", label="EvidenceWatermark", style="solid", tooltip="readiness.watermark -> decide.repair"];
+  "p3" -> "t3" [arrowhead="normal", color="#8b949e", label="RepairRung", style="solid", tooltip="ladder.repair -> decide.repair"];
+  "p6" -> "t3" [arrowhead="normal", color="#58a6ff", label="read · HeadFact", style="dashed", tooltip="readiness.head -> decide.repair"];
+  "p4" -> "t3" [arrowhead="odot", color="#f85149", label="inhibit · RerunRung", style="dashed", tooltip="ladder.rerun -> decide.repair"];
+  "t3" -> "p7" [arrowhead="normal", color="#8b949e", label="EvidenceWatermark", style="solid", tooltip="decide.repair -> readiness.watermark"];
+  "t3" -> "p1" [arrowhead="normal", color="#8b949e", label="RepairLanded", style="solid", tooltip="decide.repair -> facts.repair_landed"];
+  "p0" -> "t1" [arrowhead="normal", color="#8b949e", label="CIObserved", style="solid", tooltip="events.ci -> decide.human"];
+  "p7" -> "t1" [arrowhead="normal", color="#8b949e", label="EvidenceWatermark", style="solid", tooltip="readiness.watermark -> decide.human"];
+  "p6" -> "t1" [arrowhead="normal", color="#58a6ff", label="read · HeadFact", style="dashed", tooltip="readiness.head -> decide.human"];
+  "p4" -> "t1" [arrowhead="odot", color="#f85149", label="inhibit · RerunRung", style="dashed", tooltip="ladder.rerun -> decide.human"];
+  "p3" -> "t1" [arrowhead="odot", color="#f85149", label="inhibit · RepairRung", style="dashed", tooltip="ladder.repair -> decide.human"];
+  "t1" -> "p7" [arrowhead="normal", color="#8b949e", label="EvidenceWatermark", style="solid", tooltip="decide.human -> readiness.watermark"];
+  "t1" -> "p8" [arrowhead="normal", color="#8b949e", label="HumanNeeded", style="solid", tooltip="decide.human -> terminal.human_needed"];
+  "p0" -> "t7" [arrowhead="normal", color="#8b949e", label="CIObserved", style="solid", tooltip="events.ci -> decide.unclassified"];
+  "p7" -> "t7" [arrowhead="normal", color="#8b949e", label="EvidenceWatermark", style="solid", tooltip="readiness.watermark -> decide.unclassified"];
+  "p6" -> "t7" [arrowhead="normal", color="#58a6ff", label="read · HeadFact", style="dashed", tooltip="readiness.head -> decide.unclassified"];
+  "t7" -> "p7" [arrowhead="normal", color="#8b949e", label="EvidenceWatermark", style="solid", tooltip="decide.unclassified -> readiness.watermark"];
+}

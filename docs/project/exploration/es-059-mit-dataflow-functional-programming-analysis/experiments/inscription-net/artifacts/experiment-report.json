@@ -1,0 +1,47 @@
+{
+  "format": "petrus-es059-inscription-net-experiment-report",
+  "version": 1,
+  "topology": {
+    "places": 10,
+    "transitions": 10,
+    "arcs": 50,
+    "guards": 8,
+    "cel_arc_filters": 2
+  },
+  "records": 108,
+  "grain": {
+    "decision_firings": 5,
+    "branches_fired": [
+      "publish",
+      "rerun",
+      "stale",
+      "repair",
+      "publish"
+    ],
+    "firings_per_delivered_observation": 1
+  },
+  "hashes": {
+    "net_v3": "cc602704a67a17a5dbe67486c8379fbfefdc572e34ece9f4b5f3c8ff8cf80f8d",
+    "source_map": "2727ebc8106074eb5077ee206d1453376b1476b19a374e44c001d452842b0aad",
+    "explained_history": "b8b288e31ff341e2f4e77363f216a74bd8e275eac95f4aca76742a70593eb66a",
+    "history_uninterrupted": "ee48f97ed1c5c38eeb6c4ef855c31ab515eb10aa1a3abc26a15b4477df16876c",
+    "history_restarted": "ee48f97ed1c5c38eeb6c4ef855c31ab515eb10aa1a3abc26a15b4477df16876c",
+    "dot": "6f78496da2bf625cf9bb5f47f17cee30af9bd32db8678c2f9cc4156b68bbe2ee"
+  },
+  "results": {
+    "histories_byte_identical": true,
+    "unattributed_records": 0,
+    "operations_uninterrupted": {
+      "publish:h1:g1": 1,
+      "publish:h2r:g3": 1,
+      "repair:L2:build": 1,
+      "rerun:L2:build": 1
+    },
+    "operations_restarted": {
+      "publish:h1:g1": 1,
+      "publish:h2r:g3": 1,
+      "repair:L2:build": 2,
+      "rerun:L2:build": 1
+    }
+  }
+}
