@@ -1,0 +1,81 @@
+{
+  "format": "petrus-es059-guarded-decision-net-experiment-report",
+  "version": 1,
+  "variant": "option-b-one-transition-per-rung",
+  "topology": {
+    "places": 14,
+    "transitions": 13,
+    "arcs": 40,
+    "guards": 5
+  },
+  "rungs": [
+    {
+      "id": "ignore",
+      "transition": "readiness.route_ci.ignore.fire",
+      "predicate": "not_actionable",
+      "outcome": null,
+      "target": null
+    },
+    {
+      "id": "publish",
+      "transition": "readiness.route_ci.publish.fire",
+      "predicate": "first_clean",
+      "outcome": "PublishRequested",
+      "target": "commands.publish"
+    },
+    {
+      "id": "rerun",
+      "transition": "readiness.route_ci.rerun.fire",
+      "predicate": "fresh_failure",
+      "outcome": "RerunRequested",
+      "target": "commands.rerun"
+    },
+    {
+      "id": "repair",
+      "transition": "readiness.route_ci.repair.fire",
+      "predicate": "repeated_failure",
+      "outcome": "RepairRequested",
+      "target": "commands.repair"
+    },
+    {
+      "id": "human",
+      "transition": "readiness.route_ci.human.fire",
+      "predicate": "ladder_exhausted",
+      "outcome": "HumanNeeded",
+      "target": "terminal.human_needed"
+    }
+  ],
+  "records": 147,
+  "hashes": {
+    "net_v3": "fb936dd2d4a2cab054f267c423576df93b21ca897433133edc72b5f126e789cc",
+    "source_map": "b02b02693d2f85eff1d6b0d5244420a4a92eb464e0ea63e98772767f1dd3eb4d",
+    "explained_history": "8b805aa460243bb20bbcf5b86f537c5038d368c620b6a043279c6b789a5651c6",
+    "history_uninterrupted": "d95e00aa6b4588158debeff9f2f0d03b2e69dec64c29464a7851d298da3e136f",
+    "history_restarted": "d95e00aa6b4588158debeff9f2f0d03b2e69dec64c29464a7851d298da3e136f",
+    "dot": "be3c499f24a8890385fffcbe14d028ceac490ba9988b2ed9accd62c5919ad63d"
+  },
+  "results": {
+    "histories_byte_identical": true,
+    "unattributed_records": 0,
+    "ci_deliveries": 5,
+    "rung_firings": [
+      "publish",
+      "rerun",
+      "ignore",
+      "repair",
+      "publish"
+    ],
+    "operations_uninterrupted": {
+      "publish:h1:g1": 1,
+      "publish:h2r:g3": 1,
+      "repair:L2:build": 1,
+      "rerun:L2:build": 1
+    },
+    "operations_restarted": {
+      "publish:h1:g1": 1,
+      "publish:h2r:g3": 1,
+      "repair:L2:build": 2,
+      "rerun:L2:build": 1
+    }
+  }
+}

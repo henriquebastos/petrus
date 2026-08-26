@@ -1,0 +1,573 @@
+{
+  "format": "petrus-net-definition",
+  "version": 3,
+  "definition": {
+    "name": "readiness",
+    "time_domain": "integer",
+    "places": [
+      {
+        "path": "commands.publish",
+        "color": "PublishRequested"
+      },
+      {
+        "path": "commands.repair",
+        "color": "RepairRequested"
+      },
+      {
+        "path": "commands.rerun",
+        "color": "RerunRequested"
+      },
+      {
+        "path": "effects.publish.ack",
+        "color": "PublishAcknowledged"
+      },
+      {
+        "path": "effects.publish.done",
+        "color": null
+      },
+      {
+        "path": "effects.publish.pending",
+        "color": null
+      },
+      {
+        "path": "effects.publish.work",
+        "color": "PublishRequested"
+      },
+      {
+        "path": "events.ci",
+        "color": "CIObserved"
+      },
+      {
+        "path": "facts.publish_acknowledged",
+        "color": "PublishAcknowledged"
+      },
+      {
+        "path": "facts.repair_landed",
+        "color": "RepairLanded"
+      },
+      {
+        "path": "facts.rerun_accepted",
+        "color": "RerunAccepted"
+      },
+      {
+        "path": "readiness.state",
+        "color": "ReadinessState"
+      },
+      {
+        "path": "terminal.human_needed",
+        "color": "HumanNeeded"
+      },
+      {
+        "path": "terminal.published",
+        "color": "Published"
+      }
+    ],
+    "transitions": [
+      {
+        "path": "effects.publish.accept",
+        "handler": {
+          "kind": "anonymous",
+          "uri": "transition:/effects/publish/accept#handler"
+        },
+        "guards": [],
+        "timers": []
+      },
+      {
+        "path": "effects.publish.authorize",
+        "handler": {
+          "kind": "anonymous",
+          "uri": "transition:/effects/publish/authorize#handler"
+        },
+        "guards": [],
+        "timers": []
+      },
+      {
+        "path": "effects.publish.execute",
+        "handler": {
+          "kind": "symbol",
+          "name": "publish",
+          "uri": "transition:/effects/publish/execute#handler"
+        },
+        "guards": [],
+        "timers": []
+      },
+      {
+        "path": "effects.repair.fire",
+        "handler": {
+          "kind": "symbol",
+          "name": "repair",
+          "uri": "transition:/effects/repair/fire#handler"
+        },
+        "guards": [],
+        "timers": []
+      },
+      {
+        "path": "effects.rerun.fire",
+        "handler": {
+          "kind": "symbol",
+          "name": "rerun",
+          "uri": "transition:/effects/rerun/fire#handler"
+        },
+        "guards": [],
+        "timers": []
+      },
+      {
+        "path": "ingress.ci",
+        "handler": null,
+        "guards": [],
+        "timers": []
+      },
+      {
+        "path": "ingress.head",
+        "handler": {
+          "kind": "anonymous",
+          "uri": "transition:/ingress/head#handler"
+        },
+        "guards": [],
+        "timers": []
+      },
+      {
+        "path": "readiness.accept_publish.fire",
+        "handler": {
+          "kind": "anonymous",
+          "uri": "transition:/readiness/accept_publish/fire#handler"
+        },
+        "guards": [],
+        "timers": []
+      },
+      {
+        "path": "readiness.route_ci.human.fire",
+        "handler": {
+          "kind": "anonymous",
+          "uri": "transition:/readiness/route_ci/human/fire#handler"
+        },
+        "guards": [
+          {
+            "kind": "anonymous",
+            "uri": "transition:/readiness/route_ci/human/fire#guard:$0"
+          }
+        ],
+        "timers": []
+      },
+      {
+        "path": "readiness.route_ci.ignore.fire",
+        "handler": {
+          "kind": "anonymous",
+          "uri": "transition:/readiness/route_ci/ignore/fire#handler"
+        },
+        "guards": [
+          {
+            "kind": "anonymous",
+            "uri": "transition:/readiness/route_ci/ignore/fire#guard:$0"
+          }
+        ],
+        "timers": []
+      },
+      {
+        "path": "readiness.route_ci.publish.fire",
+        "handler": {
+          "kind": "anonymous",
+          "uri": "transition:/readiness/route_ci/publish/fire#handler"
+        },
+        "guards": [
+          {
+            "kind": "anonymous",
+            "uri": "transition:/readiness/route_ci/publish/fire#guard:$0"
+          }
+        ],
+        "timers": []
+      },
+      {
+        "path": "readiness.route_ci.repair.fire",
+        "handler": {
+          "kind": "anonymous",
+          "uri": "transition:/readiness/route_ci/repair/fire#handler"
+        },
+        "guards": [
+          {
+            "kind": "anonymous",
+            "uri": "transition:/readiness/route_ci/repair/fire#guard:$0"
+          }
+        ],
+        "timers": []
+      },
+      {
+        "path": "readiness.route_ci.rerun.fire",
+        "handler": {
+          "kind": "anonymous",
+          "uri": "transition:/readiness/route_ci/rerun/fire#handler"
+        },
+        "guards": [
+          {
+            "kind": "anonymous",
+            "uri": "transition:/readiness/route_ci/rerun/fire#guard:$0"
+          }
+        ],
+        "timers": []
+      }
+    ],
+    "arcs": [
+      {
+        "position": 0,
+        "source": "ingress.head",
+        "target": "readiness.state",
+        "mode": "consume",
+        "weight": 1,
+        "color": "ReadinessState",
+        "filter": null
+      },
+      {
+        "position": 1,
+        "source": "ingress.ci",
+        "target": "events.ci",
+        "mode": "consume",
+        "weight": 1,
+        "color": "CIObserved",
+        "filter": null
+      },
+      {
+        "position": 2,
+        "source": "readiness.state",
+        "target": "readiness.route_ci.ignore.fire",
+        "mode": "consume",
+        "weight": 1,
+        "color": "ReadinessState",
+        "filter": null
+      },
+      {
+        "position": 3,
+        "source": "events.ci",
+        "target": "readiness.route_ci.ignore.fire",
+        "mode": "consume",
+        "weight": 1,
+        "color": "CIObserved",
+        "filter": null
+      },
+      {
+        "position": 4,
+        "source": "readiness.route_ci.ignore.fire",
+        "target": "readiness.state",
+        "mode": "consume",
+        "weight": 1,
+        "color": "ReadinessState",
+        "filter": null
+      },
+      {
+        "position": 5,
+        "source": "readiness.state",
+        "target": "readiness.route_ci.publish.fire",
+        "mode": "consume",
+        "weight": 1,
+        "color": "ReadinessState",
+        "filter": null
+      },
+      {
+        "position": 6,
+        "source": "events.ci",
+        "target": "readiness.route_ci.publish.fire",
+        "mode": "consume",
+        "weight": 1,
+        "color": "CIObserved",
+        "filter": null
+      },
+      {
+        "position": 7,
+        "source": "readiness.route_ci.publish.fire",
+        "target": "readiness.state",
+        "mode": "consume",
+        "weight": 1,
+        "color": "ReadinessState",
+        "filter": null
+      },
+      {
+        "position": 8,
+        "source": "readiness.route_ci.publish.fire",
+        "target": "commands.publish",
+        "mode": "consume",
+        "weight": 1,
+        "color": "PublishRequested",
+        "filter": null
+      },
+      {
+        "position": 9,
+        "source": "readiness.state",
+        "target": "readiness.route_ci.rerun.fire",
+        "mode": "consume",
+        "weight": 1,
+        "color": "ReadinessState",
+        "filter": null
+      },
+      {
+        "position": 10,
+        "source": "events.ci",
+        "target": "readiness.route_ci.rerun.fire",
+        "mode": "consume",
+        "weight": 1,
+        "color": "CIObserved",
+        "filter": null
+      },
+      {
+        "position": 11,
+        "source": "readiness.route_ci.rerun.fire",
+        "target": "readiness.state",
+        "mode": "consume",
+        "weight": 1,
+        "color": "ReadinessState",
+        "filter": null
+      },
+      {
+        "position": 12,
+        "source": "readiness.route_ci.rerun.fire",
+        "target": "commands.rerun",
+        "mode": "consume",
+        "weight": 1,
+        "color": "RerunRequested",
+        "filter": null
+      },
+      {
+        "position": 13,
+        "source": "readiness.state",
+        "target": "readiness.route_ci.repair.fire",
+        "mode": "consume",
+        "weight": 1,
+        "color": "ReadinessState",
+        "filter": null
+      },
+      {
+        "position": 14,
+        "source": "events.ci",
+        "target": "readiness.route_ci.repair.fire",
+        "mode": "consume",
+        "weight": 1,
+        "color": "CIObserved",
+        "filter": null
+      },
+      {
+        "position": 15,
+        "source": "readiness.route_ci.repair.fire",
+        "target": "readiness.state",
+        "mode": "consume",
+        "weight": 1,
+        "color": "ReadinessState",
+        "filter": null
+      },
+      {
+        "position": 16,
+        "source": "readiness.route_ci.repair.fire",
+        "target": "commands.repair",
+        "mode": "consume",
+        "weight": 1,
+        "color": "RepairRequested",
+        "filter": null
+      },
+      {
+        "position": 17,
+        "source": "readiness.state",
+        "target": "readiness.route_ci.human.fire",
+        "mode": "consume",
+        "weight": 1,
+        "color": "ReadinessState",
+        "filter": null
+      },
+      {
+        "position": 18,
+        "source": "events.ci",
+        "target": "readiness.route_ci.human.fire",
+        "mode": "consume",
+        "weight": 1,
+        "color": "CIObserved",
+        "filter": null
+      },
+      {
+        "position": 19,
+        "source": "readiness.route_ci.human.fire",
+        "target": "readiness.state",
+        "mode": "consume",
+        "weight": 1,
+        "color": "ReadinessState",
+        "filter": null
+      },
+      {
+        "position": 20,
+        "source": "readiness.route_ci.human.fire",
+        "target": "terminal.human_needed",
+        "mode": "consume",
+        "weight": 1,
+        "color": "HumanNeeded",
+        "filter": null
+      },
+      {
+        "position": 21,
+        "source": "commands.rerun",
+        "target": "effects.rerun.fire",
+        "mode": "consume",
+        "weight": 1,
+        "color": "RerunRequested",
+        "filter": null
+      },
+      {
+        "position": 22,
+        "source": "effects.rerun.fire",
+        "target": "facts.rerun_accepted",
+        "mode": "consume",
+        "weight": 1,
+        "color": "RerunAccepted",
+        "filter": null
+      },
+      {
+        "position": 23,
+        "source": "commands.repair",
+        "target": "effects.repair.fire",
+        "mode": "consume",
+        "weight": 1,
+        "color": "RepairRequested",
+        "filter": null
+      },
+      {
+        "position": 24,
+        "source": "effects.repair.fire",
+        "target": "facts.repair_landed",
+        "mode": "consume",
+        "weight": 1,
+        "color": "RepairLanded",
+        "filter": null
+      },
+      {
+        "position": 25,
+        "source": "commands.publish",
+        "target": "effects.publish.authorize",
+        "mode": "consume",
+        "weight": 1,
+        "color": "PublishRequested",
+        "filter": null
+      },
+      {
+        "position": 26,
+        "source": "effects.publish.pending",
+        "target": "effects.publish.authorize",
+        "mode": "inhibit",
+        "weight": 1,
+        "color": null,
+        "filter": null
+      },
+      {
+        "position": 27,
+        "source": "effects.publish.done",
+        "target": "effects.publish.authorize",
+        "mode": "inhibit",
+        "weight": 1,
+        "color": null,
+        "filter": null
+      },
+      {
+        "position": 28,
+        "source": "effects.publish.authorize",
+        "target": "effects.publish.work",
+        "mode": "consume",
+        "weight": 1,
+        "color": "PublishRequested",
+        "filter": null
+      },
+      {
+        "position": 29,
+        "source": "effects.publish.authorize",
+        "target": "effects.publish.pending",
+        "mode": "consume",
+        "weight": 1,
+        "color": null,
+        "filter": null
+      },
+      {
+        "position": 30,
+        "source": "effects.publish.work",
+        "target": "effects.publish.execute",
+        "mode": "consume",
+        "weight": 1,
+        "color": "PublishRequested",
+        "filter": null
+      },
+      {
+        "position": 31,
+        "source": "effects.publish.execute",
+        "target": "effects.publish.ack",
+        "mode": "consume",
+        "weight": 1,
+        "color": "PublishAcknowledged",
+        "filter": null
+      },
+      {
+        "position": 32,
+        "source": "effects.publish.pending",
+        "target": "effects.publish.accept",
+        "mode": "consume",
+        "weight": 1,
+        "color": null,
+        "filter": null
+      },
+      {
+        "position": 33,
+        "source": "effects.publish.ack",
+        "target": "effects.publish.accept",
+        "mode": "consume",
+        "weight": 1,
+        "color": "PublishAcknowledged",
+        "filter": null
+      },
+      {
+        "position": 34,
+        "source": "effects.publish.accept",
+        "target": "facts.publish_acknowledged",
+        "mode": "consume",
+        "weight": 1,
+        "color": "PublishAcknowledged",
+        "filter": null
+      },
+      {
+        "position": 35,
+        "source": "effects.publish.accept",
+        "target": "effects.publish.done",
+        "mode": "consume",
+        "weight": 1,
+        "color": null,
+        "filter": null
+      },
+      {
+        "position": 36,
+        "source": "readiness.state",
+        "target": "readiness.accept_publish.fire",
+        "mode": "consume",
+        "weight": 1,
+        "color": "ReadinessState",
+        "filter": null
+      },
+      {
+        "position": 37,
+        "source": "facts.publish_acknowledged",
+        "target": "readiness.accept_publish.fire",
+        "mode": "consume",
+        "weight": 1,
+        "color": "PublishAcknowledged",
+        "filter": null
+      },
+      {
+        "position": 38,
+        "source": "readiness.accept_publish.fire",
+        "target": "readiness.state",
+        "mode": "consume",
+        "weight": 1,
+        "color": "ReadinessState",
+        "filter": null
+      },
+      {
+        "position": 39,
+        "source": "readiness.accept_publish.fire",
+        "target": "terminal.published",
+        "mode": "consume",
+        "weight": 1,
+        "color": "Published",
+        "filter": null
+      }
+    ],
+    "completion": null
+  }
+}

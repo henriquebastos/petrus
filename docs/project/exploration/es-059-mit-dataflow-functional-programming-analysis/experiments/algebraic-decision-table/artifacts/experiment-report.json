@@ -1,0 +1,40 @@
+{
+  "format": "petrus-es059-algebraic-decision-table-experiment-report",
+  "version": 1,
+  "topology": {
+    "places": 14,
+    "transitions": 9,
+    "arcs": 28
+  },
+  "records": 147,
+  "authored_cases": 8,
+  "decision_firings": 5,
+  "hashes": {
+    "net_v3": "f5e4a91f30b68e0957313d688210ba9994b28e694dc5ba520f1419cd89537a19",
+    "source_map": "a5b3a59d89217483f41f8c98a4de47e9d02f1db08a288cf09c293ba937c241fc",
+    "explained_history_cases": "ac76a401d6487e9f4ef3d076f56ee1be64c49ea5d705faa526448aa2e0b1478c",
+    "history_uninterrupted": "a75880c03d0da50ef2707782d1d34bc7b0e0f83a804c746db84b147b55d3e22d",
+    "history_restarted": "a75880c03d0da50ef2707782d1d34bc7b0e0f83a804c746db84b147b55d3e22d",
+    "dot": "3f179a036b5c36cfbf13cf3d60a86567fc1e4ee88da3c6696e661065c1717688"
+  },
+  "results": {
+    "net_v3_identical_to_v1": true,
+    "history_identical_to_v1": true,
+    "histories_byte_identical": true,
+    "unattributed_records": 0,
+    "decision_firings_naming_one_case": 4,
+    "decision_firings_absorbed_and_indistinguishable": 1,
+    "operations_uninterrupted": {
+      "publish:h1:g1": 1,
+      "publish:h2r:g3": 1,
+      "repair:L2:build": 1,
+      "rerun:L2:build": 1
+    },
+    "operations_restarted": {
+      "publish:h1:g1": 1,
+      "publish:h2r:g3": 1,
+      "repair:L2:build": 2,
+      "rerun:L2:build": 1
+    }
+  }
+}

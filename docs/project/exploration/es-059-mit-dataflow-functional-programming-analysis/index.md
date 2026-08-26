@@ -12,9 +12,14 @@ status_reason: >-
   and classified promising: all fourteen mechanical completion conditions
   passed, canonical execution, replay, resume, byte-stable lowering, and
   full source-to-History attribution held, and the evidence supports "the
-  authoring surface is too low-level" over "the Petri model is wrong".
+  authoring surface is too low-level" over "the Petri model is wrong". Two
+  bounded follow-up experiments compared decision-structure spellings: the
+  single-transition algebraic case table is promising (byte-identical
+  canonical IR and History under a richer source), while the
+  one-guarded-transition-per-rung net is mixed (durable branch visibility
+  bought with unprovable exclusivity obligations and topology growth).
   Promotion remains a Navigator decision; no kernel rewrite, Haskell
-  migration, or roadmap change follows from the experiment itself.
+  migration, or roadmap change follows from the experiments themselves.
 opened: 2026-08-26
 updated: 2026-08-26
 related:
@@ -609,6 +614,34 @@ explains back to an authored source block. Composition mistakes fail before
 motion at their source expressions, and the one inhibitor-based publication
 gate composed through the explicit low-level descent seam without bypassing
 canonical validation.
+
+**Two bounded follow-up experiments** probe where the decision structure
+itself should live, both beside — never inside — the completed slice:
+
+- [experiments/algebraic-decision-table](experiments/algebraic-decision-table/report.md)
+  (**promising** `[E]`): the ladder authored as an ordered, first-match-wins
+  case table lowered to the SAME single transition — canonical Net v3 bytes
+  and the fixture's canonical History are byte-identical to the completed
+  slice, a 10,368-point sweep matches `route_ci` exactly, totality is checked
+  statically through an `otherwise` sentinel, and every rung gets its own
+  source-map attribution. Named cost: the shared classify/commit seam
+  (`normalize`) is where sequential state-dependence resists tabulation.
+- [experiments/guarded-decision-net](experiments/guarded-decision-net/report.md)
+  (**mixed** `[E]`): each rung as its own guarded transition makes the ladder
+  visible in canonical topology and closes the slice's Ignored-invisibility
+  limit (absorption is now a named durable firing), at the price of 9→13
+  transitions, 28→40 arcs, ~10× guard-evaluation amplification, and — the
+  decisive counterexample — overlapping guards that nothing refuses, whose
+  business outcome is then reproducibly settled by the Engine's selection
+  policy rather than the authored flow, while a non-exhaustive rung set
+  strands observations silently. Exclusivity/exhaustiveness became an
+  executable but unprovable authoring obligation (576-point grid).
+
+Together the three spellings sharpen the grain rule's authoring corollary:
+keep one durable transition per decision and enrich the *source* (the case
+table), rather than multiplying transitions to make branching visible (the
+guarded net) — durable visibility of absorbed decisions is the one genuine
+argument the guarded variant leaves on the table.
 
 Use one Hamsterdan vertical slice rather than a new tutorial or full rewrite:
 

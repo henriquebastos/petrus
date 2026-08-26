@@ -1,0 +1,279 @@
+{
+  "format": "petrus-experiment-source-map",
+  "version": 1,
+  "definition_sha256": "f5e4a91f30b68e0957313d688210ba9994b28e694dc5ba520f1419cd89537a19",
+  "sources": [
+    {
+      "id": "readiness",
+      "file": "table_scenario.py",
+      "line": 202,
+      "symbol": "readiness"
+    },
+    {
+      "id": "readiness.accept_publish",
+      "file": "scenario.py",
+      "line": 186,
+      "symbol": "accept_publish"
+    },
+    {
+      "id": "readiness.admit_head",
+      "file": "scenario.py",
+      "line": 105,
+      "symbol": "admit_head"
+    },
+    {
+      "id": "readiness.ci",
+      "file": "table_scenario.py",
+      "line": 207,
+      "symbol": "ci"
+    },
+    {
+      "id": "readiness.head",
+      "file": "table_scenario.py",
+      "line": 206,
+      "symbol": "head"
+    },
+    {
+      "id": "readiness.human_needed",
+      "file": "table_scenario.py",
+      "line": 227,
+      "symbol": "human_needed"
+    },
+    {
+      "id": "readiness.lifecycle.branch",
+      "file": "table_scenario.py",
+      "line": 204,
+      "symbol": "branch"
+    },
+    {
+      "id": "readiness.publish_once",
+      "file": "scenario.py",
+      "line": 221,
+      "symbol": "publication_gate"
+    },
+    {
+      "id": "readiness.published",
+      "file": "table_scenario.py",
+      "line": 230,
+      "symbol": "published"
+    },
+    {
+      "id": "readiness.repair",
+      "file": "table_scenario.py",
+      "line": 226,
+      "symbol": "repair"
+    },
+    {
+      "id": "readiness.rerun",
+      "file": "table_scenario.py",
+      "line": 225,
+      "symbol": "rerun"
+    },
+    {
+      "id": "readiness.route_ci",
+      "file": "table_scenario.py",
+      "line": 208,
+      "symbol": "route_ci"
+    },
+    {
+      "id": "readiness.route_ci.foreign",
+      "file": "table_scenario.py",
+      "line": 212,
+      "symbol": "foreign"
+    },
+    {
+      "id": "readiness.route_ci.human",
+      "file": "table_scenario.py",
+      "line": 219,
+      "symbol": "human"
+    },
+    {
+      "id": "readiness.route_ci.normalize",
+      "file": "table_scenario.py",
+      "line": 80,
+      "symbol": "refresh_ladder"
+    },
+    {
+      "id": "readiness.route_ci.publish",
+      "file": "table_scenario.py",
+      "line": 214,
+      "symbol": "publish"
+    },
+    {
+      "id": "readiness.route_ci.published",
+      "file": "table_scenario.py",
+      "line": 215,
+      "symbol": "published"
+    },
+    {
+      "id": "readiness.route_ci.repair",
+      "file": "table_scenario.py",
+      "line": 218,
+      "symbol": "repair"
+    },
+    {
+      "id": "readiness.route_ci.rerun",
+      "file": "table_scenario.py",
+      "line": 217,
+      "symbol": "rerun"
+    },
+    {
+      "id": "readiness.route_ci.stale",
+      "file": "table_scenario.py",
+      "line": 213,
+      "symbol": "stale"
+    },
+    {
+      "id": "readiness.route_ci.unclassified",
+      "file": "table_scenario.py",
+      "line": 216,
+      "symbol": "unclassified"
+    }
+  ],
+  "elements": [
+    {
+      "kind": "place",
+      "path": "commands.publish",
+      "source": "readiness.publish_once",
+      "role": "typed command"
+    },
+    {
+      "kind": "place",
+      "path": "commands.repair",
+      "source": "readiness.repair",
+      "role": "typed command"
+    },
+    {
+      "kind": "place",
+      "path": "commands.rerun",
+      "source": "readiness.rerun",
+      "role": "typed command"
+    },
+    {
+      "kind": "place",
+      "path": "effects.publish.ack",
+      "source": "readiness.publish_once",
+      "role": "publication effect terminal"
+    },
+    {
+      "kind": "place",
+      "path": "effects.publish.done",
+      "source": "readiness.publish_once",
+      "role": "publication completed latch"
+    },
+    {
+      "kind": "place",
+      "path": "effects.publish.pending",
+      "source": "readiness.publish_once",
+      "role": "publication in-flight latch"
+    },
+    {
+      "kind": "place",
+      "path": "effects.publish.work",
+      "source": "readiness.publish_once",
+      "role": "authorized publication work"
+    },
+    {
+      "kind": "place",
+      "path": "events.ci",
+      "source": "readiness.ci",
+      "role": "typed event place"
+    },
+    {
+      "kind": "place",
+      "path": "facts.publish_acknowledged",
+      "source": "readiness.publish_once",
+      "role": "accepted effect fact"
+    },
+    {
+      "kind": "place",
+      "path": "facts.repair_landed",
+      "source": "readiness.repair",
+      "role": "effect result fact"
+    },
+    {
+      "kind": "place",
+      "path": "facts.rerun_accepted",
+      "source": "readiness.rerun",
+      "role": "effect result fact"
+    },
+    {
+      "kind": "place",
+      "path": "readiness.state",
+      "source": "readiness.admit_head",
+      "role": "generation state baton"
+    },
+    {
+      "kind": "place",
+      "path": "terminal.human_needed",
+      "source": "readiness.human_needed",
+      "role": "terminal outcome"
+    },
+    {
+      "kind": "place",
+      "path": "terminal.published",
+      "source": "readiness.published",
+      "role": "terminal outcome"
+    },
+    {
+      "kind": "transition",
+      "path": "effects.publish.accept",
+      "source": "readiness.publish_once",
+      "role": "accept effect terminal, release pending, latch done"
+    },
+    {
+      "kind": "transition",
+      "path": "effects.publish.authorize",
+      "source": "readiness.publish_once",
+      "role": "admit one publication while none is pending or done"
+    },
+    {
+      "kind": "transition",
+      "path": "effects.publish.execute",
+      "source": "readiness.publish_once",
+      "role": "publication effect request/observe"
+    },
+    {
+      "kind": "transition",
+      "path": "effects.repair.fire",
+      "source": "readiness.repair",
+      "role": "typed Activity effect"
+    },
+    {
+      "kind": "transition",
+      "path": "effects.rerun.fire",
+      "source": "readiness.rerun",
+      "role": "typed Activity effect"
+    },
+    {
+      "kind": "transition",
+      "path": "ingress.ci",
+      "source": "readiness.ci",
+      "role": "typed scoped ingress"
+    },
+    {
+      "kind": "transition",
+      "path": "ingress.head",
+      "source": "readiness.head",
+      "role": "typed scoped ingress fused with durable state projection"
+    },
+    {
+      "kind": "transition",
+      "path": "readiness.accept_publish.fire",
+      "source": "readiness.accept_publish",
+      "role": "durable state fold"
+    },
+    {
+      "kind": "transition",
+      "path": "readiness.route_ci.fire",
+      "source": "readiness.route_ci",
+      "role": "durable decision"
+    }
+  ],
+  "lifecycle_scopes": [
+    {
+      "name": "branch",
+      "source": "readiness.lifecycle.branch"
+    }
+  ]
+}

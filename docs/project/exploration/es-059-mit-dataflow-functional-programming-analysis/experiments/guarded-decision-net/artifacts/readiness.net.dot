@@ -1,0 +1,93 @@
+digraph "impetus" {
+  graph [bgcolor="#0d1117", fontcolor="#e6edf3", fontname="Helvetica", label="readiness", labelloc="t", nodesep="0.6", pad="0.25", rankdir="TB", ranksep="1.0"];
+  node [fontcolor="#e6edf3", fontname="Helvetica"];
+  edge [fontcolor="#8b949e", fontname="Helvetica", fontsize="10"];
+  subgraph "cluster_0" {
+    graph [color="#8b949e", fillcolor="#161b22", fontcolor="#8b949e", label="commands", style="filled", tooltip="commands"];
+    "p0" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">publish</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">PublishRequested</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="commands.publish"];
+    "p1" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">repair</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">RepairRequested</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="commands.repair"];
+    "p2" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">rerun</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">RerunRequested</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="commands.rerun"];
+  }
+  subgraph "cluster_1" {
+    graph [color="#8b949e", fillcolor="#161b22", fontcolor="#8b949e", label="effects", style="filled", tooltip="effects"];
+    "p3" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">ack</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">PublishAcknowledged</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="effects.publish.ack"];
+    "p4" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">done</FONT></B></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="effects.publish.done"];
+    "p5" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">pending</FONT></B></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="effects.publish.pending"];
+    "p6" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">work</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">PublishRequested</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="effects.publish.work"];
+    "t0" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">accept</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">handler</FONT></TD></TR></TABLE>>, shape="box", style="rounded,filled", tooltip="effects.publish.accept\nhandler: anonymous declaration"];
+    "t1" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">authorize</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">handler</FONT></TD></TR></TABLE>>, shape="box", style="rounded,filled", tooltip="effects.publish.authorize\nhandler: anonymous declaration"];
+    "t2" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">execute</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">handler: publish</FONT></TD></TR></TABLE>>, shape="box", style="rounded,filled", tooltip="effects.publish.execute\nhandler: publish"];
+    "t3" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">fire</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">handler: repair</FONT></TD></TR></TABLE>>, shape="box", style="rounded,filled", tooltip="effects.repair.fire\nhandler: repair"];
+    "t4" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">fire</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">handler: rerun</FONT></TD></TR></TABLE>>, shape="box", style="rounded,filled", tooltip="effects.rerun.fire\nhandler: rerun"];
+  }
+  subgraph "cluster_2" {
+    graph [color="#8b949e", fillcolor="#161b22", fontcolor="#8b949e", label="events", style="filled", tooltip="events"];
+    "p7" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">ci</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">CIObserved</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="events.ci"];
+  }
+  subgraph "cluster_3" {
+    graph [color="#8b949e", fillcolor="#161b22", fontcolor="#8b949e", label="facts", style="filled", tooltip="facts"];
+    "p8" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">publish_acknowledged</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">PublishAcknowledged</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="facts.publish_acknowledged"];
+    "p9" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">repair_landed</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">RepairLanded</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="facts.repair_landed"];
+    "p10" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">rerun_accepted</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">RerunAccepted</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="facts.rerun_accepted"];
+  }
+  subgraph "cluster_4" {
+    graph [color="#8b949e", fillcolor="#161b22", fontcolor="#8b949e", label="readiness", style="filled", tooltip="readiness"];
+    "p11" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">state</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">ReadinessState</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="readiness.state"];
+    "t7" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">fire</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">handler</FONT></TD></TR></TABLE>>, shape="box", style="rounded,filled", tooltip="readiness.accept_publish.fire\nhandler: anonymous declaration"];
+    "t8" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">fire</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">handler · guard</FONT></TD></TR></TABLE>>, shape="box", style="rounded,filled", tooltip="readiness.route_ci.human.fire\nhandler: anonymous declaration\nguards: anonymous declaration"];
+    "t9" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">fire</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">handler · guard</FONT></TD></TR></TABLE>>, shape="box", style="rounded,filled", tooltip="readiness.route_ci.ignore.fire\nhandler: anonymous declaration\nguards: anonymous declaration"];
+    "t10" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">fire</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">handler · guard</FONT></TD></TR></TABLE>>, shape="box", style="rounded,filled", tooltip="readiness.route_ci.publish.fire\nhandler: anonymous declaration\nguards: anonymous declaration"];
+    "t11" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">fire</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">handler · guard</FONT></TD></TR></TABLE>>, shape="box", style="rounded,filled", tooltip="readiness.route_ci.repair.fire\nhandler: anonymous declaration\nguards: anonymous declaration"];
+    "t12" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">fire</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">handler · guard</FONT></TD></TR></TABLE>>, shape="box", style="rounded,filled", tooltip="readiness.route_ci.rerun.fire\nhandler: anonymous declaration\nguards: anonymous declaration"];
+  }
+  subgraph "cluster_5" {
+    graph [color="#8b949e", fillcolor="#161b22", fontcolor="#8b949e", label="terminal", style="filled", tooltip="terminal"];
+    "p12" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">human_needed</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">HumanNeeded</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="terminal.human_needed"];
+    "p13" [color="#58a6ff", fillcolor="#0d1117", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">published</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">Published</FONT></TD></TR></TABLE>>, shape="ellipse", style="filled", tooltip="terminal.published"];
+  }
+  subgraph "cluster_6" {
+    graph [color="#8b949e", fillcolor="#161b22", fontcolor="#8b949e", label="ingress", style="filled", tooltip="ingress"];
+    "t5" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">ci</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">source</FONT></TD></TR></TABLE>>, penwidth="2", shape="box", style="rounded,filled,dashed", tooltip="ingress.ci\nsource transition"];
+    "t6" [color="#d29922", fillcolor="#161b22", label=<<TABLE BORDER="0" CELLBORDER="0" CELLPADDING="1"><TR><TD><B><FONT COLOR="#e6edf3" POINT-SIZE="14">head</FONT></B></TD></TR><TR><TD><FONT COLOR="#8b949e" POINT-SIZE="9">source · handler</FONT></TD></TR></TABLE>>, penwidth="2", shape="box", style="rounded,filled,dashed", tooltip="ingress.head\nsource transition\nhandler: anonymous declaration"];
+  }
+  "t6" -> "p11" [arrowhead="normal", color="#8b949e", label="ReadinessState", style="solid", tooltip="ingress.head -> readiness.state"];
+  "t5" -> "p7" [arrowhead="normal", color="#8b949e", label="CIObserved", style="solid", tooltip="ingress.ci -> events.ci"];
+  "p11" -> "t9" [arrowhead="normal", color="#8b949e", label="ReadinessState", style="solid", tooltip="readiness.state -> readiness.route_ci.ignore.fire"];
+  "p7" -> "t9" [arrowhead="normal", color="#8b949e", label="CIObserved", style="solid", tooltip="events.ci -> readiness.route_ci.ignore.fire"];
+  "t9" -> "p11" [arrowhead="normal", color="#8b949e", label="ReadinessState", style="solid", tooltip="readiness.route_ci.ignore.fire -> readiness.state"];
+  "p11" -> "t10" [arrowhead="normal", color="#8b949e", label="ReadinessState", style="solid", tooltip="readiness.state -> readiness.route_ci.publish.fire"];
+  "p7" -> "t10" [arrowhead="normal", color="#8b949e", label="CIObserved", style="solid", tooltip="events.ci -> readiness.route_ci.publish.fire"];
+  "t10" -> "p11" [arrowhead="normal", color="#8b949e", label="ReadinessState", style="solid", tooltip="readiness.route_ci.publish.fire -> readiness.state"];
+  "t10" -> "p0" [arrowhead="normal", color="#8b949e", label="PublishRequested", style="solid", tooltip="readiness.route_ci.publish.fire -> commands.publish"];
+  "p11" -> "t12" [arrowhead="normal", color="#8b949e", label="ReadinessState", style="solid", tooltip="readiness.state -> readiness.route_ci.rerun.fire"];
+  "p7" -> "t12" [arrowhead="normal", color="#8b949e", label="CIObserved", style="solid", tooltip="events.ci -> readiness.route_ci.rerun.fire"];
+  "t12" -> "p11" [arrowhead="normal", color="#8b949e", label="ReadinessState", style="solid", tooltip="readiness.route_ci.rerun.fire -> readiness.state"];
+  "t12" -> "p2" [arrowhead="normal", color="#8b949e", label="RerunRequested", style="solid", tooltip="readiness.route_ci.rerun.fire -> commands.rerun"];
+  "p11" -> "t11" [arrowhead="normal", color="#8b949e", label="ReadinessState", style="solid", tooltip="readiness.state -> readiness.route_ci.repair.fire"];
+  "p7" -> "t11" [arrowhead="normal", color="#8b949e", label="CIObserved", style="solid", tooltip="events.ci -> readiness.route_ci.repair.fire"];
+  "t11" -> "p11" [arrowhead="normal", color="#8b949e", label="ReadinessState", style="solid", tooltip="readiness.route_ci.repair.fire -> readiness.state"];
+  "t11" -> "p1" [arrowhead="normal", color="#8b949e", label="RepairRequested", style="solid", tooltip="readiness.route_ci.repair.fire -> commands.repair"];
+  "p11" -> "t8" [arrowhead="normal", color="#8b949e", label="ReadinessState", style="solid", tooltip="readiness.state -> readiness.route_ci.human.fire"];
+  "p7" -> "t8" [arrowhead="normal", color="#8b949e", label="CIObserved", style="solid", tooltip="events.ci -> readiness.route_ci.human.fire"];
+  "t8" -> "p11" [arrowhead="normal", color="#8b949e", label="ReadinessState", style="solid", tooltip="readiness.route_ci.human.fire -> readiness.state"];
+  "t8" -> "p12" [arrowhead="normal", color="#8b949e", label="HumanNeeded", style="solid", tooltip="readiness.route_ci.human.fire -> terminal.human_needed"];
+  "p2" -> "t4" [arrowhead="normal", color="#8b949e", label="RerunRequested", style="solid", tooltip="commands.rerun -> effects.rerun.fire"];
+  "t4" -> "p10" [arrowhead="normal", color="#8b949e", label="RerunAccepted", style="solid", tooltip="effects.rerun.fire -> facts.rerun_accepted"];
+  "p1" -> "t3" [arrowhead="normal", color="#8b949e", label="RepairRequested", style="solid", tooltip="commands.repair -> effects.repair.fire"];
+  "t3" -> "p9" [arrowhead="normal", color="#8b949e", label="RepairLanded", style="solid", tooltip="effects.repair.fire -> facts.repair_landed"];
+  "p0" -> "t1" [arrowhead="normal", color="#8b949e", label="PublishRequested", style="solid", tooltip="commands.publish -> effects.publish.authorize"];
+  "p5" -> "t1" [arrowhead="odot", color="#f85149", label="inhibit", style="dashed", tooltip="effects.publish.pending -> effects.publish.authorize"];
+  "p4" -> "t1" [arrowhead="odot", color="#f85149", label="inhibit", style="dashed", tooltip="effects.publish.done -> effects.publish.authorize"];
+  "t1" -> "p6" [arrowhead="normal", color="#8b949e", label="PublishRequested", style="solid", tooltip="effects.publish.authorize -> effects.publish.work"];
+  "t1" -> "p5" [arrowhead="normal", color="#8b949e", style="solid", tooltip="effects.publish.authorize -> effects.publish.pending"];
+  "p6" -> "t2" [arrowhead="normal", color="#8b949e", label="PublishRequested", style="solid", tooltip="effects.publish.work -> effects.publish.execute"];
+  "t2" -> "p3" [arrowhead="normal", color="#8b949e", label="PublishAcknowledged", style="solid", tooltip="effects.publish.execute -> effects.publish.ack"];
+  "p5" -> "t0" [arrowhead="normal", color="#8b949e", style="solid", tooltip="effects.publish.pending -> effects.publish.accept"];
+  "p3" -> "t0" [arrowhead="normal", color="#8b949e", label="PublishAcknowledged", style="solid", tooltip="effects.publish.ack -> effects.publish.accept"];
+  "t0" -> "p8" [arrowhead="normal", color="#8b949e", label="PublishAcknowledged", style="solid", tooltip="effects.publish.accept -> facts.publish_acknowledged"];
+  "t0" -> "p4" [arrowhead="normal", color="#8b949e", style="solid", tooltip="effects.publish.accept -> effects.publish.done"];
+  "p11" -> "t7" [arrowhead="normal", color="#8b949e", label="ReadinessState", style="solid", tooltip="readiness.state -> readiness.accept_publish.fire"];
+  "p8" -> "t7" [arrowhead="normal", color="#8b949e", label="PublishAcknowledged", style="solid", tooltip="facts.publish_acknowledged -> readiness.accept_publish.fire"];
+  "t7" -> "p11" [arrowhead="normal", color="#8b949e", label="ReadinessState", style="solid", tooltip="readiness.accept_publish.fire -> readiness.state"];
+  "t7" -> "p13" [arrowhead="normal", color="#8b949e", label="Published", style="solid", tooltip="readiness.accept_publish.fire -> terminal.published"];
+}
