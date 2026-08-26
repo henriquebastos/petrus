@@ -2,16 +2,16 @@
 artifact: exploration
 code: ES-059
 title: MIT dataflow, Petri nets, and functional authoring for Petrus
-status: Completed
+status: Thickening
 status_reason: >-
   Primary MIT dataflow papers, contemporary surveys, the formal Petri-net
   comparison, functional-language implementation work, and current Petrus and
   Hamsterdan source establish that Petrus is not repeating the failed
-  general-purpose dataflow-machine bet. The relevant risk is exposing a flat,
-  fine-grained graph as the primary authoring surface. Existing progressive-
-  disclosure direction remains sound and should be tested with one coarse-
-  grained, typed, functional authoring slice that lowers to canonical Petrus
-  topology; no kernel rewrite, Haskell migration, or roadmap promotion follows.
+  general-purpose dataflow-machine bet. The Navigator has now authorized the
+  bounded coarse-grained typed-functional vertical-slice experiment inside
+  ES-059. Its durable execution plan preserves production Petrus and
+  Hamsterdan boundaries; no kernel rewrite, Haskell migration, or roadmap
+  promotion follows from planning the experiment.
 opened: 2026-08-26
 updated: 2026-08-26
 related:
@@ -586,6 +586,13 @@ must point back to the authored block rather than only to generated node IDs.
 
 ## Bounded next experiment
 
+The Navigator authorized this experiment on 2026-08-26. The detailed,
+self-contained implementation and evidence route is preserved in the
+[typed functional flow vertical-slice experiment plan](experiment-plan.md).
+All prototype code, tests, goldens, and reports remain inside ES-059; this
+thickens the existing story rather than allocating a new Exploratory Story or
+opening Delivery.
+
 Use one Hamsterdan vertical slice rather than a new tutorial or full rewrite:
 
 > Admit one exact-head CI observation; publish when clean; on failure request
@@ -593,10 +600,11 @@ Use one Hamsterdan vertical slice rather than a new tutorial or full rewrite:
 > new generation; resume from History; expose the final decision and every
 > effect gate.
 
-Build one typed functional source representation that compiles to current
-canonical Petrus Net v3. The implementation language may be Python first for
-integration economy or a disposable Haskell reference if it materially
-improves the type/algebra experiment. Do not build both frontends.
+Build one typed functional source representation in Python that compiles to
+current canonical Petrus Net v3. The authorized
+[experiment plan](experiment-plan.md) chooses integration economy over a
+second-language comparison: Haskell remains a design reference, not another
+frontend or runtime in this experiment.
 
 The experiment passes only if it demonstrates:
 
@@ -636,9 +644,13 @@ Petrus is differentiated by making durable coordination—not ordinary
 computation—explicit, but Hamsterdan shows that the current authoring cost can
 still make the product fail in practice.
 
-No new decision record is needed: the result strengthens the existing
-progressive-disclosure decision. No roadmap, debt, release, product-principle,
-or runtime change follows from a completed literature analysis. ES-056 remains
-the durable owner of the candidate adoption Value and AX28/AX29 remain the
-nearer evidence gates. This record contributes a historical failure model, a
-coarse-grain rule, and the functional-language rationale for that work.
+No new decision record is needed: the source-grounded result strengthens the
+existing progressive-disclosure decision. The story is now thickening through
+the Navigator-authorized experiment, whose
+[durable execution plan](experiment-plan.md) is intentionally contained here.
+No roadmap, debt, release, product-principle, production-runtime, or
+Hamsterdan change follows from the plan itself. ES-056 remains the durable
+owner of the candidate adoption Value and AX28/AX29 remain the promotion
+evidence gates. ES-059 contributes the historical failure model, coarse-grain
+rule, functional-language rationale, and now the bounded executable test of
+that direction.
