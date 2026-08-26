@@ -7,11 +7,14 @@ status_reason: >-
   Primary MIT dataflow papers, contemporary surveys, the formal Petri-net
   comparison, functional-language implementation work, and current Petrus and
   Hamsterdan source establish that Petrus is not repeating the failed
-  general-purpose dataflow-machine bet. The Navigator has now authorized the
-  bounded coarse-grained typed-functional vertical-slice experiment inside
-  ES-059. Its durable execution plan preserves production Petrus and
-  Hamsterdan boundaries; no kernel rewrite, Haskell migration, or roadmap
-  promotion follows from planning the experiment.
+  general-purpose dataflow-machine bet. The Navigator-authorized typed
+  functional vertical-slice experiment has now been executed inside ES-059
+  and classified promising: all fourteen mechanical completion conditions
+  passed, canonical execution, replay, resume, byte-stable lowering, and
+  full source-to-History attribution held, and the evidence supports "the
+  authoring surface is too low-level" over "the Petri model is wrong".
+  Promotion remains a Navigator decision; no kernel rewrite, Haskell
+  migration, or roadmap change follows from the experiment itself.
 opened: 2026-08-26
 updated: 2026-08-26
 related:
@@ -593,6 +596,20 @@ All prototype code, tests, goldens, and reports remain inside ES-059; this
 thickens the existing story rather than allocating a new Exploratory Story or
 opening Delivery.
 
+**Executed.** The experiment is implemented and complete under
+[experiments/typed-flow-vertical-slice](experiments/typed-flow-vertical-slice/README.md)
+with its verdict, acceptance matrix, and evidence in the
+[Experience Report](experiments/typed-flow-vertical-slice/report.md):
+**promising** `[E]`. The Hamsterdan-shaped slice authored as one typed
+functional value lowered byte-stably into current canonical Net v3 (14
+places, 9 transitions, 28 arcs), executed through the real Engine, JSONL
+History, replay, scoped generations, and an interrupted-restart route with
+identical canonical History, and every one of its 147 recorded facts
+explains back to an authored source block. Composition mistakes fail before
+motion at their source expressions, and the one inhibitor-based publication
+gate composed through the explicit low-level descent seam without bypassing
+canonical validation.
+
 Use one Hamsterdan vertical slice rather than a new tutorial or full rewrite:
 
 > Admit one exact-head CI observation; publish when clean; on failure request
@@ -645,12 +662,13 @@ computation—explicit, but Hamsterdan shows that the current authoring cost can
 still make the product fail in practice.
 
 No new decision record is needed: the source-grounded result strengthens the
-existing progressive-disclosure decision. The story is now thickening through
-the Navigator-authorized experiment, whose
-[durable execution plan](experiment-plan.md) is intentionally contained here.
-No roadmap, debt, release, product-principle, production-runtime, or
-Hamsterdan change follows from the plan itself. ES-056 remains the durable
-owner of the candidate adoption Value and AX28/AX29 remain the promotion
-evidence gates. ES-059 contributes the historical failure model, coarse-grain
-rule, functional-language rationale, and now the bounded executable test of
-that direction.
+existing progressive-disclosure decision. The Navigator-authorized experiment
+has been executed under its
+[durable execution plan](experiment-plan.md) and classified
+[promising](experiments/typed-flow-vertical-slice/report.md). No roadmap,
+debt, release, product-principle, production-runtime, or Hamsterdan change
+follows from the result itself. ES-056 remains the durable owner of the
+candidate adoption Value and AX28/AX29 remain the promotion evidence gates;
+the report is now available evidence for them. ES-059 contributes the
+historical failure model, coarse-grain rule, functional-language rationale,
+and the executed bounded test of that direction.

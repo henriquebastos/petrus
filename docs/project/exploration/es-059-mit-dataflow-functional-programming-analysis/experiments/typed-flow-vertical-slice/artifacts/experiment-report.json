@@ -1,0 +1,34 @@
+{
+  "format": "petrus-es059-typed-flow-experiment-report",
+  "version": 1,
+  "topology": {
+    "places": 14,
+    "transitions": 9,
+    "arcs": 28
+  },
+  "records": 147,
+  "hashes": {
+    "net_v3": "f5e4a91f30b68e0957313d688210ba9994b28e694dc5ba520f1419cd89537a19",
+    "source_map": "4d269fb0bb9f3ef32c45076dc92ab3ae40064d010e53d9b556ad2d291b7a4c3c",
+    "explained_history": "b0eb11cf65011a7909dc1daf072471e721784f0a23cb83164f694aca7dbdeb65",
+    "history_uninterrupted": "a75880c03d0da50ef2707782d1d34bc7b0e0f83a804c746db84b147b55d3e22d",
+    "history_restarted": "a75880c03d0da50ef2707782d1d34bc7b0e0f83a804c746db84b147b55d3e22d",
+    "dot": "3f179a036b5c36cfbf13cf3d60a86567fc1e4ee88da3c6696e661065c1717688"
+  },
+  "results": {
+    "histories_byte_identical": true,
+    "unattributed_records": 0,
+    "operations_uninterrupted": {
+      "publish:h1:g1": 1,
+      "publish:h2r:g3": 1,
+      "repair:L2:build": 1,
+      "rerun:L2:build": 1
+    },
+    "operations_restarted": {
+      "publish:h1:g1": 1,
+      "publish:h2r:g3": 1,
+      "repair:L2:build": 2,
+      "rerun:L2:build": 1
+    }
+  }
+}

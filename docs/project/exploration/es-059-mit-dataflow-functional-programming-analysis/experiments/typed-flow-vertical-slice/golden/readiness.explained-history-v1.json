@@ -1,0 +1,5121 @@
+{
+  "format": "petrus-experiment-explained-history",
+  "version": 1,
+  "definition_sha256": "f5e4a91f30b68e0957313d688210ba9994b28e694dc5ba520f1419cd89537a19",
+  "entries": [
+    {
+      "index": 0,
+      "record": "InstanceCreated",
+      "instant": 0,
+      "node": null,
+      "role": "authored machine",
+      "source": {
+        "id": "readiness",
+        "file": "scenario.py",
+        "line": 276,
+        "symbol": "readiness"
+      },
+      "detail": {
+        "instance": "readiness-slice",
+        "name": "readiness"
+      }
+    },
+    {
+      "index": 1,
+      "record": "DeliveryRegistrationOpened",
+      "instant": 0,
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {
+        "key": "default"
+      }
+    },
+    {
+      "index": 2,
+      "record": "DeliveryRegistrationOpened",
+      "instant": 0,
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with durable state projection",
+      "source": {
+        "id": "readiness.head",
+        "file": "scenario.py",
+        "line": 280,
+        "symbol": "head"
+      },
+      "detail": {
+        "key": "default"
+      }
+    },
+    {
+      "index": 3,
+      "record": "ScopeOpened",
+      "instant": 0,
+      "node": null,
+      "role": "lifecycle scope",
+      "source": {
+        "id": "readiness.lifecycle.branch",
+        "file": "scenario.py",
+        "line": 278,
+        "symbol": "branch"
+      },
+      "detail": {}
+    },
+    {
+      "index": 4,
+      "record": "ExternalEventDelivered",
+      "instant": 0,
+      "occurrence": 1,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with durable state projection",
+      "source": {
+        "id": "readiness.head",
+        "file": "scenario.py",
+        "line": 280,
+        "symbol": "head"
+      },
+      "detail": {
+        "identity": "head-h1-g1",
+        "tokens": [
+          {
+            "color": "HeadObserved",
+            "data": {
+              "head": "h1",
+              "relation": "new",
+              "generation": 1,
+              "lineage": "L1"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 5,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 1,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with durable state projection",
+      "source": {
+        "id": "readiness.head",
+        "file": "scenario.py",
+        "line": 280,
+        "symbol": "head"
+      },
+      "detail": {}
+    },
+    {
+      "index": 6,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 1,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "readiness.state",
+      "role": "generation state baton",
+      "source": {
+        "id": "readiness.admit_head",
+        "file": "scenario.py",
+        "line": 105,
+        "symbol": "admit_head"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "ReadinessState",
+            "data": {
+              "head": "h1",
+              "generation": 1,
+              "lineage": "L1",
+              "ladder": {
+                "lineage": "L1",
+                "fingerprint": null,
+                "rerun_used": false,
+                "repair_used": false,
+                "watermark": null
+              },
+              "publication_operation": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 7,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 1,
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with durable state projection",
+      "source": {
+        "id": "readiness.head",
+        "file": "scenario.py",
+        "line": 280,
+        "symbol": "head"
+      },
+      "detail": {}
+    },
+    {
+      "index": 8,
+      "record": "ExternalEventDelivered",
+      "instant": 0,
+      "occurrence": 2,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {
+        "identity": "ci-10-1-g1",
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h1",
+              "evidence": {
+                "run_id": 10,
+                "attempt": 1
+              },
+              "conclusion": "success",
+              "fingerprint": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 9,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 2,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 10,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 2,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "events.ci",
+      "role": "typed event place",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h1",
+              "evidence": {
+                "run_id": 10,
+                "attempt": 1
+              },
+              "conclusion": "success",
+              "fingerprint": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 11,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 2,
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 12,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 3,
+      "node": "readiness.route_ci.fire",
+      "role": "durable decision",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 13,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 3,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "readiness.route_ci.fire",
+      "role": "durable decision",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 14,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 3,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "readiness.state",
+      "role": "generation state baton",
+      "source": {
+        "id": "readiness.admit_head",
+        "file": "scenario.py",
+        "line": 105,
+        "symbol": "admit_head"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "ReadinessState",
+            "data": {
+              "head": "h1",
+              "generation": 1,
+              "lineage": "L1",
+              "ladder": {
+                "lineage": "L1",
+                "fingerprint": null,
+                "rerun_used": false,
+                "repair_used": false,
+                "watermark": null
+              },
+              "publication_operation": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 15,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 3,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "events.ci",
+      "role": "typed event place",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h1",
+              "evidence": {
+                "run_id": 10,
+                "attempt": 1
+              },
+              "conclusion": "success",
+              "fingerprint": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 16,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 3,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "readiness.state",
+      "role": "generation state baton",
+      "source": {
+        "id": "readiness.admit_head",
+        "file": "scenario.py",
+        "line": 105,
+        "symbol": "admit_head"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "ReadinessState",
+            "data": {
+              "head": "h1",
+              "generation": 1,
+              "lineage": "L1",
+              "ladder": {
+                "lineage": "L1",
+                "fingerprint": null,
+                "rerun_used": false,
+                "repair_used": false,
+                "watermark": {
+                  "run_id": 10,
+                  "attempt": 1
+                }
+              },
+              "publication_operation": "publish:h1:g1"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 17,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 3,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "commands.publish",
+      "role": "typed command",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "PublishRequested",
+            "data": {
+              "operation": "publish:h1:g1",
+              "head": "h1",
+              "generation": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 18,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 3,
+      "node": "readiness.route_ci.fire",
+      "role": "durable decision",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 19,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 4,
+      "node": "effects.publish.authorize",
+      "role": "admit one publication while none is pending or done",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {}
+    },
+    {
+      "index": 20,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 4,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "effects.publish.authorize",
+      "role": "admit one publication while none is pending or done",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {}
+    },
+    {
+      "index": 21,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 4,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "commands.publish",
+      "role": "typed command",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "PublishRequested",
+            "data": {
+              "operation": "publish:h1:g1",
+              "head": "h1",
+              "generation": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 22,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 4,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "effects.publish.work",
+      "role": "authorized publication work",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "PublishRequested",
+            "data": {
+              "operation": "publish:h1:g1",
+              "head": "h1",
+              "generation": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 23,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 4,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "effects.publish.pending",
+      "role": "publication in-flight latch",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": null,
+            "data": null
+          }
+        ]
+      }
+    },
+    {
+      "index": 24,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 4,
+      "node": "effects.publish.authorize",
+      "role": "admit one publication while none is pending or done",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {}
+    },
+    {
+      "index": 25,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 5,
+      "node": "effects.publish.execute",
+      "role": "publication effect request/observe",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {}
+    },
+    {
+      "index": 26,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 5,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "effects.publish.execute",
+      "role": "publication effect request/observe",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {}
+    },
+    {
+      "index": 27,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 5,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "effects.publish.work",
+      "role": "authorized publication work",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "PublishRequested",
+            "data": {
+              "operation": "publish:h1:g1",
+              "head": "h1",
+              "generation": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 28,
+      "record": "ActivityRequested",
+      "instant": 0,
+      "occurrence": 5,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "effects.publish.execute",
+      "role": "publication effect request/observe",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "activity": "publish",
+        "input": {
+          "request": {
+            "operation": "publish:h1:g1",
+            "head": "h1",
+            "generation": 1
+          }
+        },
+        "correlation": "publish:h1:g1",
+        "idempotency": "publish:h1:g1"
+      }
+    },
+    {
+      "index": 29,
+      "record": "ActivityCompleted",
+      "instant": 0,
+      "occurrence": 5,
+      "node": "effects.publish.execute",
+      "role": "publication effect request/observe",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "result": {
+          "operation": "publish:h1:g1",
+          "head": "h1",
+          "generation": 1
+        }
+      }
+    },
+    {
+      "index": 30,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 5,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "effects.publish.ack",
+      "role": "publication effect terminal",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "PublishAcknowledged",
+            "data": {
+              "operation": "publish:h1:g1",
+              "head": "h1",
+              "generation": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 31,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 5,
+      "node": "effects.publish.execute",
+      "role": "publication effect request/observe",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {}
+    },
+    {
+      "index": 32,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 6,
+      "node": "effects.publish.accept",
+      "role": "accept effect terminal, release pending, latch done",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {}
+    },
+    {
+      "index": 33,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 6,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "effects.publish.accept",
+      "role": "accept effect terminal, release pending, latch done",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {}
+    },
+    {
+      "index": 34,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 6,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "effects.publish.pending",
+      "role": "publication in-flight latch",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": null,
+            "data": null
+          }
+        ]
+      }
+    },
+    {
+      "index": 35,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 6,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "effects.publish.ack",
+      "role": "publication effect terminal",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "PublishAcknowledged",
+            "data": {
+              "operation": "publish:h1:g1",
+              "head": "h1",
+              "generation": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 36,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 6,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "facts.publish_acknowledged",
+      "role": "accepted effect fact",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "PublishAcknowledged",
+            "data": {
+              "operation": "publish:h1:g1",
+              "head": "h1",
+              "generation": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 37,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 6,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "effects.publish.done",
+      "role": "publication completed latch",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": null,
+            "data": null
+          }
+        ]
+      }
+    },
+    {
+      "index": 38,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 6,
+      "node": "effects.publish.accept",
+      "role": "accept effect terminal, release pending, latch done",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {}
+    },
+    {
+      "index": 39,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 7,
+      "node": "readiness.accept_publish.fire",
+      "role": "durable state fold",
+      "source": {
+        "id": "readiness.accept_publish",
+        "file": "scenario.py",
+        "line": 186,
+        "symbol": "accept_publish"
+      },
+      "detail": {}
+    },
+    {
+      "index": 40,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 7,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "readiness.accept_publish.fire",
+      "role": "durable state fold",
+      "source": {
+        "id": "readiness.accept_publish",
+        "file": "scenario.py",
+        "line": 186,
+        "symbol": "accept_publish"
+      },
+      "detail": {}
+    },
+    {
+      "index": 41,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 7,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "readiness.state",
+      "role": "generation state baton",
+      "source": {
+        "id": "readiness.admit_head",
+        "file": "scenario.py",
+        "line": 105,
+        "symbol": "admit_head"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "ReadinessState",
+            "data": {
+              "head": "h1",
+              "generation": 1,
+              "lineage": "L1",
+              "ladder": {
+                "lineage": "L1",
+                "fingerprint": null,
+                "rerun_used": false,
+                "repair_used": false,
+                "watermark": {
+                  "run_id": 10,
+                  "attempt": 1
+                }
+              },
+              "publication_operation": "publish:h1:g1"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 42,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 7,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "facts.publish_acknowledged",
+      "role": "accepted effect fact",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "PublishAcknowledged",
+            "data": {
+              "operation": "publish:h1:g1",
+              "head": "h1",
+              "generation": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 43,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 7,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "readiness.state",
+      "role": "generation state baton",
+      "source": {
+        "id": "readiness.admit_head",
+        "file": "scenario.py",
+        "line": 105,
+        "symbol": "admit_head"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "ReadinessState",
+            "data": {
+              "head": "h1",
+              "generation": 1,
+              "lineage": "L1",
+              "ladder": {
+                "lineage": "L1",
+                "fingerprint": null,
+                "rerun_used": false,
+                "repair_used": false,
+                "watermark": {
+                  "run_id": 10,
+                  "attempt": 1
+                }
+              },
+              "publication_operation": "publish:h1:g1"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 44,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 7,
+      "scope": {
+        "name": "branch",
+        "generation": 1
+      },
+      "node": "terminal.published",
+      "role": "terminal outcome",
+      "source": {
+        "id": "readiness.published",
+        "file": "scenario.py",
+        "line": 296,
+        "symbol": "published"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "Published",
+            "data": {
+              "head": "h1",
+              "generation": 1,
+              "operation": "publish:h1:g1"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 45,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 7,
+      "node": "readiness.accept_publish.fire",
+      "role": "durable state fold",
+      "source": {
+        "id": "readiness.accept_publish",
+        "file": "scenario.py",
+        "line": 186,
+        "symbol": "accept_publish"
+      },
+      "detail": {}
+    },
+    {
+      "index": 46,
+      "record": "ScopeReset",
+      "instant": 0,
+      "node": null,
+      "role": "lifecycle scope",
+      "source": {
+        "id": "readiness.lifecycle.branch",
+        "file": "scenario.py",
+        "line": 278,
+        "symbol": "branch"
+      },
+      "detail": {
+        "closed": {
+          "name": "branch",
+          "generation": 1
+        },
+        "opened": {
+          "name": "branch",
+          "generation": 2
+        },
+        "discarded": [
+          10,
+          9,
+          11
+        ],
+        "cancelled": []
+      }
+    },
+    {
+      "index": 47,
+      "record": "ExternalEventDelivered",
+      "instant": 0,
+      "occurrence": 8,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with durable state projection",
+      "source": {
+        "id": "readiness.head",
+        "file": "scenario.py",
+        "line": 280,
+        "symbol": "head"
+      },
+      "detail": {
+        "identity": "head-h2-g2",
+        "tokens": [
+          {
+            "color": "HeadObserved",
+            "data": {
+              "head": "h2",
+              "relation": "superseded",
+              "generation": 2,
+              "lineage": "L2"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 48,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 8,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with durable state projection",
+      "source": {
+        "id": "readiness.head",
+        "file": "scenario.py",
+        "line": 280,
+        "symbol": "head"
+      },
+      "detail": {}
+    },
+    {
+      "index": 49,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 8,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.state",
+      "role": "generation state baton",
+      "source": {
+        "id": "readiness.admit_head",
+        "file": "scenario.py",
+        "line": 105,
+        "symbol": "admit_head"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "ReadinessState",
+            "data": {
+              "head": "h2",
+              "generation": 2,
+              "lineage": "L2",
+              "ladder": {
+                "lineage": "L2",
+                "fingerprint": null,
+                "rerun_used": false,
+                "repair_used": false,
+                "watermark": null
+              },
+              "publication_operation": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 50,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 8,
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with durable state projection",
+      "source": {
+        "id": "readiness.head",
+        "file": "scenario.py",
+        "line": 280,
+        "symbol": "head"
+      },
+      "detail": {}
+    },
+    {
+      "index": 51,
+      "record": "ExternalEventDelivered",
+      "instant": 0,
+      "occurrence": 9,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {
+        "identity": "ci-20-1-g2",
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 1
+              },
+              "conclusion": "failure",
+              "fingerprint": "build"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 52,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 9,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 53,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 9,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "events.ci",
+      "role": "typed event place",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 1
+              },
+              "conclusion": "failure",
+              "fingerprint": "build"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 54,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 9,
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 55,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 10,
+      "node": "readiness.route_ci.fire",
+      "role": "durable decision",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 56,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 10,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.route_ci.fire",
+      "role": "durable decision",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 57,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 10,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.state",
+      "role": "generation state baton",
+      "source": {
+        "id": "readiness.admit_head",
+        "file": "scenario.py",
+        "line": 105,
+        "symbol": "admit_head"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "ReadinessState",
+            "data": {
+              "head": "h2",
+              "generation": 2,
+              "lineage": "L2",
+              "ladder": {
+                "lineage": "L2",
+                "fingerprint": null,
+                "rerun_used": false,
+                "repair_used": false,
+                "watermark": null
+              },
+              "publication_operation": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 58,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 10,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "events.ci",
+      "role": "typed event place",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 1
+              },
+              "conclusion": "failure",
+              "fingerprint": "build"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 59,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 10,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.state",
+      "role": "generation state baton",
+      "source": {
+        "id": "readiness.admit_head",
+        "file": "scenario.py",
+        "line": 105,
+        "symbol": "admit_head"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "ReadinessState",
+            "data": {
+              "head": "h2",
+              "generation": 2,
+              "lineage": "L2",
+              "ladder": {
+                "lineage": "L2",
+                "fingerprint": "build",
+                "rerun_used": true,
+                "repair_used": false,
+                "watermark": {
+                  "run_id": 20,
+                  "attempt": 1
+                }
+              },
+              "publication_operation": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 60,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 10,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "commands.rerun",
+      "role": "typed command",
+      "source": {
+        "id": "readiness.rerun",
+        "file": "scenario.py",
+        "line": 290,
+        "symbol": "rerun"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "RerunRequested",
+            "data": {
+              "operation": "rerun:L2:build",
+              "head": "h2",
+              "lineage": "L2",
+              "fingerprint": "build",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 1
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 61,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 10,
+      "node": "readiness.route_ci.fire",
+      "role": "durable decision",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 62,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 11,
+      "node": "effects.rerun.fire",
+      "role": "typed Activity effect",
+      "source": {
+        "id": "readiness.rerun",
+        "file": "scenario.py",
+        "line": 290,
+        "symbol": "rerun"
+      },
+      "detail": {}
+    },
+    {
+      "index": 63,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 11,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "effects.rerun.fire",
+      "role": "typed Activity effect",
+      "source": {
+        "id": "readiness.rerun",
+        "file": "scenario.py",
+        "line": 290,
+        "symbol": "rerun"
+      },
+      "detail": {}
+    },
+    {
+      "index": 64,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 11,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "commands.rerun",
+      "role": "typed command",
+      "source": {
+        "id": "readiness.rerun",
+        "file": "scenario.py",
+        "line": 290,
+        "symbol": "rerun"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "RerunRequested",
+            "data": {
+              "operation": "rerun:L2:build",
+              "head": "h2",
+              "lineage": "L2",
+              "fingerprint": "build",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 1
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 65,
+      "record": "ActivityRequested",
+      "instant": 0,
+      "occurrence": 11,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "effects.rerun.fire",
+      "role": "typed Activity effect",
+      "source": {
+        "id": "readiness.rerun",
+        "file": "scenario.py",
+        "line": 290,
+        "symbol": "rerun"
+      },
+      "detail": {
+        "activity": "rerun",
+        "input": {
+          "request": {
+            "operation": "rerun:L2:build",
+            "head": "h2",
+            "lineage": "L2",
+            "fingerprint": "build",
+            "evidence": {
+              "run_id": 20,
+              "attempt": 1
+            }
+          }
+        },
+        "correlation": "rerun:L2:build",
+        "idempotency": "rerun:L2:build"
+      }
+    },
+    {
+      "index": 66,
+      "record": "ActivityCompleted",
+      "instant": 0,
+      "occurrence": 11,
+      "node": "effects.rerun.fire",
+      "role": "typed Activity effect",
+      "source": {
+        "id": "readiness.rerun",
+        "file": "scenario.py",
+        "line": 290,
+        "symbol": "rerun"
+      },
+      "detail": {
+        "result": {
+          "operation": "rerun:L2:build",
+          "head": "h2"
+        }
+      }
+    },
+    {
+      "index": 67,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 11,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "facts.rerun_accepted",
+      "role": "effect result fact",
+      "source": {
+        "id": "readiness.rerun",
+        "file": "scenario.py",
+        "line": 290,
+        "symbol": "rerun"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "RerunAccepted",
+            "data": {
+              "operation": "rerun:L2:build",
+              "head": "h2"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 68,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 11,
+      "node": "effects.rerun.fire",
+      "role": "typed Activity effect",
+      "source": {
+        "id": "readiness.rerun",
+        "file": "scenario.py",
+        "line": 290,
+        "symbol": "rerun"
+      },
+      "detail": {}
+    },
+    {
+      "index": 69,
+      "record": "ExternalEventDelivered",
+      "instant": 0,
+      "occurrence": 12,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {
+        "identity": "ci-20-1-g2-echo",
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 1
+              },
+              "conclusion": "failure",
+              "fingerprint": "build"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 70,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 12,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 71,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 12,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "events.ci",
+      "role": "typed event place",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 1
+              },
+              "conclusion": "failure",
+              "fingerprint": "build"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 72,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 12,
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 73,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 13,
+      "node": "readiness.route_ci.fire",
+      "role": "durable decision",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 74,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 13,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.route_ci.fire",
+      "role": "durable decision",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 75,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 13,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.state",
+      "role": "generation state baton",
+      "source": {
+        "id": "readiness.admit_head",
+        "file": "scenario.py",
+        "line": 105,
+        "symbol": "admit_head"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "ReadinessState",
+            "data": {
+              "head": "h2",
+              "generation": 2,
+              "lineage": "L2",
+              "ladder": {
+                "lineage": "L2",
+                "fingerprint": "build",
+                "rerun_used": true,
+                "repair_used": false,
+                "watermark": {
+                  "run_id": 20,
+                  "attempt": 1
+                }
+              },
+              "publication_operation": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 76,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 13,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "events.ci",
+      "role": "typed event place",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 1
+              },
+              "conclusion": "failure",
+              "fingerprint": "build"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 77,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 13,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.state",
+      "role": "generation state baton",
+      "source": {
+        "id": "readiness.admit_head",
+        "file": "scenario.py",
+        "line": 105,
+        "symbol": "admit_head"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "ReadinessState",
+            "data": {
+              "head": "h2",
+              "generation": 2,
+              "lineage": "L2",
+              "ladder": {
+                "lineage": "L2",
+                "fingerprint": "build",
+                "rerun_used": true,
+                "repair_used": false,
+                "watermark": {
+                  "run_id": 20,
+                  "attempt": 1
+                }
+              },
+              "publication_operation": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 78,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 13,
+      "node": "readiness.route_ci.fire",
+      "role": "durable decision",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 79,
+      "record": "ExternalEventDelivered",
+      "instant": 0,
+      "occurrence": 14,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {
+        "identity": "ci-20-2-g2",
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 2
+              },
+              "conclusion": "failure",
+              "fingerprint": "build"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 80,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 14,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 81,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 14,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "events.ci",
+      "role": "typed event place",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 2
+              },
+              "conclusion": "failure",
+              "fingerprint": "build"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 82,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 14,
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 83,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 15,
+      "node": "readiness.route_ci.fire",
+      "role": "durable decision",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 84,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 15,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.route_ci.fire",
+      "role": "durable decision",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 85,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 15,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.state",
+      "role": "generation state baton",
+      "source": {
+        "id": "readiness.admit_head",
+        "file": "scenario.py",
+        "line": 105,
+        "symbol": "admit_head"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "ReadinessState",
+            "data": {
+              "head": "h2",
+              "generation": 2,
+              "lineage": "L2",
+              "ladder": {
+                "lineage": "L2",
+                "fingerprint": "build",
+                "rerun_used": true,
+                "repair_used": false,
+                "watermark": {
+                  "run_id": 20,
+                  "attempt": 1
+                }
+              },
+              "publication_operation": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 86,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 15,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "events.ci",
+      "role": "typed event place",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 2
+              },
+              "conclusion": "failure",
+              "fingerprint": "build"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 87,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 15,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "readiness.state",
+      "role": "generation state baton",
+      "source": {
+        "id": "readiness.admit_head",
+        "file": "scenario.py",
+        "line": 105,
+        "symbol": "admit_head"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "ReadinessState",
+            "data": {
+              "head": "h2",
+              "generation": 2,
+              "lineage": "L2",
+              "ladder": {
+                "lineage": "L2",
+                "fingerprint": "build",
+                "rerun_used": true,
+                "repair_used": true,
+                "watermark": {
+                  "run_id": 20,
+                  "attempt": 2
+                }
+              },
+              "publication_operation": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 88,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 15,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "commands.repair",
+      "role": "typed command",
+      "source": {
+        "id": "readiness.repair",
+        "file": "scenario.py",
+        "line": 291,
+        "symbol": "repair"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "RepairRequested",
+            "data": {
+              "operation": "repair:L2:build",
+              "head": "h2",
+              "lineage": "L2",
+              "fingerprint": "build",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 2
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 89,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 15,
+      "node": "readiness.route_ci.fire",
+      "role": "durable decision",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 90,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 16,
+      "node": "effects.repair.fire",
+      "role": "typed Activity effect",
+      "source": {
+        "id": "readiness.repair",
+        "file": "scenario.py",
+        "line": 291,
+        "symbol": "repair"
+      },
+      "detail": {}
+    },
+    {
+      "index": 91,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 16,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "effects.repair.fire",
+      "role": "typed Activity effect",
+      "source": {
+        "id": "readiness.repair",
+        "file": "scenario.py",
+        "line": 291,
+        "symbol": "repair"
+      },
+      "detail": {}
+    },
+    {
+      "index": 92,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 16,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "commands.repair",
+      "role": "typed command",
+      "source": {
+        "id": "readiness.repair",
+        "file": "scenario.py",
+        "line": 291,
+        "symbol": "repair"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "RepairRequested",
+            "data": {
+              "operation": "repair:L2:build",
+              "head": "h2",
+              "lineage": "L2",
+              "fingerprint": "build",
+              "evidence": {
+                "run_id": 20,
+                "attempt": 2
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 93,
+      "record": "ActivityRequested",
+      "instant": 0,
+      "occurrence": 16,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "effects.repair.fire",
+      "role": "typed Activity effect",
+      "source": {
+        "id": "readiness.repair",
+        "file": "scenario.py",
+        "line": 291,
+        "symbol": "repair"
+      },
+      "detail": {
+        "activity": "repair",
+        "input": {
+          "request": {
+            "operation": "repair:L2:build",
+            "head": "h2",
+            "lineage": "L2",
+            "fingerprint": "build",
+            "evidence": {
+              "run_id": 20,
+              "attempt": 2
+            }
+          }
+        },
+        "correlation": "repair:L2:build",
+        "idempotency": "repair:L2:build"
+      }
+    },
+    {
+      "index": 94,
+      "record": "ActivityCompleted",
+      "instant": 0,
+      "occurrence": 16,
+      "node": "effects.repair.fire",
+      "role": "typed Activity effect",
+      "source": {
+        "id": "readiness.repair",
+        "file": "scenario.py",
+        "line": 291,
+        "symbol": "repair"
+      },
+      "detail": {
+        "result": {
+          "operation": "repair:L2:build",
+          "head": "h2",
+          "repaired_head": "h2r"
+        }
+      }
+    },
+    {
+      "index": 95,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 16,
+      "scope": {
+        "name": "branch",
+        "generation": 2
+      },
+      "node": "facts.repair_landed",
+      "role": "effect result fact",
+      "source": {
+        "id": "readiness.repair",
+        "file": "scenario.py",
+        "line": 291,
+        "symbol": "repair"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "RepairLanded",
+            "data": {
+              "operation": "repair:L2:build",
+              "head": "h2",
+              "repaired_head": "h2r"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 96,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 16,
+      "node": "effects.repair.fire",
+      "role": "typed Activity effect",
+      "source": {
+        "id": "readiness.repair",
+        "file": "scenario.py",
+        "line": 291,
+        "symbol": "repair"
+      },
+      "detail": {}
+    },
+    {
+      "index": 97,
+      "record": "ScopeReset",
+      "instant": 0,
+      "node": null,
+      "role": "lifecycle scope",
+      "source": {
+        "id": "readiness.lifecycle.branch",
+        "file": "scenario.py",
+        "line": 278,
+        "symbol": "branch"
+      },
+      "detail": {
+        "closed": {
+          "name": "branch",
+          "generation": 2
+        },
+        "opened": {
+          "name": "branch",
+          "generation": 3
+        },
+        "discarded": [
+          20,
+          16,
+          22
+        ],
+        "cancelled": []
+      }
+    },
+    {
+      "index": 98,
+      "record": "ExternalEventDelivered",
+      "instant": 0,
+      "occurrence": 17,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with durable state projection",
+      "source": {
+        "id": "readiness.head",
+        "file": "scenario.py",
+        "line": 280,
+        "symbol": "head"
+      },
+      "detail": {
+        "identity": "head-h2r-g3",
+        "tokens": [
+          {
+            "color": "HeadObserved",
+            "data": {
+              "head": "h2r",
+              "relation": "confirmed",
+              "generation": 3,
+              "lineage": "L2"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 99,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 17,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with durable state projection",
+      "source": {
+        "id": "readiness.head",
+        "file": "scenario.py",
+        "line": 280,
+        "symbol": "head"
+      },
+      "detail": {}
+    },
+    {
+      "index": 100,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 17,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "readiness.state",
+      "role": "generation state baton",
+      "source": {
+        "id": "readiness.admit_head",
+        "file": "scenario.py",
+        "line": 105,
+        "symbol": "admit_head"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "ReadinessState",
+            "data": {
+              "head": "h2r",
+              "generation": 3,
+              "lineage": "L2",
+              "ladder": {
+                "lineage": "L2",
+                "fingerprint": null,
+                "rerun_used": false,
+                "repair_used": false,
+                "watermark": null
+              },
+              "publication_operation": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 101,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 17,
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with durable state projection",
+      "source": {
+        "id": "readiness.head",
+        "file": "scenario.py",
+        "line": 280,
+        "symbol": "head"
+      },
+      "detail": {}
+    },
+    {
+      "index": 102,
+      "record": "ExternalEventDelivered",
+      "instant": 0,
+      "occurrence": 18,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {
+        "identity": "ci-21-1-g3",
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2r",
+              "evidence": {
+                "run_id": 21,
+                "attempt": 1
+              },
+              "conclusion": "success",
+              "fingerprint": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 103,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 18,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 104,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 18,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "events.ci",
+      "role": "typed event place",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2r",
+              "evidence": {
+                "run_id": 21,
+                "attempt": 1
+              },
+              "conclusion": "success",
+              "fingerprint": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 105,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 18,
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 106,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 19,
+      "node": "readiness.route_ci.fire",
+      "role": "durable decision",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 107,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 19,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "readiness.route_ci.fire",
+      "role": "durable decision",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 108,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 19,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "readiness.state",
+      "role": "generation state baton",
+      "source": {
+        "id": "readiness.admit_head",
+        "file": "scenario.py",
+        "line": 105,
+        "symbol": "admit_head"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "ReadinessState",
+            "data": {
+              "head": "h2r",
+              "generation": 3,
+              "lineage": "L2",
+              "ladder": {
+                "lineage": "L2",
+                "fingerprint": null,
+                "rerun_used": false,
+                "repair_used": false,
+                "watermark": null
+              },
+              "publication_operation": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 109,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 19,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "events.ci",
+      "role": "typed event place",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h2r",
+              "evidence": {
+                "run_id": 21,
+                "attempt": 1
+              },
+              "conclusion": "success",
+              "fingerprint": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 110,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 19,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "readiness.state",
+      "role": "generation state baton",
+      "source": {
+        "id": "readiness.admit_head",
+        "file": "scenario.py",
+        "line": 105,
+        "symbol": "admit_head"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "ReadinessState",
+            "data": {
+              "head": "h2r",
+              "generation": 3,
+              "lineage": "L2",
+              "ladder": {
+                "lineage": "L2",
+                "fingerprint": null,
+                "rerun_used": false,
+                "repair_used": false,
+                "watermark": {
+                  "run_id": 21,
+                  "attempt": 1
+                }
+              },
+              "publication_operation": "publish:h2r:g3"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 111,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 19,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "commands.publish",
+      "role": "typed command",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "PublishRequested",
+            "data": {
+              "operation": "publish:h2r:g3",
+              "head": "h2r",
+              "generation": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 112,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 19,
+      "node": "readiness.route_ci.fire",
+      "role": "durable decision",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "detail": {}
+    },
+    {
+      "index": 113,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 20,
+      "node": "effects.publish.authorize",
+      "role": "admit one publication while none is pending or done",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {}
+    },
+    {
+      "index": 114,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 20,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "effects.publish.authorize",
+      "role": "admit one publication while none is pending or done",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {}
+    },
+    {
+      "index": 115,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 20,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "commands.publish",
+      "role": "typed command",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "PublishRequested",
+            "data": {
+              "operation": "publish:h2r:g3",
+              "head": "h2r",
+              "generation": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 116,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 20,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "effects.publish.work",
+      "role": "authorized publication work",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "PublishRequested",
+            "data": {
+              "operation": "publish:h2r:g3",
+              "head": "h2r",
+              "generation": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 117,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 20,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "effects.publish.pending",
+      "role": "publication in-flight latch",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": null,
+            "data": null
+          }
+        ]
+      }
+    },
+    {
+      "index": 118,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 20,
+      "node": "effects.publish.authorize",
+      "role": "admit one publication while none is pending or done",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {}
+    },
+    {
+      "index": 119,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 21,
+      "node": "effects.publish.execute",
+      "role": "publication effect request/observe",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {}
+    },
+    {
+      "index": 120,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 21,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "effects.publish.execute",
+      "role": "publication effect request/observe",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {}
+    },
+    {
+      "index": 121,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 21,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "effects.publish.work",
+      "role": "authorized publication work",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "PublishRequested",
+            "data": {
+              "operation": "publish:h2r:g3",
+              "head": "h2r",
+              "generation": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 122,
+      "record": "ActivityRequested",
+      "instant": 0,
+      "occurrence": 21,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "effects.publish.execute",
+      "role": "publication effect request/observe",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "activity": "publish",
+        "input": {
+          "request": {
+            "operation": "publish:h2r:g3",
+            "head": "h2r",
+            "generation": 3
+          }
+        },
+        "correlation": "publish:h2r:g3",
+        "idempotency": "publish:h2r:g3"
+      }
+    },
+    {
+      "index": 123,
+      "record": "ActivityCompleted",
+      "instant": 0,
+      "occurrence": 21,
+      "node": "effects.publish.execute",
+      "role": "publication effect request/observe",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "result": {
+          "operation": "publish:h2r:g3",
+          "head": "h2r",
+          "generation": 3
+        }
+      }
+    },
+    {
+      "index": 124,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 21,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "effects.publish.ack",
+      "role": "publication effect terminal",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "PublishAcknowledged",
+            "data": {
+              "operation": "publish:h2r:g3",
+              "head": "h2r",
+              "generation": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 125,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 21,
+      "node": "effects.publish.execute",
+      "role": "publication effect request/observe",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {}
+    },
+    {
+      "index": 126,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 22,
+      "node": "effects.publish.accept",
+      "role": "accept effect terminal, release pending, latch done",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {}
+    },
+    {
+      "index": 127,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 22,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "effects.publish.accept",
+      "role": "accept effect terminal, release pending, latch done",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {}
+    },
+    {
+      "index": 128,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 22,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "effects.publish.pending",
+      "role": "publication in-flight latch",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": null,
+            "data": null
+          }
+        ]
+      }
+    },
+    {
+      "index": 129,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 22,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "effects.publish.ack",
+      "role": "publication effect terminal",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "PublishAcknowledged",
+            "data": {
+              "operation": "publish:h2r:g3",
+              "head": "h2r",
+              "generation": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 130,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 22,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "facts.publish_acknowledged",
+      "role": "accepted effect fact",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "PublishAcknowledged",
+            "data": {
+              "operation": "publish:h2r:g3",
+              "head": "h2r",
+              "generation": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 131,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 22,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "effects.publish.done",
+      "role": "publication completed latch",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": null,
+            "data": null
+          }
+        ]
+      }
+    },
+    {
+      "index": 132,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 22,
+      "node": "effects.publish.accept",
+      "role": "accept effect terminal, release pending, latch done",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {}
+    },
+    {
+      "index": 133,
+      "record": "CandidateSelected",
+      "instant": 0,
+      "occurrence": 23,
+      "node": "readiness.accept_publish.fire",
+      "role": "durable state fold",
+      "source": {
+        "id": "readiness.accept_publish",
+        "file": "scenario.py",
+        "line": 186,
+        "symbol": "accept_publish"
+      },
+      "detail": {}
+    },
+    {
+      "index": 134,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 23,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "readiness.accept_publish.fire",
+      "role": "durable state fold",
+      "source": {
+        "id": "readiness.accept_publish",
+        "file": "scenario.py",
+        "line": 186,
+        "symbol": "accept_publish"
+      },
+      "detail": {}
+    },
+    {
+      "index": 135,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 23,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "readiness.state",
+      "role": "generation state baton",
+      "source": {
+        "id": "readiness.admit_head",
+        "file": "scenario.py",
+        "line": 105,
+        "symbol": "admit_head"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "ReadinessState",
+            "data": {
+              "head": "h2r",
+              "generation": 3,
+              "lineage": "L2",
+              "ladder": {
+                "lineage": "L2",
+                "fingerprint": null,
+                "rerun_used": false,
+                "repair_used": false,
+                "watermark": {
+                  "run_id": 21,
+                  "attempt": 1
+                }
+              },
+              "publication_operation": "publish:h2r:g3"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 136,
+      "record": "TokensConsumed",
+      "instant": 0,
+      "occurrence": 23,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "facts.publish_acknowledged",
+      "role": "accepted effect fact",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "PublishAcknowledged",
+            "data": {
+              "operation": "publish:h2r:g3",
+              "head": "h2r",
+              "generation": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 137,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 23,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "readiness.state",
+      "role": "generation state baton",
+      "source": {
+        "id": "readiness.admit_head",
+        "file": "scenario.py",
+        "line": 105,
+        "symbol": "admit_head"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "ReadinessState",
+            "data": {
+              "head": "h2r",
+              "generation": 3,
+              "lineage": "L2",
+              "ladder": {
+                "lineage": "L2",
+                "fingerprint": null,
+                "rerun_used": false,
+                "repair_used": false,
+                "watermark": {
+                  "run_id": 21,
+                  "attempt": 1
+                }
+              },
+              "publication_operation": "publish:h2r:g3"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 138,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 23,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "terminal.published",
+      "role": "terminal outcome",
+      "source": {
+        "id": "readiness.published",
+        "file": "scenario.py",
+        "line": 296,
+        "symbol": "published"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "Published",
+            "data": {
+              "head": "h2r",
+              "generation": 3,
+              "operation": "publish:h2r:g3"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 139,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 23,
+      "node": "readiness.accept_publish.fire",
+      "role": "durable state fold",
+      "source": {
+        "id": "readiness.accept_publish",
+        "file": "scenario.py",
+        "line": 186,
+        "symbol": "accept_publish"
+      },
+      "detail": {}
+    },
+    {
+      "index": 140,
+      "record": "ScopeReset",
+      "instant": 0,
+      "node": null,
+      "role": "lifecycle scope",
+      "source": {
+        "id": "readiness.lifecycle.branch",
+        "file": "scenario.py",
+        "line": 278,
+        "symbol": "branch"
+      },
+      "detail": {
+        "closed": {
+          "name": "branch",
+          "generation": 3
+        },
+        "opened": {
+          "name": "branch",
+          "generation": 4
+        },
+        "discarded": [
+          32,
+          31,
+          33
+        ],
+        "cancelled": []
+      }
+    },
+    {
+      "index": 141,
+      "record": "ExternalEventDelivered",
+      "instant": 0,
+      "occurrence": 24,
+      "scope": {
+        "name": "branch",
+        "generation": 4
+      },
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with durable state projection",
+      "source": {
+        "id": "readiness.head",
+        "file": "scenario.py",
+        "line": 280,
+        "symbol": "head"
+      },
+      "detail": {
+        "identity": "head-h3-g4",
+        "tokens": [
+          {
+            "color": "HeadObserved",
+            "data": {
+              "head": "h3",
+              "relation": "superseded",
+              "generation": 4,
+              "lineage": "L4"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 142,
+      "record": "FiringBegun",
+      "instant": 0,
+      "occurrence": 24,
+      "scope": {
+        "name": "branch",
+        "generation": 4
+      },
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with durable state projection",
+      "source": {
+        "id": "readiness.head",
+        "file": "scenario.py",
+        "line": 280,
+        "symbol": "head"
+      },
+      "detail": {}
+    },
+    {
+      "index": 143,
+      "record": "TokensProduced",
+      "instant": 0,
+      "occurrence": 24,
+      "scope": {
+        "name": "branch",
+        "generation": 4
+      },
+      "node": "readiness.state",
+      "role": "generation state baton",
+      "source": {
+        "id": "readiness.admit_head",
+        "file": "scenario.py",
+        "line": 105,
+        "symbol": "admit_head"
+      },
+      "detail": {
+        "tokens": [
+          {
+            "color": "ReadinessState",
+            "data": {
+              "head": "h3",
+              "generation": 4,
+              "lineage": "L4",
+              "ladder": {
+                "lineage": "L4",
+                "fingerprint": null,
+                "rerun_used": false,
+                "repair_used": false,
+                "watermark": null
+              },
+              "publication_operation": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 144,
+      "record": "FiringCompleted",
+      "instant": 0,
+      "occurrence": 24,
+      "node": "ingress.head",
+      "role": "typed scoped ingress fused with durable state projection",
+      "source": {
+        "id": "readiness.head",
+        "file": "scenario.py",
+        "line": 280,
+        "symbol": "head"
+      },
+      "detail": {}
+    },
+    {
+      "index": 145,
+      "record": "ScopedDeliveryDropped",
+      "instant": 0,
+      "scope": {
+        "name": "branch",
+        "generation": 3
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {
+        "identity": "ci-stale-g3",
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h3",
+              "evidence": {
+                "run_id": 30,
+                "attempt": 1
+              },
+              "conclusion": "success",
+              "fingerprint": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "index": 146,
+      "record": "ScopedDeliveryQuarantined",
+      "instant": 0,
+      "scope": {
+        "name": "branch",
+        "generation": 5
+      },
+      "node": "ingress.ci",
+      "role": "typed scoped ingress",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "detail": {
+        "identity": "ci-future-g5",
+        "tokens": [
+          {
+            "color": "CIObserved",
+            "data": {
+              "head": "h3",
+              "evidence": {
+                "run_id": 30,
+                "attempt": 1
+              },
+              "conclusion": "success",
+              "fingerprint": null
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "occurrences": [
+    {
+      "occurrence": 1,
+      "transition": "ingress.head",
+      "source": {
+        "id": "readiness.head",
+        "file": "scenario.py",
+        "line": 280,
+        "symbol": "head"
+      },
+      "accepted": [
+        {
+          "color": "HeadObserved",
+          "data": {
+            "head": "h1",
+            "relation": "new",
+            "generation": 1,
+            "lineage": "L1"
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "readiness.state",
+          "tokens": [
+            {
+              "color": "ReadinessState",
+              "data": {
+                "head": "h1",
+                "generation": 1,
+                "lineage": "L1",
+                "ladder": {
+                  "lineage": "L1",
+                  "fingerprint": null,
+                  "rerun_used": false,
+                  "repair_used": false,
+                  "watermark": null
+                },
+                "publication_operation": null
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 2,
+      "transition": "ingress.ci",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "accepted": [
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h1",
+            "evidence": {
+              "run_id": 10,
+              "attempt": 1
+            },
+            "conclusion": "success",
+            "fingerprint": null
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "events.ci",
+          "tokens": [
+            {
+              "color": "CIObserved",
+              "data": {
+                "head": "h1",
+                "evidence": {
+                  "run_id": 10,
+                  "attempt": 1
+                },
+                "conclusion": "success",
+                "fingerprint": null
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 3,
+      "transition": "readiness.route_ci.fire",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "accepted": [
+        {
+          "color": "ReadinessState",
+          "data": {
+            "head": "h1",
+            "generation": 1,
+            "lineage": "L1",
+            "ladder": {
+              "lineage": "L1",
+              "fingerprint": null,
+              "rerun_used": false,
+              "repair_used": false,
+              "watermark": null
+            },
+            "publication_operation": null
+          }
+        },
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h1",
+            "evidence": {
+              "run_id": 10,
+              "attempt": 1
+            },
+            "conclusion": "success",
+            "fingerprint": null
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "readiness.state",
+          "tokens": [
+            {
+              "color": "ReadinessState",
+              "data": {
+                "head": "h1",
+                "generation": 1,
+                "lineage": "L1",
+                "ladder": {
+                  "lineage": "L1",
+                  "fingerprint": null,
+                  "rerun_used": false,
+                  "repair_used": false,
+                  "watermark": {
+                    "run_id": 10,
+                    "attempt": 1
+                  }
+                },
+                "publication_operation": "publish:h1:g1"
+              }
+            }
+          ]
+        },
+        {
+          "place": "commands.publish",
+          "tokens": [
+            {
+              "color": "PublishRequested",
+              "data": {
+                "operation": "publish:h1:g1",
+                "head": "h1",
+                "generation": 1
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 4,
+      "transition": "effects.publish.authorize",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "accepted": [
+        {
+          "color": "PublishRequested",
+          "data": {
+            "operation": "publish:h1:g1",
+            "head": "h1",
+            "generation": 1
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "effects.publish.work",
+          "tokens": [
+            {
+              "color": "PublishRequested",
+              "data": {
+                "operation": "publish:h1:g1",
+                "head": "h1",
+                "generation": 1
+              }
+            }
+          ]
+        },
+        {
+          "place": "effects.publish.pending",
+          "tokens": [
+            {
+              "color": null,
+              "data": null
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 5,
+      "transition": "effects.publish.execute",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "accepted": [
+        {
+          "color": "PublishRequested",
+          "data": {
+            "operation": "publish:h1:g1",
+            "head": "h1",
+            "generation": 1
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "effects.publish.ack",
+          "tokens": [
+            {
+              "color": "PublishAcknowledged",
+              "data": {
+                "operation": "publish:h1:g1",
+                "head": "h1",
+                "generation": 1
+              }
+            }
+          ]
+        }
+      ],
+      "activity": {
+        "activity": "publish",
+        "correlation": "publish:h1:g1",
+        "idempotency": "publish:h1:g1",
+        "result": {
+          "operation": "publish:h1:g1",
+          "head": "h1",
+          "generation": 1
+        }
+      },
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 6,
+      "transition": "effects.publish.accept",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "accepted": [
+        {
+          "color": null,
+          "data": null
+        },
+        {
+          "color": "PublishAcknowledged",
+          "data": {
+            "operation": "publish:h1:g1",
+            "head": "h1",
+            "generation": 1
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "facts.publish_acknowledged",
+          "tokens": [
+            {
+              "color": "PublishAcknowledged",
+              "data": {
+                "operation": "publish:h1:g1",
+                "head": "h1",
+                "generation": 1
+              }
+            }
+          ]
+        },
+        {
+          "place": "effects.publish.done",
+          "tokens": [
+            {
+              "color": null,
+              "data": null
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 7,
+      "transition": "readiness.accept_publish.fire",
+      "source": {
+        "id": "readiness.accept_publish",
+        "file": "scenario.py",
+        "line": 186,
+        "symbol": "accept_publish"
+      },
+      "accepted": [
+        {
+          "color": "ReadinessState",
+          "data": {
+            "head": "h1",
+            "generation": 1,
+            "lineage": "L1",
+            "ladder": {
+              "lineage": "L1",
+              "fingerprint": null,
+              "rerun_used": false,
+              "repair_used": false,
+              "watermark": {
+                "run_id": 10,
+                "attempt": 1
+              }
+            },
+            "publication_operation": "publish:h1:g1"
+          }
+        },
+        {
+          "color": "PublishAcknowledged",
+          "data": {
+            "operation": "publish:h1:g1",
+            "head": "h1",
+            "generation": 1
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "readiness.state",
+          "tokens": [
+            {
+              "color": "ReadinessState",
+              "data": {
+                "head": "h1",
+                "generation": 1,
+                "lineage": "L1",
+                "ladder": {
+                  "lineage": "L1",
+                  "fingerprint": null,
+                  "rerun_used": false,
+                  "repair_used": false,
+                  "watermark": {
+                    "run_id": 10,
+                    "attempt": 1
+                  }
+                },
+                "publication_operation": "publish:h1:g1"
+              }
+            }
+          ]
+        },
+        {
+          "place": "terminal.published",
+          "tokens": [
+            {
+              "color": "Published",
+              "data": {
+                "head": "h1",
+                "generation": 1,
+                "operation": "publish:h1:g1"
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 8,
+      "transition": "ingress.head",
+      "source": {
+        "id": "readiness.head",
+        "file": "scenario.py",
+        "line": 280,
+        "symbol": "head"
+      },
+      "accepted": [
+        {
+          "color": "HeadObserved",
+          "data": {
+            "head": "h2",
+            "relation": "superseded",
+            "generation": 2,
+            "lineage": "L2"
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "readiness.state",
+          "tokens": [
+            {
+              "color": "ReadinessState",
+              "data": {
+                "head": "h2",
+                "generation": 2,
+                "lineage": "L2",
+                "ladder": {
+                  "lineage": "L2",
+                  "fingerprint": null,
+                  "rerun_used": false,
+                  "repair_used": false,
+                  "watermark": null
+                },
+                "publication_operation": null
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 9,
+      "transition": "ingress.ci",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "accepted": [
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h2",
+            "evidence": {
+              "run_id": 20,
+              "attempt": 1
+            },
+            "conclusion": "failure",
+            "fingerprint": "build"
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "events.ci",
+          "tokens": [
+            {
+              "color": "CIObserved",
+              "data": {
+                "head": "h2",
+                "evidence": {
+                  "run_id": 20,
+                  "attempt": 1
+                },
+                "conclusion": "failure",
+                "fingerprint": "build"
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 10,
+      "transition": "readiness.route_ci.fire",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "accepted": [
+        {
+          "color": "ReadinessState",
+          "data": {
+            "head": "h2",
+            "generation": 2,
+            "lineage": "L2",
+            "ladder": {
+              "lineage": "L2",
+              "fingerprint": null,
+              "rerun_used": false,
+              "repair_used": false,
+              "watermark": null
+            },
+            "publication_operation": null
+          }
+        },
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h2",
+            "evidence": {
+              "run_id": 20,
+              "attempt": 1
+            },
+            "conclusion": "failure",
+            "fingerprint": "build"
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "readiness.state",
+          "tokens": [
+            {
+              "color": "ReadinessState",
+              "data": {
+                "head": "h2",
+                "generation": 2,
+                "lineage": "L2",
+                "ladder": {
+                  "lineage": "L2",
+                  "fingerprint": "build",
+                  "rerun_used": true,
+                  "repair_used": false,
+                  "watermark": {
+                    "run_id": 20,
+                    "attempt": 1
+                  }
+                },
+                "publication_operation": null
+              }
+            }
+          ]
+        },
+        {
+          "place": "commands.rerun",
+          "tokens": [
+            {
+              "color": "RerunRequested",
+              "data": {
+                "operation": "rerun:L2:build",
+                "head": "h2",
+                "lineage": "L2",
+                "fingerprint": "build",
+                "evidence": {
+                  "run_id": 20,
+                  "attempt": 1
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 11,
+      "transition": "effects.rerun.fire",
+      "source": {
+        "id": "readiness.rerun",
+        "file": "scenario.py",
+        "line": 290,
+        "symbol": "rerun"
+      },
+      "accepted": [
+        {
+          "color": "RerunRequested",
+          "data": {
+            "operation": "rerun:L2:build",
+            "head": "h2",
+            "lineage": "L2",
+            "fingerprint": "build",
+            "evidence": {
+              "run_id": 20,
+              "attempt": 1
+            }
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "facts.rerun_accepted",
+          "tokens": [
+            {
+              "color": "RerunAccepted",
+              "data": {
+                "operation": "rerun:L2:build",
+                "head": "h2"
+              }
+            }
+          ]
+        }
+      ],
+      "activity": {
+        "activity": "rerun",
+        "correlation": "rerun:L2:build",
+        "idempotency": "rerun:L2:build",
+        "result": {
+          "operation": "rerun:L2:build",
+          "head": "h2"
+        }
+      },
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 12,
+      "transition": "ingress.ci",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "accepted": [
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h2",
+            "evidence": {
+              "run_id": 20,
+              "attempt": 1
+            },
+            "conclusion": "failure",
+            "fingerprint": "build"
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "events.ci",
+          "tokens": [
+            {
+              "color": "CIObserved",
+              "data": {
+                "head": "h2",
+                "evidence": {
+                  "run_id": 20,
+                  "attempt": 1
+                },
+                "conclusion": "failure",
+                "fingerprint": "build"
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 13,
+      "transition": "readiness.route_ci.fire",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "accepted": [
+        {
+          "color": "ReadinessState",
+          "data": {
+            "head": "h2",
+            "generation": 2,
+            "lineage": "L2",
+            "ladder": {
+              "lineage": "L2",
+              "fingerprint": "build",
+              "rerun_used": true,
+              "repair_used": false,
+              "watermark": {
+                "run_id": 20,
+                "attempt": 1
+              }
+            },
+            "publication_operation": null
+          }
+        },
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h2",
+            "evidence": {
+              "run_id": 20,
+              "attempt": 1
+            },
+            "conclusion": "failure",
+            "fingerprint": "build"
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "readiness.state",
+          "tokens": [
+            {
+              "color": "ReadinessState",
+              "data": {
+                "head": "h2",
+                "generation": 2,
+                "lineage": "L2",
+                "ladder": {
+                  "lineage": "L2",
+                  "fingerprint": "build",
+                  "rerun_used": true,
+                  "repair_used": false,
+                  "watermark": {
+                    "run_id": 20,
+                    "attempt": 1
+                  }
+                },
+                "publication_operation": null
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 14,
+      "transition": "ingress.ci",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "accepted": [
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h2",
+            "evidence": {
+              "run_id": 20,
+              "attempt": 2
+            },
+            "conclusion": "failure",
+            "fingerprint": "build"
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "events.ci",
+          "tokens": [
+            {
+              "color": "CIObserved",
+              "data": {
+                "head": "h2",
+                "evidence": {
+                  "run_id": 20,
+                  "attempt": 2
+                },
+                "conclusion": "failure",
+                "fingerprint": "build"
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 15,
+      "transition": "readiness.route_ci.fire",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "accepted": [
+        {
+          "color": "ReadinessState",
+          "data": {
+            "head": "h2",
+            "generation": 2,
+            "lineage": "L2",
+            "ladder": {
+              "lineage": "L2",
+              "fingerprint": "build",
+              "rerun_used": true,
+              "repair_used": false,
+              "watermark": {
+                "run_id": 20,
+                "attempt": 1
+              }
+            },
+            "publication_operation": null
+          }
+        },
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h2",
+            "evidence": {
+              "run_id": 20,
+              "attempt": 2
+            },
+            "conclusion": "failure",
+            "fingerprint": "build"
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "readiness.state",
+          "tokens": [
+            {
+              "color": "ReadinessState",
+              "data": {
+                "head": "h2",
+                "generation": 2,
+                "lineage": "L2",
+                "ladder": {
+                  "lineage": "L2",
+                  "fingerprint": "build",
+                  "rerun_used": true,
+                  "repair_used": true,
+                  "watermark": {
+                    "run_id": 20,
+                    "attempt": 2
+                  }
+                },
+                "publication_operation": null
+              }
+            }
+          ]
+        },
+        {
+          "place": "commands.repair",
+          "tokens": [
+            {
+              "color": "RepairRequested",
+              "data": {
+                "operation": "repair:L2:build",
+                "head": "h2",
+                "lineage": "L2",
+                "fingerprint": "build",
+                "evidence": {
+                  "run_id": 20,
+                  "attempt": 2
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 16,
+      "transition": "effects.repair.fire",
+      "source": {
+        "id": "readiness.repair",
+        "file": "scenario.py",
+        "line": 291,
+        "symbol": "repair"
+      },
+      "accepted": [
+        {
+          "color": "RepairRequested",
+          "data": {
+            "operation": "repair:L2:build",
+            "head": "h2",
+            "lineage": "L2",
+            "fingerprint": "build",
+            "evidence": {
+              "run_id": 20,
+              "attempt": 2
+            }
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "facts.repair_landed",
+          "tokens": [
+            {
+              "color": "RepairLanded",
+              "data": {
+                "operation": "repair:L2:build",
+                "head": "h2",
+                "repaired_head": "h2r"
+              }
+            }
+          ]
+        }
+      ],
+      "activity": {
+        "activity": "repair",
+        "correlation": "repair:L2:build",
+        "idempotency": "repair:L2:build",
+        "result": {
+          "operation": "repair:L2:build",
+          "head": "h2",
+          "repaired_head": "h2r"
+        }
+      },
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 17,
+      "transition": "ingress.head",
+      "source": {
+        "id": "readiness.head",
+        "file": "scenario.py",
+        "line": 280,
+        "symbol": "head"
+      },
+      "accepted": [
+        {
+          "color": "HeadObserved",
+          "data": {
+            "head": "h2r",
+            "relation": "confirmed",
+            "generation": 3,
+            "lineage": "L2"
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "readiness.state",
+          "tokens": [
+            {
+              "color": "ReadinessState",
+              "data": {
+                "head": "h2r",
+                "generation": 3,
+                "lineage": "L2",
+                "ladder": {
+                  "lineage": "L2",
+                  "fingerprint": null,
+                  "rerun_used": false,
+                  "repair_used": false,
+                  "watermark": null
+                },
+                "publication_operation": null
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 18,
+      "transition": "ingress.ci",
+      "source": {
+        "id": "readiness.ci",
+        "file": "scenario.py",
+        "line": 281,
+        "symbol": "ci"
+      },
+      "accepted": [
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h2r",
+            "evidence": {
+              "run_id": 21,
+              "attempt": 1
+            },
+            "conclusion": "success",
+            "fingerprint": null
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "events.ci",
+          "tokens": [
+            {
+              "color": "CIObserved",
+              "data": {
+                "head": "h2r",
+                "evidence": {
+                  "run_id": 21,
+                  "attempt": 1
+                },
+                "conclusion": "success",
+                "fingerprint": null
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 19,
+      "transition": "readiness.route_ci.fire",
+      "source": {
+        "id": "readiness.route_ci",
+        "file": "scenario.py",
+        "line": 122,
+        "symbol": "route_ci"
+      },
+      "accepted": [
+        {
+          "color": "ReadinessState",
+          "data": {
+            "head": "h2r",
+            "generation": 3,
+            "lineage": "L2",
+            "ladder": {
+              "lineage": "L2",
+              "fingerprint": null,
+              "rerun_used": false,
+              "repair_used": false,
+              "watermark": null
+            },
+            "publication_operation": null
+          }
+        },
+        {
+          "color": "CIObserved",
+          "data": {
+            "head": "h2r",
+            "evidence": {
+              "run_id": 21,
+              "attempt": 1
+            },
+            "conclusion": "success",
+            "fingerprint": null
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "readiness.state",
+          "tokens": [
+            {
+              "color": "ReadinessState",
+              "data": {
+                "head": "h2r",
+                "generation": 3,
+                "lineage": "L2",
+                "ladder": {
+                  "lineage": "L2",
+                  "fingerprint": null,
+                  "rerun_used": false,
+                  "repair_used": false,
+                  "watermark": {
+                    "run_id": 21,
+                    "attempt": 1
+                  }
+                },
+                "publication_operation": "publish:h2r:g3"
+              }
+            }
+          ]
+        },
+        {
+          "place": "commands.publish",
+          "tokens": [
+            {
+              "color": "PublishRequested",
+              "data": {
+                "operation": "publish:h2r:g3",
+                "head": "h2r",
+                "generation": 3
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 20,
+      "transition": "effects.publish.authorize",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "accepted": [
+        {
+          "color": "PublishRequested",
+          "data": {
+            "operation": "publish:h2r:g3",
+            "head": "h2r",
+            "generation": 3
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "effects.publish.work",
+          "tokens": [
+            {
+              "color": "PublishRequested",
+              "data": {
+                "operation": "publish:h2r:g3",
+                "head": "h2r",
+                "generation": 3
+              }
+            }
+          ]
+        },
+        {
+          "place": "effects.publish.pending",
+          "tokens": [
+            {
+              "color": null,
+              "data": null
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 21,
+      "transition": "effects.publish.execute",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "accepted": [
+        {
+          "color": "PublishRequested",
+          "data": {
+            "operation": "publish:h2r:g3",
+            "head": "h2r",
+            "generation": 3
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "effects.publish.ack",
+          "tokens": [
+            {
+              "color": "PublishAcknowledged",
+              "data": {
+                "operation": "publish:h2r:g3",
+                "head": "h2r",
+                "generation": 3
+              }
+            }
+          ]
+        }
+      ],
+      "activity": {
+        "activity": "publish",
+        "correlation": "publish:h2r:g3",
+        "idempotency": "publish:h2r:g3",
+        "result": {
+          "operation": "publish:h2r:g3",
+          "head": "h2r",
+          "generation": 3
+        }
+      },
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 22,
+      "transition": "effects.publish.accept",
+      "source": {
+        "id": "readiness.publish_once",
+        "file": "scenario.py",
+        "line": 221,
+        "symbol": "publication_gate"
+      },
+      "accepted": [
+        {
+          "color": null,
+          "data": null
+        },
+        {
+          "color": "PublishAcknowledged",
+          "data": {
+            "operation": "publish:h2r:g3",
+            "head": "h2r",
+            "generation": 3
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "facts.publish_acknowledged",
+          "tokens": [
+            {
+              "color": "PublishAcknowledged",
+              "data": {
+                "operation": "publish:h2r:g3",
+                "head": "h2r",
+                "generation": 3
+              }
+            }
+          ]
+        },
+        {
+          "place": "effects.publish.done",
+          "tokens": [
+            {
+              "color": null,
+              "data": null
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 23,
+      "transition": "readiness.accept_publish.fire",
+      "source": {
+        "id": "readiness.accept_publish",
+        "file": "scenario.py",
+        "line": 186,
+        "symbol": "accept_publish"
+      },
+      "accepted": [
+        {
+          "color": "ReadinessState",
+          "data": {
+            "head": "h2r",
+            "generation": 3,
+            "lineage": "L2",
+            "ladder": {
+              "lineage": "L2",
+              "fingerprint": null,
+              "rerun_used": false,
+              "repair_used": false,
+              "watermark": {
+                "run_id": 21,
+                "attempt": 1
+              }
+            },
+            "publication_operation": "publish:h2r:g3"
+          }
+        },
+        {
+          "color": "PublishAcknowledged",
+          "data": {
+            "operation": "publish:h2r:g3",
+            "head": "h2r",
+            "generation": 3
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "readiness.state",
+          "tokens": [
+            {
+              "color": "ReadinessState",
+              "data": {
+                "head": "h2r",
+                "generation": 3,
+                "lineage": "L2",
+                "ladder": {
+                  "lineage": "L2",
+                  "fingerprint": null,
+                  "rerun_used": false,
+                  "repair_used": false,
+                  "watermark": {
+                    "run_id": 21,
+                    "attempt": 1
+                  }
+                },
+                "publication_operation": "publish:h2r:g3"
+              }
+            }
+          ]
+        },
+        {
+          "place": "terminal.published",
+          "tokens": [
+            {
+              "color": "Published",
+              "data": {
+                "head": "h2r",
+                "generation": 3,
+                "operation": "publish:h2r:g3"
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    },
+    {
+      "occurrence": 24,
+      "transition": "ingress.head",
+      "source": {
+        "id": "readiness.head",
+        "file": "scenario.py",
+        "line": 280,
+        "symbol": "head"
+      },
+      "accepted": [
+        {
+          "color": "HeadObserved",
+          "data": {
+            "head": "h3",
+            "relation": "superseded",
+            "generation": 4,
+            "lineage": "L4"
+          }
+        }
+      ],
+      "read": [],
+      "produced": [
+        {
+          "place": "readiness.state",
+          "tokens": [
+            {
+              "color": "ReadinessState",
+              "data": {
+                "head": "h3",
+                "generation": 4,
+                "lineage": "L4",
+                "ladder": {
+                  "lineage": "L4",
+                  "fingerprint": null,
+                  "rerun_used": false,
+                  "repair_used": false,
+                  "watermark": null
+                },
+                "publication_operation": null
+              }
+            }
+          ]
+        }
+      ],
+      "activity": null,
+      "ended": "FiringCompleted"
+    }
+  ]
+}
