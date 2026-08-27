@@ -1,0 +1,148 @@
+{
+  "format": "petrus-net-document",
+  "version": 1,
+  "definition": {
+    "format": "petrus-net-definition",
+    "version": 3,
+    "definition": {
+      "name": "canonical-design",
+      "time_domain": "integer",
+      "places": [
+        {
+          "path": "review.correctness.blocked",
+          "color": "Block"
+        },
+        {
+          "path": "review.correctness.context",
+          "color": "Context"
+        },
+        {
+          "path": "review.correctness.done",
+          "color": "Done"
+        },
+        {
+          "path": "review.correctness.pending",
+          "color": "Work"
+        }
+      ],
+      "transitions": [
+        {
+          "path": "ingest",
+          "handler": null,
+          "guards": [],
+          "timers": []
+        },
+        {
+          "path": "review.correctness.review",
+          "handler": {
+            "kind": "anonymous",
+            "uri": "transition:/review/correctness/review#handler"
+          },
+          "guards": [
+            {
+              "kind": "symbol",
+              "name": "ready",
+              "uri": "transition:/review/correctness/review#guard:ready"
+            },
+            {
+              "kind": "cel",
+              "expression": "true",
+              "uri": "transition:/review/correctness/review#guard:$1"
+            }
+          ],
+          "timers": [
+            {
+              "kind": "delay",
+              "duration": 3
+            },
+            {
+              "kind": "until",
+              "instant": 11
+            }
+          ]
+        }
+      ],
+      "arcs": [
+        {
+          "position": 0,
+          "source": "review.correctness.pending",
+          "target": "review.correctness.review",
+          "mode": "consume",
+          "weight": 1,
+          "color": "Work",
+          "filter": null
+        },
+        {
+          "position": 1,
+          "source": "review.correctness.review",
+          "target": "review.correctness.done",
+          "mode": "consume",
+          "weight": 1,
+          "color": "Done",
+          "filter": null
+        },
+        {
+          "position": 2,
+          "source": "review.correctness.context",
+          "target": "review.correctness.review",
+          "mode": "read",
+          "weight": 1,
+          "color": "Context",
+          "filter": {
+            "kind": "cel",
+            "expression": "true"
+          }
+        },
+        {
+          "position": 3,
+          "source": "review.correctness.blocked",
+          "target": "review.correctness.review",
+          "mode": "inhibit",
+          "weight": 1,
+          "color": "Block",
+          "filter": {
+            "kind": "symbol",
+            "name": "same_key"
+          }
+        },
+        {
+          "position": 4,
+          "source": "ingest",
+          "target": "review.correctness.pending",
+          "mode": "consume",
+          "weight": 1,
+          "color": "Work",
+          "filter": null
+        },
+        {
+          "position": 5,
+          "source": "review.correctness.review",
+          "target": "review.correctness.done",
+          "mode": "consume",
+          "weight": 1,
+          "color": "Done",
+          "filter": null
+        }
+      ],
+      "completion": {
+        "kind": "cel",
+        "expression": "size(review.correctness.done) > 0"
+      }
+    }
+  },
+  "view": {
+    "version": 1,
+    "nodes": [
+      {
+        "node": "review.correctness.pending",
+        "x": 20.5,
+        "y": -40
+      },
+      {
+        "node": "review.correctness.review",
+        "x": 240,
+        "y": 80.25
+      }
+    ]
+  }
+}

@@ -55,14 +55,15 @@ of work that was active when its host died.
 CV16 remains complete at one deliberately narrow support boundary: scripted Pi
 A2 Local host lifecycle, not authenticated Pi/model/provider execution.
 
-CV20 — Approachable Petrus is the Planned developer-experience Value over that
+CV20 — Approachable Petrus is the Active developer-experience Value over that
 full-power runtime: one readable flow file should be enough to compile,
 inspect, validate, and reach honest first motion, while lower-level APIs remain
 available and canonical semantics stay visible. ES-056 supplied the promoted
 end-to-end direction; ES-061 supplies CV20.DS3's accepted portable
-definition/view/lineage semantics. Promotion creates Delivery intent, not proof
-that the carried first-motion, authoring, Arx V5, or application-bound evidence
-has passed, and it authorizes no runtime simplification.
+definition/view/lineage semantics. DS3's strict portable definition/view
+foundation and paired Arx Hamsterdan V5 arrangement route are Done. The next
+DS3 movement is optional strict lineage; first-motion, authoring, live
+correlation, and application-bound evidence remain subsequent Delivery work.
 
 ## Architecture premises
 

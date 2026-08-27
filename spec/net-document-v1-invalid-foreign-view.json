@@ -1,0 +1,31 @@
+{
+  "format": "petrus-net-document",
+  "version": 1,
+  "definition": {
+    "format": "petrus-net-definition",
+    "version": 3,
+    "definition": {
+      "name": "invalid-foreign-view",
+      "time_domain": "integer",
+      "places": [
+        {
+          "path": "known",
+          "color": null
+        }
+      ],
+      "transitions": [],
+      "arcs": [],
+      "completion": null
+    }
+  },
+  "view": {
+    "version": 1,
+    "nodes": [
+      {
+        "node": "foreign",
+        "x": 0,
+        "y": 0
+      }
+    ]
+  }
+}

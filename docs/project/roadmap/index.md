@@ -56,14 +56,13 @@ and no live provider or multi-host support is claimed.
   process evidence. CV19 is Done; its explicit unmodeled boundaries remain
   limits, not unfinished accepted scope.
 
-## Planned Values
+## Active Values
 
-- [CV20 — Approachable Petrus](cv20-approachable-petrus/index.md) is Planned.
-  It organizes one progressive developer journey across first motion,
-  expressive authoring, portable/live understanding, generated examples, and
-  approachable effects and agents while preserving canonical semantics and
-  lower-level descent. ES-056 supplied the promoted Value; ES-061 supplies the
-  accepted portable-document semantics for CV20.DS3.
+- [CV20 — Approachable Petrus](cv20-approachable-petrus/index.md) is Active.
+  CV20.DS3's portable definition/view foundation and paired Hamsterdan V5 Arx
+  arrangement are Done; DS3 remains Active for optional strict lineage. The
+  other four Delivery Stories remain Planned. ES-056 supplied the promoted
+  Value and ES-061 supplies DS3's accepted semantics.
 
 Application-specific and site-operation plans remain outside this source tree.
 

@@ -21,6 +21,7 @@ orientation; it is not mechanically proven line by line against the binding.
 - `OVERVIEW.md` — narrative design overview; read this first.
 - `net-schema.md` — structure of a net definition: nodes, places, transitions, arcs, tokens, markings, addressing.
 - `net-definition-v3.md` — canonical flat, Pydantic-backed cross-system Net-definition file and compiler contract.
+- `net-document-v1.md` — portable canonical Net definition plus optional identity-neutral node arrangement.
 - `firing-semantics.md` — enabledness, the firing pipeline, scheduling, timers, replay.
 - `event-history.md` — the per-instance append-only event history and its record model.
 - `handler-contract.md` — how declared symbols bind to guards and handlers, and what handlers promise.

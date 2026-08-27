@@ -1,11 +1,11 @@
 ---
 code: CV20.DS3
 level: Delivery Story
-status: Planned
+status: Active
 status_reason: >-
-  ES-061 supplies accepted executable semantics for one Petrus portable
-  definition/view/lineage document. Public protocol, Arx V5 arrangement, live
-  correlation, and application-bound fork acceptance remain to be delivered.
+  TS1 and the paired Arx static V5 arrangement route are Done. The next Petrus
+  movement is ES-061's optional strict flat lineage; live correlation and the
+  application-bound capable fork remain later children.
 updated: 2026-08-27
 related:
   - index.md
@@ -37,10 +37,14 @@ presentation and file custody; neither enters Engine execution authority.
 - Join canonical semantic state with correlated best-effort operational progress
   only after DS1 supplies a concrete live consumer; listeners never block motion.
 
-## Candidate story seeds
+## Delivery sequence
 
-- **TS1 — Petrus net document v1.** Ratify the protocol, portable view subset,
-  lineage validator, producers, conversion/loss rules, and conformance fixtures.
+- **Done:**
+  [CV20.DS3.TS1 — Portable definition and view document foundation](cv20-ds3-live-understanding/cv20-ds3-ts1-portable-definition-view/index.md)
+  owns strict envelope, definition identity, node-position view, projection,
+  owner fixtures, and the contract Arx consumed for the static V5 route.
+- **Next Petrus substrate:** forkable lineage validation, evidence-source
+  custody, projection, and conformance fixtures from ES-061's accepted model.
 - **US1 — Arrange Hamsterdan V5 in Arx.** Open the real 108-place,
   137-transition, 570-arc V5 Net on the shared canvas; zoom, pan, move, save,
   close, and reopen without changing definition identity.

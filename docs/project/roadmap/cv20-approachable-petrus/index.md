@@ -1,11 +1,11 @@
 ---
 code: CV20
 level: Value
-status: Planned
+status: Active
 status_reason: >-
-  The Navigator promoted ES-056 on 2026-08-27 as one end-to-end adoption
-  Value. Its five Delivery Stories are bounded and no implementation story is
-  Active merely because the Value entered the roadmap.
+  CV20.DS3's portable definition/view foundation and paired Arx Hamsterdan V5
+  arrangement are Done. DS3 remains Active for the optional strict lineage;
+  the other Delivery Stories remain Planned.
 updated: 2026-08-27
 related:
   - ../../exploration/es-056-progressive-disclosure-developer-experience/index.md
@@ -59,6 +59,10 @@ arrangement slice may be expanded independently because ES-061 already bounds
 definition, view, lineage, and custody; its live-runtime join waits for DS1's
 concrete consumer. DS2 protects the authoring/descent seam before DS4 generates
 against it. DS5 follows an ordinary zero-agent DS1 profile.
+
+The Navigator pulled DS3's independent static slice on 2026-08-27. Its first
+implementation unit is Done:
+[CV20.DS3.TS1 — Portable definition and view document foundation](cv20-ds3-live-understanding/cv20-ds3-ts1-portable-definition-view/index.md).
 
 ## Architecture contract
 
