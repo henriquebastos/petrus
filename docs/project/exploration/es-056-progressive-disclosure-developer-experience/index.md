@@ -1,10 +1,18 @@
 ---
 code: ES-056
-status: Candidate
+title: Progressive-disclosure developer experience
+status: Completed
+status_reason: >-
+  The Navigator promoted the one end-to-end Approachable Petrus Value as CV20
+  on 2026-08-27. Its original evidence gates remain explicit Delivery work;
+  roadmap promotion does not claim that AX27–AX29 or the application acceptance
+  cases have already passed.
 opened: 2026-08-13
+updated: 2026-08-27
 related:
   - ES-055
   - ES-061
+  - CV20
   - CV8
   - CV10
   - CV16
@@ -15,6 +23,9 @@ related:
   - docs/project/decisions/records/2026-08-03T2130Z-flat-json-is-the-canonical-net-definition-interchange.md
 evidence_repository: https://github.com/henriquebastos/hamsterdan
 evidence_revision: ea7784bb8a1237f223e9ffcb27598d5e39ee9e17
+promoted_to:
+  - CV20
+promoted_at: 2026-08-27
 ---
 
 # Progressive-disclosure developer experience
@@ -65,8 +76,9 @@ because it was generated.
 
 Petrus does not need several new Values for authoring, CLI, TUI, examples, and
 agent convenience. Those would reproduce today's ownership seams in the
-roadmap. It needs **one candidate adoption Value** whose promise is the complete
-developer journey and whose Delivery Stories may be worked independently.
+roadmap. The Navigator promoted **one adoption Value, CV20 — Approachable
+Petrus**, whose promise is the complete developer journey and whose Delivery
+Stories may be worked independently.
 
 The runtime is not “too powerful.” The current product surface is too flat:
 developers meet authoring, bindings, store, Dispatch, Engine, driving, and
@@ -283,24 +295,25 @@ Lines of code and arcs per node remain supporting diagnostics. They never
 justify hiding a domain decision, fusing distinct owners, or turning an
 external effect into an unrecorded call.
 
-## Candidate Value and delivery map
+## Promoted Value and delivery map
 
-### Candidate Value — Approachable Petrus
+### CV20 — Approachable Petrus
 
 **Intent:** let a developer author, validate, run, observe, resume, and extend a
 durable Petrus process from one coherent progressive surface while retaining
 canonical artifacts and full lower-level control.
 
-This should be one Value because the user promise is end to end. Its work can
-expand into independently owned Delivery Stories after the candidate gate:
+This is one Value because the user promise is end to end. Its work is expanded
+into independently owned Delivery Stories under the
+[CV20 roadmap owner](../../roadmap/cv20-approachable-petrus/index.md):
 
 This exploration originally used “CV19” as a provisional candidate label.
 [CV19](../../roadmap/cv19-deterministic-simulation-testing/index.md) was later
-allocated to deterministic simulation testing and is now Done. Exploration
-does not reserve the candidate's eventual roadmap code; allocate that code only
-if the Navigator promotes this Value.
+allocated to deterministic simulation testing and is now Done. Exploration did
+not reserve that provisional label; the promoted Value correctly receives the
+next available code, CV20.
 
-| Candidate Delivery Story | User-visible outcome | Existing owners composed | Dependency / evidence gate |
+| Delivery Story | User-visible outcome | Existing owners composed | Dependency / evidence gate |
 | --- | --- | --- | --- |
 | **DS1 — One-file first motion** | One flow/application file compiles, validates, runs or resumes under a named local profile, and reports its artifacts | DSL, Engine, local History/Dispatch | AX28; decide runner owner and local profile |
 | **DS2 — Expressive flow authoring** | Domain blocks, typed exits, sequence/branch/join/loop/failure patterns compile to canonical topology with deliberate low-level descent | Impetus DSL and canonical Net v3 | Review ES-003 candidate; full Hamsterdan benchmark; AX29 |
@@ -312,16 +325,16 @@ Documentation and progressive disclosure are acceptance work in every Delivery
 Story, not a final documentation lane. Each story ships its runnable example,
 diagnostics, canonical artifact, and lower-level explanation together.
 
-Existing Values remain closed or blocked at their stated boundaries. This
-candidate would consume their public results. A missing consumer convenience is
+Existing Values remain closed or blocked at their stated boundaries. CV20
+consumes their public results. A missing consumer convenience is
 not permission to reopen CV8 semantics, promote private CV10 execution
 contracts, broaden CV16's support matrix, or move application lifecycle into
 Arx.
 
-## Candidate evidence probes and order
+## Delivery evidence probes and order
 
-Hamsterdan has retained three executable probes under its ES-003. They are
-evidence, not commitments:
+Hamsterdan has retained three executable probes under its ES-003. Promotion
+makes them routed Delivery evidence, not evidence already executed by CV20:
 
 1. **AX28 — one file to first motion.** Run first. It tests the governing
    product promise and reveals the real assembly/profile/observation gap before
@@ -334,9 +347,10 @@ evidence, not commitments:
    the default authoring surface. Otherwise the generator may optimize a syntax
    the project later rejects.
 
-After AX28, a bounded Petrus exploration can prototype only the missing generic
-application/run composition. Arx work should begin only after that probe names
-the live consumer; Agenticus convenience should begin only after the ordinary
+After AX28, CV20.DS1 may implement only the missing generic application/run
+composition. DS3's ES-061-backed portable-document and static V5 arrangement
+slice may proceed independently; live Arx integration waits for DS1 to name the
+runtime consumer. Agenticus convenience begins only after the ordinary
 zero-agent path is coherent.
 
 ## Ownership recommendations
@@ -357,8 +371,8 @@ zero-agent path is coherent.
 - **Generated-authoring packages consume public contracts.** They do not become
   a shadow specification copied manually across docs, templates, and evals.
 
-These recommendations are part of the candidate map, not decided package or
-CLI contracts.
+These recommendations are CV20 boundaries, not decided package or CLI
+contracts.
 
 ## Open product and architecture choices
 
@@ -406,13 +420,15 @@ CLI contracts.
 - Do not auto-execute generated source.
 - Do not optimize for source lines or graph size at the expense of visible
   business ownership and inspectable semantics.
-- Do not dispatch implementation threads until the candidate Value and first
-  evidence probe identify bounded contracts.
+- Do not implement a public facade before the owning Delivery Story executes
+  its first evidence probe and identifies a bounded contract.
 
-## Candidate gate
+## Promotion ruling and carried gates
 
-The Value is ready for Navigator promotion only when the following evidence is
-available:
+On 2026-08-27, the Navigator promoted this Candidate as CV20. The original gate
+below had not been fully executed. Promotion creates a roadmap commitment and
+moves each item into its owning Delivery Story; it does not relabel missing
+evidence as passed:
 
 1. AX28 executes one source file through compile, canonical inspection, honest
    local motion, observation, and replay/resume on the frozen runtime.
@@ -430,15 +446,17 @@ Full Hamsterdan regeneration may remain a Delivery Story acceptance target if
 the vertical slice gives the Value enough form. Production migration is never
 implied by successful exploration.
 
-## Driver recommendation
+## Accepted direction
 
-Retain **one candidate Value — Approachable Petrus**, not multiple new Values.
-Start with AX28 because it tests the stated dream directly and exposes which
-generic assembly is actually missing. Protect the descent seam with AX29 before
-promoting an authoring API. Then review the ES-003 default-surface choice; run
-AX27 against the selected diagnostics contract; open live-presentation and
-Agenticus convenience only from those concrete consumers.
+The Navigator accepted **one Value — CV20 Approachable Petrus**, not multiple
+new Values. Start the general journey with AX28 because it tests the stated
+dream directly and exposes which generic assembly is actually missing. The
+ES-061-backed portable-document/static-arrangement slice may expand in DS3
+without waiting for that runtime result. Protect the authoring descent seam with
+AX29 before promoting an authoring API; run AX27 against the selected
+diagnostics contract; and open live-presentation and Agenticus convenience only
+from concrete consumers.
 
-Until those probes report, preserve every existing runtime and roadmap
-boundary. The likely product is a thin progressive application surface over
-Petrus, not a simpler Petrus underneath.
+Until those probes report, every existing runtime boundary remains intact. The
+target is a thin progressive application surface over Petrus, not a simpler
+Petrus underneath.

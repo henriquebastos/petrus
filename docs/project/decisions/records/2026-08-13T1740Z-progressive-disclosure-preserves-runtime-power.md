@@ -8,6 +8,7 @@ supersedes:
 related:
   - ES-055
   - ES-056
+  - CV20
   - docs/product/principles.md
   - docs/project/decisions/records/2026-07-28T0133Z-python-dsl-compiles-authored-specifications-to-canonical-nets.md
   - docs/project/decisions/records/2026-08-03T2130Z-flat-json-is-the-canonical-net-definition-interchange.md
@@ -89,12 +90,14 @@ that semantic price.
 - The flagship complexity test is a Hamsterdan-scale flow, not only a toy
   sequence. It must retain domain decisions while moving clients, provider
   mechanics, and infrastructure assembly out of the flow architecture.
-- Existing CV8, CV10, CV11–CV18 capabilities remain foundations. A candidate
-  adoption Value may compose them without reopening their semantic decisions.
+- Existing CV8, CV10, CV11–CV18 capabilities remain foundations. CV20 may
+  compose them without reopening their semantic decisions.
 - This ruling does not select a concrete authoring syntax, runner owner,
   default storage profile, presentation protocol, or Agenticus convenience
-  API. ES-056 owns that cohesive candidate map.
-- No runtime, roadmap, or release implementation is authorized by this record.
+  API. ES-056 supplied the cohesive candidate map; CV20 now owns its Delivery.
+- This record itself authorizes no runtime or release implementation. The
+  Navigator's later CV20 promotion supplies roadmap intent, while each Delivery
+  Story still owns implementation and acceptance.
 
 ## Review Trigger
 

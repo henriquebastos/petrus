@@ -7,11 +7,13 @@ status_reason: >-
   The method, round ordering, scorecard criteria, and non-goals are settled
   here; no round has been executed. The first action is blocked on one
   Navigator input this document specifies: choosing the benchmark
-  feature-net. No code or kernel change is authorized by this story.
+  feature-net. If resumed, its accepted evidence supplies CV20.DS2; no code or
+  kernel change is authorized by this story.
 opened: 2026-08-26
 related:
   - ES-059
   - ES-056
+  - CV20.DS2
   - docs/product/principles.md
   - docs/project/decisions/records/2026-08-13T1740Z-progressive-disclosure-preserves-runtime-power.md
   - docs/project/decisions/records/2026-07-28T0133Z-python-dsl-compiles-authored-specifications-to-canonical-nets.md

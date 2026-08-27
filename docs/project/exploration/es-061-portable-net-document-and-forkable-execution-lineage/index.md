@@ -1,18 +1,18 @@
 ---
 code: ES-061
 title: Portable net document and forkable execution lineage
-status: Candidate
+status: Completed
 status_reason: >-
-  The Navigator accepted the bounded semantic Candidate and its route into the
-  proposed Approachable Petrus live-understanding arc. It remains a Candidate
-  because accepting ES-061 does not promote the broader ES-056 Value or
-  allocate a roadmap code. AX1 and AX2 prove one dense entry list plus
-  non-navigational custody anchors; Arx/Hamsterdan interaction and execution
-  remain downstream acceptance work.
+  The Navigator accepted the bounded semantic Candidate and then promoted the
+  broader Approachable Petrus Value as CV20. ES-061 now supplies CV20.DS3's
+  portable definition/view/lineage semantics; public protocol, Arx V5, and
+  application-bound execution remain Delivery acceptance work.
 opened: 2026-08-26
 updated: 2026-08-27
 related:
   - ES-056
+  - CV20
+  - CV20.DS3
   - CV11
   - CV12
   - CV13
@@ -35,9 +35,11 @@ evidence_repositories:
     revision: 1e81a8ddccf959597eb8d8e392182d80753be765
   - repository: https://github.com/henriquebastos/hamsterdan
     revision: cb09ee68ebda42dae966351b373501df7bf803e6
-promotes_to: []
-promoted_to: []
-promoted_at:
+promotes_to:
+  - CV20.DS3
+promoted_to:
+  - CV20.DS3
+promoted_at: 2026-08-27
 ---
 
 # Portable net document and forkable execution lineage
@@ -371,7 +373,7 @@ Hamsterdan execution is claimed.
 | Inspectable/resumable and implementation-profile limits are honest | **Pass `[D]`** — points are inspectable only; V5 is outside the current profile. |
 | Hamsterdan V5 layout survives Arx save/reopen | **Not run; Delivery acceptance.** It can revise view fields and coordinate semantics but not the proven lineage composition. |
 | Hamsterdan V5 application-bound fork executes | **Not run; Delivery acceptance.** It must validate profile/binding integration; current inability is explicit. |
-| Evidence permits roadmap judgment under one protocol owner | **Pass; Candidate accepted.** Parent Value promotion and code allocation remain separate Navigator choices. |
+| Evidence permits roadmap judgment under one protocol owner | **Pass; promoted to CV20.DS3.** Delivery retains one Petrus protocol owner. |
 
 ## Accepted Candidate Direction
 
@@ -413,10 +415,9 @@ Navigator acceptance:
 - add manual operations beyond complete marking replacement only when a real
   interaction requires their semantics.
 
-The Navigator accepted the route under the proposed Approachable Petrus
-live-understanding arc, with no separate Value for ES-061. This does not promote
-ES-056 as a whole, allocate its eventual Value code, settle the choices above,
-or authorize a public Petrus protocol implementation by itself.
+The Navigator promoted Approachable Petrus as CV20 and routed this Candidate to
+CV20.DS3, with no separate Value for ES-061. Promotion does not settle the
+choices above or relabel the exploration-local prototype as a public protocol.
 
 ## Verification — 2026-08-27
 
@@ -439,23 +440,21 @@ or authorize a public Petrus protocol implementation by itself.
 
 ## Accepted Handoff and Placement Boundary
 
-ES-061 is accepted for the **DS3 — Live understanding** arc of the proposed
-Approachable Petrus Value in ES-056 if and when that Value is promoted. No
-separate Value is justified for this document contract. Accepting this handoff
-does not silently satisfy ES-056's wider first-motion, authoring, profile, or
+ES-061 is promoted to
+[CV20.DS3 — Live understanding](../../roadmap/cv20-approachable-petrus/cv20-ds3-live-understanding.md).
+No separate Value is justified for this document contract, and this handoff
+does not silently satisfy CV20's wider first-motion, authoring, profile, or
 agent-experience gates.
 
-Once the parent Value exists, Petrus should deliver protocol, validation,
-projection, and producer/fixture seams first. Arx should then receive a
-Delivery Story under its existing current-Petrus companion Value for
-shared-canvas and lineage experience. Hamsterdan remains the application
-acceptance case rather than opening a Value unrelated to its active
-private-production boundary.
+Petrus delivers protocol, validation, projection, and producer/fixture seams
+first. Arx then receives a Delivery Story under its existing current-Petrus
+companion Value for shared-canvas and lineage experience. Hamsterdan remains
+the application acceptance case rather than opening a Value unrelated to its
+active private-production boundary.
 
-Candidate acceptance creates no canonical History, runtime, Arx, or Hamsterdan
-production change. The next roadmap judgment is whether the complete ES-056
-Approachable Petrus Candidate has enough evidence to allocate and enter
-Delivery; ES-061 does not make that broader ruling on the Navigator's behalf.
+Promotion creates roadmap intent, not a canonical History, runtime, Arx, or
+Hamsterdan production change. CV20.DS3 owns those implementation and acceptance
+boundaries now.
 
 ## Carry Forward Notes Accepted by the Navigator
 

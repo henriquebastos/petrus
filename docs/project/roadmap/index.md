@@ -58,8 +58,14 @@ and no live provider or multi-host support is claimed.
 
 ## Planned Values
 
-No project Values are currently planned here. Application-specific and
-site-operation plans are not part of this source tree.
+- [CV20 — Approachable Petrus](cv20-approachable-petrus/index.md) is Planned.
+  It organizes one progressive developer journey across first motion,
+  expressive authoring, portable/live understanding, generated examples, and
+  approachable effects and agents while preserving canonical semantics and
+  lower-level descent. ES-056 supplied the promoted Value; ES-061 supplies the
+  accepted portable-document semantics for CV20.DS3.
+
+Application-specific and site-operation plans remain outside this source tree.
 
 ## Structure and states
 

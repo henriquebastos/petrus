@@ -14,14 +14,15 @@ status_reason: >-
   algebraic case table is promising, the one-guarded-transition-per-rung net
   is mixed, and the inscription net is promising with priced costs. The
   remaining open question — what notation delivers the expressive authoring
-  surface — is handed to ES-060 as a dedicated design story. Promotion
-  remains a Navigator decision on ES-056's evidence gates; no kernel
-  rewrite, Haskell migration, or roadmap change follows from this story.
+  surface — is handed to ES-060 as a dedicated design story. ES-056 later
+  promoted separately as CV20, carrying this evidence into CV20.DS2; no kernel
+  rewrite or Haskell migration follows from this story.
 opened: 2026-08-26
-updated: 2026-08-26
+updated: 2026-08-27
 related:
   - ES-056
   - ES-060
+  - CV20.DS2
   - docs/product/principles.md
   - docs/project/decisions/records/2026-08-13T1740Z-progressive-disclosure-preserves-runtime-power.md
 source_context:
@@ -722,11 +723,12 @@ has been executed under its
 [durable execution plan](experiment-plan.md) and classified
 [promising](experiments/typed-flow-vertical-slice/report.md). No roadmap,
 debt, release, product-principle, production-runtime, or Hamsterdan change
-follows from the result itself. ES-056 remains the durable owner of the
-candidate adoption Value and AX28/AX29 remain the promotion evidence gates;
-the report is now available evidence for them. ES-059 contributes the
-historical failure model, coarse-grain rule, functional-language rationale,
-and the executed bounded test of that direction.
+follows from the result itself. ES-056 later promoted to CV20 — Approachable
+Petrus; AX28 and AX29 remain carried Delivery evidence for CV20.DS1 and
+CV20.DS2 rather than evidence made complete by roadmap promotion. This report
+remains available to those stories. ES-059 contributes the historical failure
+model, coarse-grain rule, functional-language rationale, and the executed
+bounded test of that direction.
 
 The story closed Completed on 2026-08-26. The open follow-up it exposed —
 designing the expressive authoring notation itself — is owned by ES-060,
