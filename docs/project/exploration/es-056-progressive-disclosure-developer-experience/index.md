@@ -4,6 +4,7 @@ status: Candidate
 opened: 2026-08-13
 related:
   - ES-055
+  - ES-061
   - CV8
   - CV10
   - CV16
@@ -303,7 +304,7 @@ if the Navigator promotes this Value.
 | --- | --- | --- | --- |
 | **DS1 — One-file first motion** | One flow/application file compiles, validates, runs or resumes under a named local profile, and reports its artifacts | DSL, Engine, local History/Dispatch | AX28; decide runner owner and local profile |
 | **DS2 — Expressive flow authoring** | Domain blocks, typed exits, sequence/branch/join/loop/failure patterns compile to canonical topology with deliberate low-level descent | Impetus DSL and canonical Net v3 | Review ES-003 candidate; full Hamsterdan benchmark; AX29 |
-| **DS3 — Live understanding** | A terminal/JSONL/Arx consumer shows semantic state and correlated operational progress without entering the execution path | CV11–CV15 observation, History, telemetry, Arx | DS1 supplies the concrete consumer; protocol boundary review |
+| **DS3 — Live understanding** | A terminal/JSONL/Arx consumer shows semantic state and correlated operational progress without entering the execution path | CV11–CV15 observation, History, telemetry, Arx | ES-061 supplies the accepted portable definition/view/lineage semantics; DS1 supplies the concrete live consumer |
 | **DS4 — Generated authoring and worked examples** | An agent or human can generate/review/repair a runnable flow using machine diagnostics; examples, API projection, templates, and evals stay coherent | DS1/DS2 compiler and diagnostics | AX27; stable default authoring surface; never auto-run |
 | **DS5 — Approachable effects and agents** | Ordinary Activities and one honestly supported Agenticus profile compose as simple leaves without flattening provider differences | CV8, CV10, CV16, host-owned authority | DS1 profile; one concrete zero-agent and one agent example |
 
