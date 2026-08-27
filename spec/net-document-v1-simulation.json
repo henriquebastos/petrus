@@ -1,0 +1,338 @@
+{
+  "format": "petrus-net-document",
+  "version": 1,
+  "definition": {
+    "format": "petrus-net-definition",
+    "version": 3,
+    "definition": {
+      "name": "bounded-simulation-demo",
+      "time_domain": "integer",
+      "places": [
+        {
+          "path": "done",
+          "color": "SimulationItem"
+        },
+        {
+          "path": "pending",
+          "color": "SimulationItem"
+        }
+      ],
+      "transitions": [
+        {
+          "path": "finish",
+          "handler": null,
+          "guards": [
+            {
+              "kind": "cel",
+              "expression": "size(pending) > 0",
+              "uri": "transition:/finish#guard:$0"
+            }
+          ],
+          "timers": [
+            {
+              "kind": "delay",
+              "duration": 5
+            }
+          ]
+        }
+      ],
+      "arcs": [
+        {
+          "position": 0,
+          "source": "pending",
+          "target": "finish",
+          "mode": "consume",
+          "weight": 1,
+          "color": "SimulationItem",
+          "filter": {
+            "kind": "cel",
+            "expression": "priority >= 1"
+          }
+        },
+        {
+          "position": 1,
+          "source": "finish",
+          "target": "done",
+          "mode": "consume",
+          "weight": 1,
+          "color": "SimulationItem",
+          "filter": null
+        }
+      ],
+      "completion": {
+        "kind": "cel",
+        "expression": "size(done) > 0"
+      }
+    }
+  },
+  "lineage": {
+    "head": 7,
+    "entries": [
+      {
+        "id": 0,
+        "parent": null,
+        "provenance": "simulated",
+        "marking": [],
+        "metadata": {
+          "profile": "implementation-free-v1",
+          "instance": "simulation",
+          "scenario": {
+            "start_instant": 0,
+            "initial_marking": [
+              {
+                "place": "pending",
+                "tokens": [
+                  {
+                    "color": "SimulationItem",
+                    "data": {
+                      "id": "demo-1",
+                      "priority": 2,
+                      "typed": true
+                    }
+                  }
+                ]
+              }
+            ],
+            "max_actions": 32
+          },
+          "outcome": {
+            "actions_applied": 2,
+            "reason": "rest"
+          },
+          "status": "completed",
+          "history_record": {
+            "record": "InstanceCreated",
+            "schema": 5,
+            "instance": "simulation",
+            "name": "bounded-simulation-demo",
+            "instant": 0
+          }
+        }
+      },
+      {
+        "id": 1,
+        "parent": 0,
+        "provenance": "simulated",
+        "marking": [
+          {
+            "place": "pending",
+            "tokens": [
+              {
+                "color": "SimulationItem",
+                "data": {
+                  "id": "demo-1",
+                  "priority": 2,
+                  "typed": true
+                }
+              }
+            ]
+          }
+        ],
+        "metadata": {
+          "history_record": {
+            "record": "TokensInitialized",
+            "schema": 5,
+            "place": "pending",
+            "tokens": [
+              {
+                "color": "SimulationItem",
+                "data": {
+                  "id": "demo-1",
+                  "priority": 2,
+                  "typed": true
+                }
+              }
+            ],
+            "instant": 0,
+            "entries": [],
+            "scope": null
+          }
+        }
+      },
+      {
+        "id": 2,
+        "parent": 1,
+        "provenance": "simulated",
+        "marking": [
+          {
+            "place": "pending",
+            "tokens": [
+              {
+                "color": "SimulationItem",
+                "data": {
+                  "id": "demo-1",
+                  "priority": 2,
+                  "typed": true
+                }
+              }
+            ]
+          }
+        ],
+        "metadata": {
+          "history_record": {
+            "record": "TimerMatured",
+            "schema": 5,
+            "maturation_instant": 5,
+            "instant": 5
+          }
+        }
+      },
+      {
+        "id": 3,
+        "parent": 2,
+        "provenance": "simulated",
+        "marking": [
+          {
+            "place": "pending",
+            "tokens": [
+              {
+                "color": "SimulationItem",
+                "data": {
+                  "id": "demo-1",
+                  "priority": 2,
+                  "typed": true
+                }
+              }
+            ]
+          }
+        ],
+        "metadata": {
+          "history_record": {
+            "record": "CandidateSelected",
+            "schema": 5,
+            "transition": "finish",
+            "occurrence": 1,
+            "instant": 5
+          }
+        }
+      },
+      {
+        "id": 4,
+        "parent": 3,
+        "provenance": "simulated",
+        "marking": [
+          {
+            "place": "pending",
+            "tokens": [
+              {
+                "color": "SimulationItem",
+                "data": {
+                  "id": "demo-1",
+                  "priority": 2,
+                  "typed": true
+                }
+              }
+            ]
+          }
+        ],
+        "metadata": {
+          "history_record": {
+            "record": "FiringBegun",
+            "schema": 5,
+            "transition": "finish",
+            "occurrence": 1,
+            "scope": null,
+            "instant": 5
+          }
+        }
+      },
+      {
+        "id": 5,
+        "parent": 4,
+        "provenance": "simulated",
+        "marking": [],
+        "metadata": {
+          "history_record": {
+            "record": "TokensConsumed",
+            "schema": 5,
+            "place": "pending",
+            "tokens": [
+              {
+                "color": "SimulationItem",
+                "data": {
+                  "id": "demo-1",
+                  "priority": 2,
+                  "typed": true
+                }
+              }
+            ],
+            "occurrence": 1,
+            "entries": [],
+            "scope": null,
+            "instant": 5
+          }
+        }
+      },
+      {
+        "id": 6,
+        "parent": 5,
+        "provenance": "simulated",
+        "marking": [
+          {
+            "place": "done",
+            "tokens": [
+              {
+                "color": "SimulationItem",
+                "data": {
+                  "id": "demo-1",
+                  "priority": 2,
+                  "typed": true
+                }
+              }
+            ]
+          }
+        ],
+        "metadata": {
+          "history_record": {
+            "record": "TokensProduced",
+            "schema": 5,
+            "place": "done",
+            "tokens": [
+              {
+                "color": "SimulationItem",
+                "data": {
+                  "id": "demo-1",
+                  "priority": 2,
+                  "typed": true
+                }
+              }
+            ],
+            "occurrence": 1,
+            "entries": [],
+            "scope": null,
+            "instant": 5
+          }
+        }
+      },
+      {
+        "id": 7,
+        "parent": 6,
+        "provenance": "simulated",
+        "marking": [
+          {
+            "place": "done",
+            "tokens": [
+              {
+                "color": "SimulationItem",
+                "data": {
+                  "id": "demo-1",
+                  "priority": 2,
+                  "typed": true
+                }
+              }
+            ]
+          }
+        ],
+        "metadata": {
+          "history_record": {
+            "record": "FiringCompleted",
+            "schema": 5,
+            "transition": "finish",
+            "occurrence": 1,
+            "instant": 5
+          }
+        }
+      }
+    ]
+  }
+}

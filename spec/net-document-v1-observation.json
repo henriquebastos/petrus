@@ -1,0 +1,390 @@
+{
+  "format": "petrus-net-document",
+  "version": 1,
+  "definition": {
+    "format": "petrus-net-definition",
+    "version": 3,
+    "definition": {
+      "name": "canonical-observation",
+      "time_domain": "integer",
+      "places": [
+        {
+          "path": "a",
+          "color": "Input"
+        },
+        {
+          "path": "b",
+          "color": "Done"
+        },
+        {
+          "path": "c",
+          "color": null
+        }
+      ],
+      "transitions": [
+        {
+          "path": "source",
+          "handler": null,
+          "guards": [],
+          "timers": []
+        },
+        {
+          "path": "work",
+          "handler": {
+            "kind": "symbol",
+            "name": "bridge",
+            "uri": "transition:/work#handler"
+          },
+          "guards": [],
+          "timers": []
+        }
+      ],
+      "arcs": [
+        {
+          "position": 0,
+          "source": "source",
+          "target": "c",
+          "mode": "consume",
+          "weight": 1,
+          "color": null,
+          "filter": null
+        },
+        {
+          "position": 1,
+          "source": "a",
+          "target": "work",
+          "mode": "consume",
+          "weight": 1,
+          "color": "Input",
+          "filter": null
+        },
+        {
+          "position": 2,
+          "source": "work",
+          "target": "b",
+          "mode": "consume",
+          "weight": 1,
+          "color": "Done",
+          "filter": null
+        }
+      ],
+      "completion": {
+        "kind": "cel",
+        "expression": "size(b) > 0"
+      }
+    }
+  },
+  "lineage": {
+    "head": 6,
+    "entries": [
+      {
+        "id": 0,
+        "parent": null,
+        "provenance": "observed",
+        "marking": [],
+        "metadata": {
+          "instance": "canonical-instance",
+          "history_record": {
+            "record": "InstanceCreated",
+            "schema": 5,
+            "instance": "canonical-instance",
+            "name": "canonical-observation",
+            "instant": 7
+          }
+        }
+      },
+      {
+        "id": 1,
+        "parent": 0,
+        "provenance": "observed",
+        "marking": [
+          {
+            "place": "a",
+            "tokens": [
+              {
+                "color": "Input",
+                "data": {
+                  "ordinal": 1
+                }
+              },
+              {
+                "color": "Input",
+                "data": {
+                  "ordinal": 2
+                }
+              }
+            ]
+          }
+        ],
+        "metadata": {
+          "history_record": {
+            "record": "TokensInitialized",
+            "schema": 5,
+            "place": "a",
+            "tokens": [
+              {
+                "color": "Input",
+                "data": {
+                  "ordinal": 1
+                }
+              },
+              {
+                "color": "Input",
+                "data": {
+                  "ordinal": 2
+                }
+              }
+            ],
+            "instant": 7,
+            "entries": [],
+            "scope": null
+          }
+        }
+      },
+      {
+        "id": 2,
+        "parent": 1,
+        "provenance": "observed",
+        "marking": [
+          {
+            "place": "a",
+            "tokens": [
+              {
+                "color": "Input",
+                "data": {
+                  "ordinal": 1
+                }
+              },
+              {
+                "color": "Input",
+                "data": {
+                  "ordinal": 2
+                }
+              }
+            ]
+          }
+        ],
+        "metadata": {
+          "history_record": {
+            "record": "DeliveryRegistrationOpened",
+            "schema": 5,
+            "source": "source",
+            "key": "default",
+            "occurrence": null,
+            "instant": 7
+          }
+        }
+      },
+      {
+        "id": 3,
+        "parent": 2,
+        "provenance": "observed",
+        "marking": [
+          {
+            "place": "a",
+            "tokens": [
+              {
+                "color": "Input",
+                "data": {
+                  "ordinal": 1
+                }
+              },
+              {
+                "color": "Input",
+                "data": {
+                  "ordinal": 2
+                }
+              }
+            ]
+          }
+        ],
+        "metadata": {
+          "history_record": {
+            "record": "CandidateSelected",
+            "schema": 5,
+            "transition": "work",
+            "occurrence": 1,
+            "instant": 7
+          }
+        }
+      },
+      {
+        "id": 4,
+        "parent": 3,
+        "provenance": "observed",
+        "marking": [
+          {
+            "place": "a",
+            "tokens": [
+              {
+                "color": "Input",
+                "data": {
+                  "ordinal": 1
+                }
+              },
+              {
+                "color": "Input",
+                "data": {
+                  "ordinal": 2
+                }
+              }
+            ]
+          }
+        ],
+        "metadata": {
+          "history_record": {
+            "record": "FiringBegun",
+            "schema": 5,
+            "transition": "work",
+            "occurrence": 1,
+            "scope": null,
+            "instant": 7
+          }
+        }
+      },
+      {
+        "id": 5,
+        "parent": 4,
+        "provenance": "observed",
+        "marking": [
+          {
+            "place": "a",
+            "tokens": [
+              {
+                "color": "Input",
+                "data": {
+                  "ordinal": 2
+                }
+              }
+            ]
+          }
+        ],
+        "metadata": {
+          "history_record": {
+            "record": "TokensConsumed",
+            "schema": 5,
+            "place": "a",
+            "tokens": [
+              {
+                "color": "Input",
+                "data": {
+                  "ordinal": 1
+                }
+              }
+            ],
+            "occurrence": 1,
+            "entries": [],
+            "scope": null,
+            "instant": 7
+          }
+        }
+      },
+      {
+        "id": 6,
+        "parent": 5,
+        "provenance": "observed",
+        "marking": [
+          {
+            "place": "a",
+            "tokens": [
+              {
+                "color": "Input",
+                "data": {
+                  "ordinal": 2
+                }
+              }
+            ]
+          }
+        ],
+        "metadata": {
+          "observation": {
+            "status": "running",
+            "watermark": 7,
+            "in_flight": [
+              {
+                "occurrence": 1,
+                "transition": "work",
+                "phase": "activity_pending",
+                "binding": {
+                  "consumed": [
+                    {
+                      "place": "a",
+                      "tokens": [
+                        {
+                          "color": "Input",
+                          "data": {
+                            "ordinal": 1
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "read": [],
+                  "delivered": []
+                },
+                "invocation": {
+                  "activity": "canonical.activity",
+                  "input": {
+                    "nested": [
+                      {
+                        "ordinal": 1
+                      }
+                    ]
+                  },
+                  "policy": {
+                    "attempts": 1,
+                    "heartbeat_timeout": 30,
+                    "initial_interval": 0,
+                    "coefficient": 2,
+                    "max_interval": 60,
+                    "jitter": 0,
+                    "start_to_close": null,
+                    "schedule_to_close": null
+                  },
+                  "correlation": "canonical-correlation",
+                  "idempotency": "canonical-idempotency"
+                },
+                "result": null
+              }
+            ],
+            "armed": [
+              {
+                "source": "source",
+                "key": "default"
+              }
+            ],
+            "next_maturation": null
+          },
+          "history_record": {
+            "record": "ActivityRequested",
+            "schema": 5,
+            "transition": "work",
+            "activity": "canonical.activity",
+            "input": {
+              "nested": [
+                {
+                  "ordinal": 1
+                }
+              ]
+            },
+            "policy": {
+              "attempts": 1,
+              "heartbeat_timeout": 30,
+              "initial_interval": 0,
+              "coefficient": 2,
+              "max_interval": 60,
+              "jitter": 0,
+              "start_to_close": null,
+              "schedule_to_close": null
+            },
+            "correlation": "canonical-correlation",
+            "idempotency": "canonical-idempotency",
+            "occurrence": 1,
+            "scope": null,
+            "instant": 7
+          }
+        }
+      }
+    ]
+  }
+}

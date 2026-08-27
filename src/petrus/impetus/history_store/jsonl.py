@@ -11,17 +11,13 @@ before it is in memory. Inject one at ``Instance`` construction and the
 whole history is durable from the first record, every appending door included;
 load one over an existing file and the records read back value-equal.
 
-History records retain one canonical spelling each: the CV3 unscoped contract
-uses schema 4, while lifecycle-scope records and records carrying scope or
-queue-occurrence provenance use the additive schema 5. One JSONL History may
-therefore contain both versions in append order. Older schemas are refused
-rather than migrated (occurrence vocabulary, delivery identity, and read
-accounting):
+History records retain one field-complete canonical schema-5 spelling each.
+Older schemas are refused rather than migrated (occurrence vocabulary,
+delivery identity, lifecycle provenance, and read accounting):
 
-- envelope ``{"record": <type name>, "schema": <4 or 5>, ...fields}`` — the
+- envelope ``{"record": <type name>, "schema": 5, ...fields}`` — the
   class name is the discriminator and ``schema`` the per-record envelope
-  version; unscoped records require 4 and lifecycle/provenance records require
-  5, so a noncanonical alternate spelling fails loud. An unknown name fails
+  version. A noncanonical alternate spelling fails loud. An unknown name fails
   loud (a KNOWN schema-1 name fails naming its schema-2 successor), a missing
   or unsupported ``schema`` fails naming the no-migration posture, and
   a known category whose field shape drifted fails as the record type's own

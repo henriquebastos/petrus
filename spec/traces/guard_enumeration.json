@@ -46,13 +46,15 @@
       "instant": 0,
       "name": "guard-enumeration",
       "record": "InstanceCreated",
-      "schema": 4
+      "schema": 5
     },
     {
+      "entries": [],
       "instant": 0,
       "place": "pending",
       "record": "TokensInitialized",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "Payment",
@@ -74,22 +76,25 @@
       "instant": 1,
       "occurrence": 1,
       "record": "CandidateSelected",
-      "schema": 4,
+      "schema": 5,
       "transition": "accept"
     },
     {
       "instant": 1,
       "occurrence": 1,
       "record": "FiringBegun",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "transition": "accept"
     },
     {
+      "entries": [],
       "instant": 1,
       "occurrence": 1,
       "place": "pending",
       "record": "TokensConsumed",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "Payment",
@@ -101,11 +106,13 @@
       ]
     },
     {
+      "entries": [],
       "instant": 1,
       "occurrence": 1,
       "place": "accepted",
       "record": "TokensProduced",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "Payment",
@@ -120,29 +127,32 @@
       "instant": 1,
       "occurrence": 1,
       "record": "FiringCompleted",
-      "schema": 4,
+      "schema": 5,
       "transition": "accept"
     },
     {
       "instant": 2,
       "occurrence": 2,
       "record": "CandidateSelected",
-      "schema": 4,
+      "schema": 5,
       "transition": "reject"
     },
     {
       "instant": 2,
       "occurrence": 2,
       "record": "FiringBegun",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "transition": "reject"
     },
     {
+      "entries": [],
       "instant": 2,
       "occurrence": 2,
       "place": "pending",
       "record": "TokensConsumed",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "Payment",
@@ -154,11 +164,13 @@
       ]
     },
     {
+      "entries": [],
       "instant": 2,
       "occurrence": 2,
       "place": "rejected",
       "record": "TokensProduced",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "Payment",
@@ -173,7 +185,7 @@
       "instant": 2,
       "occurrence": 2,
       "record": "FiringCompleted",
-      "schema": 4,
+      "schema": 5,
       "transition": "reject"
     }
   ],

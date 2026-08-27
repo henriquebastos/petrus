@@ -63,9 +63,10 @@ def test_factory_binds_without_starting_a_hidden_thread():
         engine.close()
 
 
-def test_snapshot_history_and_required_http_headers_are_exact():
+def test_snapshot_document_history_and_required_http_headers_are_exact():
     engine = make_engine()
     expected_snapshot = engine.snapshot()
+    expected_document = engine.net_document()
     expected_history = engine.history_page(0, 100)
     with serving(engine) as base:
         status, headers, snapshot = request(f"{base}/v1/snapshot")
@@ -77,6 +78,8 @@ def test_snapshot_history_and_required_http_headers_are_exact():
         assert headers["Access-Control-Allow-Headers"] == "Content-Type"
         encoded = json.dumps(snapshot, allow_nan=False, separators=(",", ":"), sort_keys=True).encode()
         assert int(headers["Content-Length"]) == len(encoded)
+        document_status, _, document = request(f"{base}/v1/document")
+        assert (document_status, document) == (200, expected_document)
         history_status, _, history = request(f"{base}/v1/history?after=0&limit=100")
         assert (history_status, history) == (200, expected_history)
     engine.close()

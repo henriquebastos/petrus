@@ -21,15 +21,12 @@ orientation; it is not mechanically proven line by line against the binding.
 - `OVERVIEW.md` — narrative design overview; read this first.
 - `net-schema.md` — structure of a net definition: nodes, places, transitions, arcs, tokens, markings, addressing.
 - `net-definition-v3.md` — canonical flat, Pydantic-backed cross-system Net-definition file and compiler contract.
-- `net-document-v1.md` — portable canonical Net definition plus optional identity-neutral arrangement and forkable execution lineage.
+- `net-document-v1.md` — the one portable Petrus file format: required definition plus optional view and direct-marking lineage.
 - `firing-semantics.md` — enabledness, the firing pipeline, scheduling, timers, replay.
 - `event-history.md` — the per-instance append-only event history and its record model.
 - `handler-contract.md` — how declared symbols bind to guards and handlers, and what handlers promise.
 - `observation-protocol-v1.md` — coherent Engine snapshots and positioned History pages; its canonical producer fixture lives in `observation/`.
-- `observation-capture-v1.md` — a portable immutable snapshot plus complete History prefix for offline inspection after host loss.
-- `net-inspection-v1.md` — a non-executable canonical build projection for read-only inspection before an Instance exists.
-- `simulation-result-v1.md` — one bounded implementation-free simulation result with a complete History.
-- `simulation-http-v1.md` — strict synchronous transport over one fixed implementation-free simulation build.
+- `simulation-http-v1.md` — strict synchronous transport that returns a Petrus Net document over one fixed implementation-free simulation build.
 
 Each document is self-contained enough to read alone and cross-references the others.
 

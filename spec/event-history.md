@@ -189,12 +189,12 @@ queue. Petrus supplies no generic release, retarget, or retry operation for a
 quarantined ingress or terminal; a host inspects History and performs explicit
 domain reconciliation when required.
 
-Canonical records without lifecycle or queue-entry provenance retain their
-established schema-4 encoding. Lifecycle records and records carrying
-lifecycle or queue-entry provenance use schema 5. Each record has exactly one
-canonical schema spelling. Schema-4 and schema-5 records may interleave in one
-History without a log-wide migration. Existing unscoped behavior and
-value-level APIs remain unchanged.
+Every canonical record uses schema 5. Token movement records always carry
+`entries` and `scope`: an unscoped movement has `entries: []` and `scope:
+null`; a scoped movement has one positive, unique queue-entry identity per
+token and its exact lifecycle scope. Nonempty queue identities without a scope
+are invalid. The current pre-release protocol has no schema-4 decode or
+migration path.
 
 ## Deterministic records vs activity records
 

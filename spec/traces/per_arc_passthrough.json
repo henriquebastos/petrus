@@ -58,13 +58,15 @@
       "instant": 0,
       "name": "per-arc-passthrough",
       "record": "InstanceCreated",
-      "schema": 4
+      "schema": 5
     },
     {
+      "entries": [],
       "instant": 0,
       "place": "config",
       "record": "TokensInitialized",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "Config",
@@ -75,10 +77,12 @@
       ]
     },
     {
+      "entries": [],
       "instant": 0,
       "place": "input",
       "record": "TokensInitialized",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "X",
@@ -98,22 +102,25 @@
       "instant": 1,
       "occurrence": 1,
       "record": "CandidateSelected",
-      "schema": 4,
+      "schema": 5,
       "transition": "fanout"
     },
     {
       "instant": 1,
       "occurrence": 1,
       "record": "FiringBegun",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "transition": "fanout"
     },
     {
+      "entries": [],
       "instant": 1,
       "occurrence": 1,
       "place": "input",
       "record": "TokensConsumed",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "X",
@@ -130,11 +137,13 @@
       ]
     },
     {
+      "entries": [],
       "instant": 1,
       "occurrence": 1,
       "place": "config",
       "record": "TokensRead",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "Config",
@@ -145,11 +154,13 @@
       ]
     },
     {
+      "entries": [],
       "instant": 1,
       "occurrence": 1,
       "place": "left",
       "record": "TokensProduced",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "X",
@@ -166,11 +177,13 @@
       ]
     },
     {
+      "entries": [],
       "instant": 1,
       "occurrence": 1,
       "place": "right",
       "record": "TokensProduced",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "X",
@@ -190,7 +203,7 @@
       "instant": 1,
       "occurrence": 1,
       "record": "FiringCompleted",
-      "schema": 4,
+      "schema": 5,
       "transition": "fanout"
     }
   ],

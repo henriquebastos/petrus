@@ -22,13 +22,15 @@
       "instant": 0,
       "name": "conflict-selection",
       "record": "InstanceCreated",
-      "schema": 4
+      "schema": 5
     },
     {
+      "entries": [],
       "instant": 0,
       "place": "shared",
       "record": "TokensInitialized",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": null,
@@ -40,22 +42,25 @@
       "instant": 1,
       "occurrence": 1,
       "record": "CandidateSelected",
-      "schema": 4,
+      "schema": 5,
       "transition": "choose_a"
     },
     {
       "instant": 1,
       "occurrence": 1,
       "record": "FiringBegun",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "transition": "choose_a"
     },
     {
+      "entries": [],
       "instant": 1,
       "occurrence": 1,
       "place": "shared",
       "record": "TokensConsumed",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": null,
@@ -64,11 +69,13 @@
       ]
     },
     {
+      "entries": [],
       "instant": 1,
       "occurrence": 1,
       "place": "a_won",
       "record": "TokensProduced",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": null,
@@ -80,7 +87,7 @@
       "instant": 1,
       "occurrence": 1,
       "record": "FiringCompleted",
-      "schema": 4,
+      "schema": 5,
       "transition": "choose_a"
     }
   ],

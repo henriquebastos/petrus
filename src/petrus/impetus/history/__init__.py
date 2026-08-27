@@ -26,12 +26,9 @@ logical epoch), no occurrence id is honestly assumable, and a default would
 silently uncorrelate a record from its firing.
 
 The public per-category payload schema is ratified: ``petrus.impetus.history.codec``
-spells records without lifecycle or queue-occurrence provenance under the
-established schema-4 envelope and lifecycle-scope/provenance records under the
-additive schema-5 envelope [DR 2026-07-10
+spells every record under one field-complete schema-5 envelope [DR 2026-07-10
 durable-history-is-a-history-backend; DR 2026-08-11
-history-first-lifecycle-scopes]. Each record has one canonical spelling, and a
-History may contain both in append order. The
+history-first-lifecycle-scopes]. Each record has one canonical spelling. The
 family names each record's node by its role — ``place`` on the movement
 records, ``transition`` on the firing records, ``source`` on the source-only
 records (``ExternalEventDelivered``, ``DeliveryRegistrationOpened``/``Closed``) —
@@ -664,6 +661,15 @@ def _replay_queue_projection(history) -> tuple[dict[NetPath, TokenQueue], int]:
     """Replay queues plus the next never-spent durable queue identity."""
     queues: dict[NetPath, TokenQueue] = {}
     next_identity = 1
+    for queues, next_identity in _replay_queue_states(history):
+        pass
+    return queues, next_identity
+
+
+def _replay_queue_states(history):
+    """Yield the cumulative queue projection after every History record."""
+    queues: dict[NetPath, TokenQueue] = {}
+    next_identity = 1
     spent: set[int] = set()
     for record in history:
         inferred_entries = None
@@ -676,7 +682,14 @@ def _replay_queue_projection(history) -> tuple[dict[NetPath, TokenQueue], int]:
             if inferred_entries:
                 next_identity = max(next_identity, max(inferred_entries) + 1)
         apply_movement(queues, record, inferred_entries=inferred_entries)
-    return queues, next_identity
+        yield queues, next_identity
+
+
+def replay_markings(history) -> tuple[Marking, ...]:
+    """Project the complete marking after each History record in one movement fold."""
+    return tuple(
+        Marking({place: queue.tokens for place, queue in queues.items()}) for queues, _ in _replay_queue_states(history)
+    )
 
 
 def replay_marking(history) -> Marking:

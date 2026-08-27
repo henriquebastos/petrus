@@ -2,62 +2,60 @@
 
 ## Recommendation
 
-**Pass — accept.** Petrus now owns the optional strict lineage in the same
-portable Net document v1. One 15-entry producer-backed fixture navigates an
-observed prefix, a manual marking replacement, a simulated descendant, and a
-later observed sibling through the same `id`/`parent`/`provenance`/event/marking
-projection. Confidence is 96%; the Behavior and Review checkpoints
-auto-released under the local confidence rule.
+**Pass — accepted.** Petrus Net document v1 now uses one direct-marking lineage
+for observed, manual, and simulated state. Each entry is independently
+navigable without History replay. The earlier source-anchor, fact-union, and
+checkpoint design was removed before release.
 
 ## Acceptance evidence
 
 | Contract | Evidence | Result |
 | --- | --- | --- |
-| Static compatibility | Existing definition-only and arranged fixture bytes remain exact; absent lineage is omitted and explicit null refuses | Pass |
-| Dense flat lineage | Source and entry ids equal indexes, entry zero is the sole root, later parents are smaller, and head names an entry | Pass |
-| One evolution fact | Observed and simulated entries share `HistoryRecordFact`; manual replacement is one explicit fact in the same list | Pass |
-| Exact evidence custody | Canonical padded base64, SHA-256, source envelope, exact definition, complete History, snapshot/replay agreement, and source-position equality are enforced | Pass |
-| Branch semantics | Later observed evidence preserves same-Instance exact prefix; simulation initial marking equals its document parent; manual hypotheses cannot become observed descendants | Pass |
-| Uniform navigation | `resolve_lineage` returns all 15 mixed-fork entries with resolved markings; optional checkpoints are replay assertions and false checkpoints refuse | Pass |
-| Owner artifacts | Language-neutral spec, producer-backed positive fixture, and source-custody negative fixture are exercised by production-model tests | Pass |
+| One portable format | Definition-only, arranged, observed, simulated, manual, and mixed-fork fixtures use `petrus-net-document/version 1`; the old inspection, capture, and simulation-result envelopes are absent | Pass |
+| One entry shape | Every provenance uses exactly `id`, `parent`, `provenance`, `marking`, and `metadata` | Pass |
+| Dense lineage | Entry ids equal indexes, entry zero is the sole root, later parents are smaller, and head names an existing entry | Pass |
+| Direct navigation | Every entry carries one complete admitted sparse marking; History is optional metadata and is never replay authority | Pass |
+| Per-entry provenance | Observed means projected from a real History state, manual means person-authored marking, and simulated means Petrus-computed successor; a manual entry may parent a simulated entry | Pass |
+| Producer materialization | Engine observation produces a seven-entry all-observed document; hosted simulation produces an eight-entry all-simulated document | Pass |
+| Strict owner contract | Positive inspection/lineage/observation/simulation fixtures and negative marking/lineage fixtures round-trip or refuse exactly | Pass |
+| Arx consumption | One Arx document model arranges, navigates, manually forks, saves/reopens, and appends a Petrus-hosted simulation below the selected marking | Pass |
 
-The positive fixture is SHA-256
-`63173b9a70e729c42f898eae5b06afeb1e4e3cb0ae643fc303ea50ca8d92fea0`;
-the negative fixture is
-`2d1d051e78a5ab4ddb481405c7ec943aa626b7095498148a74f21e079a6cd6d1`.
-The retained source payloads are exact outputs from Petrus Engine capture and
-the implementation-free simulation producer, not hand-authored histories.
+## Automated and operational evidence
 
-## Automated evidence
-
-- `UV_FROZEN=1 uv run pytest -q tests/petrus/impetus/test_net_document.py tests/petrus/impetus/test_net_document_lineage.py tests/petrus/impetus/test_net_definition.py tests/petrus/impetus/history/test_history.py tests/petrus/engine/test_observation.py tests/petrus/engine/test_simulation.py` — 146 passed.
-- `scripts/check quick src/petrus/impetus/net_document.py src/petrus/impetus/_net_document_evidence.py tests/petrus/impetus/test_net_document.py tests/petrus/impetus/test_net_document_lineage.py` — lint, formatting, production typing, and structural checks passed.
-- `UV_FROZEN=1 uv run pytest -q tests/project` — 29 passed.
-- Changed Markdown local-link check — all links resolved.
-- `scripts/check full` — 2,192 passed. It could not complete green in this
-  orb: seven failures and 256 setup errors require unavailable Docker-backed
-  providers or Graphviz. Every failure/error is in those established
-  infrastructure routes; none implicates the document owner code.
+- Petrus `scripts/check full` passed all static, format, structural, and test
+  gates with **2,456 tests passed in 66.73 seconds**.
+- The expanded Petrus document, History, observation, simulation, and
+  PostgreSQL selection passed **253 tests**.
+- Arx `pnpm check` passed all typechecks, lint/style/dependency checks,
+  **1,144 tests**, **49/49 conformance checks**, and the production build. Node
+  26 produced the existing warning against the repository's Node 24 pin; Vite
+  produced the existing large-chunk advisory.
+- The exact Hamsterdan V5 definition-only document opened on the shared Arx
+  canvas with 108 places, 137 transitions, and 570 arcs. Arrangement survived
+  Save As and reopen with definition identity
+  `70e3778ec802435a8e57456cc7e4edce04be30b91a6a65e53afa0d122f47e1e2`.
+- Browser QA selected complete markings, appended and edited a manual child,
+  and appended an implementation-free Petrus simulation below a manual parent.
 
 ## Review and debt
 
-The public wire models and navigation API remain in
-`petrus.impetus.net_document`; exact source-protocol admission is isolated in
-one private helper. The implementation calls current History codecs and replay,
-canonical Net-definition compilation, and existing observation projections
-rather than creating a second event or marking model. Runtime History stays
-linear and unchanged.
+The public model remains in `petrus.impetus.net_document`. Observation and
+simulation call that owner rather than creating alternate envelopes. Runtime
+History remains canonical and linear. The portable lineage deliberately
+repeats complete markings so every consumer has the same navigation path.
 
-No new debt item is warranted. Inline base64 can increase document size, but
-external attachments and a size policy remain deliberately deferred until a
-measured artifact requires them. SHA-256 is described only as byte custody,
-never authenticity. Arx lineage navigation, Save As protection, manual editing,
-and capable Hamsterdan V5 simulation remain explicitly outside this Petrus
-Technical Story.
+No compatibility or migration debt is accepted because no format has been
+released. File growth from repeated markings is accepted for the current
+design and can be reconsidered only with measured evidence.
 
-## Next movement
+## Current limit and next movement
 
-Pin the owner commit and exact fixture hashes for Petrus Arx. The next consumer
-slice should open the new lineage directly, render one branch-aware timeline,
-protect observed entries, and require Save As before a manual or simulated
-hypothesis is persisted.
+The current `implementation-free-v1` simulator is a detached pure-Net profile.
+It cannot execute Hamsterdan V5 because V5 has handlers and exceeds the
+profile's transition and arc bounds. This is not a Petrus Engine limitation.
+
+CV20.DS3 remains Active for application-bound V5 simulation. That follow-up
+will let a person choose an enabled transition from any selected marking, ask
+Petrus with Hamsterdan's real bindings to compute the successor, and supply
+hypothetical results at external-effect boundaries. Each returned successor
+will append as `simulated`, including when its parent is manual.

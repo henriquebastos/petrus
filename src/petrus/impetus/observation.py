@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
+from dataclasses import fields
 import json
 from typing import Any
 
+from petrus.impetus.net_document import (
+    ExecutionLineage,
+    LineageEntry,
+    PlaceMarking,
+    project_net_document,
+    serialize_net_document,
+)
 from petrus.impetus.net_definition import project_net_definition
-from petrus.impetus.history import Record
+from petrus.impetus.history import Record, replay_markings
 from petrus.impetus.history.codec import encode_record
 from petrus.impetus.instance import Instance
 from petrus.impetus.petrinet import Net, Token
@@ -38,14 +46,39 @@ def definition(net: Net) -> dict[str, object]:
 
 
 def net_inspection(net: Net) -> dict[str, object]:
-    """Export one non-executable canonical Net inspection document."""
-    return _strict(
-        {
-            "format": "petrus-canonical-net-inspection",
-            "version": 1,
-            "definition": definition(net),
-        }
+    """Export one definition-only portable Net document."""
+    return json.loads(serialize_net_document(project_net_document(net)))
+
+
+def net_document(instance: Instance, records: tuple[Record, ...]) -> dict[str, object]:
+    """Project one coherent observed Instance into a portable Net document."""
+    if not records:
+        raise ValueError("an observed Net document requires nonempty canonical History")
+    current = snapshot(instance, records)["current"]
+    assert isinstance(current, dict)
+    observation = {key: value for key, value in current.items() if key != "marking"}
+    history_markings = replay_markings(records)
+    entries = tuple(
+        LineageEntry(
+            id=index,
+            parent=None if index == 0 else index - 1,
+            provenance="observed",
+            marking=tuple(
+                PlaceMarking.model_validate(entry, strict=True) for entry in marking(history_markings[index])
+            ),
+            metadata={
+                **({"instance": instance.instance_id} if index == 0 else {}),
+                **({"observation": observation} if index == len(records) - 1 else {}),
+                "history_record": encode_record(record),
+            },
+        )
+        for index, record in enumerate(records)
     )
+    document = project_net_document(
+        instance.net,
+        lineage=ExecutionLineage(head=len(entries) - 1, entries=entries),
+    )
+    return json.loads(serialize_net_document(document))
 
 
 def _tokens(tokens: tuple[Token, ...]) -> list[dict[str, object]]:
@@ -105,8 +138,7 @@ def snapshot(instance: Instance, records: tuple[Record, ...]) -> dict[str, objec
                     "activity": invocation.activity,
                     "input": invocation.input,
                     "policy": {
-                        "attempts": invocation.policy.attempts,
-                        "heartbeat_timeout": invocation.policy.heartbeat_timeout,
+                        field.name: getattr(invocation.policy, field.name) for field in fields(invocation.policy)
                     },
                     "correlation": invocation.correlation,
                     "idempotency": invocation.idempotency,
@@ -159,4 +191,4 @@ def history_page(instance_id: str, records: tuple[Record, ...], after: int, limi
     )
 
 
-__all__ = ["definition", "history_page", "marking", "net_inspection", "snapshot"]
+__all__ = ["definition", "history_page", "marking", "net_document", "net_inspection", "snapshot"]

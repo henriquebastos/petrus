@@ -22,13 +22,15 @@
       "instant": 0,
       "name": "passthrough-chain",
       "record": "InstanceCreated",
-      "schema": 4
+      "schema": 5
     },
     {
+      "entries": [],
       "instant": 0,
       "place": "start",
       "record": "TokensInitialized",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": null,
@@ -40,22 +42,25 @@
       "instant": 1,
       "occurrence": 1,
       "record": "CandidateSelected",
-      "schema": 4,
+      "schema": 5,
       "transition": "advance"
     },
     {
       "instant": 1,
       "occurrence": 1,
       "record": "FiringBegun",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "transition": "advance"
     },
     {
+      "entries": [],
       "instant": 1,
       "occurrence": 1,
       "place": "start",
       "record": "TokensConsumed",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": null,
@@ -64,11 +69,13 @@
       ]
     },
     {
+      "entries": [],
       "instant": 1,
       "occurrence": 1,
       "place": "middle",
       "record": "TokensProduced",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": null,
@@ -80,29 +87,32 @@
       "instant": 1,
       "occurrence": 1,
       "record": "FiringCompleted",
-      "schema": 4,
+      "schema": 5,
       "transition": "advance"
     },
     {
       "instant": 2,
       "occurrence": 2,
       "record": "CandidateSelected",
-      "schema": 4,
+      "schema": 5,
       "transition": "finish"
     },
     {
       "instant": 2,
       "occurrence": 2,
       "record": "FiringBegun",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "transition": "finish"
     },
     {
+      "entries": [],
       "instant": 2,
       "occurrence": 2,
       "place": "middle",
       "record": "TokensConsumed",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": null,
@@ -111,11 +121,13 @@
       ]
     },
     {
+      "entries": [],
       "instant": 2,
       "occurrence": 2,
       "place": "done",
       "record": "TokensProduced",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": null,
@@ -127,7 +139,7 @@
       "instant": 2,
       "occurrence": 2,
       "record": "FiringCompleted",
-      "schema": 4,
+      "schema": 5,
       "transition": "finish"
     }
   ],

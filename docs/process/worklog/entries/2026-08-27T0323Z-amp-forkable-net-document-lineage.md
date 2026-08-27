@@ -4,45 +4,67 @@ author: Amp Driver
 kind: milestone
 related:
   - CV20.DS3
+  - CV20.DS3.TS1
   - CV20.DS3.TS2
   - ES-061
 verification:
-  - 146 focused document, definition, History, observation, and simulation tests passed
-  - quick static and 29 project-structure tests passed
-  - producer-backed 15-entry mixed fork parsed, replayed, serialized, and reopened
-  - broad gate reached 2,192 passes; only unavailable Docker and Graphviz routes failed
+  - Petrus scripts/check full passed 2,456 tests and every static and structural gate
+  - Arx pnpm check passed 1,144 tests, 49 conformance checks, all static gates, and the production build
+  - exact Hamsterdan V5 arrangement, Save As, reopen, manual fork, and hosted simulation append passed in the portal
+  - one Docker-backed Petrus PostgreSQL History-store test passed from the Hamsterdan orb
 ---
 
-# Forkable Net document lineage delivered
+# One Petrus Net document and direct-marking lineage delivered
 
 ## What changed
 
-Petrus Net document v1 now optionally retains exact observation-capture and
-simulation-result sources and projects them with manual marking replacements
-into one dense parent-linked lineage. Public parsing verifies source bytes,
-History, replay, provenance, branch continuity, source coverage, and optional
-checkpoints; `resolve_lineage` returns one common navigation sequence.
+Petrus now has one portable file format, `petrus-net-document/version 1`. It
+always contains an exact canonical Net definition and may contain portable node
+positions and a parent-linked marking lineage. The unreleased inspection,
+capture, and simulation-result envelopes and the interim source-anchor,
+fact-union, checkpoint, and replay model were removed.
+
+Every observed, manual, and simulated lineage entry has exactly
+`id`, `parent`, `provenance`, `marking`, and `metadata`. Each marking is the
+complete sparse state for direct navigation. History may be retained in
+metadata for diagnosis, but consumers never replay it to discover a step's
+state.
 
 ## Why it matters
 
-Observed production evidence, simulation, and manual exploration no longer
-need separate consumer timeline models. Canonical runtime History remains
-linear, while the document can preserve an observed sibling and a hypothetical
-branch without rewriting the retained source.
+Petrus producers and Arx now read and write one structure. A developer can
+arrange a definition, inspect observed state, append a manual hypothesis, and
+attach Petrus-computed simulated successors without switching file or timeline
+models. A simulated step may have a manual parent: the parent records the
+hypothesis and the child records that Petrus computed the successor.
+
+Canonical runtime History remains linear and authoritative for one Instance.
+The document lineage is a portable branch graph, not resume or production-
+authenticity authority.
 
 ## Verification
 
-The focused owner and adjacent producer suites passed 146 tests, project
-structure passed 29 tests, and quick static checks passed. The 15-entry owner
-fixture contains real Engine capture and simulation outputs and round-trips
-byte-exactly. Its SHA-256 is
-`63173b9a70e729c42f898eae5b06afeb1e4e3cb0ae643fc303ea50ca8d92fea0`.
+Petrus's final full gate passed 2,456 tests in 66.73 seconds, including Docker-
+backed PostgreSQL and Graphviz routes. The expanded document, History,
+observation, simulation, and PostgreSQL selection passed 253 tests.
 
-The full gate reached 2,192 passes. Seven failures and 256 setup errors were
-confined to unavailable Docker-backed provider or Graphviz routes in this orb.
+Arx's final `pnpm check` passed 1,144 tests, 49/49 conformance checks, every
+typecheck and static/dependency gate, and the production build. The shared
+workspace opened the exact 108-place, 137-transition, 570-arc Hamsterdan V5
+document, preserved node arrangement through Save As and reopen, navigated
+direct markings, appended and edited a manual child, and appended a bounded
+Petrus-hosted simulation below a manual parent. Definition identity remained
+`70e3778ec802435a8e57456cc7e4edce04be30b91a6a65e53afa0d122f47e1e2`.
+
+The Hamsterdan orb setup now installs Docker and Graphviz. A real Docker-backed
+Petrus PostgreSQL History-store test passed there, removing the earlier
+environmental gap.
 
 ## Follow-up
 
-CV20.DS3 remains Active. Petrus Arx should consume this exact owner contract for
-branch-aware navigation, observed-evidence protection, and Save As exploration
-before the application-bound Hamsterdan V5 simulation slice.
+CV20.DS3 remains Active for application-bound interactive V5 simulation and
+the live semantic/operational join. The next simulation path should let a
+person choose an enabled transition, ask Petrus with Hamsterdan's bindings to
+compute the successor, and supply hypothetical results at external-effect
+boundaries. It must append to the same lineage and must not perform real effects
+or invent Arx-local execution semantics.

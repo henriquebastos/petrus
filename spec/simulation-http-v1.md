@@ -22,7 +22,12 @@ order is insignificant; JSON types and array order are exact.
 `POST /v1/simulations` accepts exactly `expected_definition`,
 `initial_marking`, and `max_actions`. The marking uses the protocol-v1 sorted
 place/token shape and each token has exactly `color` and strict-JSON `data`.
-The response is byte-for-byte `simulation-result-v1` output.
+The response is one [Petrus Net document](net-document-v1.md). It carries the
+profile's exact definition and one `simulated` lineage entry per canonical
+History record. Every entry carries its complete marking directly and keeps
+the corresponding History record in non-authoritative metadata. The first
+entry's metadata also carries profile, scenario, and outcome context. There is
+no separate simulation-result portable format.
 
 Requests require exactly one valid `Content-Length`, an uncompressed
 `application/json` body (optionally `charset=utf-8`), and no query. The body is

@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 import json
-from typing import Any, cast
 
 from petrus.engine import Engine, SimulatedClock
 from petrus.impetus.dsl import BuiltNet
+from petrus.impetus.history import InstanceCreated, replay_markings
 from petrus.impetus.history.codec import encode_record
 from petrus.impetus.history_store import InMemoryHistoryStore
+from petrus.impetus.net_document import (
+    ExecutionLineage,
+    LineageEntry,
+    PlaceMarking,
+    project_net_document,
+    serialize_net_document,
+)
 from petrus.impetus.observation import definition
 from petrus.impetus.observation import marking as project_marking
 from petrus.impetus.petrinet import ArcMode, Cel, Delay, Marking, NetPath, Token, Until
@@ -287,7 +294,7 @@ def _check_resources(engine: Engine) -> None:
 
 
 def simulate(built: BuiltNet, initial_marking: Marking, *, max_actions: int) -> bytes:
-    """Run one fresh bounded Engine and return canonical serialized result bytes."""
+    """Run one fresh bounded Engine and return one portable Net document."""
     projected_initial, frozen_marking = _admit(built, initial_marking, max_actions)
     history = InMemoryHistoryStore()
     engine: Engine | None = None
@@ -314,38 +321,45 @@ def simulate(built: BuiltNet, initial_marking: Marking, *, max_actions: int) -> 
                 break
             actions += 1
             _check_resources(engine)
-        snapshot = engine.snapshot()
-        frontier = snapshot["frontier"]
-        assert isinstance(frontier, int)
-        result: dict[str, Any] = {
-            "format": "petrus-simulation-result",
-            "version": 1,
+        records = engine.records
+        created = records[0]
+        assert isinstance(created, InstanceCreated)
+        summary = {
             "profile": "implementation-free-v1",
+            "instance": created.instance,
             "scenario": {"start_instant": 0, "initial_marking": projected_initial, "max_actions": max_actions},
             "outcome": {"actions_applied": actions, "reason": reason},
-            "snapshot": snapshot,
-            "history": engine.history_page(0, frontier),
+            "status": engine.status.value,
         }
-        assert result["snapshot"]["instance"] == result["history"]["instance"]
-        assert result["snapshot"]["protocol"] == result["history"]["protocol"] == 1
-        assert result["history"]["after"] == 0
-        assert result["history"]["frontier"] == result["history"]["next"] == frontier
-        records = cast(list[dict[str, Any]], result["history"]["records"])
-        assert [entry["position"] for entry in records] == list(range(frontier))
-        action_records = sum(entry["record"]["record"] in ("TimerMatured", "FiringCompleted") for entry in records)
-        assert action_records == actions
-        return _serialize_result(result)
+        history_markings = replay_markings(records)
+        entries = tuple(
+            LineageEntry(
+                id=index,
+                parent=None if index == 0 else index - 1,
+                provenance="simulated",
+                marking=tuple(
+                    PlaceMarking.model_validate(entry, strict=True)
+                    for entry in project_marking(history_markings[index])
+                ),
+                metadata={
+                    **(summary if index == 0 else {}),
+                    "history_record": encode_record(record),
+                },
+            )
+            for index, record in enumerate(records)
+        )
+        document = project_net_document(
+            built.net,
+            lineage=ExecutionLineage(head=len(entries) - 1, entries=entries),
+        )
+        return _serialize_result(serialize_net_document(document))
     finally:
         if engine is not None:
             engine.close()
 
 
-def _serialize_result(result: dict[str, object]) -> bytes:
-    """Privately serialize the producer-owned result, enforcing 4 MiB."""
-    try:
-        payload = (json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2, allow_nan=False) + "\n").encode()
-    except (TypeError, ValueError) as error:
-        raise SimulationProfileError(f"simulation result must be strict JSON-faithful: {error}") from None
+def _serialize_result(payload: bytes) -> bytes:
+    """Enforce the simulation profile's 4 MiB portable-document bound."""
     if len(payload) > MAX_RESULT_BYTES:
         raise SimulationProfileError(
             f"implementation-free-v1 serialized result limit is {MAX_RESULT_BYTES} bytes, found {len(payload)}"

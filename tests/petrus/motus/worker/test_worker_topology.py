@@ -336,7 +336,16 @@ class TestWorkerKill:
         forbidden = {"attempt_id", "epoch", "claimant", "checkpoint", "heartbeat", "details"}
         assert all(not (forbidden & payload.keys()) for payload in encoded)
         [request_payload] = [payload for payload in encoded if payload["record"] == "ActivityRequested"]
-        assert request_payload["policy"] == {"attempts": 2, "heartbeat_timeout": 1}
+        assert request_payload["policy"] == {
+            "attempts": 2,
+            "heartbeat_timeout": 1,
+            "initial_interval": 0,
+            "coefficient": 2,
+            "max_interval": 60,
+            "jitter": 0,
+            "start_to_close": None,
+            "schedule_to_close": None,
+        }
 
     def test_replacement_process_receives_durable_details_and_resumes(self, fixture_db, worker_factory, tmp_path):
         barrier = tmp_path / "checkpoint.json"
@@ -599,6 +608,7 @@ class TestAbsurdProviderEngineConstruction:
             "in_flight",
             "load",
             "marking",
+            "net_document",
             "open_scope",
             "records",
             "reset_scope",

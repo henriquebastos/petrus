@@ -16,9 +16,9 @@ generation, and compilation to the immutable runtime `Net`.
 }
 ```
 
-Both discriminators are required exactly. Schema v3 is not predecessor v2,
-canonical inspection v1, observation protocol v1, an observation capture, a
-simulation result, or History.
+Both discriminators are required exactly. Schema v3 is the nested structural
+component of a Petrus Net document; it is not the runtime observation protocol
+or canonical History.
 
 ## Authority and phases
 

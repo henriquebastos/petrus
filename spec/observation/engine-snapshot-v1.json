@@ -1,49 +1,145 @@
 {
-  "current": {
-    "armed": [{"key": "default", "source": "source"}],
-    "in_flight": [{
-      "binding": {
-        "consumed": [{"place": "a", "tokens": [{"color": "Input", "data": {"ordinal": 1}}]}],
-        "delivered": [],
-        "read": []
-      },
-      "invocation": {
-        "activity": "canonical.activity",
-        "correlation": "canonical-correlation",
-        "idempotency": "canonical-idempotency",
-        "input": {"nested": [{"ordinal": 1}]},
-        "policy": {"attempts": 1, "heartbeat_timeout": 30}
-      },
-      "occurrence": 1,
-      "phase": "activity_pending",
-      "result": null,
-      "transition": "work"
-    }],
-    "marking": [{"place": "a", "tokens": [{"color": "Input", "data": {"ordinal": 2}}]}],
-    "next_maturation": null,
-    "status": "running",
-    "watermark": 7
-  },
+  "protocol": 1,
+  "instance": "canonical-instance",
   "definition": {
-    "arcs": [
-      {"color": null, "filter": null, "mode": "consume", "position": 0, "source": "source", "target": "c", "weight": 1},
-      {"color": "Input", "filter": null, "mode": "consume", "position": 1, "source": "a", "target": "work", "weight": 1},
-      {"color": "Done", "filter": null, "mode": "consume", "position": 2, "source": "work", "target": "b", "weight": 1}
-    ],
-    "completion": {"expression": "size(b) > 0", "kind": "cel"},
     "name": "canonical-observation",
-    "places": [
-      {"color": "Input", "path": "a"},
-      {"color": "Done", "path": "b"},
-      {"color": null, "path": "c"}
-    ],
     "time_domain": "integer",
+    "places": [
+      {
+        "path": "a",
+        "color": "Input"
+      },
+      {
+        "path": "b",
+        "color": "Done"
+      },
+      {
+        "path": "c",
+        "color": null
+      }
+    ],
     "transitions": [
-      {"guards": [], "handler": null, "path": "source", "timers": []},
-      {"guards": [], "handler": {"kind": "symbol", "name": "bridge", "uri": "transition:/work#handler"}, "path": "work", "timers": []}
-    ]
+      {
+        "path": "source",
+        "handler": null,
+        "guards": [],
+        "timers": []
+      },
+      {
+        "path": "work",
+        "handler": {
+          "kind": "symbol",
+          "name": "bridge",
+          "uri": "transition:/work#handler"
+        },
+        "guards": [],
+        "timers": []
+      }
+    ],
+    "arcs": [
+      {
+        "position": 0,
+        "source": "source",
+        "target": "c",
+        "mode": "consume",
+        "weight": 1,
+        "color": null,
+        "filter": null
+      },
+      {
+        "position": 1,
+        "source": "a",
+        "target": "work",
+        "mode": "consume",
+        "weight": 1,
+        "color": "Input",
+        "filter": null
+      },
+      {
+        "position": 2,
+        "source": "work",
+        "target": "b",
+        "mode": "consume",
+        "weight": 1,
+        "color": "Done",
+        "filter": null
+      }
+    ],
+    "completion": {
+      "kind": "cel",
+      "expression": "size(b) > 0"
+    }
   },
   "frontier": 7,
-  "instance": "canonical-instance",
-  "protocol": 1
+  "current": {
+    "marking": [
+      {
+        "place": "a",
+        "tokens": [
+          {
+            "color": "Input",
+            "data": {
+              "ordinal": 2
+            }
+          }
+        ]
+      }
+    ],
+    "status": "running",
+    "watermark": 7,
+    "in_flight": [
+      {
+        "occurrence": 1,
+        "transition": "work",
+        "phase": "activity_pending",
+        "binding": {
+          "consumed": [
+            {
+              "place": "a",
+              "tokens": [
+                {
+                  "color": "Input",
+                  "data": {
+                    "ordinal": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "read": [],
+          "delivered": []
+        },
+        "invocation": {
+          "activity": "canonical.activity",
+          "input": {
+            "nested": [
+              {
+                "ordinal": 1
+              }
+            ]
+          },
+          "policy": {
+            "attempts": 1,
+            "heartbeat_timeout": 30,
+            "initial_interval": 0,
+            "coefficient": 2,
+            "max_interval": 60,
+            "jitter": 0,
+            "start_to_close": null,
+            "schedule_to_close": null
+          },
+          "correlation": "canonical-correlation",
+          "idempotency": "canonical-idempotency"
+        },
+        "result": null
+      }
+    ],
+    "armed": [
+      {
+        "source": "source",
+        "key": "default"
+      }
+    ],
+    "next_maturation": null
+  }
 }

@@ -40,13 +40,15 @@
       "instant": 0,
       "name": "heterogeneous-fanout",
       "record": "InstanceCreated",
-      "schema": 4
+      "schema": 5
     },
     {
+      "entries": [],
       "instant": 0,
       "place": "pending",
       "record": "TokensInitialized",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "Payment",
@@ -60,22 +62,25 @@
       "instant": 1,
       "occurrence": 1,
       "record": "CandidateSelected",
-      "schema": 4,
+      "schema": 5,
       "transition": "settle"
     },
     {
       "instant": 1,
       "occurrence": 1,
       "record": "FiringBegun",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "transition": "settle"
     },
     {
+      "entries": [],
       "instant": 1,
       "occurrence": 1,
       "place": "pending",
       "record": "TokensConsumed",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "Payment",
@@ -86,11 +91,13 @@
       ]
     },
     {
+      "entries": [],
       "instant": 1,
       "occurrence": 1,
       "place": "approved",
       "record": "TokensProduced",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "ApprovalNotice",
@@ -101,11 +108,13 @@
       ]
     },
     {
+      "entries": [],
       "instant": 1,
       "occurrence": 1,
       "place": "ledger",
       "record": "TokensProduced",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "LedgerEntry",
@@ -119,7 +128,7 @@
       "instant": 1,
       "occurrence": 1,
       "record": "FiringCompleted",
-      "schema": 4,
+      "schema": 5,
       "transition": "settle"
     }
   ],

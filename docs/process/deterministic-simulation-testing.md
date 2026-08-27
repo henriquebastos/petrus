@@ -110,10 +110,10 @@ production facts. Production components retain their existing ownership:
 | Durable truth | the configured `HistoryStore` | Fault its existing append/transaction boundary; never maintain a harness-owned semantic log. |
 | Correctness claims | independent DST checkers | Derive from portable scenario inputs, History records, snapshots, and dispositions; do not inspect private mutable state to decide pass/fail. |
 
-The existing hosted simulation profile and result contract remain unchanged:
+The existing hosted simulation profile remains bounded and implementation-free:
 
-- [`implementation-free-v1`](../../spec/simulation-result-v1.md) is the public,
-  bounded, no-handler/no-Dispatch projection implemented by
+- `implementation-free-v1` is the public, bounded, no-handler/no-Dispatch
+  projection implemented by
   [`petrus.simulation`](../../src/petrus/simulation.py).
 - `engine-coordinator-v1` is an internal DST scenario/replay profile. It may
   exercise handlers and a scripted `Dispatch`, but it does not add fields,
@@ -129,8 +129,10 @@ The existing hosted simulation profile and result contract remain unchanged:
   future profile still requires an exact identity/digest, and any new supported
   surface requires its own compatibility decision.
 
-This keeps [the hosted profile's strict owner fixture](../../tests/petrus/engine/test_simulation.py)
-and `petrus-simulation-result` version 1 byte-compatible [E].
+The hosted profile now returns the one
+[Petrus Net document](../../spec/net-document-v1.md) format with direct
+simulated markings; its strict owner fixtures remain in
+[`test_simulation.py`](../../tests/petrus/engine/test_simulation.py) [E].
 
 ## Evidence types stay distinct
 
@@ -138,7 +140,7 @@ and `petrus-simulation-result` version 1 byte-compatible [E].
 | --- | --- | --- |
 | Hand-authored example/unit test | A named input follows an expected path. | Coverage of unenumerated schedules. |
 | Existing property test | A generated invariant holds over the generated domain. | Crash/fault interleavings outside that domain. |
-| Hosted `implementation-free-v1` simulation | A bounded, implementation-free net reaches an exact portable result. | Engine/Coordinator/Dispatch recovery correctness. |
+| Hosted `implementation-free-v1` simulation | A bounded, implementation-free net reaches an exact portable Net document. | Engine/Coordinator/Dispatch recovery correctness. |
 | DST scenario replay | The production runtime obeys the checkers under one exact bounded schedule and fault script. | Correctness outside its profile and bounds. |
 | Generated DST campaign | Many seed-addressed schedules satisfy the profile's checkers and replay exactly. | Real transport/provider conformance or a mathematical proof. |
 | Real-adapter qualification | A named History/Dispatch/transport combination obeys its contract under real timing and failure controls. | Every implementation of the abstract contract. |

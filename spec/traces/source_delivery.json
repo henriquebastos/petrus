@@ -25,14 +25,14 @@
       "instant": 0,
       "name": "source-delivery",
       "record": "InstanceCreated",
-      "schema": 4
+      "schema": 5
     },
     {
       "instant": 0,
       "key": "default",
       "occurrence": null,
       "record": "DeliveryRegistrationOpened",
-      "schema": 4,
+      "schema": 5,
       "source": "webhook"
     },
     {
@@ -40,7 +40,8 @@
       "instant": 1,
       "occurrence": 1,
       "record": "ExternalEventDelivered",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "source": "webhook",
       "tokens": [
         {
@@ -56,15 +57,18 @@
       "instant": 1,
       "occurrence": 1,
       "record": "FiringBegun",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "transition": "webhook"
     },
     {
+      "entries": [],
       "instant": 1,
       "occurrence": 1,
       "place": "events",
       "record": "TokensProduced",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "RawEvent",
@@ -79,7 +83,7 @@
       "instant": 1,
       "occurrence": 1,
       "record": "FiringCompleted",
-      "schema": 4,
+      "schema": 5,
       "transition": "webhook"
     },
     {
@@ -87,7 +91,7 @@
       "key": "default",
       "occurrence": null,
       "record": "DeliveryRegistrationClosed",
-      "schema": 4,
+      "schema": 5,
       "source": "webhook"
     }
   ],

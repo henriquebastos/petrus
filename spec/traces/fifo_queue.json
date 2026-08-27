@@ -36,13 +36,15 @@
       "instant": 0,
       "name": "fifo-queue",
       "record": "InstanceCreated",
-      "schema": 4
+      "schema": 5
     },
     {
+      "entries": [],
       "instant": 0,
       "place": "queue",
       "record": "TokensInitialized",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "Item",
@@ -68,22 +70,42 @@
       "instant": 1,
       "occurrence": 1,
       "record": "CandidateSelected",
-      "schema": 4,
+      "schema": 5,
       "transition": "take"
     },
     {
       "instant": 1,
       "occurrence": 1,
       "record": "FiringBegun",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "transition": "take"
     },
     {
+      "entries": [],
       "instant": 1,
       "occurrence": 1,
       "place": "queue",
       "record": "TokensConsumed",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
+      "tokens": [
+        {
+          "color": "Item",
+          "data": {
+            "seq": 1
+          }
+        }
+      ]
+    },
+    {
+      "entries": [],
+      "instant": 1,
+      "occurrence": 1,
+      "place": "taken",
+      "record": "TokensProduced",
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "Item",
@@ -96,45 +118,33 @@
     {
       "instant": 1,
       "occurrence": 1,
-      "place": "taken",
-      "record": "TokensProduced",
-      "schema": 4,
-      "tokens": [
-        {
-          "color": "Item",
-          "data": {
-            "seq": 1
-          }
-        }
-      ]
-    },
-    {
-      "instant": 1,
-      "occurrence": 1,
       "record": "FiringCompleted",
-      "schema": 4,
+      "schema": 5,
       "transition": "take"
     },
     {
       "instant": 2,
       "occurrence": 2,
       "record": "CandidateSelected",
-      "schema": 4,
+      "schema": 5,
       "transition": "take"
     },
     {
       "instant": 2,
       "occurrence": 2,
       "record": "FiringBegun",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "transition": "take"
     },
     {
+      "entries": [],
       "instant": 2,
       "occurrence": 2,
       "place": "queue",
       "record": "TokensConsumed",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "Item",
@@ -145,11 +155,13 @@
       ]
     },
     {
+      "entries": [],
       "instant": 2,
       "occurrence": 2,
       "place": "taken",
       "record": "TokensProduced",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "Item",
@@ -163,29 +175,32 @@
       "instant": 2,
       "occurrence": 2,
       "record": "FiringCompleted",
-      "schema": 4,
+      "schema": 5,
       "transition": "take"
     },
     {
       "instant": 3,
       "occurrence": 3,
       "record": "CandidateSelected",
-      "schema": 4,
+      "schema": 5,
       "transition": "take"
     },
     {
       "instant": 3,
       "occurrence": 3,
       "record": "FiringBegun",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "transition": "take"
     },
     {
+      "entries": [],
       "instant": 3,
       "occurrence": 3,
       "place": "queue",
       "record": "TokensConsumed",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "Item",
@@ -196,11 +211,13 @@
       ]
     },
     {
+      "entries": [],
       "instant": 3,
       "occurrence": 3,
       "place": "taken",
       "record": "TokensProduced",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": "Item",
@@ -214,7 +231,7 @@
       "instant": 3,
       "occurrence": 3,
       "record": "FiringCompleted",
-      "schema": 4,
+      "schema": 5,
       "transition": "take"
     }
   ],

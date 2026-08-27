@@ -42,6 +42,11 @@ class _ObservationHandler(BaseHTTPRequestHandler):
                     raise ValueError("snapshot does not accept query parameters")
                 self._json(HTTPStatus.OK, self.server.engine.snapshot())
                 return
+            if target.path == "/v1/document":
+                if target.query:
+                    raise ValueError("document does not accept query parameters")
+                self._json(HTTPStatus.OK, self.server.engine.net_document())
+                return
             if target.path == "/v1/history":
                 after, limit = self._history_query(target.query)
                 self._json(HTTPStatus.OK, self.server.engine.history_page(after, limit))

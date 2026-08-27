@@ -223,7 +223,7 @@
         "provenance": "simulated",
         "marking": [
           {
-            "place": "done",
+            "place": "foreign",
             "tokens": [
               {
                 "color": "Work",

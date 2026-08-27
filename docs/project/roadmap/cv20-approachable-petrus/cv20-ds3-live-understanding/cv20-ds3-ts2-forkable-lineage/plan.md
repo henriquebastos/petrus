@@ -1,125 +1,92 @@
-# CV20.DS3.TS2 Plan — Forkable execution lineage foundation
+# CV20.DS3.TS2 Plan — Direct-marking execution lineage
 
 ## Plan checkpoint
 
 - **Roadmap level:** Technical Story under active CV20.DS3.
-- **Version intent:** complete the optional lineage component of pre-release
-  `petrus-net-document/version 1`; definition/view-only documents remain valid
-  and unchanged.
-- **Confidence:** 94%. ES-061 already proved the producer-backed mixed fork and
-  the Navigator accepted its semantics. The Plan auto-released under the local
-  process rule.
+- **Version intent:** keep only pre-release `petrus-net-document/version 1`;
+  definition/view-only documents remain valid.
+- **Refinement:** this plan supersedes the earlier source-anchor and replay
+  design. The Navigator chose repeated complete markings and one common entry
+  shape to keep Petrus Arx navigation simple.
 
 ## Wire shape
-
-The optional component is:
 
 ```json
 {
   "lineage": {
-    "sources": [
-      {
-        "id": 0,
-        "kind": "observation-capture",
-        "after": 0,
-        "artifact": {"sha256": "…", "base64": "…"}
-      }
-    ],
     "head": 2,
     "entries": [
       {
         "id": 0,
         "parent": null,
         "provenance": "observed",
-        "fact": {
-          "kind": "history-record",
-          "source": 0,
-          "position": 0,
-          "record": {}
-        }
+        "marking": [],
+        "metadata": {"history_record": {}}
       },
       {
         "id": 1,
         "parent": 0,
-        "provenance": "observed",
-        "fact": {
-          "kind": "history-record",
-          "source": 0,
-          "position": 1,
-          "record": {}
-        },
-        "checkpoint": []
+        "provenance": "manual",
+        "marking": [],
+        "metadata": {"note": "What if?"}
       },
       {
         "id": 2,
         "parent": 1,
-        "provenance": "manual",
-        "fact": {"kind": "manual-replace-marking", "marking": []}
+        "provenance": "simulated",
+        "marking": [],
+        "metadata": {"history_record": {}}
       }
     ]
   }
 }
 ```
 
-`sources` and `entries` are dense append-ordered arrays. Explicit integer ids
-remain on the wire and equal their indexes. Entry parents alone express
-ancestry, so two later entries may share one parent. `head` selects one current
-entry without changing branch structure.
+Entries are append-ordered. Explicit integer ids equal their indexes. Parents
+alone express ancestry, so entries may share a parent. `head` persists the
+selected branch position and need not name the final array entry.
 
-An observation source may use `after > 0` only when it retains a complete
-capture that exactly extends its observed parent. A simulation source always
-projects from position zero of its own disposable Instance. Both produce the
-same entry fact; provenance remains explicit and must agree with source kind.
+Every entry directly contains its complete sparse marking. `metadata` is a
+required strict-JSON object but is not state authority. Producers may retain a
+canonical History record, current observation, scenario, outcome, Instance id,
+or note there. A consumer never replays metadata to navigate.
 
-## Source custody and navigation
+Provenance describes how that entry's marking was obtained:
 
-Retain exact source bytes inline as canonical padded base64 plus lowercase
-SHA-256. This settles the immediate one-file requirement and the proven AX2
-shape without introducing attachment infrastructure. The digest proves that
-the retained bytes were not changed inside the document; it is not a signature
-or production-authenticity claim.
+- `observed` is projected from a real Petrus History state;
+- `manual` is a complete marking authored directly by a person; and
+- `simulated` is a successor computed by Petrus.
 
-Petrus parses each source once during document admission. It verifies the
-existing capture/result envelope, exact embedded definition, complete dense
-canonical History, snapshot/replay agreement, and result scenario/outcome
-facts. Every source position from `after` through frontier appears exactly once
-in the shared entries list and each copied record equals the retained source.
+A manual entry may parent a simulated entry. For example, a person may replace
+the Hamsterdan readiness marking to express a hypothetical approval and then
+ask Petrus to fire `ready.fold_human`. The replacement is manual; the successor
+that Petrus computes is simulated. Ancestry retains the hypothesis boundary.
+Choosing the transition does not change that classification.
 
-The public navigation projection returns the same fields for every entry:
-`id`, `parent`, `provenance`, event name, and resolved marking. Consumers never
-need to open a hidden capture or simulation timeline.
+## Producer boundaries
 
-## Alternatives rejected
+1. A live Engine projects one `observed` entry per canonical History record,
+   with the marking after that record and final current observation metadata.
+2. Hosted implementation-free simulation projects one `simulated` entry per
+   canonical History record, with scenario and outcome context on its root.
+3. A consumer appends a `manual` child to edit from any selected point. It does
+   not mutate the parent or relabel the hypothesis as observed.
+4. A consumer appends simulated entries only from a Petrus response. The
+   current detached profile is bounded and implementation-free; a future
+   application-bound service will own V5 enabledness, handlers, and
+   hypothetical external results.
 
-1. **Entries without retained sources.** Rejected because a changed observed
-   record remains structurally valid and cannot be related to imported
-   evidence.
-2. **Whole capture/result per entry.** Rejected because consumers regain
-   separate nested timelines and later captures duplicate their full prefix.
-3. **Branch canonical History.** Rejected because one Instance has one dense
-   append-only History and manual intervention did not occur in that History.
-4. **External attachments now.** Deferred because they would violate the
-   immediate one-file goal and add storage/custody infrastructure before a
-   measured artifact-size problem exists.
-5. **Infer provenance from source completeness.** Rejected because redacted
-   production evidence can be less complete than a realistic simulation.
+Runtime snapshot and History HTTP routes remain useful live transports.
+`GET /v1/document` and hosted simulation materialize those runtime facts into
+the one portable file format.
 
 ## Validation route
 
-1. Add failing public tests for all six accepted forms and the mixed 15-entry
-   observed/manual/simulated fork.
-2. Add frozen strict models and source-independent navigation records beside
-   the existing Net document owner.
-3. Promote the exploration's source/replay checks with current production
-   codecs; remove exploration-only duplication where safe only after parity.
-4. Generate one mixed positive fixture and focused negative fixtures from real
-   Engine/capture/simulation producers; assert parse/serialize fixed points.
-5. Run focused and broad Petrus verification and check all changed links,
-   roadmap state, spec coherence, and retained fixture hashes.
-
-## Documentation and handoff
-
-Extend `spec/net-document-v1.md` rather than creating another top-level format.
-At acceptance, pin exact fixtures for Arx. Arx may then open one lineage story
-against the Petrus owner contract; it must preserve imported observed custody
-and use Save As before a hypothesis can become a persisted branch document.
+1. Replace the source/fact/checkpoint models with one strict entry model.
+2. Pin dense ids, parent/head laws, complete sparse markings, strict metadata,
+   and deterministic serialization in Petrus owner tests and fixtures.
+3. Materialize observed and simulated documents with the same shape.
+4. Remove unreleased inspection, capture, and simulation-result portable
+   formats and all migration logic.
+5. Verify the owner fixtures across Petrus and Arx, then exercise a real
+   Hamsterdan V5 definition document on the Arx shared canvas.

@@ -139,15 +139,14 @@ assert not any(name in sys.modules for name in (
 
 def test_canonical_activity_and_history_codec_imports_are_public():
     from petrus.motus.activity import Activity, ActivityFailure, ActivityInvocation, ExecutionPolicy
-    from petrus.impetus.history.codec import LIFECYCLE_SCHEMA_VERSION, SCHEMA_VERSION, decode_record, encode_record
+    from petrus.impetus.history.codec import SCHEMA_VERSION, decode_record, encode_record
     from petrus.impetus.history_store import InMemoryHistoryStore
 
     assert Activity is not None
     assert ActivityFailure("boom").error == "boom"
     assert ActivityInvocation("work").policy == ExecutionPolicy()
     assert isinstance(InMemoryHistoryStore(), InMemoryHistoryStore)
-    assert SCHEMA_VERSION == 4
-    assert LIFECYCLE_SCHEMA_VERSION == 5
+    assert SCHEMA_VERSION == 5
     assert callable(decode_record) and callable(encode_record)
 
 

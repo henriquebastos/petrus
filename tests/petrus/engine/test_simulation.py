@@ -19,7 +19,7 @@ from petrus.motus.dispatch import InlineDispatch
 from petrus.simulation import SimulationProfileError, simulate
 import petrus.simulation as simulation
 
-FIXTURE = Path("spec/observation/simulation-result-v1.json")
+FIXTURE = Path("spec/net-document-v1-simulation.json")
 A, T = NetPath("a"), NetPath("t")
 
 
@@ -38,34 +38,49 @@ def strict_json(payload: bytes) -> Any:
     return json.loads(payload, object_pairs_hook=object_without_duplicates, parse_constant=refuse_constant)
 
 
+def entries(document: dict[str, Any]) -> list[dict[str, Any]]:
+    return document["lineage"]["entries"]
+
+
+def summary(document: dict[str, Any]) -> dict[str, Any]:
+    return entries(document)[0]["metadata"]
+
+
+def records(document: dict[str, Any]) -> list[dict[str, Any]]:
+    return [entry["metadata"]["history_record"] for entry in entries(document)]
+
+
+def current_marking(document: dict[str, Any]) -> list[dict[str, Any]]:
+    return entries(document)[document["lineage"]["head"]]["marking"]
+
+
 def test_owner_fixture_is_exact_strict_and_complete() -> None:
     built, marking = build_scenario()
     payload = simulate(built, marking, max_actions=32)
     result = strict_json(payload)
 
     assert payload == FIXTURE.read_bytes()
-    frontier = result["snapshot"]["frontier"]
-    assert result["history"]["after"] == 0
-    assert result["history"]["next"] == result["history"]["frontier"] == frontier
-    assert [entry["position"] for entry in result["history"]["records"]] == list(range(frontier))
-    assert result["snapshot"]["current"]["in_flight"] == []
-    assert result["snapshot"]["current"]["status"] == "completed"
-    records = [entry["record"]["record"] for entry in result["history"]["records"]]
-    assert records.count("TimerMatured") == 1
-    assert result["outcome"]["actions_applied"] == 2  # timer maturation and firing each count exactly once
+    assert result["format"] == "petrus-net-document"
+    assert result["version"] == 1
+    assert [entry["id"] for entry in entries(result)] == list(range(len(entries(result))))
+    assert all(entry["provenance"] == "simulated" for entry in entries(result))
+    events = [record["record"] for record in records(result)]
+    assert events.count("TimerMatured") == 1
+    assert summary(result)["status"] == "completed"
+    assert summary(result)["outcome"]["actions_applied"] == 2
 
 
 def test_rest_and_exact_action_limit_have_no_extra_probe() -> None:
     idle = BuiltNet(Net([Place(A)], [], []))
-    assert strict_json(simulate(idle, Marking(), max_actions=1))["outcome"] == {
+    assert summary(strict_json(simulate(idle, Marking(), max_actions=1)))["outcome"] == {
         "actions_applied": 0,
         "reason": "rest",
     }
 
     loop = BuiltNet(Net([Place(A)], [Transition(T)], [Arc(A, T), Arc(T, A)]))
     limited = strict_json(simulate(loop, Marking({A: (Token.black(),)}), max_actions=3))
-    assert limited["outcome"] == {"actions_applied": 3, "reason": "action_limit"}
-    assert sum(record["record"]["record"] == "FiringCompleted" for record in limited["history"]["records"]) == 3
+    assert summary(limited)["outcome"] == {"actions_applied": 3, "reason": "action_limit"}
+    assert sum(record["record"] == "FiringCompleted" for record in records(limited)) == 3
 
 
 @pytest.mark.parametrize("value", [True, False, 0, -1, 257, 1.5, "1"])
@@ -188,9 +203,9 @@ def test_completion_reports_completed_without_halting_an_enabled_action() -> Non
         )
     )
     result = strict_json(simulate(built, Marking({A: (Token.black(),), b: (Token.black(),)}), max_actions=2))
-    assert result["outcome"] == {"actions_applied": 1, "reason": "rest"}
-    assert result["snapshot"]["current"]["status"] == "completed"
-    assert result["snapshot"]["current"]["marking"] == [
+    assert summary(result)["outcome"] == {"actions_applied": 1, "reason": "rest"}
+    assert summary(result)["status"] == "completed"
+    assert current_marking(result) == [
         {"place": "a", "tokens": [{"color": None, "data": None}]},
         {"place": "done", "tokens": [{"color": None, "data": None}]},
     ]
@@ -329,7 +344,7 @@ def test_mutating_input_after_simulate_cannot_change_returned_bytes() -> None:
     data = {"nested": [1]}
     payload = simulate(BuiltNet(Net([Place(A)], [], [])), Marking({A: (Token("X", data),)}), max_actions=1)
     data["nested"].append(2)
-    assert strict_json(payload)["scenario"]["initial_marking"][0]["tokens"][0]["data"] == {"nested": [1]}
+    assert summary(strict_json(payload))["scenario"]["initial_marking"][0]["tokens"][0]["data"] == {"nested": [1]}
 
 
 def test_dispatch_is_structurally_impossible() -> None:

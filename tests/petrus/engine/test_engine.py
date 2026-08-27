@@ -90,6 +90,7 @@ class TestNeutralEngineSurface:
             "in_flight",
             "load",
             "marking",
+            "net_document",
             "records",
             "reset_scope",
             "seal",

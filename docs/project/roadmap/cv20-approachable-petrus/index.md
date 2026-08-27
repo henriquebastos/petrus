@@ -3,9 +3,10 @@ code: CV20
 level: Value
 status: Active
 status_reason: >-
-  CV20.DS3's portable definition/view foundation and paired Arx Hamsterdan V5
-  arrangement are Done. DS3 remains Active for the optional strict lineage;
-  the other Delivery Stories remain Planned.
+  CV20.DS3's one-file protocol, Arx V5 arrangement, direct lineage, manual
+  forking, and bounded hosted simulation are accepted. DS3 remains Active for
+  application-bound V5 simulation and live correlation; other stories remain
+  Planned.
 updated: 2026-08-27
 related:
   - ../../exploration/es-056-progressive-disclosure-developer-experience/index.md
@@ -45,8 +46,8 @@ or rewriting into another execution model.
    descent to the low-level Net kernel.
 3. [CV20.DS3 — Live understanding](cv20-ds3-live-understanding.md)
    will deliver the Petrus-owned portable definition/view/lineage contract and
-   compose terminal, JSONL, and Arx understanding without entering execution.
-   ES-061 supplies its accepted semantic Candidate.
+   compose terminal, JSONL, and Arx understanding without giving Arx execution
+   authority. ES-061 supplies its accepted semantic Candidate.
 4. [CV20.DS4 — Generated authoring and worked examples](cv20-ds4-generated-authoring-and-examples.md)
    will make generation, diagnostics, examples, and evaluation consume one
    selected public authoring contract without auto-executing generated source.
@@ -63,6 +64,12 @@ against it. DS5 follows an ordinary zero-agent DS1 profile.
 The Navigator pulled DS3's independent static slice on 2026-08-27. Its first
 implementation unit is Done:
 [CV20.DS3.TS1 — Portable definition and view document foundation](cv20-ds3-live-understanding/cv20-ds3-ts1-portable-definition-view/index.md).
+Its direct-marking lineage foundation and paired Arx CV9.DS26/CV9.DS27
+acceptance are also complete. DS3's next application-bound movement is to let
+Petrus compute a selected V5 transition or targeted path segment from any
+document marking while Arx retains the same file and navigation model. The
+application-owned route has termination and resource safeguards, not arbitrary
+place, transition, or arc limits.
 
 ## Architecture contract
 
@@ -84,9 +91,9 @@ implementation unit is Done:
 CV20 is Done when representative zero-agent and supported-agent applications,
 including the Hamsterdan pressure test, demonstrate all of the following:
 
-1. one readable flow/application source reaches compile, canonical inspection,
-   validation, identified local motion, observation, replay, and resume under a
-   named profile;
+1. one readable flow/application source reaches compile, portable Net-document
+   inspection, validation, identified local motion, observation, replay, and
+   resume under a named profile;
 2. domain-first authoring and deliberate low-level descent compile to the same
    canonical model with local, actionable errors;
 3. one Petrus portable document carries exact definition, optional view, and

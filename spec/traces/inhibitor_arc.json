@@ -31,13 +31,15 @@
       "instant": 0,
       "name": "inhibitor-arc",
       "record": "InstanceCreated",
-      "schema": 4
+      "schema": 5
     },
     {
+      "entries": [],
       "instant": 0,
       "place": "blocked",
       "record": "TokensInitialized",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": null,
@@ -46,10 +48,12 @@
       ]
     },
     {
+      "entries": [],
       "instant": 0,
       "place": "ready",
       "record": "TokensInitialized",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": null,
@@ -61,22 +65,25 @@
       "instant": 1,
       "occurrence": 1,
       "record": "CandidateSelected",
-      "schema": 4,
+      "schema": 5,
       "transition": "drain"
     },
     {
       "instant": 1,
       "occurrence": 1,
       "record": "FiringBegun",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "transition": "drain"
     },
     {
+      "entries": [],
       "instant": 1,
       "occurrence": 1,
       "place": "blocked",
       "record": "TokensConsumed",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": null,
@@ -85,11 +92,13 @@
       ]
     },
     {
+      "entries": [],
       "instant": 1,
       "occurrence": 1,
       "place": "drained",
       "record": "TokensProduced",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": null,
@@ -101,29 +110,32 @@
       "instant": 1,
       "occurrence": 1,
       "record": "FiringCompleted",
-      "schema": 4,
+      "schema": 5,
       "transition": "drain"
     },
     {
       "instant": 2,
       "occurrence": 2,
       "record": "CandidateSelected",
-      "schema": 4,
+      "schema": 5,
       "transition": "proceed"
     },
     {
       "instant": 2,
       "occurrence": 2,
       "record": "FiringBegun",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "transition": "proceed"
     },
     {
+      "entries": [],
       "instant": 2,
       "occurrence": 2,
       "place": "ready",
       "record": "TokensConsumed",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": null,
@@ -132,11 +144,13 @@
       ]
     },
     {
+      "entries": [],
       "instant": 2,
       "occurrence": 2,
       "place": "done",
       "record": "TokensProduced",
-      "schema": 4,
+      "schema": 5,
+      "scope": null,
       "tokens": [
         {
           "color": null,
@@ -148,7 +162,7 @@
       "instant": 2,
       "occurrence": 2,
       "record": "FiringCompleted",
-      "schema": 4,
+      "schema": 5,
       "transition": "proceed"
     }
   ],

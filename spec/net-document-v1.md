@@ -1,11 +1,13 @@
-# Portable Net document version 1
+# Petrus Net document version 1
 
-This document, `net-document-v1.json`, `net-document-v1-lineage.json`, and the
-negative interoperability fixtures define Petrus's portable Net document. The
-Pydantic models in
-`petrus.impetus.net_document` own strict parsing, serialization, JSON Schema
-generation, definition identity, projection from a runtime `Net`, and lineage
-navigation with resolved markings.
+This specification and the `net-document-v1-*.json` fixtures define the only
+portable Petrus file format. A document always carries one Net definition. It
+may also carry authored layout and a marking lineage, so the same shape covers
+a static design, a production observation, a simulation, and a manually
+forked hypothesis.
+
+`petrus.impetus.net_document` owns strict parsing, deterministic serialization,
+projection from a runtime `Net`, and definition identity.
 
 ## Envelope
 
@@ -27,163 +29,175 @@ navigation with resolved markings.
 }
 ```
 
-`definition` is required and is exactly one canonical Net-definition v3
-document. `view` and `lineage` are optional; when present, each is a non-null
-strict object. A present lineage has at least one retained evidence source and
-one entry. The document is not a runtime Instance, executable behavior binding,
-resume authority, or replacement for canonical linear History.
+`format`, `version`, and `definition` are required. `view` and `lineage` are
+optional and must be omitted, not set to `null`, when absent. A
+definition-only document is therefore a complete valid file. Layout and
+execution facts are components of that same file, not alternate file formats.
 
-## Definition authority and identity
+The embedded definition is exactly one canonical Net-definition v3 envelope.
+It remains the semantic authority for places, transitions, arcs, colors, and
+completion. It contains no implementation bindings, provider credentials, or
+runtime authority.
 
-The embedded definition retains all authority and canonical laws specified by
-`net-definition-v3.md`. Parsing compiles it through the existing immutable
-runtime `Net` semantic boundary. The document's definition identity is the
-lowercase SHA-256 digest of:
+## Definition identity
+
+The lowercase SHA-256 definition identity is computed from:
 
 ```text
 serialize_net_definition(document.definition)
 ```
 
-View data never enters that digest. Moving a node therefore changes the
-portable presentation while preserving exact Net identity.
+View and lineage data do not enter that digest. Arranging nodes, selecting a
+different lineage head, or adding a hypothesis therefore leaves the Net's
+structural identity unchanged.
 
-## Portable view version 1
+## View
 
-View v1 contains only authored node positions:
+View version 1 contains authored node positions only:
 
-- `node` is the direct canonical dotted `NetPath` of a place or transition in
-  the embedded definition;
+- `node` is the canonical dotted `NetPath` of a place or transition in the
+  embedded definition;
 - `x` and `y` are finite JSON numbers and may be fractional; and
-- `nodes` contains unique paths sorted lexicographically by Unicode scalar
-  value, using the same ordering rule as Net-definition v3.
+- `nodes` contains unique paths sorted by Unicode scalar value.
 
-A view may be partial or empty. Consumers place missing nodes without moving
-the authored positions. Camera state, selection, panels, waypoints,
-annotations, and editor-local state are not portable view facts.
+A view may be partial or empty. A consumer may place missing nodes without
+moving the authored positions. Camera state, current selection, panels,
+waypoints, and other editor-local state are not portable view facts.
 
-## Execution lineage
+## Marking lineage
 
-The optional lineage retains evidence custody and projects observed,
-simulated, and manual evolution into one flat entry list. The following is a
-shape illustration; `net-document-v1-lineage.json` contains the exact
-producer-backed conformance instance:
+Lineage is one uniform navigation sequence. Every entry has the same required
+shape, whether its state was observed in production, produced by simulation,
+or entered manually:
 
 ```json
 {
-  "sources": [
-    {
-      "id": 0,
-      "kind": "observation-capture",
-      "after": 0,
-      "artifact": {
-        "sha256": "64 lowercase hexadecimal characters",
-        "base64": "canonical padded base64"
-      }
-    },
-    {
-      "id": 1,
-      "kind": "simulation-result",
-      "after": 0,
-      "artifact": {
-        "sha256": "64 lowercase hexadecimal characters",
-        "base64": "canonical padded base64"
-      }
-    }
-  ],
-  "head": 2,
+  "head": 3,
   "entries": [
     {
       "id": 0,
       "parent": null,
       "provenance": "observed",
-      "fact": {
-        "kind": "history-record",
-        "source": 0,
-        "position": 0,
-        "record": {}
-      }
+      "marking": [
+        {
+          "place": "pending",
+          "tokens": [
+            {"color": "Work", "data": {"result": "failed"}}
+          ]
+        }
+      ],
+      "metadata": {"instance": "production-42"}
     },
     {
       "id": 1,
       "parent": 0,
-      "provenance": "manual",
-      "fact": {
-        "kind": "manual-replace-marking",
-        "marking": []
-      }
+      "provenance": "observed",
+      "marking": [
+        {
+          "place": "done",
+          "tokens": [
+            {"color": "Work", "data": {"result": "failed"}}
+          ]
+        }
+      ],
+      "metadata": {"history_record": {"record": "FiringCompleted"}}
     },
     {
       "id": 2,
-      "parent": 1,
+      "parent": 0,
+      "provenance": "manual",
+      "marking": [
+        {
+          "place": "pending",
+          "tokens": [
+            {"color": "Work", "data": {"result": "succeeded"}}
+          ]
+        }
+      ],
+      "metadata": {"note": "What if the input had succeeded?"}
+    },
+    {
+      "id": 3,
+      "parent": 2,
       "provenance": "simulated",
-      "fact": {
-        "kind": "history-record",
-        "source": 1,
-        "position": 0,
-        "record": {}
-      },
-      "checkpoint": []
+      "marking": [
+        {
+          "place": "done",
+          "tokens": [
+            {"color": "Work", "data": {"result": "succeeded"}}
+          ]
+        }
+      ],
+      "metadata": {"outcome": {"reason": "rest"}}
     }
   ]
 }
 ```
 
-Source and entry ids are non-negative interoperable JSON integers, are dense,
-and equal their array indexes. Entry zero is the sole root and has `parent:
-null`; every later entry names a smaller parent id. Two entries may share a
-parent. `head` names any existing entry and selects the current navigation
-point without changing ancestry.
+`entries` is a nonempty append-ordered array. Each `id` is a non-negative JSON
+safe integer equal to its array index. Entry zero is the sole root and has
+`parent: null`; every later entry names a smaller id. Two entries may name the
+same parent, which creates branches without a separate branch structure.
+`head` names any existing entry and persists the currently selected branch
+position; it need not name the last entry.
 
-Observed and simulated entries use the same `history-record` fact. Its
-`record` exactly equals the canonical History record at `position` in the
-retained `source`. Provenance is explicit and must agree with source kind:
-observation captures contribute `observed` entries and simulation results
-contribute `simulated` entries. A `manual-replace-marking` fact has `manual`
-provenance and replaces the complete marking at one hypothetical child; it
-does not claim that a runtime History event occurred.
+`provenance` is exactly `observed`, `simulated`, or `manual`. It states how the
+entry was obtained, not how a consumer must render it:
 
-Sparse markings are arrays sorted by place path. Each place occurs at most
-once and carries a nonempty `tokens` array; absent places have no tokens. Every
-place is canonical and definition-owned. Token `color` is a nonempty string or
-null and must equal a colored place's declared color. Token `data` is a strict,
-finite, Unicode-scalar JSON value. The empty array is the empty marking.
+- `observed` means Petrus projected the marking from a real runtime History
+  state;
+- `manual` means a person directly authored the complete marking, whether or
+  not a Net transition can reach it; and
+- `simulated` means Petrus computed the successor under Net and implementation
+  semantics.
 
-## Evidence custody and replay
+Provenance belongs to each entry rather than to a whole branch. A simulated
+entry may therefore have a manual parent. The ancestry records that the
+experiment began from a hypothesis, while the child remains simulated because
+Petrus computed it. A person's choice of enabled transition does not make the
+successor manual. Likewise, a hypothetical external result may be retained in
+metadata while the successor remains simulated when Petrus computes its
+marking.
 
-An embedded artifact retains exact bytes as canonical padded base64 and their
-lowercase SHA-256 digest. The digest detects a changed retained payload; it is
-not a signature, producer-authenticity proof, credential, or execution
-authority.
+A consumer can protect observed entries from in-place editing and append a
+manual child instead. That child preserves the observed parent and turns the
+changed path into a hypothesis.
 
-An `observation-capture` source embeds exact
-`petrus-observation-capture/version 1` bytes. A `simulation-result` source
-embeds exact `petrus-simulation-result/version 1` bytes with profile
-`implementation-free-v1`. Both artifacts must contain the document's exact
-definition body, one complete dense History page beginning at zero, matching
-Instance identity and frontier, canonical records, and a snapshot whose
-marking, watermark, and armed registrations agree with replay. Simulation
-scenario and outcome bounds are also admitted.
+`marking` is always present and is the complete state at that entry. Navigation
+selects this field directly. It never replays History to discover state, and
+observed, simulated, and manual entries need no separate navigation logic.
+Repeated complete markings are an intentional simplicity trade-off.
 
-`after` is the first source position projected into entries. It may be greater
-than zero only for an observation capture; a simulation source uses exactly
-zero. Every source position from `after` through its frontier appears once and
-in order in the entry list. The source's final projected entry resolves to its
-snapshot marking.
+The marking uses sparse form:
 
-A later observed source may project only a nonduplicated suffix. Its complete
-retained capture must preserve the parent's Instance identity and exactly
-extend the parent's canonical observed prefix. It can therefore create an
-observed sibling of a hypothetical branch, but it can never descend from that
-hypothesis. A simulation source may descend from any entry only when its
-scenario initial marking equals that parent's resolved marking; its own
-canonical History remains a disposable linear Instance.
+- the empty array is the empty marking;
+- absent places contain no tokens;
+- present places are definition-owned, unique, sorted by Unicode scalar value,
+  and contain a nonempty token array;
+- token `color` is a nonempty string or `null` and matches any color declared
+  by the place; and
+- token `data` is any strict JSON value with finite numbers and Unicode scalar
+  strings. Integral numbers in token data and metadata stay within
+  `[-9007199254740991, 9007199254740991]` so every conforming consumer retains
+  their exact value.
 
-An optional `checkpoint` repeats the complete resolved marking for its entry.
-It is an assertion for faster or independent consumers, not a second state
-authority, and must exactly equal replay. Omit an absent checkpoint; `null` is
-not valid. Petrus's `resolve_lineage` projection gives every consumer one
-source-independent sequence of `id`, `parent`, `provenance`, event name, and
-resolved marking.
+`metadata` is always present and is a strict JSON object. It can retain useful
+context such as an Instance id, a canonical `history_record`, a group of
+`history_records`, simulation scenario and outcome, an observation snapshot,
+or a manual note. Petrus does not interpret metadata to compute lineage
+markings or ancestry. History in metadata is supporting debug evidence, not a
+second state authority.
+
+## Runtime materialization
+
+The live observation and hosted simulation HTTP protocols remain runtime
+transports rather than additional portable file formats. A live Engine
+materializes its current definition and canonical History prefix as one Net
+document whose entries have `observed` provenance and complete markings. A
+hosted simulation returns the same document format with `simulated` entries.
+Consumers may add or move view positions and append manual branches. They may
+append simulated branches only from markings returned by Petrus, without
+translating to another file shape.
 
 ## Canonical laws
 
@@ -200,29 +214,20 @@ identity(P(N, absent)) == identity(P(N, V))
 
 The reference writer emits deterministic UTF-8 with native Unicode,
 two-space indentation, strict finite JSON numbers, and one final newline. It
-omits absent `view` and `lineage` components and absent entry checkpoints;
-explicit `null` is not an alternate spelling for those optional components.
+omits absent `view` and `lineage` components.
 
-Parsing refuses malformed UTF-8, duplicate members at any depth, non-finite or
-overflowed coordinates, Unicode surrogate values, unknown fields, coercible
-wrong types, unsupported discriminators, null optional components, malformed
-or noncanonical embedded definitions, noncanonical or duplicate view paths,
-view paths foreign to the definition, malformed source artifacts, digest or
-base64 contradictions, noncanonical History, invalid ids or parents,
-provenance contradictions, incomplete source coverage, unrelated observed
-suffixes, simulation-parent discontinuity, and false checkpoints.
+Parsing refuses malformed UTF-8, duplicate members at any depth, non-finite
+numbers, Unicode surrogate values, unknown fields, coercible wrong types,
+unsupported discriminators, null optional components, malformed or
+noncanonical definitions, foreign view or marking paths, invalid colors,
+unsorted or duplicate paths, empty sparse place entries, empty lineage,
+non-dense ids, invalid parents, and an unknown head.
 
 `NetDocumentV1.model_json_schema()` describes structural shape. JSON Schema
 alone cannot express duplicate-member refusal, Unicode-scalar ordering,
-definition-owned view paths, exact v3 compilation, or finite integer overflow;
-the Petrus parser and compiler remain authoritative.
+definition-owned paths, exact v3 compilation, or every numeric bound; the
+Petrus parser and compiler remain authoritative.
 
-## Evolution boundary
-
-Version 1 deliberately carries no executable implementation bindings,
-provider credentials, runtime leases, resume tokens, source signatures,
-external attachment references, arbitrary manual patch language, or Arx-local
-session state. Source artifacts remain existing Petrus protocols and canonical
-History remains linear. A consumer may protect observed evidence, Save As, and
-append a hypothetical branch without editing the retained capture or claiming
-that manual/simulated facts occurred in production.
+Version 1 has no alternate capture, inspection, or simulation-result portable
+envelopes, no source artifacts, hashes, base64 custody, checkpoints, replay
+facts, attachment references, or migration paths.

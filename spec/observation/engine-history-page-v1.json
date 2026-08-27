@@ -1,27 +1,26 @@
 {
-  "after": 0,
-  "frontier": 7,
-  "instance": "canonical-instance",
-  "next": 7,
   "protocol": 1,
+  "instance": "canonical-instance",
+  "after": 0,
+  "next": 7,
+  "frontier": 7,
   "records": [
     {
       "position": 0,
       "record": {
-        "instance": "canonical-instance",
-        "instant": 7,
-        "name": "canonical-observation",
         "record": "InstanceCreated",
-        "schema": 4
+        "schema": 5,
+        "instance": "canonical-instance",
+        "name": "canonical-observation",
+        "instant": 7
       }
     },
     {
       "position": 1,
       "record": {
-        "instant": 7,
-        "place": "a",
         "record": "TokensInitialized",
-        "schema": 4,
+        "schema": 5,
+        "place": "a",
         "tokens": [
           {
             "color": "Input",
@@ -35,48 +34,50 @@
               "ordinal": 2
             }
           }
-        ]
+        ],
+        "instant": 7,
+        "entries": [],
+        "scope": null
       }
     },
     {
       "position": 2,
       "record": {
-        "instant": 7,
+        "record": "DeliveryRegistrationOpened",
+        "schema": 5,
+        "source": "source",
         "key": "default",
         "occurrence": null,
-        "record": "DeliveryRegistrationOpened",
-        "schema": 4,
-        "source": "source"
+        "instant": 7
       }
     },
     {
       "position": 3,
       "record": {
-        "instant": 7,
-        "occurrence": 1,
         "record": "CandidateSelected",
-        "schema": 4,
-        "transition": "work"
+        "schema": 5,
+        "transition": "work",
+        "occurrence": 1,
+        "instant": 7
       }
     },
     {
       "position": 4,
       "record": {
-        "instant": 7,
-        "occurrence": 1,
         "record": "FiringBegun",
-        "schema": 4,
-        "transition": "work"
+        "schema": 5,
+        "transition": "work",
+        "occurrence": 1,
+        "scope": null,
+        "instant": 7
       }
     },
     {
       "position": 5,
       "record": {
-        "instant": 7,
-        "occurrence": 1,
-        "place": "a",
         "record": "TokensConsumed",
-        "schema": 4,
+        "schema": 5,
+        "place": "a",
         "tokens": [
           {
             "color": "Input",
@@ -84,15 +85,20 @@
               "ordinal": 1
             }
           }
-        ]
+        ],
+        "occurrence": 1,
+        "entries": [],
+        "scope": null,
+        "instant": 7
       }
     },
     {
       "position": 6,
       "record": {
+        "record": "ActivityRequested",
+        "schema": 5,
+        "transition": "work",
         "activity": "canonical.activity",
-        "correlation": "canonical-correlation",
-        "idempotency": "canonical-idempotency",
         "input": {
           "nested": [
             {
@@ -100,15 +106,21 @@
             }
           ]
         },
-        "instant": 7,
-        "occurrence": 1,
         "policy": {
           "attempts": 1,
-          "heartbeat_timeout": 30
+          "heartbeat_timeout": 30,
+          "initial_interval": 0,
+          "coefficient": 2,
+          "max_interval": 60,
+          "jitter": 0,
+          "start_to_close": null,
+          "schedule_to_close": null
         },
-        "record": "ActivityRequested",
-        "schema": 4,
-        "transition": "work"
+        "correlation": "canonical-correlation",
+        "idempotency": "canonical-idempotency",
+        "occurrence": 1,
+        "scope": null,
+        "instant": 7
       }
     }
   ]

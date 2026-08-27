@@ -38,7 +38,7 @@ FIXTURE = ROOT / "spec" / "net-definition-v3.json"
 INTEROPERABILITY_FIXTURE = ROOT / "spec" / "net-definition-v3-interoperability.json"
 INVALID_INTEGER_FIXTURE = ROOT / "spec" / "net-definition-v3-invalid-integer.json"
 INVALID_UTF16_ORDER_FIXTURE = ROOT / "spec" / "net-definition-v3-invalid-utf16-order.json"
-INSPECTION_FIXTURE = ROOT / "spec" / "observation" / "canonical-net-inspection-v1.json"
+DOCUMENT_FIXTURE = ROOT / "spec" / "net-document-v1-inspection.json"
 
 
 def rich_net() -> Net:
@@ -110,13 +110,13 @@ def test_parallel_arcs_round_trip_without_wire_identity_and_rederive_the_same_ur
     assert all("identity" not in arc for arc in document.definition.model_dump(mode="json")["arcs"])
 
 
-def test_exact_fixture_is_the_dsl_inspection_definition_in_loadable_v3_envelope() -> None:
+def test_exact_fixture_is_the_dsl_document_definition_in_loadable_v3_envelope() -> None:
     fixture = FIXTURE.read_bytes()
     document = parse_net_definition(fixture)
-    inspection = json.loads(INSPECTION_FIXTURE.read_bytes())
+    portable = json.loads(DOCUMENT_FIXTURE.read_bytes())
 
     assert serialize_net_definition(document) == fixture
-    assert document.definition.model_dump(mode="json") == inspection["definition"]
+    assert document.model_dump(mode="json") == portable["definition"]
     assert project_net_definition(compile_net_definition(document)) == document
 
 
@@ -172,7 +172,7 @@ def test_pydantic_schema_is_strict_and_versioned() -> None:
     ("change", "expected"),
     [
         (lambda value: value.update(version=True), "version"),
-        (lambda value: value.update(format="petrus-canonical-net-inspection"), "format"),
+        (lambda value: value.update(format="foreign-format"), "format"),
         (lambda value: value.update(extra=True), "extra"),
         (lambda value: value["definition"]["places"].reverse(), "Unicode scalar"),
         (lambda value: value["definition"]["places"].append(value["definition"]["places"][0]), "unique"),

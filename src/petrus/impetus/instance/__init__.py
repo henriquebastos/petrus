@@ -425,10 +425,8 @@ class Instance:
         initial: list[Record] = [InstanceCreated(self.instance_id, name=net.name, instant=at)]
         next_entry = 1
         for place, tokens in marking:
-            # Queue identities are assigned internally so a later scoped
-            # firing can name an exact input occurrence, but an unscoped
-            # initialization retains the production schema-4 record surface.
-            # Scope ownership is what makes the identity canonical.
+            # Queue identities are assigned internally so later firings can
+            # name exact input occurrences in the canonical History.
             initial.append(TokensInitialized(place, tokens, instant=at))
             next_entry += len(tokens)
         initial.extend(DeliveryRegistrationOpened(source, "default", occurrence=None, instant=at) for source in sources)

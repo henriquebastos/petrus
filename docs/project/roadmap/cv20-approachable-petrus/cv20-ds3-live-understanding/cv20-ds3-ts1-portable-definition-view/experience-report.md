@@ -30,8 +30,11 @@ the negative fixture is
 
 - `UV_FROZEN=1 uv run pytest -q tests/petrus/impetus/test_net_document.py tests/petrus/impetus/test_net_definition.py` — 61 passed.
 - `scripts/check quick src/petrus/impetus/net_document.py tests/petrus/impetus/test_net_document.py` — passed.
-- Arx `pnpm check` — passed 1,224 tests, 49/49 conformance checks, typechecks, lint/stylelint, dependency rules, and production build.
-- Petrus `scripts/check full` reached 2,169 passing tests but did not complete green in this orb: seven failures and 256 setup errors require unavailable Docker-backed providers or Graphviz. The focused owner suite and all quick/static checks passed; no failing result implicated the new document code.
+- Arx's final cross-story `pnpm check` passed 1,144 tests, 49/49
+  conformance checks, typechecks, lint/stylelint, dependency rules, and the
+  production build.
+- Petrus's final `scripts/check full` passed all static, structural, Graphviz,
+  PostgreSQL, and test gates with 2,456 tests passed.
 
 ## Review and debt
 
@@ -41,14 +44,13 @@ Pydantic model family owns strict wire shape; parser and writer add the JSON
 laws that schema alone cannot express. View data remains outside Net identity
 and runtime authority.
 
-No new debt item is warranted. The incomplete full gate is an orb capability
-limit, not accepted code debt. Lineage is deliberately absent and strictly
-refused until the next CV20.DS3 story specifies its optional component. Camera,
-selection, waypoints, markings, execution, and Arx file custody remain outside
-this Petrus Technical Story.
+No new debt item is warranted. Camera, selection, waypoints, markings,
+execution, and Arx file custody remain outside this Petrus Technical Story.
+The later TS2 adds optional lineage without changing this definition/view
+foundation.
 
 ## Next movement
 
-Keep CV20.DS3 Active and expand its next Petrus substrate story: the optional
-flat parent-linked execution lineage with sequential ids, explicit provenance,
-manual intervention facts, and immutable observed-source custody from ES-061.
+Keep CV20.DS3 Active for its application-bound V5 simulation and live
+understanding follow-up. The portable definition/view and Arx arrangement
+acceptance are complete.

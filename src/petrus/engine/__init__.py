@@ -33,6 +33,7 @@ from petrus.motus.dispatch import Dispatch
 from petrus.impetus.history import Record, ScopeReset
 from petrus.impetus.history_store import HistoryStore
 from petrus.impetus.observation import history_page as _history_page
+from petrus.impetus.observation import net_document as _net_document
 from petrus.impetus.observation import snapshot as _snapshot
 from petrus.impetus.instance import (
     FiringOccurrence,
@@ -357,6 +358,10 @@ class Engine:
     def snapshot(self) -> dict[str, object]:
         """Return a coherent detached protocol-v1 view of definition and current state."""
         return self._read(lambda: _snapshot(self._instance, self._instance.history.records))
+
+    def net_document(self) -> dict[str, object]:
+        """Return one coherent observed portable Net document."""
+        return self._read(lambda: _net_document(self._instance, self._instance.history.records))
 
     def history_page(self, after: int, limit: int) -> dict[str, object]:
         """Return a detached protocol-v1 page after an exclusive confirmed prefix."""

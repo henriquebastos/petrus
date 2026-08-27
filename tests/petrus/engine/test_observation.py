@@ -34,8 +34,8 @@ from petrus.motus.dispatch import InMemoryDispatch
 FIXTURE_DIR = Path(__file__).parents[3] / "spec" / "observation"
 SNAPSHOT_FIXTURE = FIXTURE_DIR / "engine-snapshot-v1.json"
 HISTORY_FIXTURE = FIXTURE_DIR / "engine-history-page-v1.json"
-CAPTURE_FIXTURE = FIXTURE_DIR / "engine-capture-v1.json"
-NET_INSPECTION_FIXTURE = FIXTURE_DIR / "canonical-net-inspection-v1.json"
+NET_DOCUMENT_FIXTURE = FIXTURE_DIR.parent / "net-document-v1-observation.json"
+NET_INSPECTION_FIXTURE = FIXTURE_DIR.parent / "net-document-v1-inspection.json"
 A, B, C = NetPath("a"), NetPath("b"), NetPath("c")
 SOURCE, WORK = NetPath("source"), NetPath("work")
 
@@ -174,15 +174,18 @@ def test_canonical_net_inspection_fixture_is_exact_pre_instance_dsl_build_withou
     expected = strict_fixture(NET_INSPECTION_FIXTURE)
 
     assert expected == produced
-    assert produced["format"] == "petrus-canonical-net-inspection"
+    assert produced["format"] == "petrus-net-document"
     assert type(produced["version"]) is int and produced["version"] == 1
-    assert produced["definition"] == definition(built.net)
-    assert [arc["position"] for arc in produced["definition"]["arcs"]] == list(
-        range(len(produced["definition"]["arcs"]))
-    )
+    assert produced["definition"] == {
+        "format": "petrus-net-definition",
+        "version": 3,
+        "definition": definition(built.net),
+    }
+    body = produced["definition"]["definition"]
+    assert [arc["position"] for arc in body["arcs"]] == list(range(len(body["arcs"])))
     parallel = [
         item
-        for item in produced["definition"]["arcs"]
+        for item in body["arcs"]
         if item["source"] == "review.correctness.review" and item["target"] == "review.correctness.done"
     ]
     assert [item["position"] for item in parallel] == [1, 5]
@@ -203,11 +206,21 @@ def test_canonical_fixture_is_exact_producer_output_and_has_typed_fifo_activity_
     assert produced["current"]["marking"] == [{"place": "a", "tokens": [{"color": "Input", "data": {"ordinal": 2}}]}]
     occurrence = produced["current"]["in_flight"][0]
     assert occurrence["phase"] == "activity_pending"
+    assert occurrence["invocation"]["policy"] == {
+        "attempts": 1,
+        "heartbeat_timeout": 30,
+        "initial_interval": 0,
+        "coefficient": 2,
+        "max_interval": 60,
+        "jitter": 0,
+        "start_to_close": None,
+        "schedule_to_close": None,
+    }
     assert produced["current"]["armed"] == [{"source": "source", "key": "default"}]
     assert isinstance(produced["current"]["watermark"], int)
 
 
-def test_canonical_history_fixture_is_exact_complete_page_with_schema4_typed_occurrences():
+def test_canonical_history_fixture_is_exact_complete_page_with_current_typed_occurrences():
     engine = canonical_engine()
     produced = engine.history_page(0, 100)
     expected = json.loads(HISTORY_FIXTURE.read_text())
@@ -215,7 +228,7 @@ def test_canonical_history_fixture_is_exact_complete_page_with_schema4_typed_occ
     assert expected == produced
     assert [item["position"] for item in produced["records"]] == list(range(produced["frontier"]))
     assert produced["next"] == produced["frontier"]
-    assert all(item["record"]["schema"] == 4 for item in produced["records"])
+    assert all(item["record"]["schema"] == 5 for item in produced["records"])
     typed_tokens = [token for item in produced["records"] for token in item["record"].get("tokens", [])]
     assert {token["color"] for token in typed_tokens} >= {"Input"}
     occurrence_records = [item["record"] for item in produced["records"] if "occurrence" in item["record"]]
@@ -223,7 +236,7 @@ def test_canonical_history_fixture_is_exact_complete_page_with_schema4_typed_occ
     assert {record["occurrence"] for record in occurrence_records if record["occurrence"] is not None} == {1}
 
 
-def test_protocol_v1_history_transports_canonical_schema4_and_schema5_records_without_changing_unscoped_bytes():
+def test_protocol_v1_history_transports_one_field_complete_current_schema():
     engine = canonical_engine()
     scope = engine.open_scope("draft")
     engine.deliver(SOURCE, Token("External", 1), identity="draft-1", scope=scope)
@@ -232,40 +245,35 @@ def test_protocol_v1_history_transports_canonical_schema4_and_schema5_records_wi
     page = engine.history_page(0, 100)
 
     assert page["protocol"] == 1
-    assert {item["record"]["schema"] for item in page["records"]} == {4, 5}
-    lifecycle = [item["record"] for item in page["records"] if item["record"]["schema"] == 5]
+    assert {item["record"]["schema"] for item in page["records"]} == {5}
+    lifecycle = [item["record"] for item in page["records"]]
     assert [record["record"] for record in lifecycle if record["record"].startswith("Scope")] == [
         "ScopeOpened",
         "ScopeClosed",
     ]
-    assert all(record.get("scope", {}).get("name") == "draft" for record in lifecycle)
-    assert page["records"][0]["record"]["schema"] == 4
+    scoped = [record for record in lifecycle if record.get("scope") is not None]
+    assert scoped
+    assert all(record["scope"]["name"] == "draft" for record in scoped)
+    assert all("scope" in record for record in lifecycle if record["record"] == "TokensInitialized")
 
 
-def test_canonical_capture_fixture_is_exact_snapshot_and_complete_history_prefix():
+def test_canonical_observed_net_document_fixture_has_one_complete_marking_per_history_record():
     engine = canonical_engine()
-    captured_snapshot = engine.snapshot()
-    frontier = captured_snapshot["frontier"]
-    captured_history = engine.history_page(0, frontier)
-    produced = {
-        "format": "petrus-observation-capture",
-        "version": 1,
-        "snapshot": captured_snapshot,
-        "history": captured_history,
-    }
-    expected = json.loads(CAPTURE_FIXTURE.read_text())
+    produced = engine.net_document()
+    expected = strict_fixture(NET_DOCUMENT_FIXTURE)
 
-    assert expected == produced
-    assert captured_history["protocol"] == captured_snapshot["protocol"]
-    assert captured_history["instance"] == captured_snapshot["instance"]
-    assert captured_history["after"] == 0
-    assert captured_history["next"] == captured_history["frontier"] == frontier
-    assert [item["position"] for item in captured_history["records"]] == list(range(frontier))
-    created = [item for item in captured_history["records"] if item["record"]["record"] == "InstanceCreated"]
-    assert frontier >= 1
-    assert created == [captured_history["records"][0]]
-    assert created[0]["record"]["schema"] == 4
-    assert created[0]["record"]["instance"] == captured_snapshot["instance"]
+    assert produced == expected
+    assert produced["format"] == "petrus-net-document"
+    assert produced["version"] == 1
+    lineage = produced["lineage"]
+    assert lineage["head"] == len(lineage["entries"]) - 1
+    assert [entry["id"] for entry in lineage["entries"]] == list(range(len(engine.records)))
+    assert all(entry["provenance"] == "observed" for entry in lineage["entries"])
+    assert [entry["metadata"]["history_record"] for entry in lineage["entries"]] == [
+        item["record"] for item in engine.history_page(0, 100)["records"]
+    ]
+    assert lineage["entries"][lineage["head"]]["marking"] == engine.snapshot()["current"]["marking"]
+    assert "marking" not in lineage["entries"][-1]["metadata"]["observation"]
 
 
 def test_capture_pages_freeze_snapshot_frontier_while_history_continues_to_append():

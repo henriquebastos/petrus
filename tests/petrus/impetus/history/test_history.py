@@ -18,6 +18,7 @@ from petrus.impetus.history import (
     TokensProduced,
     TokensRead,
     replay_marking,
+    replay_markings,
 )
 from petrus.impetus.petrinet import Marking, Token
 from petrus.impetus.petrinet import NetPath
@@ -43,6 +44,23 @@ class TestReplayMarking:
             TokensProduced(b, (token,), occurrence=1),
         ]
         assert replay_marking(history) == Marking({b: (token,)})
+
+    def test_projects_each_complete_marking_from_one_history_iteration(self):
+        a, b = NetPath("a"), NetPath("b")
+        token = Token("X")
+        history = (
+            TokensInitialized(a, (token,)),
+            CandidateSelected(NetPath("move"), occurrence=1),
+            TokensConsumed(a, (token,), occurrence=1),
+            TokensProduced(b, (token,), occurrence=1),
+        )
+
+        assert replay_markings(iter(history)) == (
+            Marking({a: (token,)}),
+            Marking({a: (token,)}),
+            Marking(),
+            Marking({b: (token,)}),
+        )
 
     def test_empty_history_is_an_empty_marking(self):
         assert replay_marking([]) == Marking()

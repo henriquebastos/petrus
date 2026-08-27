@@ -3,8 +3,10 @@ code: CV20.DS3.TS2
 level: Technical Story
 status: Done
 status_reason: >-
-  Strict source custody, dense flat lineage, replay-derived navigation,
-  producer-backed mixed/negative fixtures, and the owner spec are verified.
+  One strict direct-marking lineage, observed and simulated producer
+  materialization, and common Petrus/Arx consumption are implemented. The final
+  Petrus full gate passed 2,456 tests and Arx passed its complete 1,144-test
+  gate.
 updated: 2026-08-27
 related:
   - ../../cv20-ds3-live-understanding.md
@@ -14,53 +16,37 @@ related:
   - experience-report.md
 ---
 
-# CV20.DS3.TS2 — Forkable execution lineage foundation
+# CV20.DS3.TS2 — Direct-marking execution lineage foundation
 
 ## Intent
 
-Add one optional strict execution-lineage component to the existing Petrus Net
-document so observed evidence, manual hypotheses, and simulated descendants
-share one navigable parent-linked entry list without changing canonical runtime
-History or weakening retained source custody.
+Add one optional strict marking lineage to the Petrus Net document so observed
+production state, manual hypotheses, and simulated descendants share the same
+direct navigation shape. Keep canonical runtime History linear and available
+only as optional non-authoritative metadata in the portable document.
 
 ## Acceptance / Done condition
 
-1. Existing definition-only and arranged document v1 files remain byte- and
-   behavior-compatible while lineage becomes one optional non-null component.
-2. A lineage has dense evidence-source ids, dense explicit entry ids equal to
-   array indexes, one root, smaller parent ids, and a head naming an entry.
-3. Observed and simulated evolution use the same exact `history-record` fact;
-   a manual marking replacement is an explicit distinct fact in the same list.
-4. Exact retained observation-capture and simulation-result bytes pass strict
-   source admission, SHA-256 custody, definition equality, complete History,
-   replay, snapshot, source-position coverage, and provenance checks.
-5. Later observed evidence exactly extends an observed same-Instance prefix;
-   simulation begins from its document-parent marking; hypotheses can never be
-   presented as observed descendants.
-6. Optional checkpoints agree with replay-derived state, and Petrus publishes
-   one source-independent navigation projection plus producer-backed mixed-fork
-   and negative conformance fixtures.
-
-## Driver QA and evidence plan
-
-- Promote only the accepted anchored uniform-entry candidate, not the rejected
-  unanchored or whole-artifact-per-step alternatives.
-- Begin with focused tests copied as semantic vectors, then implement public
-  frozen wire models, strict admission, deterministic serialization, replay,
-  custody, projection, and fixture generation.
-- Retain exact current source protocols and canonical History codecs rather
-  than adding converters or new runtime records.
-- Run focused document, History, observation, and simulation tests; project
-  structural tests; quick static checks; and the broad repository gate to the
-  extent this orb's Docker/Graphviz capabilities permit.
+1. Definition-only and arranged documents remain valid while lineage becomes
+   one optional non-null component of the same file format.
+2. Every entry has exactly `id`, `parent`, `provenance`, a complete sparse
+   `marking`, and strict-JSON `metadata`.
+3. Entry ids equal array indexes; the sole root has a null parent; every later
+   parent is smaller; and `head` names any existing entry.
+4. `observed`, `simulated`, and `manual` entries have the same core shape and
+   navigation selects their marking without replay.
+5. Engine observation and hosted simulation materialize the same Net document
+   format with complete per-entry markings and optional History metadata.
+6. Owner fixtures cover definition-only, observed, simulated, manual, and
+   mixed forks; strict negative fixtures cover lineage and marking laws.
+7. Provenance is per entry: a person-authored marking may parent a Petrus-
+   computed simulated successor without changing either entry's shape.
 
 ## Out of scope
 
-- Arx branch navigation, “Explore from here,” edit confirmation, and Save As
-  behavior.
-- Attachment stores, source deduplication, signatures, producer authenticity,
-  encryption, or a final large-artifact size policy.
-- Runtime History branching, `Instance.resume`, implementation/provider
-  bindings, or claims that a document point is executable or resumable.
-- Manual patch operations beyond complete marking replacement.
-- A capable simulation profile or application-bound Hamsterdan V5 fork.
+- Runtime History branching or changing `Instance.resume`.
+- Claims that a portable document is production-authentic, executable, or
+  resumable.
+- Source artifacts, hashes, base64 custody, checkpoints, replay navigation,
+  attachment stores, or migration from an earlier unreleased file format.
+- Capable application-bound Hamsterdan V5 simulation.
