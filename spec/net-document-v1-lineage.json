@@ -1,0 +1,429 @@
+{
+  "format": "petrus-net-document",
+  "version": 1,
+  "definition": {
+    "format": "petrus-net-definition",
+    "version": 3,
+    "definition": {
+      "name": "portable-lineage",
+      "time_domain": "integer",
+      "places": [
+        {
+          "path": "done",
+          "color": "Work"
+        },
+        {
+          "path": "pending",
+          "color": "Work"
+        }
+      ],
+      "transitions": [
+        {
+          "path": "advance",
+          "handler": null,
+          "guards": [],
+          "timers": []
+        }
+      ],
+      "arcs": [
+        {
+          "position": 0,
+          "source": "pending",
+          "target": "advance",
+          "mode": "consume",
+          "weight": 1,
+          "color": "Work",
+          "filter": null
+        },
+        {
+          "position": 1,
+          "source": "advance",
+          "target": "done",
+          "mode": "consume",
+          "weight": 1,
+          "color": "Work",
+          "filter": null
+        }
+      ],
+      "completion": null
+    }
+  },
+  "lineage": {
+    "sources": [
+      {
+        "id": 0,
+        "kind": "observation-capture",
+        "after": 0,
+        "artifact": {
+          "sha256": "cbc1fde7faf5bcb9371770063e716078da689f23da2d719ce4e17edac191d33e",
+          "base64": "ewogICJmb3JtYXQiOiAicGV0cnVzLW9ic2VydmF0aW9uLWNhcHR1cmUiLAogICJoaXN0b3J5IjogewogICAgImFmdGVyIjogMCwKICAgICJmcm9udGllciI6IDIsCiAgICAiaW5zdGFuY2UiOiAib2JzZXJ2ZWQtbGluZWFnZSIsCiAgICAibmV4dCI6IDIsCiAgICAicHJvdG9jb2wiOiAxLAogICAgInJlY29yZHMiOiBbCiAgICAgIHsKICAgICAgICAicG9zaXRpb24iOiAwLAogICAgICAgICJyZWNvcmQiOiB7CiAgICAgICAgICAiaW5zdGFuY2UiOiAib2JzZXJ2ZWQtbGluZWFnZSIsCiAgICAgICAgICAiaW5zdGFudCI6IDAsCiAgICAgICAgICAibmFtZSI6ICJwb3J0YWJsZS1saW5lYWdlIiwKICAgICAgICAgICJyZWNvcmQiOiAiSW5zdGFuY2VDcmVhdGVkIiwKICAgICAgICAgICJzY2hlbWEiOiA0CiAgICAgICAgfQogICAgICB9LAogICAgICB7CiAgICAgICAgInBvc2l0aW9uIjogMSwKICAgICAgICAicmVjb3JkIjogewogICAgICAgICAgImluc3RhbnQiOiAwLAogICAgICAgICAgInBsYWNlIjogInBlbmRpbmciLAogICAgICAgICAgInJlY29yZCI6ICJUb2tlbnNJbml0aWFsaXplZCIsCiAgICAgICAgICAic2NoZW1hIjogNCwKICAgICAgICAgICJ0b2tlbnMiOiBbCiAgICAgICAgICAgIHsKICAgICAgICAgICAgICAiY29sb3IiOiAiV29yayIsCiAgICAgICAgICAgICAgImRhdGEiOiB7CiAgICAgICAgICAgICAgICAicmVzdWx0IjogImZhaWxlZCIKICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0KICAgICAgICAgIF0KICAgICAgICB9CiAgICAgIH0KICAgIF0KICB9LAogICJzbmFwc2hvdCI6IHsKICAgICJjdXJyZW50IjogewogICAgICAiYXJtZWQiOiBbXSwKICAgICAgImluX2ZsaWdodCI6IFtdLAogICAgICAibWFya2luZyI6IFsKICAgICAgICB7CiAgICAgICAgICAicGxhY2UiOiAicGVuZGluZyIsCiAgICAgICAgICAidG9rZW5zIjogWwogICAgICAgICAgICB7CiAgICAgICAgICAgICAgImNvbG9yIjogIldvcmsiLAogICAgICAgICAgICAgICJkYXRhIjogewogICAgICAgICAgICAgICAgInJlc3VsdCI6ICJmYWlsZWQiCiAgICAgICAgICAgICAgfQogICAgICAgICAgICB9CiAgICAgICAgICBdCiAgICAgICAgfQogICAgICBdLAogICAgICAibmV4dF9tYXR1cmF0aW9uIjogbnVsbCwKICAgICAgInN0YXR1cyI6ICJydW5uaW5nIiwKICAgICAgIndhdGVybWFyayI6IDAKICAgIH0sCiAgICAiZGVmaW5pdGlvbiI6IHsKICAgICAgImFyY3MiOiBbCiAgICAgICAgewogICAgICAgICAgImNvbG9yIjogIldvcmsiLAogICAgICAgICAgImZpbHRlciI6IG51bGwsCiAgICAgICAgICAibW9kZSI6ICJjb25zdW1lIiwKICAgICAgICAgICJwb3NpdGlvbiI6IDAsCiAgICAgICAgICAic291cmNlIjogInBlbmRpbmciLAogICAgICAgICAgInRhcmdldCI6ICJhZHZhbmNlIiwKICAgICAgICAgICJ3ZWlnaHQiOiAxCiAgICAgICAgfSwKICAgICAgICB7CiAgICAgICAgICAiY29sb3IiOiAiV29yayIsCiAgICAgICAgICAiZmlsdGVyIjogbnVsbCwKICAgICAgICAgICJtb2RlIjogImNvbnN1bWUiLAogICAgICAgICAgInBvc2l0aW9uIjogMSwKICAgICAgICAgICJzb3VyY2UiOiAiYWR2YW5jZSIsCiAgICAgICAgICAidGFyZ2V0IjogImRvbmUiLAogICAgICAgICAgIndlaWdodCI6IDEKICAgICAgICB9CiAgICAgIF0sCiAgICAgICJjb21wbGV0aW9uIjogbnVsbCwKICAgICAgIm5hbWUiOiAicG9ydGFibGUtbGluZWFnZSIsCiAgICAgICJwbGFjZXMiOiBbCiAgICAgICAgewogICAgICAgICAgImNvbG9yIjogIldvcmsiLAogICAgICAgICAgInBhdGgiOiAiZG9uZSIKICAgICAgICB9LAogICAgICAgIHsKICAgICAgICAgICJjb2xvciI6ICJXb3JrIiwKICAgICAgICAgICJwYXRoIjogInBlbmRpbmciCiAgICAgICAgfQogICAgICBdLAogICAgICAidGltZV9kb21haW4iOiAiaW50ZWdlciIsCiAgICAgICJ0cmFuc2l0aW9ucyI6IFsKICAgICAgICB7CiAgICAgICAgICAiZ3VhcmRzIjogW10sCiAgICAgICAgICAiaGFuZGxlciI6IG51bGwsCiAgICAgICAgICAicGF0aCI6ICJhZHZhbmNlIiwKICAgICAgICAgICJ0aW1lcnMiOiBbXQogICAgICAgIH0KICAgICAgXQogICAgfSwKICAgICJmcm9udGllciI6IDIsCiAgICAiaW5zdGFuY2UiOiAib2JzZXJ2ZWQtbGluZWFnZSIsCiAgICAicHJvdG9jb2wiOiAxCiAgfSwKICAidmVyc2lvbiI6IDEKfQo="
+        }
+      },
+      {
+        "id": 1,
+        "kind": "simulation-result",
+        "after": 0,
+        "artifact": {
+          "sha256": "ff40070410a3b1b62c03a54e6627bdd9586f20cc37febbf5f4c661d9397dc893",
+          "base64": "ewogICJmb3JtYXQiOiAicGV0cnVzLXNpbXVsYXRpb24tcmVzdWx0IiwKICAiaGlzdG9yeSI6IHsKICAgICJhZnRlciI6IDAsCiAgICAiZnJvbnRpZXIiOiA3LAogICAgImluc3RhbmNlIjogInNpbXVsYXRpb24iLAogICAgIm5leHQiOiA3LAogICAgInByb3RvY29sIjogMSwKICAgICJyZWNvcmRzIjogWwogICAgICB7CiAgICAgICAgInBvc2l0aW9uIjogMCwKICAgICAgICAicmVjb3JkIjogewogICAgICAgICAgImluc3RhbmNlIjogInNpbXVsYXRpb24iLAogICAgICAgICAgImluc3RhbnQiOiAwLAogICAgICAgICAgIm5hbWUiOiAicG9ydGFibGUtbGluZWFnZSIsCiAgICAgICAgICAicmVjb3JkIjogIkluc3RhbmNlQ3JlYXRlZCIsCiAgICAgICAgICAic2NoZW1hIjogNAogICAgICAgIH0KICAgICAgfSwKICAgICAgewogICAgICAgICJwb3NpdGlvbiI6IDEsCiAgICAgICAgInJlY29yZCI6IHsKICAgICAgICAgICJpbnN0YW50IjogMCwKICAgICAgICAgICJwbGFjZSI6ICJwZW5kaW5nIiwKICAgICAgICAgICJyZWNvcmQiOiAiVG9rZW5zSW5pdGlhbGl6ZWQiLAogICAgICAgICAgInNjaGVtYSI6IDQsCiAgICAgICAgICAidG9rZW5zIjogWwogICAgICAgICAgICB7CiAgICAgICAgICAgICAgImNvbG9yIjogIldvcmsiLAogICAgICAgICAgICAgICJkYXRhIjogewogICAgICAgICAgICAgICAgInJlc3VsdCI6ICJzdWNjZWVkZWQtaHlwb3RoZXNpcyIKICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0KICAgICAgICAgIF0KICAgICAgICB9CiAgICAgIH0sCiAgICAgIHsKICAgICAgICAicG9zaXRpb24iOiAyLAogICAgICAgICJyZWNvcmQiOiB7CiAgICAgICAgICAiaW5zdGFudCI6IDAsCiAgICAgICAgICAib2NjdXJyZW5jZSI6IDEsCiAgICAgICAgICAicmVjb3JkIjogIkNhbmRpZGF0ZVNlbGVjdGVkIiwKICAgICAgICAgICJzY2hlbWEiOiA0LAogICAgICAgICAgInRyYW5zaXRpb24iOiAiYWR2YW5jZSIKICAgICAgICB9CiAgICAgIH0sCiAgICAgIHsKICAgICAgICAicG9zaXRpb24iOiAzLAogICAgICAgICJyZWNvcmQiOiB7CiAgICAgICAgICAiaW5zdGFudCI6IDAsCiAgICAgICAgICAib2NjdXJyZW5jZSI6IDEsCiAgICAgICAgICAicmVjb3JkIjogIkZpcmluZ0JlZ3VuIiwKICAgICAgICAgICJzY2hlbWEiOiA0LAogICAgICAgICAgInRyYW5zaXRpb24iOiAiYWR2YW5jZSIKICAgICAgICB9CiAgICAgIH0sCiAgICAgIHsKICAgICAgICAicG9zaXRpb24iOiA0LAogICAgICAgICJyZWNvcmQiOiB7CiAgICAgICAgICAiaW5zdGFudCI6IDAsCiAgICAgICAgICAib2NjdXJyZW5jZSI6IDEsCiAgICAgICAgICAicGxhY2UiOiAicGVuZGluZyIsCiAgICAgICAgICAicmVjb3JkIjogIlRva2Vuc0NvbnN1bWVkIiwKICAgICAgICAgICJzY2hlbWEiOiA0LAogICAgICAgICAgInRva2VucyI6IFsKICAgICAgICAgICAgewogICAgICAgICAgICAgICJjb2xvciI6ICJXb3JrIiwKICAgICAgICAgICAgICAiZGF0YSI6IHsKICAgICAgICAgICAgICAgICJyZXN1bHQiOiAic3VjY2VlZGVkLWh5cG90aGVzaXMiCiAgICAgICAgICAgICAgfQogICAgICAgICAgICB9CiAgICAgICAgICBdCiAgICAgICAgfQogICAgICB9LAogICAgICB7CiAgICAgICAgInBvc2l0aW9uIjogNSwKICAgICAgICAicmVjb3JkIjogewogICAgICAgICAgImluc3RhbnQiOiAwLAogICAgICAgICAgIm9jY3VycmVuY2UiOiAxLAogICAgICAgICAgInBsYWNlIjogImRvbmUiLAogICAgICAgICAgInJlY29yZCI6ICJUb2tlbnNQcm9kdWNlZCIsCiAgICAgICAgICAic2NoZW1hIjogNCwKICAgICAgICAgICJ0b2tlbnMiOiBbCiAgICAgICAgICAgIHsKICAgICAgICAgICAgICAiY29sb3IiOiAiV29yayIsCiAgICAgICAgICAgICAgImRhdGEiOiB7CiAgICAgICAgICAgICAgICAicmVzdWx0IjogInN1Y2NlZWRlZC1oeXBvdGhlc2lzIgogICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgXQogICAgICAgIH0KICAgICAgfSwKICAgICAgewogICAgICAgICJwb3NpdGlvbiI6IDYsCiAgICAgICAgInJlY29yZCI6IHsKICAgICAgICAgICJpbnN0YW50IjogMCwKICAgICAgICAgICJvY2N1cnJlbmNlIjogMSwKICAgICAgICAgICJyZWNvcmQiOiAiRmlyaW5nQ29tcGxldGVkIiwKICAgICAgICAgICJzY2hlbWEiOiA0LAogICAgICAgICAgInRyYW5zaXRpb24iOiAiYWR2YW5jZSIKICAgICAgICB9CiAgICAgIH0KICAgIF0KICB9LAogICJvdXRjb21lIjogewogICAgImFjdGlvbnNfYXBwbGllZCI6IDEsCiAgICAicmVhc29uIjogInJlc3QiCiAgfSwKICAicHJvZmlsZSI6ICJpbXBsZW1lbnRhdGlvbi1mcmVlLXYxIiwKICAic2NlbmFyaW8iOiB7CiAgICAiaW5pdGlhbF9tYXJraW5nIjogWwogICAgICB7CiAgICAgICAgInBsYWNlIjogInBlbmRpbmciLAogICAgICAgICJ0b2tlbnMiOiBbCiAgICAgICAgICB7CiAgICAgICAgICAgICJjb2xvciI6ICJXb3JrIiwKICAgICAgICAgICAgImRhdGEiOiB7CiAgICAgICAgICAgICAgInJlc3VsdCI6ICJzdWNjZWVkZWQtaHlwb3RoZXNpcyIKICAgICAgICAgICAgfQogICAgICAgICAgfQogICAgICAgIF0KICAgICAgfQogICAgXSwKICAgICJtYXhfYWN0aW9ucyI6IDgsCiAgICAic3RhcnRfaW5zdGFudCI6IDAKICB9LAogICJzbmFwc2hvdCI6IHsKICAgICJjdXJyZW50IjogewogICAgICAiYXJtZWQiOiBbXSwKICAgICAgImluX2ZsaWdodCI6IFtdLAogICAgICAibWFya2luZyI6IFsKICAgICAgICB7CiAgICAgICAgICAicGxhY2UiOiAiZG9uZSIsCiAgICAgICAgICAidG9rZW5zIjogWwogICAgICAgICAgICB7CiAgICAgICAgICAgICAgImNvbG9yIjogIldvcmsiLAogICAgICAgICAgICAgICJkYXRhIjogewogICAgICAgICAgICAgICAgInJlc3VsdCI6ICJzdWNjZWVkZWQtaHlwb3RoZXNpcyIKICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0KICAgICAgICAgIF0KICAgICAgICB9CiAgICAgIF0sCiAgICAgICJuZXh0X21hdHVyYXRpb24iOiBudWxsLAogICAgICAic3RhdHVzIjogInRlcm1pbmF0ZWQiLAogICAgICAid2F0ZXJtYXJrIjogMAogICAgfSwKICAgICJkZWZpbml0aW9uIjogewogICAgICAiYXJjcyI6IFsKICAgICAgICB7CiAgICAgICAgICAiY29sb3IiOiAiV29yayIsCiAgICAgICAgICAiZmlsdGVyIjogbnVsbCwKICAgICAgICAgICJtb2RlIjogImNvbnN1bWUiLAogICAgICAgICAgInBvc2l0aW9uIjogMCwKICAgICAgICAgICJzb3VyY2UiOiAicGVuZGluZyIsCiAgICAgICAgICAidGFyZ2V0IjogImFkdmFuY2UiLAogICAgICAgICAgIndlaWdodCI6IDEKICAgICAgICB9LAogICAgICAgIHsKICAgICAgICAgICJjb2xvciI6ICJXb3JrIiwKICAgICAgICAgICJmaWx0ZXIiOiBudWxsLAogICAgICAgICAgIm1vZGUiOiAiY29uc3VtZSIsCiAgICAgICAgICAicG9zaXRpb24iOiAxLAogICAgICAgICAgInNvdXJjZSI6ICJhZHZhbmNlIiwKICAgICAgICAgICJ0YXJnZXQiOiAiZG9uZSIsCiAgICAgICAgICAid2VpZ2h0IjogMQogICAgICAgIH0KICAgICAgXSwKICAgICAgImNvbXBsZXRpb24iOiBudWxsLAogICAgICAibmFtZSI6ICJwb3J0YWJsZS1saW5lYWdlIiwKICAgICAgInBsYWNlcyI6IFsKICAgICAgICB7CiAgICAgICAgICAiY29sb3IiOiAiV29yayIsCiAgICAgICAgICAicGF0aCI6ICJkb25lIgogICAgICAgIH0sCiAgICAgICAgewogICAgICAgICAgImNvbG9yIjogIldvcmsiLAogICAgICAgICAgInBhdGgiOiAicGVuZGluZyIKICAgICAgICB9CiAgICAgIF0sCiAgICAgICJ0aW1lX2RvbWFpbiI6ICJpbnRlZ2VyIiwKICAgICAgInRyYW5zaXRpb25zIjogWwogICAgICAgIHsKICAgICAgICAgICJndWFyZHMiOiBbXSwKICAgICAgICAgICJoYW5kbGVyIjogbnVsbCwKICAgICAgICAgICJwYXRoIjogImFkdmFuY2UiLAogICAgICAgICAgInRpbWVycyI6IFtdCiAgICAgICAgfQogICAgICBdCiAgICB9LAogICAgImZyb250aWVyIjogNywKICAgICJpbnN0YW5jZSI6ICJzaW11bGF0aW9uIiwKICAgICJwcm90b2NvbCI6IDEKICB9LAogICJ2ZXJzaW9uIjogMQp9Cg=="
+        }
+      },
+      {
+        "id": 2,
+        "kind": "observation-capture",
+        "after": 2,
+        "artifact": {
+          "sha256": "9264837e7d5adb1ef8ab57f2542a5489ce9de1feee8f3fdf644b12fb496be495",
+          "base64": "ewogICJmb3JtYXQiOiAicGV0cnVzLW9ic2VydmF0aW9uLWNhcHR1cmUiLAogICJoaXN0b3J5IjogewogICAgImFmdGVyIjogMCwKICAgICJmcm9udGllciI6IDcsCiAgICAiaW5zdGFuY2UiOiAib2JzZXJ2ZWQtbGluZWFnZSIsCiAgICAibmV4dCI6IDcsCiAgICAicHJvdG9jb2wiOiAxLAogICAgInJlY29yZHMiOiBbCiAgICAgIHsKICAgICAgICAicG9zaXRpb24iOiAwLAogICAgICAgICJyZWNvcmQiOiB7CiAgICAgICAgICAiaW5zdGFuY2UiOiAib2JzZXJ2ZWQtbGluZWFnZSIsCiAgICAgICAgICAiaW5zdGFudCI6IDAsCiAgICAgICAgICAibmFtZSI6ICJwb3J0YWJsZS1saW5lYWdlIiwKICAgICAgICAgICJyZWNvcmQiOiAiSW5zdGFuY2VDcmVhdGVkIiwKICAgICAgICAgICJzY2hlbWEiOiA0CiAgICAgICAgfQogICAgICB9LAogICAgICB7CiAgICAgICAgInBvc2l0aW9uIjogMSwKICAgICAgICAicmVjb3JkIjogewogICAgICAgICAgImluc3RhbnQiOiAwLAogICAgICAgICAgInBsYWNlIjogInBlbmRpbmciLAogICAgICAgICAgInJlY29yZCI6ICJUb2tlbnNJbml0aWFsaXplZCIsCiAgICAgICAgICAic2NoZW1hIjogNCwKICAgICAgICAgICJ0b2tlbnMiOiBbCiAgICAgICAgICAgIHsKICAgICAgICAgICAgICAiY29sb3IiOiAiV29yayIsCiAgICAgICAgICAgICAgImRhdGEiOiB7CiAgICAgICAgICAgICAgICAicmVzdWx0IjogImZhaWxlZCIKICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0KICAgICAgICAgIF0KICAgICAgICB9CiAgICAgIH0sCiAgICAgIHsKICAgICAgICAicG9zaXRpb24iOiAyLAogICAgICAgICJyZWNvcmQiOiB7CiAgICAgICAgICAiaW5zdGFudCI6IDAsCiAgICAgICAgICAib2NjdXJyZW5jZSI6IDEsCiAgICAgICAgICAicmVjb3JkIjogIkNhbmRpZGF0ZVNlbGVjdGVkIiwKICAgICAgICAgICJzY2hlbWEiOiA0LAogICAgICAgICAgInRyYW5zaXRpb24iOiAiYWR2YW5jZSIKICAgICAgICB9CiAgICAgIH0sCiAgICAgIHsKICAgICAgICAicG9zaXRpb24iOiAzLAogICAgICAgICJyZWNvcmQiOiB7CiAgICAgICAgICAiaW5zdGFudCI6IDAsCiAgICAgICAgICAib2NjdXJyZW5jZSI6IDEsCiAgICAgICAgICAicmVjb3JkIjogIkZpcmluZ0JlZ3VuIiwKICAgICAgICAgICJzY2hlbWEiOiA0LAogICAgICAgICAgInRyYW5zaXRpb24iOiAiYWR2YW5jZSIKICAgICAgICB9CiAgICAgIH0sCiAgICAgIHsKICAgICAgICAicG9zaXRpb24iOiA0LAogICAgICAgICJyZWNvcmQiOiB7CiAgICAgICAgICAiaW5zdGFudCI6IDAsCiAgICAgICAgICAib2NjdXJyZW5jZSI6IDEsCiAgICAgICAgICAicGxhY2UiOiAicGVuZGluZyIsCiAgICAgICAgICAicmVjb3JkIjogIlRva2Vuc0NvbnN1bWVkIiwKICAgICAgICAgICJzY2hlbWEiOiA0LAogICAgICAgICAgInRva2VucyI6IFsKICAgICAgICAgICAgewogICAgICAgICAgICAgICJjb2xvciI6ICJXb3JrIiwKICAgICAgICAgICAgICAiZGF0YSI6IHsKICAgICAgICAgICAgICAgICJyZXN1bHQiOiAiZmFpbGVkIgogICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgXQogICAgICAgIH0KICAgICAgfSwKICAgICAgewogICAgICAgICJwb3NpdGlvbiI6IDUsCiAgICAgICAgInJlY29yZCI6IHsKICAgICAgICAgICJpbnN0YW50IjogMCwKICAgICAgICAgICJvY2N1cnJlbmNlIjogMSwKICAgICAgICAgICJwbGFjZSI6ICJkb25lIiwKICAgICAgICAgICJyZWNvcmQiOiAiVG9rZW5zUHJvZHVjZWQiLAogICAgICAgICAgInNjaGVtYSI6IDQsCiAgICAgICAgICAidG9rZW5zIjogWwogICAgICAgICAgICB7CiAgICAgICAgICAgICAgImNvbG9yIjogIldvcmsiLAogICAgICAgICAgICAgICJkYXRhIjogewogICAgICAgICAgICAgICAgInJlc3VsdCI6ICJmYWlsZWQiCiAgICAgICAgICAgICAgfQogICAgICAgICAgICB9CiAgICAgICAgICBdCiAgICAgICAgfQogICAgICB9LAogICAgICB7CiAgICAgICAgInBvc2l0aW9uIjogNiwKICAgICAgICAicmVjb3JkIjogewogICAgICAgICAgImluc3RhbnQiOiAwLAogICAgICAgICAgIm9jY3VycmVuY2UiOiAxLAogICAgICAgICAgInJlY29yZCI6ICJGaXJpbmdDb21wbGV0ZWQiLAogICAgICAgICAgInNjaGVtYSI6IDQsCiAgICAgICAgICAidHJhbnNpdGlvbiI6ICJhZHZhbmNlIgogICAgICAgIH0KICAgICAgfQogICAgXQogIH0sCiAgInNuYXBzaG90IjogewogICAgImN1cnJlbnQiOiB7CiAgICAgICJhcm1lZCI6IFtdLAogICAgICAiaW5fZmxpZ2h0IjogW10sCiAgICAgICJtYXJraW5nIjogWwogICAgICAgIHsKICAgICAgICAgICJwbGFjZSI6ICJkb25lIiwKICAgICAgICAgICJ0b2tlbnMiOiBbCiAgICAgICAgICAgIHsKICAgICAgICAgICAgICAiY29sb3IiOiAiV29yayIsCiAgICAgICAgICAgICAgImRhdGEiOiB7CiAgICAgICAgICAgICAgICAicmVzdWx0IjogImZhaWxlZCIKICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0KICAgICAgICAgIF0KICAgICAgICB9CiAgICAgIF0sCiAgICAgICJuZXh0X21hdHVyYXRpb24iOiBudWxsLAogICAgICAic3RhdHVzIjogInRlcm1pbmF0ZWQiLAogICAgICAid2F0ZXJtYXJrIjogMAogICAgfSwKICAgICJkZWZpbml0aW9uIjogewogICAgICAiYXJjcyI6IFsKICAgICAgICB7CiAgICAgICAgICAiY29sb3IiOiAiV29yayIsCiAgICAgICAgICAiZmlsdGVyIjogbnVsbCwKICAgICAgICAgICJtb2RlIjogImNvbnN1bWUiLAogICAgICAgICAgInBvc2l0aW9uIjogMCwKICAgICAgICAgICJzb3VyY2UiOiAicGVuZGluZyIsCiAgICAgICAgICAidGFyZ2V0IjogImFkdmFuY2UiLAogICAgICAgICAgIndlaWdodCI6IDEKICAgICAgICB9LAogICAgICAgIHsKICAgICAgICAgICJjb2xvciI6ICJXb3JrIiwKICAgICAgICAgICJmaWx0ZXIiOiBudWxsLAogICAgICAgICAgIm1vZGUiOiAiY29uc3VtZSIsCiAgICAgICAgICAicG9zaXRpb24iOiAxLAogICAgICAgICAgInNvdXJjZSI6ICJhZHZhbmNlIiwKICAgICAgICAgICJ0YXJnZXQiOiAiZG9uZSIsCiAgICAgICAgICAid2VpZ2h0IjogMQogICAgICAgIH0KICAgICAgXSwKICAgICAgImNvbXBsZXRpb24iOiBudWxsLAogICAgICAibmFtZSI6ICJwb3J0YWJsZS1saW5lYWdlIiwKICAgICAgInBsYWNlcyI6IFsKICAgICAgICB7CiAgICAgICAgICAiY29sb3IiOiAiV29yayIsCiAgICAgICAgICAicGF0aCI6ICJkb25lIgogICAgICAgIH0sCiAgICAgICAgewogICAgICAgICAgImNvbG9yIjogIldvcmsiLAogICAgICAgICAgInBhdGgiOiAicGVuZGluZyIKICAgICAgICB9CiAgICAgIF0sCiAgICAgICJ0aW1lX2RvbWFpbiI6ICJpbnRlZ2VyIiwKICAgICAgInRyYW5zaXRpb25zIjogWwogICAgICAgIHsKICAgICAgICAgICJndWFyZHMiOiBbXSwKICAgICAgICAgICJoYW5kbGVyIjogbnVsbCwKICAgICAgICAgICJwYXRoIjogImFkdmFuY2UiLAogICAgICAgICAgInRpbWVycyI6IFtdCiAgICAgICAgfQogICAgICBdCiAgICB9LAogICAgImZyb250aWVyIjogNywKICAgICJpbnN0YW5jZSI6ICJvYnNlcnZlZC1saW5lYWdlIiwKICAgICJwcm90b2NvbCI6IDEKICB9LAogICJ2ZXJzaW9uIjogMQp9Cg=="
+        }
+      }
+    ],
+    "head": 9,
+    "entries": [
+      {
+        "id": 0,
+        "parent": null,
+        "provenance": "observed",
+        "fact": {
+          "kind": "history-record",
+          "source": 0,
+          "position": 0,
+          "record": {
+            "instance": "observed-lineage",
+            "instant": 0,
+            "name": "portable-lineage",
+            "record": "InstanceCreated",
+            "schema": 4
+          }
+        }
+      },
+      {
+        "id": 1,
+        "parent": 0,
+        "provenance": "observed",
+        "fact": {
+          "kind": "history-record",
+          "source": 0,
+          "position": 1,
+          "record": {
+            "instant": 0,
+            "place": "pending",
+            "record": "TokensInitialized",
+            "schema": 4,
+            "tokens": [
+              {
+                "color": "Work",
+                "data": {
+                  "result": "failed"
+                }
+              }
+            ]
+          }
+        },
+        "checkpoint": [
+          {
+            "place": "pending",
+            "tokens": [
+              {
+                "color": "Work",
+                "data": {
+                  "result": "failed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "parent": 1,
+        "provenance": "manual",
+        "fact": {
+          "kind": "manual-replace-marking",
+          "marking": [
+            {
+              "place": "pending",
+              "tokens": [
+                {
+                  "color": "Work",
+                  "data": {
+                    "result": "succeeded-hypothesis"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": 3,
+        "parent": 2,
+        "provenance": "simulated",
+        "fact": {
+          "kind": "history-record",
+          "source": 1,
+          "position": 0,
+          "record": {
+            "instance": "simulation",
+            "instant": 0,
+            "name": "portable-lineage",
+            "record": "InstanceCreated",
+            "schema": 4
+          }
+        }
+      },
+      {
+        "id": 4,
+        "parent": 3,
+        "provenance": "simulated",
+        "fact": {
+          "kind": "history-record",
+          "source": 1,
+          "position": 1,
+          "record": {
+            "instant": 0,
+            "place": "pending",
+            "record": "TokensInitialized",
+            "schema": 4,
+            "tokens": [
+              {
+                "color": "Work",
+                "data": {
+                  "result": "succeeded-hypothesis"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": 5,
+        "parent": 4,
+        "provenance": "simulated",
+        "fact": {
+          "kind": "history-record",
+          "source": 1,
+          "position": 2,
+          "record": {
+            "instant": 0,
+            "occurrence": 1,
+            "record": "CandidateSelected",
+            "schema": 4,
+            "transition": "advance"
+          }
+        }
+      },
+      {
+        "id": 6,
+        "parent": 5,
+        "provenance": "simulated",
+        "fact": {
+          "kind": "history-record",
+          "source": 1,
+          "position": 3,
+          "record": {
+            "instant": 0,
+            "occurrence": 1,
+            "record": "FiringBegun",
+            "schema": 4,
+            "transition": "advance"
+          }
+        }
+      },
+      {
+        "id": 7,
+        "parent": 6,
+        "provenance": "simulated",
+        "fact": {
+          "kind": "history-record",
+          "source": 1,
+          "position": 4,
+          "record": {
+            "instant": 0,
+            "occurrence": 1,
+            "place": "pending",
+            "record": "TokensConsumed",
+            "schema": 4,
+            "tokens": [
+              {
+                "color": "Work",
+                "data": {
+                  "result": "succeeded-hypothesis"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": 8,
+        "parent": 7,
+        "provenance": "simulated",
+        "fact": {
+          "kind": "history-record",
+          "source": 1,
+          "position": 5,
+          "record": {
+            "instant": 0,
+            "occurrence": 1,
+            "place": "done",
+            "record": "TokensProduced",
+            "schema": 4,
+            "tokens": [
+              {
+                "color": "Work",
+                "data": {
+                  "result": "succeeded-hypothesis"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": 9,
+        "parent": 8,
+        "provenance": "simulated",
+        "fact": {
+          "kind": "history-record",
+          "source": 1,
+          "position": 6,
+          "record": {
+            "instant": 0,
+            "occurrence": 1,
+            "record": "FiringCompleted",
+            "schema": 4,
+            "transition": "advance"
+          }
+        },
+        "checkpoint": [
+          {
+            "place": "done",
+            "tokens": [
+              {
+                "color": "Work",
+                "data": {
+                  "result": "succeeded-hypothesis"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "parent": 1,
+        "provenance": "observed",
+        "fact": {
+          "kind": "history-record",
+          "source": 2,
+          "position": 2,
+          "record": {
+            "instant": 0,
+            "occurrence": 1,
+            "record": "CandidateSelected",
+            "schema": 4,
+            "transition": "advance"
+          }
+        }
+      },
+      {
+        "id": 11,
+        "parent": 10,
+        "provenance": "observed",
+        "fact": {
+          "kind": "history-record",
+          "source": 2,
+          "position": 3,
+          "record": {
+            "instant": 0,
+            "occurrence": 1,
+            "record": "FiringBegun",
+            "schema": 4,
+            "transition": "advance"
+          }
+        }
+      },
+      {
+        "id": 12,
+        "parent": 11,
+        "provenance": "observed",
+        "fact": {
+          "kind": "history-record",
+          "source": 2,
+          "position": 4,
+          "record": {
+            "instant": 0,
+            "occurrence": 1,
+            "place": "pending",
+            "record": "TokensConsumed",
+            "schema": 4,
+            "tokens": [
+              {
+                "color": "Work",
+                "data": {
+                  "result": "failed"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": 13,
+        "parent": 12,
+        "provenance": "observed",
+        "fact": {
+          "kind": "history-record",
+          "source": 2,
+          "position": 5,
+          "record": {
+            "instant": 0,
+            "occurrence": 1,
+            "place": "done",
+            "record": "TokensProduced",
+            "schema": 4,
+            "tokens": [
+              {
+                "color": "Work",
+                "data": {
+                  "result": "failed"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": 14,
+        "parent": 13,
+        "provenance": "observed",
+        "fact": {
+          "kind": "history-record",
+          "source": 2,
+          "position": 6,
+          "record": {
+            "instant": 0,
+            "occurrence": 1,
+            "record": "FiringCompleted",
+            "schema": 4,
+            "transition": "advance"
+          }
+        },
+        "checkpoint": [
+          {
+            "place": "done",
+            "tokens": [
+              {
+                "color": "Work",
+                "data": {
+                  "result": "failed"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

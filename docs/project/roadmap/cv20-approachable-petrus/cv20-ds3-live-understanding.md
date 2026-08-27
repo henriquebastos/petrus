@@ -3,9 +3,9 @@ code: CV20.DS3
 level: Delivery Story
 status: Active
 status_reason: >-
-  TS1 and the paired Arx static V5 arrangement route are Done. The next Petrus
-  movement is ES-061's optional strict flat lineage; live correlation and the
-  application-bound capable fork remain later children.
+  Petrus's definition/view and forkable-lineage foundations plus Arx's static
+  V5 arrangement route are Done. The next movement is Arx lineage interaction;
+  live correlation and the application-bound capable fork remain later.
 updated: 2026-08-27
 related:
   - index.md
@@ -43,8 +43,10 @@ presentation and file custody; neither enters Engine execution authority.
   [CV20.DS3.TS1 — Portable definition and view document foundation](cv20-ds3-live-understanding/cv20-ds3-ts1-portable-definition-view/index.md)
   owns strict envelope, definition identity, node-position view, projection,
   owner fixtures, and the contract Arx consumed for the static V5 route.
-- **Next Petrus substrate:** forkable lineage validation, evidence-source
-  custody, projection, and conformance fixtures from ES-061's accepted model.
+- **Done:**
+  [CV20.DS3.TS2 — Forkable execution lineage foundation](cv20-ds3-live-understanding/cv20-ds3-ts2-forkable-lineage/index.md)
+  owns forkable lineage validation, evidence-source custody, navigation
+  projection, and conformance fixtures from ES-061's accepted model.
 - **US1 — Arrange Hamsterdan V5 in Arx.** Open the real 108-place,
   137-transition, 570-arc V5 Net on the shared canvas; zoom, pan, move, save,
   close, and reopen without changing definition identity.

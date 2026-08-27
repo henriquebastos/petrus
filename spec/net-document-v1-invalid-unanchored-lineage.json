@@ -1,0 +1,66 @@
+{
+  "format": "petrus-net-document",
+  "version": 1,
+  "definition": {
+    "format": "petrus-net-definition",
+    "version": 3,
+    "definition": {
+      "name": "portable-lineage",
+      "time_domain": "integer",
+      "places": [
+        {
+          "path": "done",
+          "color": "Work"
+        },
+        {
+          "path": "pending",
+          "color": "Work"
+        }
+      ],
+      "transitions": [
+        {
+          "path": "advance",
+          "handler": null,
+          "guards": [],
+          "timers": []
+        }
+      ],
+      "arcs": [
+        {
+          "position": 0,
+          "source": "pending",
+          "target": "advance",
+          "mode": "consume",
+          "weight": 1,
+          "color": "Work",
+          "filter": null
+        },
+        {
+          "position": 1,
+          "source": "advance",
+          "target": "done",
+          "mode": "consume",
+          "weight": 1,
+          "color": "Work",
+          "filter": null
+        }
+      ],
+      "completion": null
+    }
+  },
+  "lineage": {
+    "sources": [],
+    "head": 0,
+    "entries": [
+      {
+        "id": 0,
+        "parent": null,
+        "provenance": "manual",
+        "fact": {
+          "kind": "manual-replace-marking",
+          "marking": []
+        }
+      }
+    ]
+  }
+}

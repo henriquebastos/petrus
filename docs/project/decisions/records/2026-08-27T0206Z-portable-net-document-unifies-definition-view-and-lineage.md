@@ -24,16 +24,15 @@ whose optional facts determine what a consumer can show and safely change?
 
 Petrus owns one strict `petrus-net-document` v1 envelope. Every document
 contains one exact canonical Net-definition v3 document. It may also contain
-an identity-neutral portable view and, after a later Delivery story specifies
-and implements it, one optional forkable execution lineage.
+an identity-neutral portable view and one optional forkable execution lineage.
 
 The static foundation carries node positions only. Paths directly address
 places and transitions in the embedded definition; partial views are valid.
 Moving a node changes view bytes but not the definition identity, which remains
 the SHA-256 digest of canonical Net-definition v3 bytes.
 
-The later lineage uses one flat entry sequence rather than distinct capture
-and simulation trees. Entry ids are sequential integers equal to list indexes;
+The lineage uses one flat entry sequence rather than distinct capture and
+simulation trees. Entry ids are sequential integers equal to list indexes;
 each non-root entry names an earlier parent. Observed and simulated entries
 carry the same generic History-record fact with explicit provenance. Manual
 interventions are explicit hypotheses in that same sequence. Retained source
@@ -73,21 +72,21 @@ inventing unrelated event models.
 ## Consequences
 
 - Net-definition v3 remains unchanged and independently usable.
-- The current foundation strictly refuses unknown lineage fields until their
-  contract and implementation land; pre-release v1 is complete only when
-  CV20.DS3 closes.
+- The lineage contract retains exact source bytes, relates every copied record
+  to its source position, and resolves one common navigation sequence; other
+  unknown execution fields remain strictly refused.
 - Arx derives current-Petrus interaction directly from the embedded v3
   definition and writes portable view facts without translating through its
   predecessor v2 workspace schema.
 - Observation capture and simulation-result protocols remain source
-  authorities during the later lineage bridge; this decision does not silently
+  authorities inside the lineage bridge; this decision does not silently
   replace their current producers.
 - Camera state, selection, panels, credentials, implementation bindings, and
   editor-local affordances remain outside the portable document.
 
 ## Review Trigger
 
-Review before the first stable release of document v1, when lineage's concrete
-schema is delivered, or if a non-Arx consumer demonstrates that direct node
-positions or flat parent-linked entries cannot preserve required portable
-truth.
+Review before the first stable release of document v1, when measured retained
+artifacts require external attachment custody, or if a non-Arx consumer
+demonstrates that direct node positions or flat parent-linked entries cannot
+preserve required portable truth.
