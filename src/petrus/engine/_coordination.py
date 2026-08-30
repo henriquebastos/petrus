@@ -8,8 +8,8 @@ that bargain [ADR 0005, DR 2026-07-08 time-projection-virtual-clock-watermark]:
 *how* instants are observed and *where* activities run. The public ``Engine``
 hosts this coordination and exposes whole-action advancement without blocking.
 The ``Sensor`` is the Clock's ingress twin: each observation transfers a finite
-batch of already-available ``Delivery`` parcels for the coordinator to land
-through the instance's ``deliver`` door.
+batch of already-available ``Delivery`` parcels. The coordinator durably
+accepts each parcel before it runs the parcel's pure source projection.
 
 The ``Coordinator`` is the asynchronous driver over the same seam [ES-012
 session 3, §Asynchronous coordination and composable policy]: dispatch
@@ -67,11 +67,20 @@ from petrus.motus.dispatch import (
     Dispatch,
 )
 from petrus.impetus.petrinet import Binding, Selection
-from petrus.impetus.instance import FiringOccurrence, FiringOutcome, ScopeClosure
+from petrus.impetus.instance import (
+    AcceptedDelivery,
+    DeliveryIdentity,
+    FiringOccurrence,
+    FiringOutcome,
+    ScopeClosure,
+    _CompletionCommitRefused,
+    firing_failure_text,
+)
 from petrus.impetus.petrinet import Token
 from petrus.impetus.instance import Instance
 from petrus.impetus.petrinet import Instant, NetPath
-from petrus.impetus.history import replay_cancellation_positions
+from petrus.impetus.petrinet.schema import canonical_net_path
+from petrus.impetus.history import FiringFailed, replay_cancellation_positions
 from petrus.impetus.scope import LifecycleScope
 from petrus.impetus.selection import (
     SelectionPipeline,
@@ -95,7 +104,7 @@ log = telemetry.get_logger("impetus")
 
 
 def _driver_log(instance: Instance) -> telemetry.TelemetryLogger:
-    """The driver's bound logger — the instance's identity (``instance=``) and named kind (``net=``), so a driver span and the door events inside it group under one identity. Unbound only over a pre-identity legacy resume."""
+    """Bind driver spans and door events to the same instance identity and net kind."""
     fields: dict[str, str] = {}
     if instance.instance_id is not None:
         fields["instance"] = instance.instance_id
@@ -129,11 +138,10 @@ def _emit_gauges(instance_log: telemetry.TelemetryLogger, instance: Instance, **
 @dataclass(frozen=True)
 class Delivery:
     """
-    A sensor's parcel: one external delivery for a driver to land through
-    the instance's ``deliver`` door — the source transition it addresses, the
-    tokens it carries, and the stable ``identity`` the ingress adapter
-    extracted or constructed (``None`` stays honest: no transport identity
-    existed, and the writer derives the occurrence self-identity)
+    A sensor's parcel: one external delivery for a driver to accept before
+    source projection — the source transition it addresses, the tokens it
+    carries, and the stable ``identity`` the ingress adapter
+    extracted or constructed
     [DR 2026-07-14 source-delivery-projection-and-identity]. It admits
     ``deliver``'s spellings (a dotted string
     source, a bare token) and normalizes them at construction — the
@@ -146,31 +154,39 @@ class Delivery:
 
     source: NetPath
     tokens: tuple[Token, ...]
-    identity: str | None = None
+    identity: str
     scope: LifecycleScope | str | None = None
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "source", NetPath(self.source))
+        object.__setattr__(self, "source", canonical_net_path(self.source, "delivery source"))
         if isinstance(self.tokens, str | bytes):
             raise ValueError(
                 f"delivery to {self.source}: tokens must be a Token or a sequence of Tokens, found {self.tokens!r}"
             )
         tokens = (self.tokens,) if isinstance(self.tokens, Token) else tuple(self.tokens)
         object.__setattr__(self, "tokens", tokens)
-        if self.scope is not None and not isinstance(self.scope, (LifecycleScope, str)):
-            raise TypeError("delivery scope must be a LifecycleScope, name string, or None")
+        if type(self.identity) is DeliveryIdentity:
+            object.__setattr__(self, "identity", str(self.identity))
+        elif type(self.identity) is not str or not self.identity:
+            raise ValueError(
+                f"delivery identity must be a non-empty string of the exact built-in type, got {self.identity!r}"
+            )
+        if self.scope is not None and type(self.scope) not in {LifecycleScope, str}:
+            raise TypeError("delivery scope must be an exact LifecycleScope, exact name string, or None")
+        if type(self.scope) is str and (not self.scope or "\x00" in self.scope):
+            raise ValueError("delivery scope name must be non-empty and contain no NUL")
 
 
 # A sensor: a nonblocking local ingress adapter for the Coordinator. Each
 # observation turn while a registration is armed, it transfers a finite batch
 # of deliveries already available in process memory — or an empty sequence,
 # handing control back immediately. Durable transports retain custody and use
-# Engine.deliver directly; the Sensor itself claims no process-crash
+# Engine.accept_delivery directly; the Sensor itself claims no process-crash
 # durability. The sensor extracts or constructs each
 # parcel's stable identity; the single writer enforces idempotent acceptance at
-# the delivery door — a redelivered identity is acknowledged, never landed
-# twice (2026-07-14T1806Z source-delivery decision). An unidentified delivery
-# still leans on the sensor's own dedup.
+# the delivery door — exact redelivery reconstructs an unfinished acceptance or
+# acknowledges its completed occurrence, never accepting it twice
+# (2026-07-14T1806Z source-delivery decision).
 type Sensor = Callable[[], Sequence[Delivery]]
 
 
@@ -209,16 +225,21 @@ class SimulatedClock:
 
 
 def _complete_pure(
-    instance: Instance, occurrence: FiringOccurrence, clock: Clock, span: telemetry.Span | None = None
+    instance: Instance,
+    occurrence: FiringOccurrence,
+    clock: Clock,
+    span: telemetry.Span | None = None,
+    commit_failure: Callable[[], None] | None = None,
 ) -> FiringOutcome:
     """
     Drive a begun PURE occurrence to terminal, stamped from the driver's
     clock: run the bound handler here (a pure projection executes at the
     writer, by ruling — never on an execution substrate) and commit its
     terminal outcome. A raising handler, or a result the commit rejects, is
-    failed and propagates — the ruled other half of complete()'s
-    fail-loud-before-append, discharged by every driver of the seam. One
-    home for the coordinator's ``BeginCandidate`` and reconcile legs.
+    failed and settled through ``commit_failure`` before propagation. A
+    provider refusal or acknowledgement loss at that settlement takes
+    precedence; fresh load decides whether the failure committed. One home
+    for the coordinator's ``BeginCandidate`` and reconcile legs.
     """
     binding = occurrence.binding
     handler = instance.bound_handler(binding.transition)
@@ -233,10 +254,14 @@ def _complete_pure(
         with handler_timer:
             result = handler(binding, outputs)
         with commit_timer:
-            return instance.complete(occurrence, result, at=clock.now())
+            return instance._commit_completion(occurrence, result, at=clock.now())
+    except _CompletionCommitRefused as refusal:
+        raise refusal.error
     except Exception as error:
         if occurrence in instance.in_flight:
-            instance.fail(occurrence, repr(error), at=clock.now())
+            instance.fail(occurrence, firing_failure_text(error), at=clock.now())
+            if commit_failure is not None:
+                commit_failure()
         raise
 
 
@@ -262,7 +287,7 @@ class AcceptResult:
 
 @dataclass(frozen=True)
 class AcceptDelivery:
-    """Land one sensed ``delivery`` through the instance's ``deliver`` door — a redelivered identity acknowledges instead of firing."""
+    """Accept one sensed ``delivery`` durably, then complete only its pure source occurrence."""
 
     delivery: Delivery
 
@@ -482,7 +507,8 @@ class Coordinator:
         # completion-side, the freeze (record_activity_completion) and the
         # projection (complete) are TWO boundaries — the frozen result
         # commits first and survives a projection crash [DR 2026-07-14
-        # activity-invocation-runtime-seam]. Also called after reconcile,
+        # activity-invocation-runtime-seam]. Source delivery likewise commits
+        # acceptance before its pure projection. Also called after reconcile,
         # after a terminal-failure fail() before its halt propagates (the
         # recorded failure must outlive the raise), and before drive()
         # returns (no idle transaction is left open across a Wait). None for
@@ -541,6 +567,7 @@ class Coordinator:
                     waiting = isinstance(action, Wait)
                     span.set(firings=len(firings), waiting=waiting, ready=False)
                     return DriveOutcome(tuple(firings), waiting, next_maturation=self.instance.next_maturation)
+                before_action = len(self.instance.history)
                 with span.accumulate_time("apply_ms"):
                     proposal, applied = self._apply(action, firings, span)
                 if applied:
@@ -558,7 +585,8 @@ class Coordinator:
                 if action not in snapshot.actions:
                     raise ValueError(f"the policy chose an action the coordinator did not offer: {action!r}")
             span.increment("actions")
-            self._committed()
+            if not isinstance(action, AcceptDelivery) or len(self.instance.history) != before_action:
+                self._committed()
             if proposal is not None:
                 self._install_selection(proposal)
             self._previous = action
@@ -603,7 +631,15 @@ class Coordinator:
                 firings.append(self.instance.complete(occurrence, at=self._clock.now()))
         for occurrence in in_flight:
             if occurrence.invocation is None:
-                firings.append(_complete_pure(self.instance, occurrence, self._clock, span))
+                firings.append(
+                    _complete_pure(
+                        self.instance,
+                        occurrence,
+                        self._clock,
+                        span=span,
+                        commit_failure=self._committed,
+                    )
+                )
 
     def _reconcile_cancellations(self) -> None:
         """Repair canonical close/reset instructions before republishing live outbox work."""
@@ -674,7 +710,10 @@ class Coordinator:
                 raise ValueError(
                     "sensor returned None: a sensor answers with a sequence of deliveries — empty to decline"
                 )
-            self._deliveries.extend(tuple(answer))
+            parcels = tuple(answer)
+            if any(type(parcel) is not Delivery for parcel in parcels):
+                raise TypeError("sensor must return exact Delivery values")
+            self._deliveries.extend(parcels)
         # Preserve Sensor FIFO. If an earlier action closed a buffered parcel's
         # source, hold it and everything behind it until that source re-arms
         # rather than offering an action the writer would refuse.
@@ -740,16 +779,35 @@ class Coordinator:
                 firings.append(self.instance.complete(occurrence, at=self._clock.now()))
                 return None, True
             case AcceptDelivery(delivery=delivery):
-                self._deliveries.remove(delivery)
-                landed = self.instance.deliver(
+                position = next(index for index, buffered in enumerate(self._deliveries) if buffered is delivery)
+                del self._deliveries[position]
+                before_acceptance = len(self.instance.history)
+                accepted = self.instance.accept_delivery(
                     delivery.source,
                     delivery.tokens,
                     at=self._clock.now(),
                     identity=delivery.identity,
                     scope=delivery.scope,
                 )
-                if isinstance(landed, FiringOutcome):
-                    firings.append(landed)
+                if isinstance(accepted, AcceptedDelivery):
+                    # The accepted identity and begun source occurrence are a
+                    # complete durability cut. A fresh acceptance settles
+                    # before projection; exact reconstruction appends nothing
+                    # and therefore needs no empty provider commit.
+                    if len(self.instance.history) != before_acceptance:
+                        self._committed()
+                    before = len(self.instance.history)
+                    try:
+                        firings.append(self.instance.complete_delivery(accepted, at=self._clock.now()))
+                    except Exception:
+                        records = self.instance.history.records
+                        if (
+                            len(records) == before + 1
+                            and isinstance(records[-1], FiringFailed)
+                            and records[-1].occurrence == accepted.occurrence
+                        ):
+                            self._committed()
+                        raise
                 return None, True
             case BeginCandidate(binding=binding, proposal=proposal):
                 with span.accumulate_time("begin_ms"):
@@ -762,7 +820,15 @@ class Coordinator:
                 if self._commit is None:
                     self._install_selection(proposal)
                 if occurrence.invocation is None:
-                    firings.append(_complete_pure(self.instance, occurrence, self._clock, span))
+                    firings.append(
+                        _complete_pure(
+                            self.instance,
+                            occurrence,
+                            self._clock,
+                            span=span,
+                            commit_failure=self._committed,
+                        )
+                    )
                 else:
                     self._dispatched[occurrence.id] = occurrence
                     self._dispatch.dispatch(occurrence.id, occurrence.invocation)

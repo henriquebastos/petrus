@@ -89,7 +89,7 @@ class DeliverEvent(StrictModel):
     kind: Literal["deliver"]
     source: str = Field(min_length=1)
     tokens: list[TokenValue] = Field(min_length=1)
-    identity: str | None
+    identity: str = Field(min_length=1)
 
 
 class DriveEvent(StrictModel):

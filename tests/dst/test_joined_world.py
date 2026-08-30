@@ -345,7 +345,7 @@ def test_joined_delivery_checker_refuses_phantom_acceptance_and_ack_loss() -> No
                 {
                     "accepted": False,
                     "dispatch_attempted": False,
-                    "record_types": ["ExternalEventDelivered", "FiringBegun", "TokensProduced", "FiringCompleted"],
+                    "record_types": ["ExternalEventDelivered", "FiringBegun"],
                 }
             ],
         },
@@ -373,7 +373,7 @@ def test_joined_delivery_checker_refuses_phantom_acceptance_and_ack_loss() -> No
     missing_result: CheckResult = checker.check(ack_without_acceptance)
 
     assert phantom_result.passed is False
-    assert phantom_result.detail["accepted_transactions"] == 0
+    assert phantom_result.detail["accepted_acceptances"] == 0
     assert missing_result.passed is False
     assert missing_result.detail["ack_losses"] == 1
 
@@ -1362,7 +1362,12 @@ def test_joined_reset_checker_refuses_a_canonical_fence_after_refused_reset() ->
                 {
                     "accepted": True,
                     "dispatch_attempted": False,
-                    "record_types": ["ExternalEventDelivered", "FiringBegun", "TokensProduced", "FiringCompleted"],
+                    "record_types": ["ExternalEventDelivered", "FiringBegun"],
+                },
+                {
+                    "accepted": True,
+                    "dispatch_attempted": False,
+                    "record_types": ["TokensProduced", "FiringCompleted"],
                 },
                 {
                     "accepted": True,
@@ -1621,7 +1626,12 @@ def test_joined_accepted_reset_checker_refuses_ack_loss_without_accepted_reset()
                 {
                     "accepted": True,
                     "dispatch_attempted": False,
-                    "record_types": ["ExternalEventDelivered", "FiringBegun", "TokensProduced", "FiringCompleted"],
+                    "record_types": ["ExternalEventDelivered", "FiringBegun"],
+                },
+                {
+                    "accepted": True,
+                    "dispatch_attempted": False,
+                    "record_types": ["TokensProduced", "FiringCompleted"],
                 },
                 {
                     "accepted": True,

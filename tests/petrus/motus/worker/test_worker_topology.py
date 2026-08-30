@@ -37,7 +37,14 @@ from petrus.motus.activity import ActivityDeclaration, ActivityInvocation, Execu
 from petrus.motus.dispatch.absurd import AbsurdDispatch, AbsurdWorkerDispatch, encode_invocation
 from petrus.engine import DriveOutcome, Engine
 from petrus.engine.absurd import create_engine, load_engine
-from petrus.impetus.history import ActivityCompleted, ActivityRequested, CandidateSelected, InstanceCreated, ScopeClosed
+from petrus.impetus.history import (
+    ActivityCompleted,
+    ActivityRequested,
+    CandidateSelected,
+    DeliveryRegistrationOpened,
+    InstanceCreated,
+    ScopeClosed,
+)
 from petrus.impetus.history.codec import encode_record
 from petrus.impetus.history_store.postgres import PostgresHistoryStore
 from petrus.impetus.instance import Instance, Status
@@ -222,9 +229,9 @@ class TestEndToEnd:
         issue = f"goose-{uuid4().hex[:6]}"
         session = open_session(fixture_db, instance)
 
-        session.deliver(INGRESS, Token(ISSUE, {"id": issue}))
+        session.deliver(INGRESS, Token(ISSUE, {"id": issue}), identity=f"ingress-{issue}")
         drive_until_rest(session)
-        session.deliver(OPERATOR, Token(APPROVAL, {"id": issue}))
+        session.deliver(OPERATOR, Token(APPROVAL, {"id": issue}), identity=f"approval-{issue}")
         drive_until_rest(session)
 
         # Done, with the worker's result projected server-side onto the token.
@@ -291,7 +298,11 @@ class TestWorkerKill:
             attempts=2,
             activities=[ActivityDeclaration("spark_work", heartbeat_timeout=1)],
         )
-        session.deliver(INGRESS, Token(ISSUE, {"id": issue, "mode": "heartbeat-long"}))
+        session.deliver(
+            INGRESS,
+            Token(ISSUE, {"id": issue, "mode": "heartbeat-long"}),
+            identity=f"ingress-{issue}",
+        )
         drive_until_rest(session)
 
         completed = []
@@ -358,7 +369,11 @@ class TestWorkerKill:
             attempts=2,
             activities=[ActivityDeclaration("spark_work", heartbeat_timeout=1)],
         )
-        session.deliver(INGRESS, Token(ISSUE, {"id": issue, "mode": "checkpoint-crash", "barrier": str(barrier)}))
+        session.deliver(
+            INGRESS,
+            Token(ISSUE, {"id": issue, "mode": "checkpoint-crash", "barrier": str(barrier)}),
+            identity=f"ingress-{issue}",
+        )
         assert advance_until_blocked(session).waiting
         deadline = time.monotonic() + 15
         while not barrier.exists():
@@ -390,7 +405,7 @@ class TestWorkerKill:
         issue = f"goose-{uuid4().hex[:6]}"
         session = open_session(fixture_db, instance, attempts=2, default_heartbeat_timeout=1)
 
-        session.deliver(INGRESS, Token(ISSUE, {"id": issue}))
+        session.deliver(INGRESS, Token(ISSUE, {"id": issue}), identity=f"ingress-{issue}")
         outcome = advance_until_blocked(session)
         assert outcome.waiting  # dispatched, out with the worker
 
@@ -415,7 +430,7 @@ class TestWorkerKill:
 
         worker_factory(claim_timeout=1, worker_id="successor")
         drive_until_rest(session, deadline_seconds=30)
-        session.deliver(OPERATOR, Token(APPROVAL, {"id": issue}))
+        session.deliver(OPERATOR, Token(APPROVAL, {"id": issue}), identity=f"approval-{issue}")
         drive_until_rest(session)
 
         assert session.status is Status.COMPLETED
@@ -443,7 +458,11 @@ class TestWorkerKill:
         issue = f"goose-{uuid4().hex[:6]}"
         session = open_session(fixture_db, instance)
 
-        session.deliver(INGRESS, Token(ISSUE, {"id": issue, "nap": 1.0}))
+        session.deliver(
+            INGRESS,
+            Token(ISSUE, {"id": issue, "nap": 1.0}),
+            identity=f"ingress-{issue}",
+        )
         outcome = advance_until_blocked(session)
         assert outcome.waiting
         with psycopg.connect(fixture_db, autocommit=True) as probe:
@@ -457,7 +476,7 @@ class TestWorkerKill:
         assert worker.wait(timeout=10) == 0
 
         drive_until_rest(session)
-        session.deliver(OPERATOR, Token(APPROVAL, {"id": issue}))
+        session.deliver(OPERATOR, Token(APPROVAL, {"id": issue}), identity=f"approval-{issue}")
         drive_until_rest(session)
         assert session.status is Status.COMPLETED
 
@@ -467,7 +486,7 @@ class TestAuthorityKill:
         instance = f"topo-{uuid4().hex[:10]}"
         issue = f"goose-{uuid4().hex[:6]}"
         first = open_session(fixture_db, instance)
-        first.deliver(INGRESS, Token(ISSUE, {"id": issue}))
+        first.deliver(INGRESS, Token(ISSUE, {"id": issue}), identity=f"ingress-{issue}")
         outcome = advance_until_blocked(first)
         assert outcome.waiting  # begin batch + spawn + doorbell committed as one
         close_session(first)  # the authority dies here; nothing uncommitted existed
@@ -486,7 +505,7 @@ class TestAuthorityKill:
 
         worker_factory()
         drive_until_rest(second)
-        second.deliver(OPERATOR, Token(APPROVAL, {"id": issue}))
+        second.deliver(OPERATOR, Token(APPROVAL, {"id": issue}), identity=f"approval-{issue}")
         drive_until_rest(second)
 
         assert second.status is Status.COMPLETED
@@ -503,7 +522,11 @@ class TestAuthorityKill:
         instance = f"topo-{uuid4().hex[:10]}"
         issue = f"goose-{uuid4().hex[:6]}"
         bootstrap = open_session(fixture_db, instance)
-        bootstrap.deliver(INGRESS, Token(ISSUE, {"id": issue}))  # a committed prior fact
+        bootstrap.deliver(
+            INGRESS,
+            Token(ISSUE, {"id": issue}),
+            identity=f"ingress-{issue}",
+        )  # a committed prior fact
         close_session(bootstrap)
         with psycopg.connect(fixture_db, autocommit=True) as provision:
             provision.execute("SELECT absurd.create_queue(%s)", (CAPABILITY,))
@@ -533,7 +556,7 @@ class TestAuthorityKill:
         worker_factory()
         session = open_session(fixture_db, instance, load=True)
         drive_until_rest(session)
-        session.deliver(OPERATOR, Token(APPROVAL, {"id": issue}))
+        session.deliver(OPERATOR, Token(APPROVAL, {"id": issue}), identity=f"approval-{issue}")
         drive_until_rest(session)
         assert session.status is Status.COMPLETED
         assert effects_for(fixture_db, issue) == 1
@@ -545,7 +568,7 @@ class TestAbsurdProviderEngineConstruction:
         instance = f"topo-{uuid4().hex[:10]}"
         session = open_session(fixture_db, instance, activities=declarations, default_heartbeat_timeout=4)
         declarations[:] = [ActivityDeclaration("spark_work", heartbeat_timeout=99)]
-        session.deliver(INGRESS, Token(ISSUE, {"id": "default"}))
+        session.deliver(INGRESS, Token(ISSUE, {"id": "default"}), identity="ingress-default")
         assert advance_until_blocked(session).waiting
         requested = next(record for record in session.records if isinstance(record, ActivityRequested))
         assert requested.policy.heartbeat_timeout == 4
@@ -561,7 +584,7 @@ class TestAbsurdProviderEngineConstruction:
         override_instance = f"topo-{uuid4().hex[:10]}"
         overridden = open_session(fixture_db, override_instance, activities=declared, default_heartbeat_timeout=4)
         declared.clear()
-        overridden.deliver(INGRESS, Token(ISSUE, {"id": "override"}))
+        overridden.deliver(INGRESS, Token(ISSUE, {"id": "override"}), identity="ingress-override")
         assert advance_until_blocked(overridden).waiting
         assert (
             next(
@@ -579,7 +602,7 @@ class TestAbsurdProviderEngineConstruction:
             activities=[ActivityDeclaration("spark_work", heartbeat_timeout=6)],
             default_heartbeat_timeout=3,
         )
-        first.deliver(INGRESS, Token(ISSUE, {"id": "frozen"}))
+        first.deliver(INGRESS, Token(ISSUE, {"id": "frozen"}), identity="ingress-frozen")
         assert advance_until_blocked(first).waiting
         original = first.in_flight[0].invocation
         assert original.policy.heartbeat_timeout == 6
@@ -598,10 +621,12 @@ class TestAbsurdProviderEngineConstruction:
 
     def test_provider_returns_the_concrete_engine_with_only_universal_doors(self, fixture_db):
         assert {name for name in Engine.__dict__ if not name.startswith("_")} == {
+            "accept_delivery",
             "active_scopes",
             "advance",
             "close",
             "close_scope",
+            "complete_delivery",
             "create",
             "deliver",
             "history_page",
@@ -681,12 +706,15 @@ class TestAbsurdProviderEngineConstruction:
 
     def test_load_refuses_recorded_identity_that_differs_from_storage_key(self, fixture_db):
         instance = f"topo-{uuid4().hex[:10]}"
-        encoded = encode_record(InstanceCreated("different-instance"))
         with psycopg.connect(fixture_db, autocommit=True) as connection:
-            connection.execute(
-                "INSERT INTO impetus.semantic_events "
-                "(event_id, net_instance_id, record_type, payload) VALUES (%s, %s, %s, %s)",
-                (f"{instance}:0", instance, "InstanceCreated", Jsonb(encoded)),
+            PostgresHistoryStore(connection, instance).extend(
+                [
+                    InstanceCreated("different-instance"),
+                    *(
+                        DeliveryRegistrationOpened(source, "default", occurrence=None)
+                        for source in sorted((INGRESS, OPERATOR), key=str)
+                    ),
+                ]
             )
         with pytest.raises(ValueError, match="storage key and recorded identity must match exactly"):
             open_session(fixture_db, instance, load=True)
@@ -694,7 +722,7 @@ class TestAbsurdProviderEngineConstruction:
     def test_two_engines_keep_independent_instance_views(self, fixture_db):
         left = open_session(fixture_db, f"left-{uuid4().hex[:10]}")
         right = open_session(fixture_db, f"right-{uuid4().hex[:10]}")
-        left.deliver(INGRESS, Token(ISSUE, {"id": "left"}))
+        left.deliver(INGRESS, Token(ISSUE, {"id": "left"}), identity="ingress-left")
         assert left.marking != right.marking
         assert left.records != right.records
         close_session(left)
@@ -727,7 +755,7 @@ class TestAbsurdProviderEngineConstruction:
         session.close()
         for door in (
             lambda: session.advance(),
-            lambda: session.deliver(INGRESS, Token(ISSUE, {"id": "late"})),
+            lambda: session.deliver(INGRESS, Token(ISSUE, {"id": "late"}), identity="ingress-late"),
             lambda: session.seal(INGRESS),
             lambda: session.wait(0),
             lambda: session.marking,
@@ -788,7 +816,7 @@ class TestAbsurdProviderEngineConstruction:
             poll_interval=0.1,
             default_queue=CAPABILITY,
         )
-        session.deliver(INGRESS, Token(ISSUE, {"id": issue}))
+        session.deliver(INGRESS, Token(ISSUE, {"id": issue}), identity=f"ingress-{issue}")
 
         def fail_dispatch(self, occurrence, invocation):
             raise RuntimeError("dispatch failed after joined begin")
@@ -812,7 +840,11 @@ class TestAbsurdProviderEngineConstruction:
         old, target = f"old_{uuid4().hex[:8]}", f"target_{uuid4().hex[:8]}"
         instance = f"contention-{uuid4().hex[:8]}"
         first = open_session(fixture_db, instance, default_queue=old)
-        first.deliver(INGRESS, Token(ISSUE, {"id": f"goose-{uuid4().hex[:6]}"}))
+        first.deliver(
+            INGRESS,
+            Token(ISSUE, {"id": f"goose-{uuid4().hex[:6]}"}),
+            identity="ingress-recovery",
+        )
         assert advance_until_blocked(first).waiting
         (outstanding,) = first.in_flight
         close_session(first)
@@ -858,7 +890,7 @@ class TestAbsurdProviderEngineConstruction:
         instance = f"topo-{uuid4().hex[:10]}"
         issue = f"goose-{uuid4().hex[:6]}"
         session = open_session(fixture_db, instance, project_poisoned=True)
-        session.deliver(INGRESS, Token(ISSUE, {"id": issue}))
+        session.deliver(INGRESS, Token(ISSUE, {"id": issue}), identity=f"ingress-{issue}")
 
         with pytest.raises(ValueError, match="projection poisoned"):
             drive_until_rest(session)
@@ -881,7 +913,7 @@ class TestAbsurdProviderEngineConstruction:
         second = open_session(fixture_db, instance, load=True)  # the fixed deployment
         (pending,) = second.in_flight
         drive_until_rest(second)
-        second.deliver(OPERATOR, Token(APPROVAL, {"id": issue}))
+        second.deliver(OPERATOR, Token(APPROVAL, {"id": issue}), identity=f"approval-{issue}")
         drive_until_rest(second)
         assert second.status is Status.COMPLETED
         assert effects_for(fixture_db, issue) == 1  # the activity ran exactly once
@@ -900,7 +932,11 @@ class TestAbsurdProviderEngineConstruction:
         instance = f"topo-{uuid4().hex[:10]}"
         issue = f"goose-{uuid4().hex[:6]}"
         session = open_session(fixture_db, instance)
-        session.deliver(INGRESS, Token(ISSUE, {"id": issue, "boom": True}))
+        session.deliver(
+            INGRESS,
+            Token(ISSUE, {"id": issue, "boom": True}),
+            identity=f"ingress-{issue}",
+        )
 
         with pytest.raises(RuntimeError, match="failed terminally.*boom requested"):
             drive_until_rest(session)
@@ -919,13 +955,17 @@ class TestAbsurdProviderEngineConstruction:
         worker_factory()
         instance = f"topo-{uuid4().hex[:10]}"
         session = open_session(fixture_db, instance)
-        session.deliver(INGRESS, Token(ISSUE, {"id": f"goose-{uuid4().hex[:6]}", "boom": True}))
+        session.deliver(
+            INGRESS,
+            Token(ISSUE, {"id": f"goose-{uuid4().hex[:6]}", "boom": True}),
+            identity="ingress-failure",
+        )
         with pytest.raises(RuntimeError, match="failed terminally"):
             drive_until_rest(session)
 
         for door in (
             lambda: session.advance(),
-            lambda: session.deliver(INGRESS, Token(ISSUE, {"id": "late"})),
+            lambda: session.deliver(INGRESS, Token(ISSUE, {"id": "late"}), identity="ingress-late"),
             lambda: session.seal(INGRESS),
             lambda: session.wait(0.1),
             lambda: session.marking,

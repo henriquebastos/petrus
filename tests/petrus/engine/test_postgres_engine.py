@@ -5,9 +5,11 @@ from uuid import uuid4
 import pytest
 import psycopg
 
-from petrus.engine import Engine
+from petrus.engine import Delivery, Engine
 from petrus.engine.postgres import create_engine, load_engine
+from petrus.impetus.history import ExternalEventDelivered, FiringBegun, FiringCompleted, FiringFailed
 from petrus.impetus.history_store.postgres import PostgresHistoryStore, ensure_schema
+from petrus.impetus.instance import PriorAcknowledgement
 from petrus.impetus.petrinet import Arc, Net, NetPath, Place, Token, Transition
 from petrus.motus.dispatch import InlineDispatch
 
@@ -27,7 +29,279 @@ def _provider_net() -> Net:
     )
 
 
+class _CountCommits:
+    def __init__(self, connection):
+        self.connection = connection
+        self.commits = 0
+
+    def __getattr__(self, name):
+        return getattr(self.connection, name)
+
+    def commit(self):
+        self.commits += 1
+        self.connection.commit()
+
+
 class TestPostgresEngineProvider:
+    def test_sensed_projection_failure_commits_terminal_failure_and_acknowledges_exactly(
+        self, postgres_dsn, pg_connection, instance_id
+    ):
+        token = Token("Event", 7)
+
+        def explode(binding, outputs):
+            raise RuntimeError("projection failed")
+
+        net = Net(
+            places=[Place(OUTPUT)],
+            transitions=[Transition(SOURCE, handler="project")],
+            arcs=[Arc(SOURCE, OUTPUT)],
+        )
+        engine = create_engine(
+            psycopg.connect(postgres_dsn, autocommit=False),
+            net,
+            instance_id,
+            dispatch=InlineDispatch({}),
+            handlers={"project": explode},
+            sensor=lambda: (Delivery(SOURCE, token, identity="event-7"),),
+        )
+
+        with pytest.raises(RuntimeError, match="projection failed"):
+            engine.advance()
+
+        with psycopg.connect(postgres_dsn, autocommit=True) as probe:
+            accepted_records = PostgresHistoryStore(probe, instance_id).records
+        assert isinstance(accepted_records[-3], ExternalEventDelivered)
+        assert isinstance(accepted_records[-2], FiringBegun)
+        assert isinstance(accepted_records[-1], FiringFailed)
+        assert not any(isinstance(record, FiringCompleted) for record in accepted_records)
+
+        resumed = load_engine(
+            psycopg.connect(postgres_dsn, autocommit=False),
+            net,
+            instance_id,
+            dispatch=InlineDispatch({}),
+            handlers={"project": lambda binding, outputs: {OUTPUT: binding.tokens}},
+        )
+        acknowledged = resumed.accept_delivery(SOURCE, token, identity="event-7")
+
+        assert acknowledged == PriorAcknowledgement("event-7", 1)
+        assert resumed.marking.place(OUTPUT) == ()
+        resumed.close()
+
+    def test_direct_projection_failure_commits_terminal_failure_and_acknowledges_exactly(
+        self, postgres_dsn, pg_connection, instance_id
+    ):
+        token = Token("Event", 7)
+
+        class ProjectionError(RuntimeError):
+            def __repr__(self):
+                raise AssertionError("durable failure rendering must not call exception repr")
+
+        def explode(binding, outputs):
+            raise ProjectionError("projection failed")
+
+        net = Net(
+            places=[Place(OUTPUT)],
+            transitions=[Transition(SOURCE, handler="project")],
+            arcs=[Arc(SOURCE, OUTPUT)],
+        )
+        engine = create_engine(
+            psycopg.connect(postgres_dsn, autocommit=False),
+            net,
+            instance_id,
+            dispatch=InlineDispatch({}),
+            handlers={"project": explode},
+        )
+        accepted = engine.accept_delivery(SOURCE, token, identity="event-7")
+
+        with pytest.raises(ProjectionError, match="projection failed"):
+            engine.complete_delivery(accepted)
+
+        with psycopg.connect(postgres_dsn, autocommit=True) as probe:
+            records = PostgresHistoryStore(probe, instance_id).records
+        assert records[-1] == FiringFailed(SOURCE, "ProjectionError('projection failed')", occurrence=1)
+
+        resumed = load_engine(
+            psycopg.connect(postgres_dsn, autocommit=False),
+            net,
+            instance_id,
+            dispatch=InlineDispatch({}),
+            handlers={"project": lambda binding, outputs: {OUTPUT: binding.tokens}},
+        )
+        assert resumed.accept_delivery(SOURCE, token, identity="event-7") == PriorAcknowledgement("event-7", 1)
+        resumed.close()
+
+    def test_exact_redelivery_does_not_commit_an_empty_joined_transaction(
+        self, postgres_dsn, pg_connection, instance_id
+    ):
+        token = Token("Event", 7)
+        connection = _CountCommits(psycopg.connect(postgres_dsn, autocommit=False))
+        engine = create_engine(
+            connection,
+            _provider_net(),
+            instance_id,
+            dispatch=InlineDispatch({}),
+        )
+        accepted = engine.accept_delivery(SOURCE, token, identity="event-7")
+        after_acceptance = connection.commits
+
+        reconstructed = engine.accept_delivery(SOURCE, token, identity="event-7")
+
+        assert reconstructed == accepted
+        assert connection.commits == after_acceptance
+
+        engine.complete_delivery(reconstructed)
+        after_completion = connection.commits
+        acknowledged = engine.accept_delivery(SOURCE, token, identity="event-7")
+
+        assert acknowledged == PriorAcknowledgement("event-7", accepted.occurrence)
+        assert connection.commits == after_completion
+        engine.close()
+
+    def test_sensed_exact_redelivery_does_not_commit_an_empty_joined_transaction(
+        self, postgres_dsn, pg_connection, instance_id
+    ):
+        delivery = Delivery(SOURCE, Token("Event", 7), identity="event-7")
+        deliveries = iter(((delivery,), (delivery,)))
+        connection = _CountCommits(psycopg.connect(postgres_dsn, autocommit=False))
+        engine = create_engine(
+            connection,
+            _provider_net(),
+            instance_id,
+            dispatch=InlineDispatch({}),
+            sensor=lambda: next(deliveries),
+        )
+        engine.advance()
+        after_first_delivery = connection.commits
+
+        outcome = engine.advance()
+
+        assert outcome.firings == ()
+        assert connection.commits == after_first_delivery
+        engine.close()
+
+    @pytest.mark.parametrize("fault", ["refused", "acknowledgement-lost"])
+    def test_projection_failure_commit_fault_propagates_storage_fate_and_fresh_load_decides(
+        self, postgres_dsn, pg_connection, instance_id, fault
+    ):
+        class FaultOneCommit:
+            def __init__(self, connection):
+                self.connection = connection
+                self.fault = None
+
+            def __getattr__(self, name):
+                return getattr(self.connection, name)
+
+            def commit(self):
+                pending_fault = self.fault
+                self.fault = None
+                if pending_fault == "refused":
+                    raise OSError("failure commit refused")
+                self.connection.commit()
+                if pending_fault == "acknowledgement-lost":
+                    raise OSError("failure commit acknowledgement lost")
+
+        def explode(binding, outputs):
+            del binding, outputs
+            raise RuntimeError("projection failed")
+
+        token = Token("Event", 7)
+        connection = FaultOneCommit(psycopg.connect(postgres_dsn, autocommit=False))
+        net = Net(
+            places=[Place(OUTPUT)],
+            transitions=[Transition(SOURCE, handler="project")],
+            arcs=[Arc(SOURCE, OUTPUT)],
+        )
+        engine = create_engine(
+            connection,
+            net,
+            instance_id,
+            dispatch=InlineDispatch({}),
+            handlers={"project": explode},
+        )
+        accepted = engine.accept_delivery(SOURCE, token, identity="event-7")
+        connection.fault = fault
+
+        with pytest.raises(OSError, match="failure commit"):
+            engine.complete_delivery(accepted)
+
+        assert connection.connection.closed
+        with psycopg.connect(postgres_dsn, autocommit=True) as probe:
+            records = PostgresHistoryStore(probe, instance_id).records
+
+        resumed = load_engine(
+            psycopg.connect(postgres_dsn, autocommit=False),
+            net,
+            instance_id,
+            dispatch=InlineDispatch({}),
+            handlers={"project": lambda binding, outputs: {OUTPUT: binding.tokens}},
+        )
+        redelivered = resumed.accept_delivery(SOURCE, token, identity="event-7")
+        if fault == "refused":
+            assert records[-2:] == (
+                ExternalEventDelivered(SOURCE, (token,), identity="event-7", occurrence=1),
+                FiringBegun(SOURCE, occurrence=1),
+            )
+            assert redelivered == accepted
+            resumed.complete_delivery(redelivered)
+            assert resumed.marking.place(OUTPUT) == (token,)
+        else:
+            assert records[-1] == FiringFailed(SOURCE, "RuntimeError('projection failed')", occurrence=1)
+            assert redelivered == PriorAcknowledgement("event-7", accepted.occurrence)
+            assert resumed.marking.place(OUTPUT) == ()
+        resumed.close()
+
+    def test_joined_completion_commit_refusal_leaves_acceptance_unfinished_for_exact_retry(
+        self, postgres_dsn, pg_connection, instance_id
+    ):
+        class RefuseOneCommit:
+            def __init__(self, connection):
+                self.connection = connection
+                self.refuse = False
+
+            def __getattr__(self, name):
+                return getattr(self.connection, name)
+
+            def commit(self):
+                if self.refuse:
+                    self.refuse = False
+                    raise OSError("joined completion commit refused")
+                self.connection.commit()
+
+        token = Token("Event", 7)
+        connection = RefuseOneCommit(psycopg.connect(postgres_dsn, autocommit=False))
+        engine = create_engine(
+            connection,
+            _provider_net(),
+            instance_id,
+            dispatch=InlineDispatch({}),
+        )
+        accepted = engine.accept_delivery(SOURCE, token, identity="event-7")
+        connection.refuse = True
+
+        with pytest.raises(OSError, match="joined completion commit refused"):
+            engine.complete_delivery(accepted)
+
+        assert connection.connection.closed
+        with psycopg.connect(postgres_dsn, autocommit=True) as probe:
+            refused_records = PostgresHistoryStore(probe, instance_id).records
+        assert refused_records[-2:] == (
+            ExternalEventDelivered(SOURCE, (token,), identity="event-7", occurrence=1),
+            FiringBegun(SOURCE, occurrence=1),
+        )
+        assert not any(isinstance(record, FiringCompleted | FiringFailed) for record in refused_records)
+
+        resumed = load_engine(
+            psycopg.connect(postgres_dsn, autocommit=False),
+            _provider_net(),
+            instance_id,
+            dispatch=InlineDispatch({}),
+        )
+        reconstructed = resumed.accept_delivery(SOURCE, token, identity="event-7")
+        assert reconstructed == accepted
+        assert resumed.complete_delivery(reconstructed).occurrence == accepted.occurrence
+        resumed.close()
+
     def test_create_load_and_idempotent_close_own_the_joined_connection(self, postgres_dsn, pg_connection, instance_id):
         writer = psycopg.connect(postgres_dsn, autocommit=False)
         created = create_engine(writer, _provider_net(), instance_id, dispatch=InlineDispatch({}))

@@ -159,7 +159,8 @@ class TestInstanceParity:
     def _driven(self, reopen):
         """Construct, deliver one identified payment, drive the activity occurrence to its end — the pre-kill truth."""
         instance = Instance(activity_net(), handlers={"charge": Charge()}, history=reopen())
-        instance.deliver(INTAKE, payment(), identity="evt_123", at=1)
+        accepted = instance.accept_delivery(INTAKE, payment(), identity="evt_123", at=1)
+        instance.complete_delivery(accepted, at=1)
         occurrence = instance.begin(instance.candidates()[0], at=2)
         instance.record_activity_completion(occurrence, {"status": "captured"}, at=3)
         instance.complete(occurrence, at=4)
@@ -187,7 +188,8 @@ class TestInstanceParity:
         del instance
 
         resumed = Instance.resume(activity_net(), reopen(), handlers={"charge": Charge()})
-        outcome = resumed.deliver(INTAKE, payment(), identity="evt_456")
+        accepted = resumed.accept_delivery(INTAKE, payment(), identity="evt_456")
+        outcome = resumed.complete_delivery(accepted)
 
         assert isinstance(outcome, FiringOutcome)
         assert outcome.occurrence == occurrence.id + 1
@@ -198,7 +200,7 @@ class TestInstanceParity:
         del instance
 
         resumed = Instance.resume(activity_net(), reopen(), handlers={"charge": Charge()})
-        acknowledgement = resumed.deliver(INTAKE, payment(), identity="evt_123")
+        acknowledgement = resumed.accept_delivery(INTAKE, payment(), identity="evt_123")
 
         # The redelivered identity is answered with the prior acknowledgement,
         # never a second semantic record — the index rebuilt from the durable

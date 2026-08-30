@@ -22,7 +22,7 @@ from __future__ import annotations
 # Internal imports
 from petrus.impetus.history import replay_marking
 from petrus.impetus.petrinet import Marking, Token
-from petrus.impetus.instance import Instance, Status
+from petrus.impetus.instance import AcceptedDelivery, Instance, Status
 from petrus.impetus.petrinet import Arc, Net, NetPath, Place, Transition
 
 START, PENDING, EVENT, DONE = NetPath("start"), NetPath("pending_settlement"), NetPath("event"), NetPath("done")
@@ -59,7 +59,9 @@ class TestEnvironmentSignal:
     def test_delivery_injects_the_event_and_reenables_the_net(self):
         instance = _seeded()
         instance.run()
-        instance.deliver(WEBHOOK, WEBHOOK_EVENT)
+        accepted = instance.accept_delivery(WEBHOOK, WEBHOOK_EVENT, identity="reenable-event")
+        assert isinstance(accepted, AcceptedDelivery)
+        instance.complete_delivery(accepted)
         assert instance.marking.place(EVENT) == (WEBHOOK_EVENT,)
         assert instance.enabled_transitions() == [SETTLE]
         assert instance.status is Status.RUNNING
@@ -69,14 +71,18 @@ class TestEnvironmentSignal:
         # trigger and the delivered event (the oracle merged them into one).
         instance = _seeded()
         instance.run()
-        instance.deliver(WEBHOOK, WEBHOOK_EVENT)
+        accepted = instance.accept_delivery(WEBHOOK, WEBHOOK_EVENT, identity="settlement-event")
+        assert isinstance(accepted, AcceptedDelivery)
+        instance.complete_delivery(accepted)
         instance.run()
         assert instance.marking == Marking({DONE: (Token.black(), WEBHOOK_EVENT)})
 
     def test_sealing_the_webhook_lets_the_instance_terminate(self):
         instance = _seeded()
         instance.run()
-        instance.deliver(WEBHOOK, WEBHOOK_EVENT)
+        accepted = instance.accept_delivery(WEBHOOK, WEBHOOK_EVENT, identity="terminal-event")
+        assert isinstance(accepted, AcceptedDelivery)
+        instance.complete_delivery(accepted)
         instance.run()
         assert instance.status is Status.AWAITING  # the registration is still armed
         instance.seal(WEBHOOK)

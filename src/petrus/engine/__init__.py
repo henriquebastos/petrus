@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import time
+from copy import deepcopy
 import threading
+import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 
@@ -30,12 +31,13 @@ from petrus.engine._coordination import (
 from petrus.motus.activity import ActivityDeclaration
 from petrus.impetus.binding import ActivityHandler
 from petrus.motus.dispatch import Dispatch
-from petrus.impetus.history import Record, ScopeReset
+from petrus.impetus.history import FiringFailed, Record, ScopeReset
 from petrus.impetus.history_store import HistoryStore
 from petrus.impetus.observation import history_page as _history_page
 from petrus.impetus.observation import net_document as _net_document
 from petrus.impetus.observation import snapshot as _snapshot
 from petrus.impetus.instance import (
+    AcceptedDelivery,
     FiringOccurrence,
     FiringOutcome,
     Instance,
@@ -43,6 +45,8 @@ from petrus.impetus.instance import (
     ScopeClosure,
     ScopedDeliveryAcknowledgement,
     Status,
+    _canonical_accepted_delivery,
+    firing_failure_text,
 )
 from petrus.impetus.petrinet import Instant, Marking, Net, NetPath, Token
 from petrus.impetus.selection import SelectionPipeline, SelectionPolicy
@@ -332,8 +336,8 @@ class Engine:
 
     @property
     def marking(self) -> Marking:
-        """The current marking, exposed read-only through the Engine lifecycle."""
-        return self._read(lambda: self._instance.marking, allow_reentry=True)
+        """A detached value of the current marking."""
+        return self._read(lambda: deepcopy(self._instance.marking), allow_reentry=True)
 
     @property
     def status(self) -> Status:
@@ -342,8 +346,8 @@ class Engine:
 
     @property
     def in_flight(self) -> tuple[FiringOccurrence, ...]:
-        """The in-flight occurrences in begin order."""
-        return self._read(lambda: self._instance.in_flight, allow_reentry=True)
+        """Detached in-flight occurrence values in begin order."""
+        return self._read(lambda: deepcopy(self._instance.in_flight), allow_reentry=True)
 
     @property
     def active_scopes(self) -> Mapping[str, LifecycleScope]:
@@ -352,8 +356,8 @@ class Engine:
 
     @property
     def records(self) -> tuple[Record, ...]:
-        """The canonical History records, never an append-capable handle."""
-        return self._read(lambda: self._instance.history.records, allow_reentry=True)
+        """Detached canonical History record values, never an append-capable handle."""
+        return self._read(lambda: deepcopy(self._instance.history.records), allow_reentry=True)
 
     def snapshot(self) -> dict[str, object]:
         """Return a coherent detached protocol-v1 view of definition and current state."""
@@ -386,17 +390,77 @@ class Engine:
         source: NetPath | str,
         tokens: Token | Sequence[Token],
         *,
-        identity: str | None = None,
+        identity: str,
         scope: LifecycleScope | str | None = None,
     ) -> FiringOutcome | PriorAcknowledgement | ScopedDeliveryAcknowledgement:
-        """Land one external delivery and commit its complete fact set."""
+        """Accept and complete one identified external delivery across two durable boundaries."""
 
         def door() -> FiringOutcome | PriorAcknowledgement | ScopedDeliveryAcknowledgement:
-            landed = self._instance.deliver(source, tokens, at=self._clock.now(), identity=identity, scope=scope)
+            accepted = self._accept_identified_delivery(source, tokens, identity, scope)
+            if not isinstance(accepted, AcceptedDelivery):
+                return accepted
+            completed = self._complete_accepted_delivery(accepted)
             self._committed()
-            return landed
+            return completed
 
         return self._guarded(door)
+
+    def accept_delivery(
+        self,
+        source: NetPath | str,
+        tokens: Token | Sequence[Token],
+        *,
+        identity: str,
+        scope: LifecycleScope | str | None = None,
+    ) -> AcceptedDelivery | PriorAcknowledgement | ScopedDeliveryAcknowledgement:
+        """Durably accept and begin one identified source delivery without completing it."""
+
+        def door() -> AcceptedDelivery | PriorAcknowledgement | ScopedDeliveryAcknowledgement:
+            return self._accept_identified_delivery(source, tokens, identity, scope)
+
+        return self._guarded(door)
+
+    def _accept_identified_delivery(
+        self,
+        source: NetPath | str,
+        tokens: Token | Sequence[Token],
+        identity: str,
+        scope: LifecycleScope | str | None,
+    ) -> AcceptedDelivery | PriorAcknowledgement | ScopedDeliveryAcknowledgement:
+        """Commit the shared identified-acceptance phase of both public delivery doors."""
+        if identity is None:
+            raise ValueError("delivery requires a stable delivery identity")
+        before = len(self._instance.history)
+        accepted = self._instance.accept_delivery(source, tokens, at=self._clock.now(), identity=identity, scope=scope)
+        if len(self._instance.history) != before:
+            self._committed()
+        return accepted
+
+    def complete_delivery(self, accepted: AcceptedDelivery) -> FiringOutcome:
+        """Complete only the accepted unfinished pure source occurrence named by ``accepted``."""
+
+        def door() -> FiringOutcome:
+            completed = self._complete_accepted_delivery(accepted)
+            self._committed()
+            return completed
+
+        return self._guarded(door)
+
+    def _complete_accepted_delivery(self, accepted: AcceptedDelivery) -> FiringOutcome:
+        """Complete one carrier and settle any recorded terminal failure through the provider."""
+        accepted = _canonical_accepted_delivery(accepted)
+        before = len(self._instance.history)
+        try:
+            return self._instance.complete_delivery(accepted, at=self._clock.now())
+        except Exception:
+            records = self._instance.history.records
+            if (
+                len(records) == before + 1
+                and isinstance(records[-1], FiringFailed)
+                and records[-1].occurrence == accepted.occurrence
+            ):
+                self._committed()
+            raise
 
     def open_scope(self, name: str) -> LifecycleScope:
         """Open and commit the next lifecycle generation for ``name``."""
@@ -488,7 +552,7 @@ class Engine:
             try:
                 return door()
             except BaseException as error:
-                self._broken = repr(error)
+                self._broken = firing_failure_text(error)
                 try:
                     self._resources.rollback()
                 finally:
@@ -521,6 +585,7 @@ class Engine:
 
 
 __all__ = [
+    "AcceptedDelivery",
     "AcceptDelivery",
     "AcceptResult",
     "Action",

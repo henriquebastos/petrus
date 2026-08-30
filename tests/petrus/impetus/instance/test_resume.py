@@ -27,6 +27,7 @@ from petrus.impetus.history import (
     FiringBegun,
     FiringCompleted,
     FiringFailed,
+    Record,
     TokensProduced,
     DeliveryRegistration,
     DeliveryRegistrationClosed,
@@ -61,13 +62,19 @@ def simple_net() -> Net:
     )
 
 
+def construction_records(net: Net, marking: Marking | None = None) -> tuple[Record, ...]:
+    """Return the complete prefix the live writer emits for ``net``."""
+    return Instance(net, marking, handlers={"work": forward}, instance_id="resume-test").history.records
+
+
 class TestResume:
     """The constructor: a crash, then a live instance from the durable record alone."""
 
     def test_resume_rebuilds_marking_watermark_and_continues_the_file(self, tmp_path):
         path = tmp_path / "history.jsonl"
         instance = Instance(simple_net(), handlers={"work": forward}, history=JsonlHistoryStore(path))
-        instance.deliver(INTAKE, Token.black(), at=3)
+        accepted = instance.accept_delivery(INTAKE, Token.black(), at=3, identity="resume-event")
+        instance.complete_delivery(accepted, at=3)
 
         resumed = Instance.resume(simple_net(), JsonlHistoryStore(path), handlers={"work": forward})
 
@@ -84,11 +91,13 @@ class TestResume:
     def test_resume_never_reuses_a_recorded_occurrence_id(self, tmp_path):
         path = tmp_path / "history.jsonl"
         instance = Instance(simple_net(), handlers={"work": forward}, history=JsonlHistoryStore(path))
-        instance.deliver(INTAKE, Token.black())  # occurrence 1
+        accepted = instance.accept_delivery(INTAKE, Token.black(), identity="before-resume")  # occurrence 1
+        instance.complete_delivery(accepted)
         instance.run()  # occurrence 2 (work)
 
         resumed = Instance.resume(simple_net(), JsonlHistoryStore(path), handlers={"work": forward})
-        firing = resumed.deliver(INTAKE, Token.black())
+        accepted = resumed.accept_delivery(INTAKE, Token.black(), identity="after-resume")
+        firing = resumed.complete_delivery(accepted)
 
         assert firing.occurrence == 3
 
@@ -105,7 +114,8 @@ class TestResume:
 
         path = tmp_path / "history.jsonl"
         instance = Instance(simple_net(), handlers={"work": refresh}, history=JsonlHistoryStore(path))
-        instance.deliver(INTAKE, Token.black())
+        accepted = instance.accept_delivery(INTAKE, Token.black(), identity="refresh-event")
+        instance.complete_delivery(accepted)
         instance.run()
 
         resumed = Instance.resume(simple_net(), JsonlHistoryStore(path), handlers={"work": refresh})
@@ -113,7 +123,7 @@ class TestResume:
 
         assert resumed.history.records[-1] == DeliveryRegistrationClosed(INTAKE, "hook", occurrence=None)
         with pytest.raises(ValueError, match="no armed delivery registration"):
-            resumed.deliver(INTAKE, Token.black())
+            resumed.accept_delivery(INTAKE, Token.black(), identity="after-refresh-seal")
 
     def test_resume_after_seal_takes_no_delivery(self, tmp_path):
         path = tmp_path / "history.jsonl"
@@ -123,12 +133,13 @@ class TestResume:
         resumed = Instance.resume(simple_net(), JsonlHistoryStore(path), handlers={"work": forward})
 
         with pytest.raises(ValueError, match="no armed delivery registration"):
-            resumed.deliver(INTAKE, Token.black())
+            resumed.accept_delivery(INTAKE, Token.black(), identity="after-seal")
 
     def test_resume_rebuilds_an_in_flight_occurrence_a_driver_can_complete(self, tmp_path):
         path = tmp_path / "history.jsonl"
         instance = Instance(simple_net(), handlers={"work": forward}, history=JsonlHistoryStore(path))
-        instance.deliver(INTAKE, Token.black(), at=3)
+        accepted = instance.accept_delivery(INTAKE, Token.black(), at=3, identity="in-flight-completion")
+        instance.complete_delivery(accepted, at=3)
         occurrence = instance.begin(instance.candidates()[0], at=4)  # crash mid-firing
 
         resumed = Instance.resume(simple_net(), JsonlHistoryStore(path), handlers={"work": forward})
@@ -145,7 +156,8 @@ class TestResume:
     def test_resume_rebuilds_an_in_flight_occurrence_a_driver_can_fail(self, tmp_path):
         path = tmp_path / "history.jsonl"
         instance = Instance(simple_net(), handlers={"work": forward}, history=JsonlHistoryStore(path))
-        instance.deliver(INTAKE, Token.black())
+        accepted = instance.accept_delivery(INTAKE, Token.black(), identity="in-flight-failure")
+        instance.complete_delivery(accepted)
         instance.begin(instance.candidates()[0])
 
         resumed = Instance.resume(simple_net(), JsonlHistoryStore(path), handlers={"work": forward})
@@ -163,7 +175,7 @@ class TestResume:
         history = InMemoryHistoryStore()
         history.extend(
             [
-                DeliveryRegistrationOpened(INTAKE, "default", occurrence=None, instant=0),
+                *construction_records(simple_net()),
                 ExternalEventDelivered(INTAKE, (token,), identity="occurrence-1", occurrence=1, instant=2),
                 FiringBegun(INTAKE, occurrence=1, instant=2),
             ]
@@ -184,8 +196,7 @@ class TestResume:
         history = InMemoryHistoryStore()
         history.extend(
             [
-                TokensInitialized(QUEUE, (Token.black(),), instant=0),
-                DeliveryRegistrationOpened(INTAKE, "default", occurrence=None, instant=0),
+                *construction_records(simple_net(), Marking({QUEUE: (Token.black(),)})),
                 CandidateSelected(WORK, occurrence=1, instant=1),
             ]
         )
@@ -228,7 +239,12 @@ class TestResume:
         # a token on a place this net does not have is a foreign or corrupted
         # trace, refused — not silently carried as inert cargo.
         history = InMemoryHistoryStore()
-        history.append(TokensInitialized(NetPath("ghost"), (Token.black(),), instant=0))
+        history.extend(
+            [
+                *construction_records(simple_net()),
+                TokensProduced(NetPath("ghost"), (Token.black(),), occurrence=1, instant=0),
+            ]
+        )
         with pytest.raises(ValueError, match="ghost.*not a place of this net"):
             Instance.resume(simple_net(), history, handlers={"work": forward})
 
@@ -239,8 +255,9 @@ class TestResume:
         history = InMemoryHistoryStore()
         history.extend(
             [
-                TokensInitialized(QUEUE, (Token.black(),), instant=10),
-                DeliveryRegistrationOpened(INTAKE, "default", occurrence=None, instant=5),
+                *construction_records(simple_net()),
+                CandidateSelected(WORK, occurrence=1, instant=10),
+                CandidateSelected(WORK, occurrence=2, instant=5),
             ]
         )
         with pytest.raises(ValueError, match="replay divergence.*steps backwards"):
@@ -253,7 +270,7 @@ class TestResume:
         history = InMemoryHistoryStore()
         history.extend(
             [
-                DeliveryRegistrationOpened(INTAKE, "default", occurrence=None, instant=0),
+                *construction_records(simple_net()),
                 CandidateSelected(INTAKE, occurrence=1, instant=1),
                 FiringBegun(INTAKE, occurrence=1, instant=1),
             ]
@@ -265,6 +282,7 @@ class TestResume:
         history = InMemoryHistoryStore()
         history.extend(
             [
+                *construction_records(simple_net()),
                 ExternalEventDelivered(WORK, (Token.black(),), identity="occurrence-1", occurrence=1, instant=1),
                 FiringBegun(WORK, occurrence=1, instant=1),
             ]
@@ -279,7 +297,7 @@ class TestResume:
         history = InMemoryHistoryStore()
         history.extend(
             [
-                TokensInitialized(QUEUE, (Token.black(),), instant=0),
+                *construction_records(simple_net(), Marking({QUEUE: (Token.black(),)})),
                 CandidateSelected(WORK, occurrence=1, instant=1),
                 FiringBegun(WORK, occurrence=1, instant=1),
             ]
@@ -289,13 +307,31 @@ class TestResume:
 
     def test_resume_rejects_a_registration_on_a_foreign_node(self):
         history = InMemoryHistoryStore()
-        history.append(DeliveryRegistrationOpened(NetPath("ghost"), "default", occurrence=None, instant=0))
+        history.extend(
+            [
+                *construction_records(simple_net(), Marking({QUEUE: (Token.black(),)})),
+                CandidateSelected(WORK, occurrence=1, instant=1),
+                FiringBegun(WORK, occurrence=1, instant=1),
+                TokensConsumed(QUEUE, (Token.black(),), occurrence=1, instant=1),
+                DeliveryRegistrationOpened(NetPath("ghost"), "default", occurrence=1, instant=2),
+                FiringCompleted(WORK, occurrence=1, instant=2),
+            ]
+        )
         with pytest.raises(ValueError, match="ghost.*not a transition of this net"):
             Instance.resume(simple_net(), history, handlers={"work": forward})
 
     def test_resume_rejects_a_registration_on_a_non_source(self):
         history = InMemoryHistoryStore()
-        history.append(DeliveryRegistrationOpened(WORK, "default", occurrence=None, instant=0))
+        history.extend(
+            [
+                *construction_records(simple_net(), Marking({QUEUE: (Token.black(),)})),
+                CandidateSelected(WORK, occurrence=1, instant=1),
+                FiringBegun(WORK, occurrence=1, instant=1),
+                TokensConsumed(QUEUE, (Token.black(),), occurrence=1, instant=1),
+                DeliveryRegistrationOpened(WORK, "default", occurrence=1, instant=2),
+                FiringCompleted(WORK, occurrence=1, instant=2),
+            ]
+        )
         with pytest.raises(ValueError, match="input arcs"):
             Instance.resume(simple_net(), history, handlers={"work": forward})
 
@@ -303,6 +339,7 @@ class TestResume:
         history = InMemoryHistoryStore()
         history.extend(
             [
+                *construction_records(simple_net()),
                 CandidateSelected(NetPath("ghost"), occurrence=1, instant=0),
                 FiringBegun(NetPath("ghost"), occurrence=1, instant=0),
             ]
@@ -352,8 +389,10 @@ class TestResume:
         history = InMemoryHistoryStore()
         history.extend(
             [
-                TokensInitialized(QUEUE, (Token.black(),), instant=0),
-                TokensInitialized(NetPath("gate"), (Token.black(),), instant=0),
+                *construction_records(
+                    self._reading_net(),
+                    Marking({QUEUE: (Token.black(),), NetPath("gate"): (Token.black(),)}),
+                ),
                 CandidateSelected(WORK, occurrence=1, instant=1),
                 FiringBegun(WORK, occurrence=1, instant=1),
                 TokensConsumed(QUEUE, (Token.black(),), occurrence=1, instant=1),
@@ -376,7 +415,7 @@ class TestResume:
         history = InMemoryHistoryStore()
         history.extend(
             [
-                TokensInitialized(a, (token, token), instant=0),
+                *construction_records(net, Marking({a: (token, token)})),
                 CandidateSelected(t, occurrence=1, instant=1),
                 FiringBegun(t, occurrence=1, instant=1),
                 TokensConsumed(a, (token,), occurrence=1, instant=1),
@@ -392,8 +431,10 @@ class TestResume:
         history = InMemoryHistoryStore()
         history.extend(
             [
-                TokensInitialized(QUEUE, (Token.black(),), instant=0),
-                TokensInitialized(gate, (token, token), instant=0),
+                *construction_records(
+                    self._reading_net(),
+                    Marking({QUEUE: (Token.black(),), gate: (token, token)}),
+                ),
                 CandidateSelected(WORK, occurrence=1, instant=1),
                 FiringBegun(WORK, occurrence=1, instant=1),
                 TokensConsumed(QUEUE, (Token.black(),), occurrence=1, instant=1),
@@ -412,8 +453,10 @@ class TestReplayArmed:
         history.extend(
             [
                 DeliveryRegistrationOpened(INTAKE, "default", occurrence=None, instant=0),
-                DeliveryRegistrationOpened(INTAKE, "hook", occurrence=1, instant=1),
+                FiringBegun(WORK, occurrence=1, instant=1),
                 DeliveryRegistrationClosed(INTAKE, "default", occurrence=1, instant=1),
+                DeliveryRegistrationOpened(INTAKE, "hook", occurrence=1, instant=1),
+                FiringCompleted(WORK, occurrence=1, instant=1),
             ]
         )
         assert replay_armed(history) == {INTAKE: {"hook"}}

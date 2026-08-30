@@ -606,16 +606,18 @@ of that cancellation transaction boundary:
    independent checker evaluations, exactly, ending in `quiescent`.
 
 Two further separately identified real-provider profiles prove the source
-delivery transaction boundary. The fourteenth refuses before acceptance:
+acceptance and completion transaction boundaries. The fourteenth refuses
+before acceptance:
 
 1. submit one identified delivery through public `Engine.deliver` and refuse
-   the transaction containing `ExternalEventDelivered` plus its complete source
-   firing;
+   the acceptance transaction containing `ExternalEventDelivered` and
+   `FiringBegun`;
 2. independently observe no accepted identity, produced token, completed source
    firing, or marking effect, and a poisoned Engine generation;
 3. revoke and abruptly drop that generation, then load through public
    `load_engine`;
-4. accept the same identity and payload once, then submit its exact redelivery;
+4. accept and complete the same identity and payload in separate transactions,
+   then submit its exact redelivery;
 5. receive `PriorAcknowledgement` without another transaction, occurrence,
    token, or History record; and
 6. replay the retained 10 operations and 17 journal entries, including 7
@@ -623,17 +625,19 @@ delivery transaction boundary. The fourteenth refuses before acceptance:
 
 The fifteenth proves acceptance followed by acknowledgement loss:
 
-1. commit one identified external event and its complete source firing, then
-   lose the transaction's acknowledgement;
-2. independently observe exactly one canonical identity, occurrence, produced
-   token, and completed source firing while the writing Engine is poisoned;
+1. commit one identified external event and begun source occurrence, then lose
+   the acceptance transaction's acknowledgement before completion;
+2. independently observe exactly one canonical identity and unfinished
+   occurrence, with no produced token or completed source firing, while the
+   writing Engine is poisoned;
 3. revoke and abruptly drop that generation, then load through public
    `load_engine`;
-4. submit the exact redelivery and receive `PriorAcknowledgement` against the
-   retained accepted identity;
-5. prove no second transaction, external-event fact, source firing, output
-   token, or occurrence; and
-6. replay the retained 8 operations and 14 journal entries, including 6
+4. submit the exact redelivery, reconstruct and complete that occurrence in a
+   separate transaction, then submit it once more and receive
+   `PriorAcknowledgement`;
+5. prove one accepted event, one completion, one output token, and no second
+   occurrence; and
+6. replay the retained 9 operations and 16 journal entries, including 7
    independent checker evaluations, exactly, ending in `external_wait`.
 
 Another pair proves the stale-scope drop disposition rather than an accepted
@@ -787,7 +791,7 @@ seeded Engine scenario whose replay never consults the PRNG.
 | 7. Complete bounds | Met for the generic harness: action, queue, logical-time/advance, reload, predicate, artifact, profile-retained-data, hidden-pending-work, process-progress, and wall-clock limits are executable and identify the ending bound. |
 | 8. Checker cadence and fair draining | Met: the kernel executes detached checkers at every legal atomic boundary and fresh load, and fair draining is explicit and bounded. Broad generated S1–S8 exploration was DS3 scope and is complete there. |
 | 9. Hermetic real-runtime execution | Met for the provider-neutral vertical slice: no credentials, external providers, network sleeps, or substitute Petrus semantics. The joined profiles are separately identified real-boundary qualification against disposable PostgreSQL/Absurd and claim only that composition's transaction contract. |
-| 10. Repository gates | Met: focused DST and project tests pass, and the current full and release gates pass all 2,380 tests in both release orders with 17 expected serial qualification deselections. |
+| 10. Repository gates | Met: focused DST and project tests pass, and the current full and release gates pass all 2,591 tests in both release orders with 17 expected serial qualification deselections. |
 
 All ten conditions are met. CV19.DS2 is Done; stateful generation, broad
 independent property coverage, shrinking, and falsification were completed
@@ -950,12 +954,12 @@ deterministic `FailureOperation` for a killed call.
   tests/dst/test_joined_world.py::test_retained_joined_delivery_refusal_replays_without_the_authored_scenario`
   returned `pass` / `external_wait`, 10 operations, 17 journal entries including
   7 checker evaluations, and digest
-  `sha256:c4a340a7e6426a799f03767648cb8068424ab88b947b84f2ad50e7a91c6856ec`.
+  `sha256:362b508460976d44b5f043734b55874a9778aa62d59e5175df45976ccfaf3ff6`.
 - `UV_FROZEN=1 uv run pytest -q
   tests/dst/test_joined_world.py::test_retained_joined_delivery_ack_loss_replays_without_the_authored_scenario`
-  returned `pass` / `external_wait`, 8 operations, 14 journal entries including
-  6 checker evaluations, and digest
-  `sha256:317898902bb290ff5f6a40fb37183f7ef461932c3171a3351f588f986fed1f7f`.
+  returned `pass` / `external_wait`, 9 operations, 16 journal entries including
+  7 checker evaluations, and digest
+  `sha256:43c34a65646c2870b03dfaf2e6c0160c2f12f78c6138f90b1b43f99099c2bcc6`.
 - `UV_FROZEN=1 uv run pytest -q
   tests/dst/test_joined_world.py::test_retained_joined_terminal_refusal_replays_without_the_authored_scenario`
   returned `pass` / `converged`, 12 operations, 21 journal entries including 9
@@ -990,22 +994,22 @@ deterministic `FailureOperation` for a killed call.
   tests/dst/test_joined_world.py::test_retained_joined_reset_refusal_replays_without_the_authored_scenario`
   returned `pass` / `quiescent`, 21 operations, 34 journal entries including 13
   checker evaluations, and digest
-  `sha256:84b2b2e63f4212e942544c8d6aaeae0fc00309abcc4bd1506aec3895de605cda`.
+  `sha256:d5144ac9c0e47c89b43da1d2cfbe5dc8195c2201c66e5b33e9120b1adee22cb8`.
 - `UV_FROZEN=1 uv run pytest -q
   tests/dst/test_joined_world.py::test_retained_joined_reset_ack_loss_replays_without_the_authored_scenario`
   returned `pass` / `quiescent`, 19 operations, 31 journal entries including 12
   checker evaluations, and digest
-  `sha256:58cb1b8cec3eb0dcb9329c64a3da48b2c839b96a149b5d7308edddab3e1bbf88`.
+  `sha256:1b0a892b46e044a3ea56aaf3c8bb915bd2d4d8db65c07897a1bd68fbff0f85fc`.
 - `UV_FROZEN=1 uv run pytest -q
   tests/dst/test_joined_world.py::test_retained_joined_cancellation_fixture_replays_without_the_authored_scenario`
   returned `pass` / `quiescent`, 19 operations, 31 journal entries including
   12 checker evaluations, and digest
-  `sha256:1c49f2de218e8579894a9f55248e81b3e058a977a2ebffecd82b19880661dbf0`.
+  `sha256:7b1b2a26aba24e96a973043e73796cc469473b274e9ac0ba71f0f681ae799b82`.
 - `UV_FROZEN=1 uv run pytest -q
   tests/dst/test_joined_world.py::test_retained_joined_cancellation_ack_loss_replays_without_the_authored_scenario`
   returned `pass` / `quiescent`, 19 operations, 31 journal entries including
   12 checker evaluations, and digest
-  `sha256:c369eda31394c6de8287f23ea462c448fd2a7fb4e894a9ad163fd8b99c44630b`.
+  `sha256:8619595bcda8270d5204123bf3564dbec503f65ea3d74c578464e44ff1b8bb79`.
 - The same replay route over `resource-bounded-recovery-world-v4.json`
   returned `pass` / `converged`, 14 operations, 39 journal entries, and digest
   `sha256:0e1ffac28729a33fe7bb19e4ec52869c150a6a5e8312018419be53c4f2d69baf`.
@@ -1013,8 +1017,8 @@ deterministic `FailureOperation` for a killed call.
   returned `pass` / `budget_exhausted`, 3 operations, 10 journal entries, and
   digest
   `sha256:845e62259ae1e18b1ab92f1a2f5c16b1757cea29181bda6e6cd767ce0857b451`.
-- `scripts/check full` — 2,380 passed.
-- `scripts/check release` — 2,380 passed in both the four-worker and fixed-order
+- `scripts/check full` — 2,591 passed.
+- `scripts/check release` — 2,591 passed in both the four-worker and fixed-order
   serial runs; the serial run reported 17 expected qualification deselections.
 - `UV_FROZEN=1 uv run ast-grep test --skip-snapshot-tests` — all 19
   architectural rule fixtures passed, including the runtime-neutral supported

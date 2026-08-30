@@ -59,7 +59,6 @@ from petrus.impetus.history import (
     FiringFailed,
     Record,
     TokensConsumed,
-    TokensInitialized,
     TokensProduced,
     TokensRead,
 )
@@ -1700,6 +1699,10 @@ def _begin_records(*, with_request=True):
     return records
 
 
+def activity_construction_records() -> tuple[Record, ...]:
+    return _instance(ChargeCard()).history.records
+
+
 class TestActivityReplayGuards:
     def test_an_activity_request_with_no_begun_boundary_is_replay_divergence(self):
         history = InMemoryHistoryStore()
@@ -1759,7 +1762,7 @@ class TestActivityReplayGuards:
         # Code-vs-record coherence at the door: the trace says an activity
         # was requested, the re-supplied binding cannot project it.
         history = InMemoryHistoryStore()
-        history.extend([TokensInitialized(A, (PAYMENT,), instant=1)] + _begin_records())
+        history.extend([*activity_construction_records(), *_begin_records()])
         with pytest.raises(ValueError, match="not bound to an ActivityHandler"):
             Instance.resume(_activity_net(), history, handlers={"charge": lambda b, outputs: {}})
 
@@ -1768,7 +1771,7 @@ class TestActivityReplayGuards:
         # impure begin batch, so a begun occurrence without one under an
         # ActivityHandler binding is a foreign or corrupted trace.
         history = InMemoryHistoryStore()
-        history.extend([TokensInitialized(A, (PAYMENT,), instant=1)] + _begin_records(with_request=False))
+        history.extend([*activity_construction_records(), *_begin_records(with_request=False)])
         with pytest.raises(ValueError, match="no ActivityRequested"):
             Instance.resume(_activity_net(), history, handlers={"charge": ChargeCard()})
 

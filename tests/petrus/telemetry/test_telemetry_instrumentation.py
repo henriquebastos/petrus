@@ -127,12 +127,13 @@ class TestKernelDoorEvents:
         assert failed["occurrence"] == 1
         assert "RuntimeError" in failed["error"]
 
-    def test_deliver_emits_acceptance_and_redelivery_answers_from_the_dedup(self):
+    def test_acceptance_and_completion_emit_the_delivery_lifecycle_and_redelivery_answer(self):
         instance = Instance(_source_net(), instance_id="i-1")
 
         with telemetry.capture() as events:
-            instance.deliver("s", Token("X"), identity="evt-1")
-            instance.deliver("s", Token("X"), identity="evt-1")
+            accepted_delivery = instance.accept_delivery("s", Token("X"), identity="evt-1")
+            instance.complete_delivery(accepted_delivery)
+            instance.accept_delivery("s", Token("X"), identity="evt-1")
 
         assert [payload["event"] for payload in events] == [
             "impetus_firing_begun",
@@ -158,14 +159,15 @@ class TestKernelDoorEvents:
             "occurrence": 1,
         }
 
-    def test_a_derived_identity_is_spelled_on_the_acceptance(self):
+    def test_the_supplied_identity_is_spelled_on_the_acceptance(self):
         instance = Instance(_source_net())
 
         with telemetry.capture() as events:
-            instance.deliver("s", Token("X"))
+            accepted_delivery = instance.accept_delivery("s", Token("X"), identity="telemetry-event")
+            instance.complete_delivery(accepted_delivery)
 
         (accepted,) = _events(events, "impetus_delivery_accepted")
-        assert accepted["identity"] == "occurrence-1"
+        assert accepted["identity"] == "telemetry-event"
 
     def test_seal_emits_the_closed_count(self):
         instance = Instance(_source_net(), instance_id="i-1")
@@ -324,19 +326,16 @@ class TestInstanceIdentity:
         assert resumed.instance_id == "order-7"
         assert all(payload["instance"] == "order-7" for payload in events)
 
-    def test_a_pre_identity_legacy_trace_resumes_unidentified(self):
-        # A history from before the identity fact resumes without refusal and
-        # emits without an instance field — absence is age, not corruption.
+    def test_a_trace_without_identity_refuses_before_emitting_resume(self):
         instance = Instance(_fork_net(), Marking({NetPath("a"): (Token("X"),)}))
-        legacy = InMemoryHistoryStore()
-        legacy.extend(list(instance.history.records[1:]))  # strip InstanceCreated
+        malformed = InMemoryHistoryStore()
+        malformed.extend(list(instance.history.records[1:]))
 
-        resumed = Instance.resume(_fork_net(), legacy)
         with telemetry.capture() as events:
-            resumed.step()
+            with pytest.raises(ValueError, match="construction batch requires InstanceCreated"):
+                Instance.resume(_fork_net(), malformed)
 
-        assert resumed.instance_id is None
-        assert all("instance" not in payload for payload in events)
+        assert events == []
 
 
 class TestPhaseTimings:

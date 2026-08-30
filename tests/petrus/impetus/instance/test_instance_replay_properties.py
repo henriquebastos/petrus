@@ -80,7 +80,12 @@ def test_legal_instance_actions_remain_replayable_and_resumable(spec, data):
         action = data.draw(st.sampled_from(legal), label=f"action[{action_number}]")
         note(f"action[{action_number}]={action}")
         if action == "deliver":
-            instance.deliver(SOURCE, data.draw(st.sampled_from(TOKENS), label=f"delivery[{action_number}]"))
+            accepted = instance.accept_delivery(
+                SOURCE,
+                data.draw(st.sampled_from(TOKENS), label=f"delivery[{action_number}]"),
+                identity=f"delivery-{action_number}",
+            )
+            instance.complete_delivery(accepted)
         elif action == "step":
             instance.step()
         elif action == "begin":

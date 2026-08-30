@@ -19,7 +19,7 @@ from __future__ import annotations
 # Internal imports
 from petrus.impetus.history import replay_marking
 from petrus.impetus.petrinet import Marking, Token
-from petrus.impetus.instance import Instance, Status
+from petrus.impetus.instance import AcceptedDelivery, Instance, Status
 from petrus.impetus.petrinet import Arc, Net, NetPath, Place, Transition
 
 START, WAITING, PROGRESSED = NetPath("start"), NetPath("waiting"), NetPath("progressed")
@@ -60,7 +60,9 @@ class TestAwaitingTermination:
     def test_external_resolution_reenables_the_join(self):
         instance = _seeded()
         instance.run()
-        instance.deliver(RESOLVE, Token.black())
+        accepted = instance.accept_delivery(RESOLVE, Token.black(), identity="resolution-event")
+        assert isinstance(accepted, AcceptedDelivery)
+        instance.complete_delivery(accepted)
         assert instance.marking.place(RESOLUTION) == (Token.black(),)
         assert instance.enabled_transitions() == [FINISH]
 
@@ -70,7 +72,9 @@ class TestAwaitingTermination:
         # — the runtime, not the marking, knows no more events are coming.
         instance = _seeded()
         instance.run()
-        instance.deliver(RESOLVE, Token.black())
+        accepted = instance.accept_delivery(RESOLVE, Token.black(), identity="draining-resolution")
+        assert isinstance(accepted, AcceptedDelivery)
+        instance.complete_delivery(accepted)
         instance.run()
         assert instance.marking == Marking({DONE: (Token.black(), Token.black()), PROGRESSED: (Token.black(),)})
         assert instance.status is Status.AWAITING

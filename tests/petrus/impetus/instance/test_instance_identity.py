@@ -74,13 +74,14 @@ class TestResumeDerivesIdentity:
 
         assert Instance.resume(_net(), instance.history).instance_id == instance.instance_id
 
-    def test_a_pre_identity_trace_resumes_unidentified(self):
+    def test_a_trace_without_identity_is_replay_divergence(self):
         instance = Instance(_net(), Marking({A: (Token("X"),)}))
         instance.run()
-        legacy = InMemoryHistoryStore()
-        legacy.extend(list(instance.history.records[1:]))  # a trace older than the identity fact
+        malformed = InMemoryHistoryStore()
+        malformed.extend(list(instance.history.records[1:]))
 
-        assert Instance.resume(_net(), legacy).instance_id is None
+        with pytest.raises(ValueError, match="construction batch requires InstanceCreated"):
+            Instance.resume(_net(), malformed)
 
     def test_a_recorded_name_disagreeing_with_the_supplied_net_is_a_foreign_trace(self):
         instance = Instance(_net("order-fulfillment"), Marking({A: (Token("X"),)}))

@@ -345,12 +345,13 @@ def generate(scenario: Callable[[], tuple[Net, Marking, list[dict[str, object]],
         if action["kind"] == "step":
             outcome = instance.step(at=action["at"])
         elif action["kind"] == "deliver":
-            outcome = instance.deliver(
+            accepted = instance.accept_delivery(
                 action["source"],
                 tuple(decode_token(value) for value in action["tokens"]),
                 at=action["at"],
                 identity=action["identity"],
             )
+            outcome = instance.complete_delivery(accepted, at=action["at"])
         elif action["kind"] == "seal":
             instance.seal(action["source"], at=action["at"])
             outcome = None

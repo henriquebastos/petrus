@@ -117,7 +117,8 @@ class TestRecordInstants:
 
     def test_delivery_stamps_the_event_and_its_firing_records(self):
         instance = Instance(self.net())
-        instance.deliver(NetPath("ingest"), Token.black(), at=3)
+        accepted = instance.accept_delivery(NetPath("ingest"), Token.black(), at=3, identity="timed-event")
+        instance.complete_delivery(accepted, at=3)
         assert {record.instant for record in instance.history} == {0, 3}  # registration at 0, delivery at 3
         assert instance.watermark == 3
 
@@ -125,15 +126,19 @@ class TestRecordInstants:
         # The single writer enforces monotonicity by clamping, not raising
         # [DR time-projection-virtual-clock-watermark].
         instance = Instance(self.net())
-        instance.deliver(NetPath("ingest"), Token.black(), at=7)
-        firing = instance.deliver(NetPath("ingest"), Token.black(), at=2)
+        accepted = instance.accept_delivery(NetPath("ingest"), Token.black(), at=7, identity="later-event")
+        instance.complete_delivery(accepted, at=7)
+        accepted = instance.accept_delivery(NetPath("ingest"), Token.black(), at=2, identity="clamped-event")
+        firing = instance.complete_delivery(accepted, at=2)
         assert instance.watermark == 7
         assert all(record.instant == 7 for record in firing.records)
 
     def test_no_instant_means_no_advance(self):
         instance = Instance(self.net())
-        instance.deliver(NetPath("ingest"), Token.black(), at=4)
-        firing = instance.deliver(NetPath("ingest"), Token.black())
+        accepted = instance.accept_delivery(NetPath("ingest"), Token.black(), at=4, identity="advanced-event")
+        instance.complete_delivery(accepted, at=4)
+        accepted = instance.accept_delivery(NetPath("ingest"), Token.black(), identity="unstamped-event")
+        firing = instance.complete_delivery(accepted)
         assert instance.watermark == 4
         assert all(record.instant == 4 for record in firing.records)
 
@@ -145,7 +150,8 @@ class TestRecordInstants:
 
     def test_replay_rebuilds_the_marking_from_instant_stamped_records(self):
         instance = Instance(self.net())
-        instance.deliver(NetPath("ingest"), Token.black(), at=9)
+        accepted = instance.accept_delivery(NetPath("ingest"), Token.black(), at=9, identity="replay-event")
+        instance.complete_delivery(accepted, at=9)
         assert replay_marking(instance.history) == instance.marking
 
 
@@ -233,7 +239,8 @@ class TestTimedEnabledness:
             arcs=[Arc(NetPath("src"), PENDING), Arc(PENDING, EXPIRE), Arc(EXPIRE, EXPIRED)],
         )
         instance = Instance(net)
-        instance.deliver(NetPath("src"), Token.black(), at=4)
+        accepted = instance.accept_delivery(NetPath("src"), Token.black(), at=4, identity="delay-anchor")
+        instance.complete_delivery(accepted, at=4)
         assert instance.next_maturation == 14
 
     def test_a_read_bound_token_anchors_the_binding_like_a_consumed_one(self):
@@ -251,7 +258,8 @@ class TestTimedEnabledness:
             ],
         )
         instance = Instance(net, Marking({PENDING: (Token.black(),)}), at=2)
-        instance.deliver(NetPath("src"), Token.black(), at=8)
+        accepted = instance.accept_delivery(NetPath("src"), Token.black(), at=8, identity="read-anchor")
+        instance.complete_delivery(accepted, at=8)
         assert instance.next_maturation == 18
 
     def test_a_binding_failing_its_guard_is_not_waiting_on_time(self):
@@ -352,7 +360,8 @@ class TestWatermarkAdvance:
             arcs=[Arc(NetPath("src"), other), Arc(PENDING, EXPIRE), Arc(EXPIRE, EXPIRED)],
         )
         instance = Instance(net, Marking({PENDING: (Token.black(),)}))
-        instance.deliver(NetPath("src"), Token.black(), at=12)
+        accepted = instance.accept_delivery(NetPath("src"), Token.black(), at=12, identity="maturing-event")
+        instance.complete_delivery(accepted, at=12)
         assert instance.enabled_transitions() == [EXPIRE]
         assert not [r for r in instance.history if isinstance(r, TimerMatured)]
 
@@ -404,7 +413,10 @@ class TestRatifiedScenarios:
         )
         instance = Instance(net)
         for arrival in (1, 2, 3):
-            instance.deliver(NetPath("src"), Token.black(), at=arrival)
+            accepted = instance.accept_delivery(
+                NetPath("src"), Token.black(), at=arrival, identity=f"arrival-{arrival}"
+            )
+            instance.complete_delivery(accepted, at=arrival)
         for maturity in (11, 12, 13):
             assert instance.next_maturation == maturity
             assert instance.wake(at=maturity) == TimerMatured(maturation_instant=maturity, instant=maturity)

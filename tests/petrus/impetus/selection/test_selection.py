@@ -141,11 +141,11 @@ def test_replay_folds_only_exact_committed_selection_pairs_and_spends_orphans():
     history = InMemoryHistoryStore()
     history.extend(
         [
-            CandidateSelected(NetPath("a"), occurrence=0, instant=0),
-            FiringBegun(NetPath("a"), occurrence=0, instant=0),
+            CandidateSelected(NetPath("a"), occurrence=1, instant=0),
+            FiringBegun(NetPath("a"), occurrence=1, instant=0),
         ]
     )
-    history.append(CandidateSelected(NetPath("b"), occurrence=1, instant=0))
+    history.append(CandidateSelected(NetPath("b"), occurrence=2, instant=0))
 
     state = fold_history(policy, None, history)
 
@@ -171,17 +171,17 @@ def test_replay_threads_accumulated_policy_state_through_committed_pairs():
     "records",
     [
         (
-            CandidateSelected(NetPath("a"), occurrence=0, instant=0),
-            CandidateSelected(NetPath("a"), occurrence=0, instant=0),
+            CandidateSelected(NetPath("a"), occurrence=1, instant=0),
+            CandidateSelected(NetPath("a"), occurrence=1, instant=0),
         ),
         (
-            CandidateSelected(NetPath("a"), occurrence=0, instant=0),
-            FiringBegun(NetPath("b"), occurrence=0, instant=0),
+            CandidateSelected(NetPath("a"), occurrence=1, instant=0),
+            FiringBegun(NetPath("b"), occurrence=1, instant=0),
         ),
         (
-            CandidateSelected(NetPath("a"), occurrence=0, instant=0),
-            FiringBegun(NetPath("a"), occurrence=0, instant=0),
-            FiringBegun(NetPath("a"), occurrence=0, instant=0),
+            CandidateSelected(NetPath("a"), occurrence=1, instant=0),
+            FiringBegun(NetPath("a"), occurrence=1, instant=0),
+            FiringBegun(NetPath("a"), occurrence=1, instant=0),
         ),
     ],
 )

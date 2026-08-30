@@ -39,12 +39,16 @@ renamed family-wide at the schema moment exactly as the deferral ruled
 from __future__ import annotations
 
 # Python imports
-from dataclasses import KW_ONLY, dataclass
+from copy import deepcopy
+from dataclasses import KW_ONLY, dataclass, fields
+import json
+from typing import cast, get_args
 
 # Internal imports
 from petrus.motus.activity import ExecutionPolicy
 from petrus.impetus.petrinet import Marking, Token, TokenNotPresent, TokenQueue
 from petrus.impetus.petrinet import Instant, NetPath
+from petrus.impetus.petrinet.schema import canonical_net_path
 from petrus.impetus.scope import LifecycleScope
 
 
@@ -67,8 +71,44 @@ def _validate_entries(
 
 
 def _exact_scope(scope: LifecycleScope, noun: str) -> None:
-    if not isinstance(scope, LifecycleScope):
+    if type(scope) is not LifecycleScope:
         raise ValueError(f"{noun} requires an exact LifecycleScope generation")
+
+
+def _canonical_json_shape(value: object) -> bool:
+    if value is None or type(value) in {bool, int, float, str}:
+        return True
+    if type(value) is list:
+        return all(_canonical_json_shape(item) for item in value)
+    if type(value) is dict:
+        return all(type(key) is str and _canonical_json_shape(item) for key, item in value.items())
+    return False
+
+
+def _validate_delivery_tokens(tokens: object, record: str) -> None:
+    if type(tokens) is not tuple or not tokens:
+        msg = f"{record} tokens must be a non-empty tuple of canonical Tokens"
+        raise ValueError(msg)
+    for position, token in enumerate(tokens):
+        if type(token) is not Token:
+            msg = f"{record} token at position {position} must be an exact Token"
+            raise ValueError(msg)
+        if token.color is not None and type(token.color) is not str:
+            msg = f"{record} token color at position {position} must be an exact string or None"
+            raise ValueError(msg)
+        try:
+            json.dumps(token.data, allow_nan=False)
+        except (TypeError, ValueError) as error:
+            msg = f"{record} token data at position {position} must be strict JSON"
+            raise ValueError(msg) from error
+        if not _canonical_json_shape(token.data):
+            msg = f"{record} token data at position {position} must have canonical JSON types"
+            raise ValueError(msg)
+
+
+def _validate_delivery_identity(identity: object, record: str) -> None:
+    if type(identity) is not str or not identity:
+        raise ValueError(f"{record} requires an exact non-empty string identity, got {identity!r}")
 
 
 @dataclass(frozen=True)
@@ -151,13 +191,31 @@ class ScopeReset:
         _validate_occurrence_ids(self.cancelled, "ScopeReset cancelled occurrences")
 
 
+def _validate_occurrence_id(value: object, noun: str) -> None:
+    if type(value) is not int or value < 1:
+        raise ValueError(f"{noun} must be a positive integer, got {value!r}")
+
+
+def _validated_registration_source(
+    source: NetPath | str,
+    key: object,
+    occurrence: object,
+    noun: str,
+) -> NetPath:
+    if type(key) is not str or not key:
+        raise ValueError(f"{noun} requires a non-empty string key of the exact built-in type, got {key!r}")
+    if occurrence is not None:
+        _validate_occurrence_id(occurrence, f"{noun} occurrence")
+    return canonical_net_path(source, f"{noun} source")
+
+
 def _validate_occurrence_ids(values: tuple[int, ...], noun: str) -> None:
     _validate_positive_ids(values, noun)
 
 
 def _validate_positive_ids(values: tuple[int, ...], noun: str) -> None:
-    if any(isinstance(value, bool) or not isinstance(value, int) or value < 1 for value in values):
-        raise ValueError(f"{noun} must be positive integers")
+    if any(type(value) is not int or value < 1 for value in values):
+        raise ValueError(f"{noun} must use exact positive integers")
     if len(set(values)) != len(values):
         raise ValueError(f"{noun} must be unique")
 
@@ -170,6 +228,10 @@ class CandidateSelected:
     _: KW_ONLY
     occurrence: int
     instant: Instant = 0
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "transition", canonical_net_path(self.transition, "CandidateSelected transition"))
+        _validate_occurrence_id(self.occurrence, "CandidateSelected occurrence")
 
 
 @dataclass(frozen=True)
@@ -184,14 +246,14 @@ class ExternalEventDelivered:
     movements and never re-delivers.
 
     ``identity`` is the delivery's stable identity: supplied by the ingress
-    adapter (a webhook's provider event id) or, when none exists, the
-    writer's derived self-identity ``"occurrence-{id}"`` [DR 2026-07-14
-    source-delivery-projection-and-identity] — the ``occurrence-`` prefix is
-    the writer-reserved namespace of that derived form (``deliver`` refuses
-    supplied identities inside it). The delivery door enforces idempotent
-    acceptance by this identity: an accepted identity is answered with the
-    prior acknowledgement on redelivery, and these records are the authority
-    the accepted-identity index (``replay_accepted_identities``) projects.
+    adapter (a webhook's provider event id) [DR 2026-07-14
+    source-delivery-projection-and-identity]. Every source delivery requires
+    one: the writer never substitutes an occurrence-derived identity that the
+    adapter could not reconstruct after a crash. The delivery door enforces
+    idempotent acceptance by this identity: redelivery reconstructs the
+    accepted unfinished occurrence or, after it ends, returns its prior
+    acknowledgement. These records are the authority the accepted-identity
+    index (``replay_accepted_identities``) projects.
     """
 
     source: NetPath
@@ -203,8 +265,10 @@ class ExternalEventDelivered:
     instant: Instant = 0
 
     def __post_init__(self) -> None:
-        if not isinstance(self.identity, str) or not self.identity:
-            raise ValueError(f"ExternalEventDelivered requires a non-empty string identity, got {self.identity!r}")
+        object.__setattr__(self, "source", canonical_net_path(self.source, "ExternalEventDelivered source"))
+        _validate_occurrence_id(self.occurrence, "ExternalEventDelivered occurrence")
+        _validate_delivery_identity(self.identity, "ExternalEventDelivered")
+        _validate_delivery_tokens(self.tokens, "ExternalEventDelivered")
         if self.scope is not None:
             _exact_scope(self.scope, "ExternalEventDelivered")
 
@@ -221,8 +285,9 @@ class ScopedDeliveryDropped:
     instant: Instant = 0
 
     def __post_init__(self) -> None:
-        if not isinstance(self.identity, str) or not self.identity:
-            raise ValueError("ScopedDeliveryDropped requires a non-empty string identity")
+        object.__setattr__(self, "source", canonical_net_path(self.source, "ScopedDeliveryDropped source"))
+        _validate_delivery_identity(self.identity, "ScopedDeliveryDropped")
+        _validate_delivery_tokens(self.tokens, "ScopedDeliveryDropped")
         _exact_scope(self.scope, "ScopedDeliveryDropped")
 
 
@@ -238,10 +303,11 @@ class ScopedDeliveryQuarantined:
     instant: Instant = 0
 
     def __post_init__(self) -> None:
-        if not isinstance(self.identity, str) or not self.identity:
-            raise ValueError("ScopedDeliveryQuarantined requires a non-empty string identity")
-        valid_name = isinstance(self.scope, str) and bool(self.scope) and "\x00" not in self.scope
-        if not isinstance(self.scope, LifecycleScope) and not valid_name:
+        object.__setattr__(self, "source", canonical_net_path(self.source, "ScopedDeliveryQuarantined source"))
+        _validate_delivery_identity(self.identity, "ScopedDeliveryQuarantined")
+        _validate_delivery_tokens(self.tokens, "ScopedDeliveryQuarantined")
+        valid_name = type(self.scope) is str and bool(self.scope) and "\x00" not in self.scope
+        if type(self.scope) is not LifecycleScope and not valid_name:
             raise ValueError("ScopedDeliveryQuarantined requires a non-empty scope name without NUL")
 
 
@@ -263,9 +329,11 @@ class DeliveryRegistration:
     key: str
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "source", NetPath(self.source))
-        if not isinstance(self.key, str) or not self.key:
-            raise ValueError(f"DeliveryRegistration requires a non-empty string key, got {self.key!r}")
+        object.__setattr__(self, "source", canonical_net_path(self.source, "DeliveryRegistration source"))
+        if type(self.key) is not str or not self.key:
+            raise ValueError(
+                f"DeliveryRegistration requires a non-empty string key of the exact built-in type, got {self.key!r}"
+            )
 
 
 @dataclass(frozen=True)
@@ -285,6 +353,15 @@ class DeliveryRegistrationOpened:
     occurrence: int | None
     instant: Instant = 0
 
+    def __post_init__(self) -> None:
+        source = _validated_registration_source(
+            self.source,
+            self.key,
+            self.occurrence,
+            type(self).__name__,
+        )
+        object.__setattr__(self, "source", source)
+
 
 @dataclass(frozen=True)
 class DeliveryRegistrationClosed:
@@ -301,6 +378,15 @@ class DeliveryRegistrationClosed:
     _: KW_ONLY
     occurrence: int | None
     instant: Instant = 0
+
+    def __post_init__(self) -> None:
+        source = _validated_registration_source(
+            self.source,
+            self.key,
+            self.occurrence,
+            type(self).__name__,
+        )
+        object.__setattr__(self, "source", source)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -341,6 +427,7 @@ class FiringBegun:
     instant: Instant = 0
 
     def __post_init__(self) -> None:
+        _validate_occurrence_id(self.occurrence, "FiringBegun occurrence")
         if self.scope is not None:
             _exact_scope(self.scope, "FiringBegun")
 
@@ -498,6 +585,7 @@ class TokensProduced:
     instant: Instant = 0
 
     def __post_init__(self) -> None:
+        _validate_occurrence_id(self.occurrence, "TokensProduced occurrence")
         _validate_entries(self.tokens, self.entries, self.scope, "TokensProduced")
         if self.scope is not None:
             _exact_scope(self.scope, "TokensProduced")
@@ -511,6 +599,9 @@ class FiringCompleted:
     _: KW_ONLY
     occurrence: int
     instant: Instant = 0
+
+    def __post_init__(self) -> None:
+        _validate_occurrence_id(self.occurrence, "FiringCompleted occurrence")
 
 
 @dataclass(frozen=True)
@@ -528,6 +619,11 @@ class FiringFailed:
     _: KW_ONLY
     occurrence: int
     instant: Instant = 0
+
+    def __post_init__(self) -> None:
+        _validate_occurrence_id(self.occurrence, "FiringFailed occurrence")
+        if type(self.error) is not str or not self.error or len(self.error) > 4096:
+            raise ValueError("FiringFailed error must be a non-empty string of at most 4096 characters")
 
 
 # The record types emitted so far — deterministic records and, for impure
@@ -557,6 +653,222 @@ Record = (
     | ActivityFailed
     | FiringFailed
 )
+
+
+_RECORD_NODE_FIELDS = frozenset({"place", "source", "transition"})
+_RECORD_ID_FIELDS = frozenset({"cancelled", "discarded", "entries"})
+_RECORD_STRING_FIELDS = frozenset(
+    {"activity", "correlation", "error", "idempotency", "identity", "instance", "key", "kind", "name"}
+)
+_RECORD_NONEMPTY_STRING_FIELDS = _RECORD_STRING_FIELDS - {"name"}
+_RECORD_ACTIVITY_PAYLOAD_FIELDS = {
+    ActivityRequested: frozenset({"input"}),
+    ActivityCompleted: frozenset({"result"}),
+    ActivityFailed: frozenset({"details"}),
+    ActivityTerminalQuarantined: frozenset({"outcome"}),
+}
+_DELIVERY_RECORD_TYPES = frozenset({ExternalEventDelivered, ScopedDeliveryDropped, ScopedDeliveryQuarantined})
+
+
+def _canonical_record_node(record_type: type, name: str, value: object) -> NetPath:
+    """Canonicalize one record node address."""
+    return canonical_net_path(value, f"{record_type.__name__} {name}")
+
+
+def _canonical_record_occurrence(record_type: type, name: str, value: object) -> object:
+    """Validate one optional firing occurrence identity."""
+    noun = f"{record_type.__name__} {name}"
+    if value is not None:
+        _validate_occurrence_id(value, noun)
+    return value
+
+
+def _canonical_record_tokens(record_type: type, name: str, value: object) -> tuple[Token, ...]:
+    """Own one exact detached token tuple."""
+    _validate_record_tokens(record_type, name, value)
+    tokens = cast("tuple[Token, ...]", value)
+    return tuple(Token(token.color, deepcopy(token.data)) for token in tokens)
+
+
+def _validate_record_tokens(record_type: type, name: str, value: object) -> None:
+    """Validate exact token containers without reading or copying opaque token data."""
+    noun = f"{record_type.__name__} {name}"
+    if type(value) is not tuple:
+        raise ValueError(f"{noun} must be an exact tuple of Tokens")
+    for position, token in enumerate(value):
+        if type(token) is not Token:
+            raise ValueError(f"{noun} token at position {position} must be an exact Token")
+        if token.color is not None and type(token.color) is not str:
+            raise ValueError(f"{noun} token color at position {position} must be an exact string or None")
+    if record_type in _DELIVERY_RECORD_TYPES:
+        _validate_delivery_tokens(value, record_type.__name__)
+
+
+def _canonical_record_ids(record_type: type, name: str, value: object) -> tuple[int, ...]:
+    """Validate one tuple of durable positive identities."""
+    noun = f"{record_type.__name__} {name}"
+    if type(value) is not tuple:
+        raise ValueError(f"{noun} must be an exact tuple of positive integers")
+    identities = cast("tuple[int, ...]", value)
+    _validate_positive_ids(identities, noun)
+    return identities
+
+
+def _canonical_record_scope(record_type: type, name: str, value: object) -> LifecycleScope | str | None:
+    """Own one exact lifecycle scope spelling."""
+    if value is None:
+        return None
+    if type(value) is LifecycleScope:
+        return LifecycleScope(value.name, value.generation)
+    if name == "scope" and type(value) is str:
+        return value
+    noun = f"{record_type.__name__} {name}"
+    raise ValueError(f"{noun} must be an exact LifecycleScope, exact name string, or None")
+
+
+def _canonical_record_policy(record_type: type, name: str, value: object) -> ExecutionPolicy:
+    """Own one exact execution policy."""
+    _validate_record_policy(record_type, name, value)
+    policy = {field.name: getattr(value, field.name) for field in fields(ExecutionPolicy)}
+    return ExecutionPolicy(**policy)
+
+
+def _validate_record_policy(record_type: type, name: str, value: object) -> None:
+    """Validate an execution policy from its original fields without invoking copy protocols."""
+    noun = f"{record_type.__name__} {name}"
+    if type(value) is not ExecutionPolicy:
+        raise ValueError(f"{noun} must be an exact ExecutionPolicy")
+    policy = {field.name: getattr(value, field.name) for field in fields(ExecutionPolicy)}
+    if type(policy["attempts"]) is not int or type(policy["heartbeat_timeout"]) is not int:
+        raise ValueError(f"{noun} integer fields must use the exact built-in type")
+    for field_name in (
+        "initial_interval",
+        "coefficient",
+        "max_interval",
+        "jitter",
+        "start_to_close",
+        "schedule_to_close",
+    ):
+        item = policy[field_name]
+        if item is not None and type(item) not in {int, float}:
+            raise ValueError(f"{noun} numeric fields must use exact built-in numbers")
+
+
+def _validate_record_activity_payload(record_type: type, name: str, value: object) -> None:
+    """Require the exact retained JSON shape before replay detaches an activity payload."""
+    noun = f"{record_type.__name__} {name}"
+    if not _canonical_json_shape(value):
+        raise ValueError(f"{noun} must have canonical JSON types")
+    try:
+        json.dumps(value, allow_nan=False)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"{noun} must be strict JSON") from error
+
+
+def _canonical_record_string(record_type: type, name: str, value: object) -> str | None:
+    """Validate one exact record string while preserving established errors."""
+    noun = f"{record_type.__name__} {name}"
+    if name == "instance":
+        if type(value) is not str or not value:
+            raise ValueError(f"Instance identity must be a non-empty string, got {value!r}")
+        return value
+    if name == "identity":
+        _validate_delivery_identity(value, record_type.__name__)
+        return cast("str", value)
+    if record_type is FiringFailed and name == "error":
+        if type(value) is not str or not value or len(value) > 4096:
+            raise ValueError("FiringFailed error must be a non-empty string of at most 4096 characters")
+        return value
+    if name in _RECORD_STRING_FIELDS:
+        if value is not None and type(value) is not str:
+            raise ValueError(f"{noun} must use the exact built-in string type")
+        if name in _RECORD_NONEMPTY_STRING_FIELDS and not value:
+            raise ValueError(f"{noun} must be a non-empty string")
+    return cast("str | None", value)
+
+
+def _canonical_record_retryable(record_type: type, name: str, value: object) -> bool:
+    """Validate the exact activity-failure retry flag."""
+    if type(value) is not bool:
+        raise ValueError(f"{record_type.__name__} {name} must use the exact built-in boolean type")
+    return value
+
+
+def _canonical_record_retry_after(record_type: type, name: str, value: object) -> int | float | None:
+    """Validate the optional activity-failure retry delay."""
+    if value is not None and type(value) not in {int, float}:
+        raise ValueError(f"{record_type.__name__} {name} must use an exact built-in number or None")
+    return cast("int | float | None", value)
+
+
+def _detached_record_value(record_type: type, name: str, value: object) -> object:
+    """Own one payload field with no protocol-specific scalar rule."""
+    del record_type, name
+    return deepcopy(value)
+
+
+_RECORD_FIELD_CANONICALIZERS = (
+    {name: _canonical_record_node for name in _RECORD_NODE_FIELDS}
+    | {"occurrence": _canonical_record_occurrence}
+    | {"tokens": _canonical_record_tokens}
+    | {name: _canonical_record_ids for name in _RECORD_ID_FIELDS}
+    | {name: _canonical_record_scope for name in ("scope", "closed", "opened")}
+    | {"policy": _canonical_record_policy}
+    | {name: _canonical_record_string for name in _RECORD_STRING_FIELDS}
+    | {"retryable": _canonical_record_retryable, "retry_after": _canonical_record_retry_after}
+)
+_RECORD_FIELD_VALIDATORS = _RECORD_FIELD_CANONICALIZERS | {
+    "tokens": _validate_record_tokens,
+    "policy": _validate_record_policy,
+}
+
+
+def _canonical_record_field(record_type: type, name: str, value: object) -> object:
+    """Validate and own one exact dataclass field before replay can observe it."""
+    canonicalize = _RECORD_FIELD_CANONICALIZERS.get(name, _detached_record_value)
+    return canonicalize(record_type, name, value)
+
+
+def _validate_record_field(record_type: type, name: str, value: object) -> None:
+    """Validate one original field without invoking payload copy protocols."""
+    validate = _RECORD_FIELD_VALIDATORS.get(name)
+    if validate is not None:
+        validate(record_type, name, value)
+    elif name in _RECORD_ACTIVITY_PAYLOAD_FIELDS.get(record_type, ()):
+        _validate_record_activity_payload(record_type, name, value)
+
+
+def _canonical_record(record_type: type[Record], record: object) -> Record:
+    """Reconstruct one field-complete detached record through its canonical constructor."""
+    values = {
+        field.name: _canonical_record_field(record_type, field.name, getattr(record, field.name))
+        for field in fields(record_type)
+        if field.init
+    }
+    return record_type(**values)  # ty: ignore[invalid-argument-type]
+
+
+def validate_history_record_values(history) -> tuple[Record, ...]:
+    """Validate original record fields without detaching opaque payloads."""
+    records = tuple(history)
+    record_types = get_args(Record)
+    for position, record in enumerate(records):
+        record_type = type(record)
+        if record_type not in record_types:
+            raise ValueError(
+                f"replay divergence: record at position {position} must use an exact record type, found "
+                f"{record_type.__name__}; load records through a canonical History backend"
+            )
+        for field in fields(record_type):
+            if field.init:
+                _validate_record_field(record_type, field.name, getattr(record, field.name))
+    return cast("tuple[Record, ...]", records)
+
+
+def validate_history_records(history) -> tuple[Record, ...]:
+    """Reconstruct exact canonical record values before replay reads any field."""
+    records = validate_history_record_values(history)
+    return tuple(_canonical_record(type(record), record) for record in records)
 
 
 def _apply_scope_cleanup(queues: dict[NetPath, TokenQueue], record: ScopeClosed | ScopeReset) -> None:
@@ -771,15 +1083,13 @@ def replay_next_occurrence(history) -> int:
 
 def replay_instance_identity(history) -> InstanceCreated | None:
     """
-    The recorded identity fact, when the trace holds one — validated where
-    the live writer's discipline can be checked: identity is recorded first
-    and exactly once, so an ``InstanceCreated`` anywhere past position 0 (a
-    duplicate, or a mid-trace one) is replay divergence. ``None`` for a
-    pre-identity trace: a legacy history resumes unidentified, never refused
-    — absence is age, not corruption [ES-020/DEC-026].
+    Fold the recorded identity fact from canonical records: identity is first
+    and exactly once, so a missing identity or an ``InstanceCreated`` anywhere
+    past position 0 is replay divergence.
     """
     identity: InstanceCreated | None = None
-    for position, record in enumerate(history):
+    records = tuple(history)
+    for position, record in enumerate(records):
         if isinstance(record, InstanceCreated):
             if position != 0:
                 raise ValueError(
@@ -787,34 +1097,203 @@ def replay_instance_identity(history) -> InstanceCreated | None:
                     f"identity as the first record, exactly once"
                 )
             identity = record
+    if records and identity is None:
+        raise ValueError("replay divergence: the construction batch requires InstanceCreated as its first record")
     return identity
 
 
-type AcceptedDelivery = ExternalEventDelivered | ScopedDeliveryDropped | ScopedDeliveryQuarantined
+type AcceptedDeliveryFact = ExternalEventDelivered | ScopedDeliveryDropped | ScopedDeliveryQuarantined
 
 
-def replay_accepted_identities(history) -> dict[str, AcceptedDelivery]:
+# Complexity exception: one ordered validation fold over the completion-effect record family.
+def _validate_correlated_delivery_registration_batches(records: tuple[Record, ...]) -> None:  # noqa: C901
+    """Require every firing-correlated registration effect to end in its contiguous completion batch."""
+    effect_occurrences = {
+        record.occurrence
+        for record in records
+        if isinstance(record, (DeliveryRegistrationOpened, DeliveryRegistrationClosed))
+        and record.occurrence is not None
+    }
+    begun: dict[int, NetPath] = {}
+    active: tuple[int, Instant, int] | None = None
+    for record in records:
+        if active is not None:
+            occurrence, instant, prior_rank = active
+            if (
+                isinstance(record, FiringCompleted)
+                and record.occurrence == occurrence
+                and record.instant == instant
+                and record.transition == begun[occurrence]
+            ):
+                active = None
+                continue
+            if isinstance(record, TokensProduced):
+                rank = 0
+            elif isinstance(record, DeliveryRegistrationClosed):
+                rank = 1
+            elif isinstance(record, DeliveryRegistrationOpened):
+                rank = 2
+            else:
+                raise ValueError(
+                    f"replay divergence: correlated delivery registration effect for occurrence {occurrence} "
+                    "does not belong to a contiguous writer-valid completion batch"
+                )
+            if record.occurrence != occurrence or record.instant != instant or rank < prior_rank:
+                raise ValueError(
+                    f"replay divergence: correlated delivery registration effect for occurrence {occurrence} "
+                    "does not belong to a contiguous writer-valid completion batch"
+                )
+            active = (occurrence, instant, rank)
+            continue
+        if isinstance(record, FiringBegun):
+            begun[record.occurrence] = record.transition
+        if isinstance(record, TokensProduced) and record.occurrence in effect_occurrences:
+            if record.occurrence not in begun:
+                raise ValueError(
+                    f"replay divergence: correlated delivery registration effect for occurrence "
+                    f"{record.occurrence} does not belong to a contiguous writer-valid completion batch"
+                )
+            active = (record.occurrence, record.instant, 0)
+        if (
+            isinstance(record, (DeliveryRegistrationOpened, DeliveryRegistrationClosed))
+            and record.occurrence is not None
+        ):
+            if record.occurrence not in begun:
+                raise ValueError(
+                    f"replay divergence: correlated delivery registration effect for occurrence "
+                    f"{record.occurrence} does not belong to a contiguous writer-valid completion batch"
+                )
+            rank = 2 if isinstance(record, DeliveryRegistrationOpened) else 1
+            active = (record.occurrence, record.instant, rank)
+    if active is not None:
+        occurrence, _, _ = active
+        raise ValueError(
+            f"replay divergence: correlated delivery registration effect for occurrence {occurrence} "
+            "does not belong to a contiguous writer-valid completion batch"
+        )
+
+
+def _apply_delivery_registration(
+    armed: dict[NetPath, set[str]],
+    record: Record,
+    *,
+    initial_registration_batch: bool,
+    initial_instant: Instant,
+) -> None:
+    """Apply one registration record with the live writer's open/close preconditions."""
+    if isinstance(record, DeliveryRegistrationOpened):
+        keys = armed.setdefault(record.source, set())
+        if record.key in keys:
+            raise ValueError(
+                f"replay divergence: delivery registration {record.key!r} on {record.source} opened while armed"
+            )
+        if record.occurrence is None:
+            if not initial_registration_batch:
+                raise ValueError(
+                    f"replay divergence: uncorrelated delivery registration {record.key!r} on "
+                    f"{record.source} opened outside the initial construction batch; the single writer "
+                    "emits an uncorrelated open only in the initial construction batch"
+                )
+            if record.key != "default":
+                raise ValueError(
+                    f"replay divergence: initial delivery registration on {record.source} uses key "
+                    f"{record.key!r}; the single writer uses only 'default'"
+                )
+            if record.instant != initial_instant:
+                raise ValueError(
+                    f"replay divergence: initial delivery registration {record.key!r} on {record.source} "
+                    f"uses instant {record.instant}, not construction instant {initial_instant}"
+                )
+        keys.add(record.key)
+    elif isinstance(record, DeliveryRegistrationClosed):
+        if record.key not in armed.get(record.source, set()):
+            raise ValueError(
+                f"replay divergence: delivery registration {record.key!r} on {record.source} closed while not armed"
+            )
+        armed[record.source].discard(record.key)
+
+
+def _advance_initial_registration_batch(
+    record: Record,
+    *,
+    initial_registration_batch: bool,
+    registrations_started: bool,
+) -> tuple[bool, bool]:
+    """Validate and advance the construction prefix before applying ``record``."""
+    if isinstance(record, DeliveryRegistrationOpened) and record.occurrence is None:
+        return initial_registration_batch, True
+    if isinstance(record, TokensInitialized):
+        if not initial_registration_batch or registrations_started:
+            raise ValueError(
+                "replay divergence: TokensInitialized appears outside the contiguous initial construction prefix"
+            )
+        return initial_registration_batch, registrations_started
+    if isinstance(record, InstanceCreated):
+        return initial_registration_batch, registrations_started
+    return False, registrations_started
+
+
+def replay_accepted_identities(history) -> dict[str, AcceptedDeliveryFact]:
     """
     The accepted delivery identities, each mapped to its complete recorded
     delivery fact — the projection behind the delivery door's idempotent
     acceptance [DR 2026-07-14 source-delivery-projection-and-identity]. An
-    exact redelivery is answered with the prior acknowledgement, never a
-    second semantic record; reusing the identity for another source or token
-    payload is a conflict, so the index retains the evidence needed to tell
-    those cases apart. The single writer accepts an identity once, so a trace
-    holding one twice is replay divergence — a rebuilt index is valid only if
-    the live writer could have written it. Derived self-identities
-    (``occurrence-{id}``) index like supplied ones: the projection speaks
-    every ``ExternalEventDelivered`` record, and the writer-reserved
-    namespace keeps the two from colliding.
+    exact redelivery reconstructs its accepted unfinished occurrence or,
+    after that occurrence ends, returns its prior acknowledgement; neither
+    answer appends a second semantic record. Reusing the identity for another
+    source or token payload is a conflict, so the index retains the evidence
+    needed to tell those cases apart. The single writer accepts an identity
+    once, so a trace holding one twice is replay divergence — a rebuilt index
+    is valid only if the live writer could have written it.
     """
-    accepted: dict[str, AcceptedDelivery] = {}
-    for record in history:
+    accepted: dict[str, AcceptedDeliveryFact] = {}
+    armed: dict[NetPath, set[str]] = {}
+    records = tuple(history)
+    _validate_correlated_delivery_registration_batches(records)
+    initial_instant = records[0].instant if records else 0
+    initial_registration_batch = True
+    registrations_started = False
+    for position, record in enumerate(records):
+        initial_registration_batch, registrations_started = _advance_initial_registration_batch(
+            record,
+            initial_registration_batch=initial_registration_batch,
+            registrations_started=registrations_started,
+        )
+        _apply_delivery_registration(
+            armed,
+            record,
+            initial_registration_batch=initial_registration_batch,
+            initial_instant=initial_instant,
+        )
         if isinstance(record, (ExternalEventDelivered, ScopedDeliveryDropped, ScopedDeliveryQuarantined)):
+            _validate_delivery_tokens(
+                record.tokens,
+                f"replay divergence: {type(record).__name__} identity {record.identity!r}",
+            )
+            if isinstance(record, ExternalEventDelivered):
+                if not armed.get(record.source):
+                    raise ValueError(
+                        f"replay divergence: accepted delivery identity {record.identity!r} source "
+                        f"{record.source} had no armed delivery registration"
+                    )
+                expected = FiringBegun(
+                    record.source,
+                    occurrence=record.occurrence,
+                    scope=record.scope,
+                    instant=record.instant,
+                )
+                following = records[position + 1] if position + 1 < len(records) else None
+                if following != expected:
+                    msg = (
+                        "replay divergence: accepted delivery identity "
+                        f"{record.identity!r} requires an immediately following matching "
+                        f"FiringBegun {expected!r}; found {following!r}"
+                    )
+                    raise ValueError(msg)
             if record.identity in accepted:
                 raise ValueError(
                     f"replay divergence: delivery identity {record.identity!r} accepted twice — the single "
-                    f"writer accepts an identity once and answers a redelivery with the prior acknowledgement"
+                    f"writer accepts an identity once and answers redelivery from that accepted fact"
                 )
             accepted[record.identity] = record
     return accepted
@@ -910,18 +1389,21 @@ def replay_armed(history) -> dict[NetPath, set[str]]:
     appended, so a trace that disagrees is corrupted or reordered.
     """
     armed: dict[NetPath, set[str]] = {}
-    for record in history:
-        if isinstance(record, DeliveryRegistrationOpened):
-            keys = armed.setdefault(record.source, set())
-            if record.key in keys:
-                raise ValueError(
-                    f"replay divergence: delivery registration {record.key!r} on {record.source} opened while armed"
-                )
-            keys.add(record.key)
-        elif isinstance(record, DeliveryRegistrationClosed):
-            if record.key not in armed.get(record.source, set()):
-                raise ValueError(
-                    f"replay divergence: delivery registration {record.key!r} on {record.source} closed while not armed"
-                )
-            armed[record.source].discard(record.key)
+    records = tuple(history)
+    _validate_correlated_delivery_registration_batches(records)
+    initial_instant = records[0].instant if records else 0
+    initial_registration_batch = True
+    registrations_started = False
+    for record in records:
+        initial_registration_batch, registrations_started = _advance_initial_registration_batch(
+            record,
+            initial_registration_batch=initial_registration_batch,
+            registrations_started=registrations_started,
+        )
+        _apply_delivery_registration(
+            armed,
+            record,
+            initial_registration_batch=initial_registration_batch,
+            initial_instant=initial_instant,
+        )
     return armed

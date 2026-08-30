@@ -12,15 +12,16 @@ injectable at construction — hand it a durable backend (e.g.
 happens, committed before any other instance state moves; after a crash,
 ``resume`` rebuilds a live instance from that recorded history and continues
 the same file. External events enter
-through ``deliver`` — the ingress seam, gated by the delivery
+through ``accept_delivery`` — the ingress seam, gated by the delivery
 registrations: one per source transition opens at construction (the "default"
 key), a handler's result envelope opens and closes further ones (the
 ``HandlerResult`` envelope — handlers drive the lifecycle), ``seal`` is the
 runtime-policy close-all, and delivery requires an armed delivery
 registration. Every delivery carries a stable identity — supplied by the
-ingress adapter, or derived as the occurrence's self-identity — recorded on
-the ``ExternalEventDelivered`` fact and enforced at this door: a redelivered
-identity returns the prior acknowledgement, appending nothing [DR 2026-07-14
+ingress adapter — recorded on the ``ExternalEventDelivered`` fact and enforced
+at this door: a redelivered
+identity reconstructs its unfinished accepted occurrence or, after it ends,
+returns the prior acknowledgement, appending nothing [DR 2026-07-14
 source-delivery-projection-and-identity].
 Instance status is a derived projection over the history, never stored.
 
@@ -43,14 +44,14 @@ binding's tokens and records the durable occurrence (freezing an impure
 firing's ``ActivityRequested`` in the same batch), Dispatch runs
 the activity and ``record_activity_completion`` freezes its terminal result,
 and ``complete``/``fail`` commit the terminal outcome [ADR 0007, ADR 0012;
-DR 2026-07-14 activity-invocation-runtime-seam]. ``step`` and ``deliver`` are
-the inline drivers over the pure half of the seam: begin, run the bound
-handler here, commit — a raising handler records its terminal failure and
-propagates (halt-on-failure is this inline driver's policy, not net
-semantics); an ActivityHandler-bound transition needs Dispatch,
-so ``step`` refuses it and a source transition can never bind one. The
-pluggable substrate lives in ``petrus.motus.dispatch`` and whole-action driving
-remains private implementation pending the Engine–Instance ownership decision.
+DR 2026-07-14 activity-invocation-runtime-seam]. ``step`` and
+``complete_delivery`` are the inline drivers over the pure half of the seam:
+begin, run the bound handler here, commit — a raising handler records its
+terminal failure and propagates (halt-on-failure is this inline driver's
+policy, not net semantics); an ActivityHandler-bound transition needs
+Dispatch, so both drivers refuse it. The pluggable substrate lives in
+``petrus.motus.dispatch``; ``Engine`` owns composed delivery and whole-action
+driving.
 """
 
 from __future__ import annotations
@@ -59,9 +60,11 @@ from __future__ import annotations
 import json
 import warnings
 from collections.abc import Callable, Mapping, Sequence
+from copy import deepcopy
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from types import MappingProxyType
+from typing import cast
 from uuid import uuid7
 
 # Internal imports
@@ -89,6 +92,7 @@ from petrus.impetus.instance.firing import (
     begin_firing as begin_firing,
     complete_firing as complete_firing,
     replay_activity_occurrences,
+    replay_firing_occurrences,
     replay_in_flight,
     replay_cancelled,
     replay_projection_pending,
@@ -97,6 +101,7 @@ from petrus.impetus.instance.firing import (
     select_conservative,
 )
 from petrus.impetus.history import (
+    AcceptedDeliveryFact,
     ActivityCompleted,
     ActivityFailed,
     ActivityRequested,
@@ -130,10 +135,13 @@ from petrus.impetus.history import (
     replay_queues,
     replay_scopes,
     replay_watermark,
+    validate_history_record_values,
+    validate_history_records,
 )
 from petrus.impetus.history_store import HistoryStore, InMemoryHistoryStore
 from petrus.impetus.petrinet import Marking, Token, TokenQueue
 from petrus.impetus.petrinet import ArcMode, Instant, Net, NetPath, NetUri
+from petrus.impetus.petrinet.schema import canonical_net_path
 from petrus.impetus.scope import LifecycleScope
 
 # A completion-condition implementation: a pure boolean over the marking.
@@ -171,7 +179,7 @@ log = telemetry.get_logger("impetus")
 
 
 def _instance_log(net: Net, instance_id: str | None) -> telemetry.TelemetryLogger:
-    """The instance's bound logger: every event stamped with the identity (``instance=``) and, when the definition is named, the kind (``net=``). Unbound only for a pre-identity legacy resume."""
+    """Bind every event to the instance identity and, when named, its net kind."""
     fields: dict[str, str] = {}
     if instance_id is not None:
         fields["instance"] = instance_id
@@ -183,16 +191,82 @@ def _instance_log(net: Net, instance_id: str | None) -> telemetry.TelemetryLogge
 @dataclass(frozen=True)
 class PriorAcknowledgement:
     """
-    The delivery door's answer to a transport redelivery [DR 2026-07-14
-    source-delivery-projection-and-identity]: this ``identity`` was already
-    accepted, by the delivery that minted ``occurrence``. Not a firing — the
-    caller tells the two apart by type — and minting one appends nothing and
-    burns no id: duplicate attempts are operational telemetry, never
-    canonical history.
+    The delivery door's answer to redelivery after the accepted occurrence
+    ended [DR 2026-07-14 source-delivery-projection-and-identity]. This
+    ``identity`` was already accepted by the delivery that minted
+    ``occurrence``. Not a firing — the caller tells the phase answers apart by
+    type — and minting one appends nothing and burns no id: duplicate attempts
+    are operational telemetry, never canonical history.
     """
 
     identity: str
     occurrence: int
+
+
+class InstanceIdentity(str):
+    """The non-empty durable identity of one Instance."""
+
+    def __new__(cls, value: str) -> InstanceIdentity:
+        if type(value) is InstanceIdentity:
+            return value
+        if type(value) is not str or not value:
+            raise ValueError(f"Instance identity must be a non-empty string of the exact built-in type, got {value!r}")
+        return super().__new__(cls, value)
+
+
+class DeliveryIdentity(str):
+    """The non-empty stable identity of one external source delivery."""
+
+    def __new__(cls, value: str) -> DeliveryIdentity:
+        if type(value) is DeliveryIdentity:
+            return value
+        if type(value) is not str or not value:
+            raise ValueError(f"delivery identity must be a non-empty string of the exact built-in type, got {value!r}")
+        return super().__new__(cls, value)
+
+
+class FiringOccurrenceId(int):
+    """The positive writer-minted identity of one firing occurrence."""
+
+    def __new__(cls, value: int) -> FiringOccurrenceId:
+        if type(value) is FiringOccurrenceId:
+            return value
+        if type(value) is not int or value < 1:
+            raise ValueError(f"firing occurrence must be a positive integer of the exact built-in type, got {value!r}")
+        return super().__new__(cls, value)
+
+
+@dataclass(frozen=True, init=False)
+class AcceptedDelivery:
+    """
+    Detached correlation value for one accepted unfinished source occurrence.
+
+    Exact redelivery reconstructs the same value from History; no field holds
+    live writer state.
+    """
+
+    instance: InstanceIdentity
+    source: NetPath
+    identity: DeliveryIdentity
+    occurrence: FiringOccurrenceId
+
+    def __init__(self, instance: str, source: NetPath | str, identity: str, occurrence: int) -> None:
+        object.__setattr__(self, "instance", InstanceIdentity(instance))
+        object.__setattr__(self, "source", canonical_net_path(source, "accepted delivery source"))
+        object.__setattr__(self, "identity", DeliveryIdentity(identity))
+        object.__setattr__(self, "occurrence", FiringOccurrenceId(occurrence))
+
+
+def _canonical_accepted_delivery(value: object) -> AcceptedDelivery:
+    """Snapshot one exact public carrier through its canonical field constructors."""
+    if type(value) is not AcceptedDelivery:
+        raise TypeError("delivery completion requires an exact AcceptedDelivery")
+    return AcceptedDelivery(
+        instance=value.instance,
+        source=value.source,
+        identity=value.identity,
+        occurrence=value.occurrence,
+    )
 
 
 class DeliveryDisposition(StrEnum):
@@ -228,39 +302,132 @@ class ScopeClosure:
     cancelled: tuple[int, ...]
 
 
+class _CompletionCommitRefused(RuntimeError):
+    """A prepared completion batch that its History backend did not accept."""
+
+    def __init__(self, error: Exception):
+        super().__init__("History refused a prepared firing-completion batch")
+        self.error = error
+
+
 def _source_transitions(net: Net) -> list[NetPath]:
     """The net's source transitions in stable (string) order — the one spelling of the registration surface's key set, shared by both constructors."""
     return sorted((path for path in net.transitions if net.is_source(path)), key=str)
 
 
+def _validate_initial_tokens(net: Net, place: NetPath, tokens: Sequence[Token]) -> None:
+    """Apply the live constructor's typed-place rule to one initial token record."""
+    declaration = net.places.get(place)
+    if declaration is None or declaration.color is None:
+        return
+    mismatch = next((token for token in tokens if token.color != declaration.color), None)
+    if mismatch is not None:
+        raise ValueError(
+            f"initial marking for place {place} requires color {declaration.color!r}, "
+            f"got {mismatch.color!r} on {mismatch!r}"
+        )
+
+
+def _validate_replayed_initialization(
+    net: Net,
+    record: TokensInitialized,
+    *,
+    construction_instant: Instant,
+    initialized: set[NetPath],
+) -> None:
+    """Require one initial token record the live constructor could emit."""
+    if record.place not in net.places:
+        raise ValueError(
+            f"replay divergence: unknown place {record.place} in the initial marking; "
+            "the live constructor initializes only declared places"
+        )
+    if record.place in initialized:
+        raise ValueError(f"replay divergence: initial marking place {record.place} must be initialized exactly once")
+    if not record.tokens:
+        raise ValueError(
+            f"replay divergence: initial marking place {record.place} has no tokens; "
+            "the live constructor omits empty places"
+        )
+    if record.instant != construction_instant:
+        raise ValueError(
+            f"replay divergence: initial tokens on {record.place} use instant {record.instant}, "
+            f"not construction instant {construction_instant}"
+        )
+    if record.entries or record.scope is not None:
+        raise ValueError(
+            f"replay divergence: initial marking place {record.place} carries queue entries or scope; "
+            "the live constructor records neither"
+        )
+    _validate_initial_tokens(net, record.place, record.tokens)
+    initialized.add(record.place)
+
+
+def _validate_construction_batch(
+    net: Net,
+    records: tuple[Record, ...],
+    identity: InstanceCreated | None,
+) -> None:
+    """Require the complete prefix emitted by the live constructor."""
+    if identity is None:
+        raise ValueError("replay divergence: the construction batch requires InstanceCreated as its first record")
+    registrations: list[DeliveryRegistrationOpened] = []
+    registrations_started = False
+    initialized: set[NetPath] = set()
+    construction_ended = False
+    for record in records[1:]:
+        if construction_ended:
+            if isinstance(record, TokensInitialized):
+                raise ValueError(
+                    "replay divergence: TokensInitialized appears outside the contiguous initial construction prefix"
+                )
+            continue
+        if isinstance(record, TokensInitialized):
+            if registrations_started:
+                raise ValueError(
+                    "replay divergence: initial construction prefix is a construction batch that requires "
+                    "every TokensInitialized record before its source registrations"
+                )
+            _validate_replayed_initialization(
+                net,
+                record,
+                construction_instant=identity.instant,
+                initialized=initialized,
+            )
+            continue
+        if isinstance(record, DeliveryRegistrationOpened) and record.occurrence is None:
+            registrations_started = True
+            registrations.append(record)
+            continue
+        construction_ended = True
+    expected = tuple(
+        DeliveryRegistrationOpened(source, "default", occurrence=None, instant=identity.instant)
+        for source in _source_transitions(net)
+    )
+    if tuple(registrations) != expected:
+        raise ValueError(
+            "replay divergence: initial construction prefix is a construction batch whose source registrations "
+            "require exactly one ordered default open for every source; "
+            f"expected {expected!r}, found {tuple(registrations)!r}"
+        )
+
+
 def _canonical_payload(value: object, rejection: str) -> object:
     """
-    The canonical snapshot of an activity payload (invocation ``input``, or a
-    terminal activity ``result``), taken at the writer's door BEFORE anything
-    freezes or appends: a round trip through the payload's JSON
-    representation — the durable spelling — so the value the instance
-    retains IS the value the record holds. Three consequences, each
-    deliberate: the writer owns a copy (later caller mutation cannot diverge
-    the live projection from the durable record); JSON-lossy shapes
-    canonicalize once (a tuple becomes its list form here, so the
-    idempotent-acknowledgement value equality survives a durable round
-    trip); and a value with no JSON spelling — a Token, Binding, Marking, or
-    any other net object — fails loud here, before any append (the
-    invocation is Petri-agnostic by ruling: never net state). Deliberate
-    asymmetry with ordinary token-data doors: they retain the caller's value,
-    so JSON-faithfulness remains their documented durability constraint
-    (``petrus.impetus.history.codec``, pinned by its round-trip tests). Delivery
-    idempotency is keyed by the explicit ``identity`` string, while an exact
-    redelivery additionally compares the retained source and tokens and
-    refuses changed content [DR 2026-07-14
-    source-delivery-projection-and-identity]. A protocol adapter may
-    canonicalize before that door — Fabric does — but the kernel
-    does not silently rewrite ordinary token data. Here activity-payload
-    equality is independently load-bearing: K6's acknowledge-or-conflict
-    reads it.
+    The canonical snapshot of a payload whose durable equality is load-bearing:
+    activity invocation input, terminal activity result, or identified source
+    delivery token data. The writer takes the value's JSON round trip before
+    anything freezes or appends, so it owns the retained copy, JSON-lossy
+    shapes normalize once, type-sensitive comparison can use the durable
+    spelling, and values with no strict JSON spelling fail before mutation.
+    Ordinary token-data doors remain outside this rule because no writer
+    decision compares their data. Activity payloads additionally owe the
+    Petri-agnostic invocation rule [DR 2026-07-14
+    activity-invocation-runtime-seam]; delivery content owes exact
+    acknowledge-or-conflict identity judgment [DR 2026-07-14
+    source-delivery-projection-and-identity].
     """
     try:
-        return json.loads(json.dumps(value))
+        return json.loads(json.dumps(value, allow_nan=False))
     except (TypeError, ValueError) as error:
         raise ValueError(
             f"{rejection}: the payload must be JSON-faithful — objects, arrays, strings, numbers, booleans, "
@@ -271,6 +438,61 @@ def _canonical_payload(value: object, rejection: str) -> object:
 def _canonical_payload_text(value: object) -> str:
     """Deterministic, type-sensitive spelling of an already admitted JSON payload."""
     return json.dumps(value, allow_nan=False, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _canonical_delivery_tokens(path: NetPath, tokens: tuple[Token, ...]) -> tuple[Token, ...]:
+    """Writer-owned durable spelling of one external delivery's token content."""
+    delivered: list[Token] = []
+    for position, token in enumerate(tokens, start=1):
+        if token.color is not None and not isinstance(token.color, str):
+            raise ValueError(
+                f"delivery to {path}: token {position} color must be a string or None, got {token.color!r}"
+            )
+        snapshot = cast(
+            dict[str, object],
+            _canonical_payload(
+                {"color": token.color, "data": token.data},
+                f"delivery to {path}: token {position} has invalid data",
+            ),
+        )
+        delivered.append(Token(cast(str | None, snapshot["color"]), snapshot["data"]))
+    return tuple(delivered)
+
+
+def _delivery_content_text(tokens: tuple[Token, ...]) -> str:
+    """Type-sensitive durable spelling used by delivery identity conflict judgment."""
+    return _canonical_payload_text([{"color": token.color, "data": token.data} for token in tokens])
+
+
+def _failure_argument_text(value: object) -> str:
+    if value is None or type(value) in {bool, int, float, str, bytes}:
+        try:
+            return repr(value)
+        except BaseException:
+            pass
+    value_type = type(value)
+    try:
+        module = type.__getattribute__(value_type, "__module__")
+        name = type.__getattribute__(value_type, "__qualname__")
+    except BaseException:
+        return "<object>"
+    if type(module) is not str or type(name) is not str:
+        return "<object>"
+    return f"<{module}.{name}>"
+
+
+def firing_failure_text(error: BaseException) -> str:
+    """Return deterministic, non-empty, bounded text without masking ``error`` on hostile values."""
+    try:
+        error_type = type(error)
+        name = type.__getattribute__(error_type, "__name__")
+        arguments = BaseException.__getattribute__(error, "args")
+        if type(name) is not str or not name or type(arguments) is not tuple:
+            return "Exception"
+        text = f"{name}({', '.join(_failure_argument_text(argument) for argument in arguments)})"
+    except BaseException:
+        return "Exception"
+    return text[:4096]
 
 
 def _failure_text(value: ActivityFailure) -> str:
@@ -329,6 +551,256 @@ def _validate_binding_shape(net: Net, binding: Binding, rejection: str) -> None:
             )
 
 
+def _writer_records(records: Sequence[Record]) -> tuple[Record, ...]:
+    """Validate a complete record batch before the live writer appends it."""
+    batch = tuple(records)
+    try:
+        validate_history_record_values(batch)
+    except ValueError as error:
+        detail = str(error).removeprefix("replay divergence: ")
+        raise ValueError(f"cannot write non-canonical History: {detail}") from error
+    return batch
+
+
+def _writer_record[RecordType: Record](record: RecordType) -> RecordType:
+    """Validate one record before the live writer appends it."""
+    return cast(RecordType, _writer_records((record,))[0])
+
+
+def _validate_replayed_occurrence(instance: Instance, occurrence: FiringOccurrence) -> None:
+    """Require one reconstructed begin batch to match the supplied net and handlers."""
+    rejection = f"cannot resume firing occurrence {occurrence.id} ({occurrence.binding.transition})"
+    transition = occurrence.binding.transition
+    if transition not in instance.net.transitions:
+        raise ValueError(f"{rejection}: not a transition of this net")
+    if instance.net.is_source(transition) and not occurrence.binding.delivered:
+        raise ValueError(
+            f"{rejection}: a scheduled selection on a source transition — a source fires only through accept_delivery()"
+        )
+    if not instance.net.is_source(transition) and occurrence.binding.delivered:
+        raise ValueError(
+            f"{rejection}: an external event on a transition with input arcs — only a source transition takes delivery"
+        )
+    _validate_binding_shape(instance.net, occurrence.binding, rejection)
+    activity_bound = isinstance(instance.bound_handler(transition), ActivityHandler)
+    if occurrence.invocation is not None and not activity_bound:
+        raise ValueError(
+            f"{rejection}: its begin batch froze an activity request, but the transition is "
+            f"not bound to an ActivityHandler — projection needs the handler that prepared it"
+        )
+    if occurrence.invocation is None and activity_bound:
+        raise ValueError(
+            f"{rejection}: the transition binds an ActivityHandler, but the begin batch froze "
+            f"no ActivityRequested — the live writer always freezes the request at begin"
+        )
+
+
+def _validate_accepted_source_production(
+    net: Net,
+    accepted: ExternalEventDelivered,
+    identity: str,
+    record: TokensProduced,
+    produced_places: set[NetPath],
+    expected_entries: tuple[int, ...],
+) -> None:
+    """Refuse a source production fact that the live completion door could not emit."""
+    rejection = f"cannot resume: accepted delivery identity {identity!r} source occurrence {accepted.occurrence}"
+    if not record.tokens:
+        raise ValueError(f"{rejection} contains an empty TokensProduced record")
+    if record.place in produced_places:
+        raise ValueError(f"{rejection} contains a second TokensProduced record for {record.place}")
+    if record.scope != accepted.scope:
+        raise ValueError(
+            f"{rejection} production on {record.place} has lifecycle scope {record.scope!r}, "
+            f"not the accepted scope {accepted.scope!r}"
+        )
+    if record.scope is not None and record.entries != expected_entries:
+        raise ValueError(
+            f"{rejection} production on {record.place} has queue-entry identities {record.entries!r}; "
+            f"the writer's exact next identities are expected {expected_entries!r}"
+        )
+    outputs = net.outputs(accepted.source)
+    unadmitted = tuple(
+        token for token in record.tokens if not any(arc.target == record.place and arc.admits(token) for arc in outputs)
+    )
+    if unadmitted:
+        raise ValueError(
+            f"{rejection} production on {record.place} carries token(s) {unadmitted!r} not admitted by "
+            f"any output arc of source {accepted.source}"
+        )
+    produced_places.add(record.place)
+
+
+def _validate_default_source_productions(
+    net: Net,
+    accepted: ExternalEventDelivered,
+    identity: str,
+    productions: Sequence[tuple[NetPath, tuple[Token, ...]]],
+) -> None:
+    """Require the exact deterministic output of the built-in source passthrough."""
+    if net.handler_uri(accepted.source) is not None:
+        return
+    binding = Binding(accepted.source, consumed=(), delivered=accepted.tokens)
+    projected = passthrough(binding, net.outputs(accepted.source))
+    expected = tuple(projected.items())
+    actual = tuple(productions)
+    expected_spelling = tuple((place, _delivery_content_text(tokens)) for place, tokens in expected)
+    actual_spelling = tuple((place, _delivery_content_text(tokens)) for place, tokens in actual)
+    if actual_spelling != expected_spelling:
+        raise ValueError(
+            f"cannot resume: accepted delivery identity {identity!r} source occurrence {accepted.occurrence} "
+            f"default passthrough requires exact productions {expected!r}; found {actual!r}"
+        )
+
+
+# Complexity exception: one ordered fold over the records correlated to accepted source occurrences.
+def _validate_accepted_source_occurrences(  # noqa: C901
+    net: Net,
+    history: tuple[Record, ...],
+    accepted_deliveries: Mapping[str, AcceptedDeliveryFact],
+) -> None:
+    """
+    Prove that every accepted source occurrence has only a writer-valid pure
+    lifecycle: its acceptance pair, then no end; a lone failure; lifecycle
+    cancellation; or one atomic ordered completion batch.
+    """
+    source_occurrences = {
+        accepted.occurrence: (identity, accepted)
+        for identity, accepted in accepted_deliveries.items()
+        if isinstance(accepted, ExternalEventDelivered)
+    }
+    ranks = {
+        TokensProduced: 0,
+        DeliveryRegistrationClosed: 1,
+        DeliveryRegistrationOpened: 2,
+        FiringCompleted: 3,
+    }
+    phases: dict[int, int] = {}
+    phase_names: dict[int, str] = {}
+    end_instants: dict[int, Instant] = {}
+    terminals: dict[int, str] = {}
+    produced_places: dict[int, set[NetPath]] = {}
+    productions: dict[int, list[tuple[NetPath, tuple[Token, ...]]]] = {}
+    cancelled: set[int] = set()
+    observed_acceptances: set[int] = set()
+    next_entry = 1
+    active_completion: int | None = None
+    for record in history:
+        occurrence = getattr(record, "occurrence", None)
+        expected_entries: tuple[int, ...] = ()
+        if isinstance(record, (TokensInitialized, TokensProduced)):
+            expected_entries = tuple(range(next_entry, next_entry + len(record.tokens)))
+            recorded_entries = record.entries or expected_entries
+            if recorded_entries:
+                next_entry = max(next_entry, max(recorded_entries) + 1)
+        if active_completion is not None and occurrence != active_completion:
+            identity, accepted = source_occurrences[active_completion]
+            raise ValueError(
+                f"cannot resume: accepted delivery identity {identity!r} source occurrence "
+                f"{accepted.occurrence} completion batch was interrupted by {type(record).__name__} "
+                f"for occurrence {occurrence!r}"
+            )
+        if isinstance(record, (ScopeClosed, ScopeReset)):
+            for occurrence in record.cancelled:
+                if occurrence not in source_occurrences:
+                    continue
+                identity, accepted = source_occurrences[occurrence]
+                if occurrence not in observed_acceptances:
+                    raise ValueError(
+                        f"cannot resume: accepted delivery identity {identity!r} source occurrence "
+                        f"{accepted.occurrence} contains {type(record).__name__} cancellation before its "
+                        "acceptance pair"
+                    )
+                if occurrence in phases or occurrence in terminals:
+                    prior = phase_names.get(occurrence, terminals.get(occurrence))
+                    raise ValueError(
+                        f"cannot resume: accepted delivery identity {identity!r} source occurrence "
+                        f"{accepted.occurrence} was lifecycle-cancelled after {prior}"
+                    )
+                cancelled.add(occurrence)
+            continue
+        if occurrence not in source_occurrences:
+            continue
+        identity, accepted = source_occurrences[occurrence]
+        if isinstance(record, ExternalEventDelivered):
+            continue
+        if isinstance(record, FiringBegun):
+            observed_acceptances.add(occurrence)
+            continue
+        rejection = f"cannot resume: accepted delivery identity {identity!r} source occurrence {occurrence}"
+        if occurrence not in observed_acceptances:
+            raise ValueError(f"{rejection} contains {type(record).__name__} before its acceptance pair")
+        if occurrence in cancelled:
+            raise ValueError(f"{rejection} contains {type(record).__name__} after lifecycle cancellation")
+        if occurrence in terminals:
+            raise ValueError(f"{rejection} contains {type(record).__name__} after {terminals[occurrence]}")
+        if isinstance(
+            record,
+            (
+                TokensConsumed,
+                TokensRead,
+                ActivityRequested,
+                ActivityCompleted,
+                ActivityFailed,
+                ActivityTerminalQuarantined,
+            ),
+        ):
+            raise ValueError(
+                f"{rejection} contains {type(record).__name__} — a source delivery is a pure occurrence "
+                "with no consume, read, or activity records"
+            )
+        if isinstance(record, FiringFailed):
+            if occurrence in phases:
+                raise ValueError(
+                    f"{rejection} contains FiringFailed after {phase_names[occurrence]} — a pure source "
+                    "failure batch contains only FiringFailed"
+                )
+            terminals[occurrence] = type(record).__name__
+            continue
+        if (
+            isinstance(record, (DeliveryRegistrationClosed, DeliveryRegistrationOpened))
+            and net.handler_uri(accepted.source) is None
+        ):
+            raise ValueError(
+                f"{rejection} default passthrough does not permit delivery-registration effects; "
+                f"found {type(record).__name__}"
+            )
+        rank = ranks.get(type(record))
+        if rank is None:
+            raise ValueError(f"{rejection} contains writer-invalid {type(record).__name__}")
+        if active_completion is None:
+            active_completion = occurrence
+        prior_rank = phases.get(occurrence, -1)
+        if rank < prior_rank:
+            raise ValueError(f"{rejection} contains disordered {type(record).__name__} after {phase_names[occurrence]}")
+        if occurrence in end_instants and record.instant != end_instants[occurrence]:
+            raise ValueError(
+                f"{rejection} completion batch changes instant from {end_instants[occurrence]} to {record.instant}"
+            )
+        end_instants.setdefault(occurrence, record.instant)
+        phases[occurrence] = rank
+        phase_names[occurrence] = type(record).__name__
+        if isinstance(record, TokensProduced):
+            _validate_accepted_source_production(
+                net,
+                accepted,
+                identity,
+                record,
+                produced_places.setdefault(occurrence, set()),
+                expected_entries,
+            )
+            productions.setdefault(occurrence, []).append((record.place, record.tokens))
+        elif isinstance(record, FiringCompleted):
+            _validate_default_source_productions(
+                net,
+                accepted,
+                identity,
+                productions.get(occurrence, ()),
+            )
+            terminals[occurrence] = type(record).__name__
+            active_completion = None
+
+
 class CompletionEvaluationWarning(UserWarning):
     """The completion condition raised while evaluating the quiescent marking; status read it as not holding."""
 
@@ -373,19 +845,11 @@ class Instance:
         # milliseconds, the one wall-clock read this kernel makes — into an
         # opaque identity only, never a semantic field; the record's own time
         # axis stays the virtual ``instant``.
-        self.instance_id = instance_id if instance_id is not None else uuid7().hex
+        self.instance_id = InstanceIdentity(instance_id if instance_id is not None else uuid7().hex)
         self._log = _instance_log(net, self.instance_id)
         marking = marking if marking is not None else Marking()
         for place, tokens in marking:
-            declaration = net.places.get(place)
-            if declaration is None or declaration.color is None:
-                continue
-            mismatch = next((token for token in tokens if token.color != declaration.color), None)
-            if mismatch is not None:
-                raise ValueError(
-                    f"initial marking for place {place} requires color {declaration.color!r}, "
-                    f"got {mismatch.color!r} on {mismatch!r}"
-                )
+            _validate_initial_tokens(net, place, tokens)
         self._scheduler = scheduler
         # The clock watermark starts at the construction instant — the entry
         # instant the initial marking anchors to (default 0, the logical
@@ -395,7 +859,7 @@ class Instance:
         # The persistence seam: the history is injectable, and a durable
         # backend (e.g. petrus.impetus.history_store.JsonlHistoryStore) makes every
         # append durable from the first record — construction records and
-        # deliver()'s inline firings included. Construction takes a fresh
+        # accepted delivery firings included. Construction takes a fresh
         # history only: it appends the instance's initial records below;
         # a recorded history is resume()'s, never built over a second
         # beginning. A backend that joins a caller-held transaction makes
@@ -422,7 +886,7 @@ class Instance:
         # batch, like every appending door's.
         sources = _source_transitions(net)
         self._armed: dict[NetPath, set[str]] = {source: {"default"} for source in sources}
-        initial: list[Record] = [InstanceCreated(self.instance_id, name=net.name, instant=at)]
+        initial: list[Record] = [InstanceCreated(str(self.instance_id), name=net.name, instant=at)]
         next_entry = 1
         for place, tokens in marking:
             # Queue identities are assigned internally so later firings can
@@ -430,6 +894,7 @@ class Instance:
             initial.append(TokensInitialized(place, tokens, instant=at))
             next_entry += len(tokens)
         initial.extend(DeliveryRegistrationOpened(source, "default", occurrence=None, instant=at) for source in sources)
+        initial = list(_writer_records(initial))
         self.history.extend(initial)
         # The primary live state: per-place pair-queues of (token, entry
         # instant), maintained incrementally by folding exactly the movement
@@ -605,37 +1070,51 @@ class Instance:
         binding carries the exact recorded read selections — begin records
         them (debt 2026-07-09T2330Z, recording half), so a resumed handler
         observes what the crashed one observed, never the live marking.
-        Records that leave no live state behind (an ended occurrence,
-        whatever it names) are not audited here — whole-trace auditing is a
-        validation-layer posture, not this door's
-        (debt 2026-07-09T2310Z's kernel-wide-validation family).
+        Records that leave no live state behind are otherwise outside this
+        door's whole-trace audit. Accepted source occurrences are the
+        exception: redelivery depends on them, so resume verifies their source
+        partition and rejects consume, read, or activity records even after
+        they end.
         """
         if not len(history):
             raise ValueError("cannot resume from an empty history: nothing is recorded — construct an Instance instead")
         instance = cls.__new__(cls)
         instance.net = net
-        # The identity is derived, never re-supplied: the InstanceCreated
-        # fact holds it (None only for a pre-identity legacy trace, which
-        # resumes unidentified). A recorded net name that disagrees with the
-        # re-supplied net's is a foreign trace, refused like any other
-        # node-level mismatch this door guards.
-        identity = replay_instance_identity(history)
-        if identity is not None and identity.name is not None and net.name is not None and identity.name != net.name:
+        # The identity is derived, never re-supplied: InstanceCreated begins
+        # the complete construction batch. A recorded net name that disagrees
+        # with the re-supplied net's is a foreign trace, refused like any
+        # other node-level mismatch this door guards.
+        records = validate_history_records(history)
+        identity = replay_instance_identity(records)
+        _validate_construction_batch(net, records, identity)
+        assert identity is not None
+        if identity.name is not None and net.name is not None and identity.name != net.name:
             raise ValueError(
                 f"cannot resume: the history records net name {identity.name!r} but the supplied net is "
                 f"named {net.name!r} — a foreign trace"
             )
-        instance.instance_id = identity.instance if identity is not None else None
+        instance.instance_id = InstanceIdentity(identity.instance)
         instance._log = _instance_log(net, instance.instance_id)
         instance._scheduler = scheduler
         instance._bind_symbols(guards, handlers, filters, completions)
+        for selected in (record for record in records if isinstance(record, CandidateSelected)):
+            if selected.transition not in net.transitions:
+                raise ValueError(
+                    f"cannot resume firing occurrence {selected.occurrence} ({selected.transition}): "
+                    "not a transition of this net"
+                )
+            if net.is_source(selected.transition):
+                raise ValueError(
+                    f"cannot resume firing occurrence {selected.occurrence} ({selected.transition}): "
+                    "a scheduled selection on a source transition — a source fires only through accept_delivery()"
+                )
         instance.history = history
-        instance._queues = replay_queues(history)
+        instance._queues = replay_queues(records)
         for place, _ in instance.marking:
             if place not in net.places:
                 raise ValueError(f"cannot resume: token records on {place}: not a place of this net")
-        instance._watermark = replay_watermark(history)
-        armed = replay_armed(history)
+        instance._watermark = replay_watermark(records)
+        armed = replay_armed(records)
         for source in armed:
             if source not in net.transitions:
                 raise ValueError(
@@ -647,58 +1126,47 @@ class Instance:
                     f"only a source transition has delivery registrations"
                 )
         instance._armed = {source: armed.get(source, set()) for source in _source_transitions(net)}
-        in_flight = replay_in_flight(history)
-        for occurrence in in_flight:
-            rejection = f"cannot resume firing occurrence {occurrence.id} ({occurrence.binding.transition})"
-            transition = occurrence.binding.transition
-            if transition not in net.transitions:
-                raise ValueError(f"{rejection}: not a transition of this net")
-            # The begin/deliver door partition, enforced on the rebuilt
-            # traffic too [convention 36]: the live instance can record
-            # neither a scheduled selection on a source nor a delivery on a
-            # non-source.
-            if net.is_source(transition) and not occurrence.binding.delivered:
-                raise ValueError(
-                    f"{rejection}: a scheduled selection on a source transition — a source fires only through deliver()"
-                )
-            if not net.is_source(transition) and occurrence.binding.delivered:
-                raise ValueError(
-                    f"{rejection}: an external event on a transition with input arcs — "
-                    f"only a source transition takes delivery"
-                )
-            # The begin-batch shape rule, re-checked on the rebuilt binding —
-            # the same helper begin() enforces at the writing door, so a
-            # trace whose consume or read facts disagree with the arcs
-            # rebuilds a binding begin() could never have minted.
-            _validate_binding_shape(net, occurrence.binding, rejection)
-            # Code-vs-record coherence for the activity seam: the live writer
-            # freezes ActivityRequested in every impure begin batch and never
-            # in a pure one, so a rebuilt occurrence must agree with the
-            # re-supplied binding's classification — a mismatch is a foreign
-            # trace or the wrong bindings, either way not resumable silently.
-            activity_bound = isinstance(instance.bound_handler(transition), ActivityHandler)
-            if occurrence.invocation is not None and not activity_bound:
-                raise ValueError(
-                    f"{rejection}: its begin batch froze an activity request, but the transition is "
-                    f"not bound to an ActivityHandler — projection needs the handler that prepared it"
-                )
-            if occurrence.invocation is None and activity_bound:
-                raise ValueError(
-                    f"{rejection}: the transition binds an ActivityHandler, but the begin batch froze "
-                    f"no ActivityRequested — the live writer always freezes the request at begin"
-                )
+        in_flight = replay_in_flight(records)
+        effect_occurrences = {
+            record.occurrence
+            for record in records
+            if isinstance(record, (DeliveryRegistrationOpened, DeliveryRegistrationClosed))
+            and record.occurrence is not None
+        }
+        replayed = {occurrence.id: occurrence for occurrence in in_flight}
+        replayed.update(
+            (occurrence.id, occurrence) for occurrence in replay_firing_occurrences(records, effect_occurrences)
+        )
+        for occurrence in replayed.values():
+            _validate_replayed_occurrence(instance, occurrence)
         instance._in_flight = {occurrence.id: occurrence for occurrence in in_flight}
-        activity_occurrences = replay_activity_occurrences(history)
+        activity_occurrences = replay_activity_occurrences(records)
         instance._activity_occurrences = {occurrence.id: occurrence for occurrence in activity_occurrences}
-        cancelled = replay_cancelled(history)
+        cancelled = replay_cancelled(records)
         instance._cancelled = {occurrence.id: occurrence for occurrence in cancelled}
-        instance._frozen_results = replay_projection_pending(history)
-        instance._terminal_activity = replay_terminal_activity(history)
-        instance._quarantined_activity = replay_quarantined_activity(history)
-        instance._accepted_identities = replay_accepted_identities(history)
-        instance._next_occurrence = replay_next_occurrence(history)
-        instance._next_entry = replay_next_queue_identity(history)
-        instance._active_scopes, instance._scope_generations = replay_scopes(history)
+        instance._frozen_results = replay_projection_pending(records)
+        instance._terminal_activity = replay_terminal_activity(records)
+        instance._quarantined_activity = replay_quarantined_activity(records)
+        for accepted in records:
+            if not isinstance(accepted, (ExternalEventDelivered, ScopedDeliveryDropped, ScopedDeliveryQuarantined)):
+                continue
+            delivery_identity = accepted.identity
+            if accepted.source not in net.transitions:
+                raise ValueError(
+                    f"cannot resume: accepted delivery identity {delivery_identity!r} records source "
+                    f"{accepted.source}: not a transition of this net"
+                )
+            if not net.is_source(accepted.source):
+                raise ValueError(
+                    f"cannot resume: accepted delivery identity {delivery_identity!r} records transition "
+                    f"{accepted.source} with input arcs — only a source transition can accept delivery"
+                )
+        accepted_deliveries = replay_accepted_identities(records)
+        _validate_accepted_source_occurrences(net, records, accepted_deliveries)
+        instance._accepted_identities = accepted_deliveries
+        instance._next_occurrence = replay_next_occurrence(records)
+        instance._next_entry = replay_next_queue_identity(records)
+        instance._active_scopes, instance._scope_generations = replay_scopes(records)
         inactive = tuple(
             occurrence.id
             for occurrence in instance._in_flight.values()
@@ -710,7 +1178,7 @@ class Instance:
             )
         instance._log.emit(
             "instance_resumed",
-            records=len(history),
+            records=len(records),
             watermark=instance._watermark,
             in_flight=len(instance._in_flight),
         )
@@ -755,7 +1223,7 @@ class Instance:
         """
         The armed delivery registrations, per source transition — the
         read a driver decides delivery by. The name is the whole contract: an
-        entry means ``deliver`` can land on that door, so the mapping's truth
+        entry means ``accept_delivery`` can land on that door, so the mapping's truth
         IS the any-armed judgment and a fully sealed instance reads empty —
         whether a node is a source at all stays the net's question
         (``is_source``). A structurally read-only snapshot each read; the
@@ -798,13 +1266,16 @@ class Instance:
 
     def open_scope(self, name: str, at: Instant | None = None) -> LifecycleScope:
         """Open the next generation for ``name`` as one canonical fact."""
-        if not isinstance(name, str) or not name or "\x00" in name:
-            raise ValueError("LifecycleScope name must be a non-empty string without NUL")
+        if type(name) is not str or not name or "\x00" in name:
+            raise ValueError(
+                "LifecycleScope name must be a non-empty string without NUL and use the exact built-in type"
+            )
         if name in self._active_scopes:
             raise ValueError(f"cannot open lifecycle scope {name!r}: a generation is already active")
         scope = LifecycleScope(name, self._scope_generations.get(name, 0) + 1)
         instant = self._instant(at)
-        self.history.append(ScopeOpened(scope, instant=instant))
+        record = _writer_record(ScopeOpened(scope, instant=instant))
+        self.history.append(record)
         self._advance(instant)
         self._active_scopes[name] = scope
         self._scope_generations[name] = scope.generation
@@ -814,7 +1285,7 @@ class Instance:
         """Close one exact active generation and apply its exact cleanup atomically."""
         closure = self._scope_closure(scope)
         instant = self._instant(at)
-        record = ScopeClosed(scope, closure.discarded, closure.cancelled, instant)
+        record = _writer_record(ScopeClosed(scope, closure.discarded, closure.cancelled, instant))
         self.history.append(record)
         self._apply_scope_terminal(record, closure)
         self._advance(instant)
@@ -825,7 +1296,7 @@ class Instance:
         closure = self._scope_closure(scope)
         opened = LifecycleScope(scope.name, scope.generation + 1)
         instant = self._instant(at)
-        record = ScopeReset(scope, opened, closure.discarded, closure.cancelled, instant)
+        record = _writer_record(ScopeReset(scope, opened, closure.discarded, closure.cancelled, instant))
         self.history.append(record)
         self._apply_scope_terminal(record, closure, opened=opened)
         self._advance(instant)
@@ -880,7 +1351,7 @@ class Instance:
         invocation joins the begin batch as ``ActivityRequested``, the
         authoritative outbox [DR 2026-07-14 activity-invocation-runtime-seam].
         Raises on a foreign transition, a source
-        transition (never scheduled — it fires only through ``deliver``), a
+        transition (never scheduled — it fires only through ``accept_delivery``), a
         delivered binding, a hand-built binding whose selections do not match
         the transition's consume/read arcs (the shape rule resume re-checks —
         the writer never appends a begin batch its own resume refuses), a
@@ -895,11 +1366,12 @@ class Instance:
         if self.net.is_source(binding.transition):
             raise ValueError(
                 f"cannot begin firing {binding.transition}: a source transition is never scheduled — "
-                f"it fires only through deliver()"
+                f"it fires only through accept_delivery()"
             )
         if binding.delivered:
             raise ValueError(
-                f"cannot begin a delivered binding for {binding.transition}: a source firing enters through deliver()"
+                f"cannot begin a delivered binding for {binding.transition}: "
+                f"a source firing enters through accept_delivery()"
             )
         _validate_binding_shape(self.net, binding, f"cannot begin firing {binding.transition}")
         invocation = self._prepared_invocation(binding)
@@ -1032,8 +1504,10 @@ class Instance:
                     instant=instant,
                 ),
             )
+        batch = _writer_records((initiation(self._next_occurrence, instant), *records))
+        records = batch[1:]
         occurrence = FiringOccurrence(self._next_occurrence, binding, records, invocation=invocation, scope=scope)
-        self.history.extend([initiation(occurrence.id, instant), *records])
+        self.history.extend(list(batch))
         self._advance(instant)
         self._next_occurrence += 1
         for record in records:
@@ -1149,11 +1623,12 @@ class Instance:
                 f"different result — an operational conflict, not a redelivery"
             )
         instant = self._instant(at)
-        self.history.append(
+        record = _writer_record(
             ActivityCompleted(occurrence.binding.transition, result, occurrence=occurrence.id, instant=instant)
         )
+        self.history.append(record)
         self._advance(instant)
-        self._frozen_results[occurrence.id] = result
+        self._frozen_results[occurrence.id] = record.result
         self._log.emit(
             "activity_result_recorded",
             transition=str(occurrence.binding.transition),
@@ -1184,7 +1659,7 @@ class Instance:
                 return TerminalDisposition.ACKNOWLEDGED
             raise ValueError("conflicting terminal activity report")
         instant = self._instant(at)
-        self.history.append(
+        record = _writer_record(
             ActivityFailed(
                 occurrence.binding.transition,
                 failure.error,
@@ -1196,8 +1671,15 @@ class Instance:
                 instant=instant,
             )
         )
+        self.history.append(record)
         self._advance(instant)
-        self._frozen_results[occurrence.id] = failure
+        self._frozen_results[occurrence.id] = ActivityFailure(
+            record.error,
+            record.kind,
+            record.details,
+            record.retryable,
+            record.retry_after,
+        )
         return TerminalDisposition.ACCEPTED
 
     def _quarantine_terminal(
@@ -1212,12 +1694,14 @@ class Instance:
                 return TerminalDisposition.ACKNOWLEDGED
             raise ValueError("conflicting terminal activity report")
         instant = self._instant(at)
-        record = ActivityTerminalQuarantined(
-            occurrence.binding.transition,
-            outcome,
-            occurrence.scope,
-            occurrence=occurrence.id,
-            instant=instant,
+        record = _writer_record(
+            ActivityTerminalQuarantined(
+                occurrence.binding.transition,
+                outcome,
+                occurrence.scope,
+                occurrence=occurrence.id,
+                instant=instant,
+            )
         )
         self.history.append(record)
         self._advance(instant)
@@ -1229,9 +1713,21 @@ class Instance:
         """Detached view of frozen outcomes still awaiting a firing boundary."""
         return MappingProxyType(dict(self._frozen_results))
 
+    def complete(
+        self,
+        occurrence: FiringOccurrence,
+        result: Mapping[NetPath | str, Sequence[Token]] | HandlerResult | None = None,
+        at: Instant | None = None,
+    ) -> FiringOutcome:
+        """Complete one occurrence, preserving the History backend's refusal contract."""
+        try:
+            return self._commit_completion(occurrence, result, at)
+        except _CompletionCommitRefused as refusal:
+            raise refusal.error
+
     # Complexity exception: one atomic completion boundary owns projection,
     # output narration, scope provenance, registration effects, and terminal state.
-    def complete(  # noqa: C901
+    def _commit_completion(  # noqa: C901
         self,
         occurrence: FiringOccurrence,
         result: Mapping[NetPath | str, Sequence[Token]] | HandlerResult | None = None,
@@ -1328,19 +1824,27 @@ class Instance:
             ),
             FiringCompleted(occurrence.binding.transition, occurrence=occurrence.id, instant=instant),
         )
+        appended = _writer_records(appended)
         consumed = tuple(token for _, tokens in occurrence.binding.consumed for token in tokens)
         produced = tuple((effect.place, token) for effect in effects for token in effect.tokens)
-        firing = FiringOutcome(
-            occurrence.binding.transition,
-            occurrence.id,
-            consumed,
-            produced,
-            occurrence.records + appended,
+        writer_appended = _writer_records(deepcopy(appended))
+        firing = deepcopy(
+            FiringOutcome(
+                occurrence.binding.transition,
+                occurrence.id,
+                consumed,
+                produced,
+                occurrence.records + appended,
+            )
         )
-        self.history.extend(list(appended))
+        writer_produced = tuple(record for record in writer_appended if isinstance(record, TokensProduced))
+        try:
+            self.history.extend(list(writer_appended))
+        except Exception as error:
+            raise _CompletionCommitRefused(error) from error
         self._advance(instant)
         self._next_entry = entry_cursor
-        for record, entries in zip(produced_records, produced_entries, strict=True):
+        for record, entries in zip(writer_produced, produced_entries, strict=True):
             apply_movement(self._queues, record, inferred_entries=entries)
         self._armed = armed
         if occurrence.invocation is not None:
@@ -1374,16 +1878,16 @@ class Instance:
         own registration [DR 2026-07-14 source-delivery-projection-and-
         identity] (the old effects-require-an-impure-handler rule rode the
         retired observed-result record). This is the seam where handler-owned
-        data enters the kernel, so the elements are checked like deliver()
-        checks tokens.
+        data enters the kernel, so the elements are checked like
+        accept_delivery() checks tokens.
         """
         rejection = f"cannot complete firing occurrence {occurrence.id} ({occurrence.binding.transition})"
         armed = {source: set(keys) for source, keys in self._armed.items()}
         registrations: list[DeliveryRegistration] = []
         for effect in (*envelope.closes, *envelope.opens):
-            if not isinstance(effect, DeliveryRegistration):
+            if type(effect) is not DeliveryRegistration:
                 raise ValueError(
-                    f"{rejection}: every delivery-registration effect must be a DeliveryRegistration, found {effect!r}"
+                    f"{rejection}: every delivery-registration effect must be an exact DeliveryRegistration"
                 )
             if effect.source not in self.net.transitions:
                 raise ValueError(
@@ -1447,6 +1951,7 @@ class Instance:
         records: list[Record] = [
             FiringFailed(occurrence.binding.transition, failure.error, occurrence=occurrence.id, instant=instant)
         ]
+        records = list(_writer_records(records))
         self.history.extend(records)
         self._advance(instant)
         if occurrence.invocation is not None:
@@ -1475,19 +1980,21 @@ class Instance:
             f"cannot {verb} firing occurrence {occurrence.id} ({occurrence.binding.transition}): this instance never began it"
         )
 
-    def _execute(self, occurrence: FiringOccurrence) -> FiringOutcome:
-        """The inline driver's execution — pure projections only (``step`` and ``deliver`` refuse activity transitions before beginning): run the bound handler here and commit its terminal outcome — a raising handler, or a result the commit rejects, records its failure and propagates, loud. (``Engine`` drives the same seam, activities included, through Dispatch.)"""
+    def _execute(self, occurrence: FiringOccurrence, at: Instant | None = None) -> FiringOutcome:
+        """The inline driver's execution — pure projections only (``step`` and ``complete_delivery`` refuse activity transitions before beginning): run the bound handler here and commit its terminal outcome — a raising handler, or a result the commit rejects, records its failure and propagates, loud. (``Engine`` drives the same seam, activities included, through Dispatch.)"""
         handler = self.bound_handler(occurrence.binding.transition)
         if isinstance(handler, ActivityHandler):
             raise TypeError(f"pure firing {occurrence.binding.transition} is bound to an ActivityHandler")
         try:
             result = handler(occurrence.binding, self.net.outputs(occurrence.binding.transition))
-            return self.complete(occurrence, result)
+            return self._commit_completion(occurrence, result, at=at)
+        except _CompletionCommitRefused as refusal:
+            raise refusal.error
         except Exception as error:
             # complete()'s rejection leaves the occurrence in flight for its
             # driver to fail — this inline driver, here.
             if occurrence.id in self._in_flight:
-                self.fail(occurrence, repr(error))
+                self.fail(occurrence, firing_failure_text(error), at=at)
             raise
 
     def step(self, at: Instant | None = None) -> FiringOutcome | None:
@@ -1516,17 +2023,17 @@ class Instance:
         return self._execute(self.begin(binding, at))
 
     # Complexity exception: reviewed as one ordered idempotent delivery boundary.
-    def deliver(  # noqa: C901
+    def accept_delivery(  # noqa: C901
         self,
         source: NetPath | str,
         tokens: Token | Sequence[Token],
         at: Instant | None = None,
         *,
-        identity: str | None = None,
+        identity: str,
         scope: LifecycleScope | str | None = None,
-    ) -> FiringOutcome | PriorAcknowledgement | ScopedDeliveryAcknowledgement:
+    ) -> AcceptedDelivery | PriorAcknowledgement | ScopedDeliveryAcknowledgement:
         """
-        Deliver an external event to a source transition, firing it.
+        Accept an external event and begin its source occurrence without completing it.
 
         The event is recorded as a fact before the firing it initiates. The
         delivered tokens enter the firing as the binding's tokens: the default
@@ -1535,81 +2042,86 @@ class Instance:
         ruling); a declared handler receives them and may transform.
         ``identity`` is the delivery's stable identity, supplied by the
         ingress adapter (a webhook's provider event id) [DR 2026-07-14
-        source-delivery-projection-and-identity]; when ``None``, the writer
-        derives the occurrence's self-identity (``"occurrence-{id}"``) —
-        honest that no external identity existed. The ``occurrence-`` prefix
-        is therefore writer-reserved: a supplied identity inside it would
-        collide with a later derived one, and is refused.
+        source-delivery-projection-and-identity]. The caller must identify
+        every accepted source delivery; acceptance never invents a substitute
+        identity that an ingress adapter could not reconstruct after a crash.
 
         This door enforces idempotent acceptance: an already-accepted exact
-        delivery returns the ``PriorAcknowledgement`` — no second semantic
-        record, no token, no id minted — while reusing the identity for a
-        changed source or token payload fails as a conflict. That judgment
-        precedes current source and registration validation: a one-shot
-        registration may have closed after the first commit, and the broker
-        retry still needs its acknowledgement [the decision's ruled
-        ordering]. Distinct identities are preserved even when their token
-        data is equal. Raises on
-        a non-source transition, a source with no armed delivery registration, an
-        empty delivery, an empty or writer-reserved identity, and a non-Token
-        item (this is the seam where outside-world data enters the kernel;
-        the other token boundaries trust their declared types — see
+        unfinished delivery reconstructs its ``AcceptedDelivery``; after that
+        occurrence ends it returns the ``PriorAcknowledgement``. Neither case
+        appends a second semantic record, deposits a token, or mints an id.
+        Reusing the identity for a changed source, token payload, or scope
+        fails as a conflict. That judgment precedes current source and
+        registration validation: a one-shot registration may have closed
+        after the first commit, and the broker retry still needs its answer
+        [the decision's ruled ordering]. Distinct identities are preserved
+        even when their token data is equal. Raises on a non-source transition,
+        a source with no armed delivery registration, an empty delivery, an
+        empty identity, and a non-Token item (this is the
+        seam where outside-world data enters the kernel; the other token
+        boundaries trust their declared types — see
         docs/project/debt/items/2026-07-09T2310Z-token-element-validation-is-per-boundary-not-kernel-wide.md).
         """
-        path = NetPath(source)
+        path = canonical_net_path(source, "delivery source")
         target = scope
-        if target is not None and not isinstance(target, (LifecycleScope, str)):
-            raise TypeError("delivery scope must be a LifecycleScope, name string, or None")
-        if isinstance(target, str) and (not target or "\x00" in target):
+        if target is not None and type(target) not in {LifecycleScope, str}:
+            raise TypeError("delivery scope must be an exact LifecycleScope, exact name string, or None")
+        if type(target) is str and (not target or "\x00" in target):
             raise ValueError("uncertain delivery scope must be a non-empty name without NUL")
-        delivered = (tokens,) if isinstance(tokens, Token) else tuple(tokens)
-        if not delivered:
+        supplied = (tokens,) if isinstance(tokens, Token) else tuple(tokens)
+        if not supplied:
             raise ValueError(f"delivery to {path} requires at least one token")
-        for item in delivered:
+        for item in supplied:
             if not isinstance(item, Token):
                 raise ValueError(f"delivery to {path}: every delivered item must be a Token, found {item!r}")
-        if target is not None and identity is None:
-            raise ValueError(f"scoped delivery to {path} requires a stable identity")
-        if identity is not None:
-            # Identity and payload shape run before current source/registration
-            # state: everything about that door may have rotted since the
-            # first accepted commit, but the recorded fact still distinguishes
-            # an exact retry from conflicting identity reuse.
-            if not isinstance(identity, str) or not identity:
-                raise ValueError(f"delivery to {path}: identity must be a non-empty string, got {identity!r}")
-            if identity.startswith("occurrence-"):
-                # The derived self-identity's namespace is writer-reserved: a
-                # supplied "occurrence-2" would collide with a later derived
-                # one, and dedup would collapse two distinct events into one.
-                raise ValueError(
-                    f"delivery to {path}: identity {identity!r} uses the writer-reserved 'occurrence-' "
-                    f"prefix — the derived self-identity namespace; supply the transport's identity outside it"
-                )
-            if identity in self._accepted_identities:
-                prior = self._accepted_identities[identity]
-                prior_scope = getattr(prior, "scope", None)
-                if prior.source != path or prior.tokens != delivered or prior_scope != target:
-                    self._log.emit(
-                        "delivery_conflicted",
-                        source=str(path),
-                        identity=identity,
-                        occurrence=getattr(prior, "occurrence", None),
-                    )
-                    raise ValueError(
-                        f"delivery identity conflict for {identity!r}: it was accepted for source {prior.source} "
-                        f"with different delivery content"
-                    )
+        delivered = _canonical_delivery_tokens(path, supplied)
+        delivered_content = _delivery_content_text(delivered)
+        # Identity and payload shape run before current source/registration
+        # state: everything about that door may have rotted since the first
+        # accepted commit, but the recorded fact still distinguishes an exact
+        # retry from conflicting identity reuse.
+        if type(identity) is DeliveryIdentity:
+            identity = str(identity)
+        elif type(identity) is not str or not identity:
+            raise ValueError(
+                f"delivery to {path}: identity must be a non-empty string of the exact built-in type, got {identity!r}"
+            )
+        if identity in self._accepted_identities:
+            prior = self._accepted_identities[identity]
+            prior_scope = getattr(prior, "scope", None)
+            content_matches = _delivery_content_text(prior.tokens) == delivered_content
+            if prior.source != path or not content_matches or prior_scope != target:
                 self._log.emit(
-                    "delivery_redelivered",
+                    "delivery_conflicted",
                     source=str(path),
                     identity=identity,
                     occurrence=getattr(prior, "occurrence", None),
                 )
-                if isinstance(prior, ScopedDeliveryDropped):
-                    return ScopedDeliveryAcknowledgement(identity, DeliveryDisposition.DROPPED, prior.scope)
-                if isinstance(prior, ScopedDeliveryQuarantined):
-                    return ScopedDeliveryAcknowledgement(identity, DeliveryDisposition.QUARANTINED, prior.scope)
-                return PriorAcknowledgement(identity, prior.occurrence)
+                raise ValueError(
+                    f"delivery identity conflict for {identity!r}: recorded source {prior.source!r}, "
+                    f"scope {prior_scope!r}; attempted source {path!r}, scope {target!r}; canonical token "
+                    f"content {'matches' if content_matches else 'differs'}"
+                )
+            self._log.emit(
+                "delivery_redelivered",
+                source=str(path),
+                identity=identity,
+                occurrence=getattr(prior, "occurrence", None),
+            )
+            if isinstance(prior, ScopedDeliveryDropped):
+                return ScopedDeliveryAcknowledgement(identity, DeliveryDisposition.DROPPED, prior.scope)
+            if isinstance(prior, ScopedDeliveryQuarantined):
+                return ScopedDeliveryAcknowledgement(identity, DeliveryDisposition.QUARANTINED, prior.scope)
+            if prior.occurrence in self._in_flight:
+                if self.instance_id is None:
+                    raise ValueError("cannot reconstruct accepted delivery without a recorded Instance identity")
+                return AcceptedDelivery(
+                    instance=self.instance_id,
+                    source=prior.source,
+                    identity=prior.identity,
+                    occurrence=prior.occurrence,
+                )
+            return PriorAcknowledgement(identity, prior.occurrence)
         if path not in self.net.transitions:
             raise ValueError(f"cannot deliver to {path}: not a transition of this net")
         if not self.net.is_source(path):
@@ -1617,7 +2129,6 @@ class Instance:
                 f"cannot deliver to transition {path}: it has input arcs — only a source transition takes delivery"
             )
         if target is not None and (isinstance(target, str) or self._active_scopes.get(target.name) != target):
-            assert identity is not None
             instant = self._instant(at)
             if isinstance(target, LifecycleScope) and target.generation <= self._scope_generations.get(target.name, 0):
                 record = ScopedDeliveryDropped(path, delivered, identity=identity, scope=target, instant=instant)
@@ -1625,6 +2136,7 @@ class Instance:
             else:
                 record = ScopedDeliveryQuarantined(path, delivered, identity=identity, scope=target, instant=instant)
                 disposition = DeliveryDisposition.QUARANTINED
+            record = _writer_record(record)
             self.history.append(record)
             self._advance(instant)
             self._accepted_identities[identity] = record
@@ -1632,7 +2144,10 @@ class Instance:
             return ScopedDeliveryAcknowledgement(identity, disposition, acknowledged_target)
         if not self._armed[path]:
             raise ValueError(f"cannot deliver to source transition {path}: no armed delivery registration")
-        binding = Binding(path, consumed=(), delivered=delivered)
+        if self.instance_id is None:
+            raise ValueError("cannot accept delivery without a recorded Instance identity")
+        instance_identity = InstanceIdentity(self.instance_id)
+        binding = Binding(path, consumed=(), delivered=deepcopy(delivered))
         # The ingress-side door of the occurrence seam: the external event is the
         # initiation record, minting the occurrence id; the begin accounts
         # nothing (a source firing consumes no selection).
@@ -1642,21 +2157,21 @@ class Instance:
             lambda occurrence, instant: ExternalEventDelivered(
                 path,
                 delivered,
-                identity=identity if identity is not None else f"occurrence-{occurrence}",
+                identity=identity,
                 occurrence=occurrence,
                 scope=target if isinstance(target, LifecycleScope) else None,
                 instant=instant,
             ),
             scope=target if isinstance(target, LifecycleScope) else None,
         )
-        # The event fact is committed: the identity is accepted from here —
-        # even if the projection below fails, the redelivery is answered by
-        # the record, exactly as replay_accepted_identities would answer it.
-        accepted_identity = identity if identity is not None else f"occurrence-{occurrence.id}"
-        self._accepted_identities[accepted_identity] = ExternalEventDelivered(
+        # The event and begin facts are appended. Once this acceptance batch
+        # commits, the identity stays accepted even if its later completion
+        # projection fails: redelivery answers from the recorded fact, exactly
+        # as replay_accepted_identities would.
+        self._accepted_identities[identity] = ExternalEventDelivered(
             path,
             delivered,
-            identity=accepted_identity,
+            identity=identity,
             occurrence=occurrence.id,
             scope=target if isinstance(target, LifecycleScope) else None,
             instant=self._watermark,
@@ -1664,11 +2179,66 @@ class Instance:
         self._log.emit(
             "delivery_accepted",
             source=str(path),
-            identity=identity if identity is not None else f"occurrence-{occurrence.id}",
+            identity=identity,
             occurrence=occurrence.id,
             tokens=len(delivered),
         )
-        return self._execute(occurrence)
+        return AcceptedDelivery(
+            instance=instance_identity,
+            source=path,
+            identity=identity,
+            occurrence=occurrence.id,
+        )
+
+    def complete_delivery(self, accepted: AcceptedDelivery, at: Instant | None = None) -> FiringOutcome:
+        """Complete only the pure source occurrence named by ``accepted``."""
+        accepted = _canonical_accepted_delivery(accepted)
+        if accepted.instance != self.instance_id:
+            raise ValueError(
+                f"cannot complete delivery for Instance {accepted.instance!r}: this is Instance {self.instance_id!r}"
+            )
+        occurrence = self._in_flight.get(accepted.occurrence)
+        prior = self._accepted_identities.get(accepted.identity)
+        recorded_delivery = (
+            prior
+            if isinstance(prior, ExternalEventDelivered)
+            and prior.source == accepted.source
+            and prior.identity == accepted.identity
+            and prior.occurrence == accepted.occurrence
+            else None
+        )
+        if occurrence is None:
+            if recorded_delivery is not None:
+                raise ValueError(
+                    f"cannot complete accepted delivery {accepted.identity!r}: firing occurrence "
+                    f"{accepted.occurrence} already ended"
+                )
+            raise ValueError(
+                f"cannot complete delivery {accepted.identity!r}: no matching accepted unfinished occurrence"
+            )
+        transition = occurrence.binding.transition
+        impure = occurrence.invocation is not None or isinstance(self.bound_handler(transition), ActivityHandler)
+        if not self.net.is_source(transition):
+            kind = "an impure non-source" if impure else "a non-source"
+            raise ValueError(
+                f"cannot complete delivery {accepted.identity!r}: firing occurrence {accepted.occurrence} "
+                f"belongs to {kind} transition {transition}"
+            )
+        if impure:
+            raise ValueError(
+                f"cannot complete delivery {accepted.identity!r}: firing occurrence {accepted.occurrence} is impure"
+            )
+        if (
+            recorded_delivery is None
+            or transition != accepted.source
+            or occurrence.binding.delivered != recorded_delivery.tokens
+            or occurrence.scope != recorded_delivery.scope
+        ):
+            raise ValueError(
+                f"cannot complete delivery {accepted.identity!r}: acceptance does not match firing occurrence "
+                f"{accepted.occurrence}"
+            )
+        return self._execute(occurrence, at=at)
 
     def seal(self, source: NetPath | str, at: Instant | None = None) -> None:
         """
@@ -1680,7 +2250,7 @@ class Instance:
         source, so status can flip on this append alone
         (AWAITING -> STUCK/TERMINATED), with zero net activity.
         """
-        path = NetPath(source)
+        path = canonical_net_path(source, "seal source")
         if path not in self.net.transitions:
             raise ValueError(f"cannot seal {path}: not a transition of this net")
         if not self.net.is_source(path):
@@ -1693,6 +2263,7 @@ class Instance:
         closes: list[Record] = [
             DeliveryRegistrationClosed(path, key, occurrence=None, instant=instant) for key in sorted(self._armed[path])
         ]
+        closes = list(_writer_records(closes))
         self.history.extend(closes)
         self._advance(instant)
         self._armed[path].clear()
@@ -1712,7 +2283,7 @@ class Instance:
         instant = self._instant(at)
         if pending is None or instant < pending:
             return None
-        record = TimerMatured(maturation_instant=pending, instant=instant)
+        record = _writer_record(TimerMatured(maturation_instant=pending, instant=instant))
         self.history.append(record)
         self._advance(instant)
         self._log.emit("timer_matured", maturation=pending, instant=instant)

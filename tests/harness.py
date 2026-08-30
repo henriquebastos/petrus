@@ -123,12 +123,13 @@ def replay(fixture: dict) -> Instance:
         if action["kind"] == "step":
             outcome = instance.step(at=action["at"])
         elif action["kind"] == "deliver":
-            outcome = instance.deliver(
+            accepted = instance.accept_delivery(
                 action["source"],
                 tuple(_token(value) for value in action["tokens"]),
                 at=action["at"],
                 identity=action["identity"],
             )
+            outcome = instance.complete_delivery(accepted, at=action["at"])
         elif action["kind"] == "seal":
             instance.seal(action["source"], at=action["at"])
             outcome = None

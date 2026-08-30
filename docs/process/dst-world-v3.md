@@ -447,37 +447,40 @@ and digest
 
 [`joined-delivery-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-delivery-commit-refusal-world-v3.json)
 qualifies the refused side of the real Absurd/PostgreSQL source-delivery
-boundary. Production prepares one identified `ExternalEventDelivered` and its
-complete source firing, but the test connection refuses the transaction before
-PostgreSQL accepts it. Detached truth retains only construction records: no
-accepted identity, produced token, or completed source firing.
+acceptance boundary. Production prepares one identified
+`ExternalEventDelivered` and its `FiringBegun`, but the test connection refuses
+that transaction before PostgreSQL accepts it. Detached truth retains only
+construction records: no accepted identity, begun occurrence, produced token,
+or completed source firing.
 
-After revocation and abrupt drop, fresh public `load_engine` accepts the same
-identity and payload once. A further exact redelivery returns
-`PriorAcknowledgement` without another transaction, occurrence, token, or
-History record. The independent checker equates canonical delivery/projection
-facts with accepted or refused transaction attempts and rejects a canonical
-identity backed only by rollback. The retained route returns `outcome: "pass"`,
-`external_wait`, 10 operations, 17 journal entries including 7 checker
-evaluations, and digest
-`sha256:c4a340a7e6426a799f03767648cb8068424ab88b947b84f2ad50e7a91c6856ec`.
+After revocation and abrupt drop, fresh public `load_engine` accepts and
+completes the same identity and payload in separate transactions. A further
+exact redelivery returns `PriorAcknowledgement` without another transaction,
+occurrence, token, or History record. The independent checker equates
+canonical acceptance/projection facts with their respective accepted or
+refused transaction attempts and rejects a canonical identity backed only by
+rollback. The retained route returns `outcome: "pass"`, `external_wait`, 10
+operations, 17 journal entries including 7 checker evaluations, and digest
+`sha256:362b508460976d44b5f043734b55874a9778aa62d59e5175df45976ccfaf3ff6`.
 
 ### Joined identified-delivery acknowledgement loss
 
 [`joined-delivery-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-delivery-ack-loss-world-v3.json)
 proves the accepted side of that boundary. Production commits one identified
-external event and its source firing, then the test connection raises as if the
-commit acknowledgement were lost. Detached PostgreSQL truth shows exactly one
-identity, occurrence, produced token, and completed source firing while the
-writing Engine poisons.
+external event and its begun source occurrence, then the test connection raises
+as if the acceptance commit acknowledgement were lost. Detached PostgreSQL
+truth shows exactly one identity and unfinished occurrence, with no produced
+token or completed source firing, while the writing Engine poisons.
 
-Fresh public `load_engine` reconstructs that accepted identity. Exact
+Fresh public `load_engine` reconstructs that accepted unfinished occurrence.
+Exact redelivery completes only it in a separate transaction; a subsequent
 redelivery returns `PriorAcknowledgement` and leaves the six-record frontier
 unchanged. The same independent checker requires acknowledgement loss to have
-one accepted transaction and rejects acknowledgement-loss evidence without
+one accepted acceptance transaction, requires the later completion transaction
+before projection facts, and rejects acknowledgement-loss evidence without
 canonical truth. The retained route returns `outcome: "pass"`, `external_wait`,
-8 operations, 14 journal entries including 6 checker evaluations, and digest
-`sha256:317898902bb290ff5f6a40fb37183f7ef461932c3171a3351f588f986fed1f7f`.
+9 operations, 16 journal entries including 7 checker evaluations, and digest
+`sha256:43c34a65646c2870b03dfaf2e6c0160c2f12f78c6138f90b1b43f99099c2bcc6`.
 
 ### Joined stale-scope drop transaction pair
 
@@ -758,7 +761,7 @@ History/task custody. Its mutation test rejects a canonical fence backed only
 by the refused reset. The retained route returns `outcome: "pass"`,
 `quiescent`, 21 operations, 34 journal entries including 13 checker
 evaluations, and digest
-`sha256:84b2b2e63f4212e942544c8d6aaeae0fc00309abcc4bd1506aec3895de605cda`.
+`sha256:d5144ac9c0e47c89b43da1d2cfbe5dc8195c2201c66e5b33e9120b1adee22cb8`.
 
 ### Joined lifecycle reset acknowledgement loss
 
@@ -780,7 +783,7 @@ accepted lifecycle transactions plus detached History/task custody and rejects
 acknowledgement loss without an accepted reset. The retained route returns
 `outcome: "pass"`, `quiescent`, 19 operations, 31 journal entries including 12
 checker evaluations, and digest
-`sha256:58cb1b8cec3eb0dcb9329c64a3da48b2c839b96a149b5d7308edddab3e1bbf88`.
+`sha256:1b0a892b46e044a3ea56aaf3c8bb915bd2d4d8db65c07897a1bd68fbff0f85fc`.
 
 ### Joined lifecycle cancellation commit refusal
 
@@ -801,7 +804,7 @@ checker derives authority from authored lifecycle/Worker facts, accepted or
 refused transaction attempts, and detached History/task custody. The retained
 route returns `outcome: "pass"`, `quiescent`, 19 operations, 31 journal entries
 including 12 checker evaluations, and digest
-`sha256:1c49f2de218e8579894a9f55248e81b3e058a977a2ebffecd82b19880661dbf0`.
+`sha256:7b1b2a26aba24e96a973043e73796cc469473b274e9ac0ba71f0f681ae799b82`.
 
 ### Joined lifecycle cancellation acknowledgement loss
 
@@ -821,7 +824,7 @@ requires one accepted reset and one accepted cancellation transaction, then
 compares those facts with detached History and task custody at every legal
 boundary. The retained route returns `outcome: "pass"`, `quiescent`, 19
 operations, 31 journal entries including 12 checker evaluations, and digest
-`sha256:c369eda31394c6de8287f23ea462c448fd2a7fb4e894a9ad163fd8b99c44630b`.
+`sha256:8619595bcda8270d5204123bf3564dbec503f65ea3d74c578464e44ff1b8bb79`.
 
 ### Joined lifecycle close transaction pair
 
@@ -832,7 +835,7 @@ scope and running task. Fresh public `load_engine` reconstructs that live
 authority, and the original Worker completes and projects exactly once. The
 retained route has 20 operations, 33 journal entries including 13 checker
 evaluations, disposition `quiescent`, and artifact digest
-`sha256:b5f6d250e797dd2da53974d9c65b5e1a10d3957f805a63e4b9d3daa82164c3ee`.
+`sha256:cd972f54c112b30d5f7d78506a33ecda806975389dc803efe29f5de26c4a1729`.
 
 [`joined-close-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-close-ack-loss-world-v3.json)
 commits `ScopeClosed` and loses its acknowledgement before operational
@@ -841,7 +844,7 @@ repairs exactly one cancellation tombstone, and rejects the old Worker's
 completion as stale without a semantic terminal or projection. The retained
 route has 18 operations, 30 journal entries including 12 checker evaluations,
 disposition `quiescent`, and artifact digest
-`sha256:ff15a6c7e961e8063b12fbaae4c94b8deb9533432e3913cf85bc5a3367fa4a89`.
+`sha256:ebb0c5fb6a4109c2e01eaf6325ae3d885b5132689cdd5687adb6e81cf212d6de`.
 
 Both profiles use only public Engine/Worker doors. Their independent checkers
 derive authority from detached PostgreSQL History, accepted/refused lifecycle

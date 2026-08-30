@@ -63,7 +63,7 @@ paths and defer a broad source/distribution reorganization.
 ## Rationale
 
 DS1 supplies executable boundary evidence. Inbound messaging crosses
-`Fabric row -> FabricInbox -> NetInstance.deliver -> recipient history`;
+`Fabric row -> FabricInbox -> Engine.deliver -> recipient history`;
 outbound messaging crosses
 `ActivityRequested("fabric.send") -> adapter -> Fabric row`. Fabric therefore
 bridges the existing sacred ingress/activity seams rather than scheduling a
@@ -104,7 +104,7 @@ smallest safe physical boundary to establish before DS2.
 - Fabric rows remain protocol state and never enter a global `EventHistory`.
 - Fabric model code imports neither PostgreSQL nor a concrete authority host.
 - Fabric ingress may import the public kernel delivery types and enters only
-  through `NetInstance.deliver`.
+  through `Engine.deliver`.
 - Fabric PostgreSQL implements the protocol store and keeps the version-1 wire
   and schema contracts stable.
 - `call` and `spawn` depend on Fabric ports and a minimal host/provisioner port,

@@ -23,7 +23,7 @@ from petrus.impetus.history import (
     TokensInitialized,
 )
 from petrus.impetus.history_store import InMemoryHistoryStore
-from petrus.impetus.instance import Status
+from petrus.impetus.instance import Instance, Status
 from petrus.impetus.petrinet import Arc, Delay, Marking, Net, NetPath, Place, Token, Transition
 from petrus.impetus.selection import RoundRobin
 
@@ -77,13 +77,19 @@ def advance_until_rest(engine: Engine):
 
 
 class TestNeutralEngineSurface:
+    def test_engine_alone_owns_composed_source_delivery(self):
+        assert "deliver" in Engine.__dict__
+        assert "deliver" not in Instance.__dict__
+
     def test_engine_is_the_concrete_live_composition_with_only_universal_doors(self):
         assert not inspect.isabstract(Engine)
         assert {name for name in Engine.__dict__ if not name.startswith("_")} == {
+            "accept_delivery",
             "advance",
             "active_scopes",
             "close",
             "close_scope",
+            "complete_delivery",
             "create",
             "deliver",
             "history_page",
@@ -105,6 +111,7 @@ class TestNeutralEngineSurface:
 
     def test_engine_module_owns_configuration_outcome_and_policy_vocabulary(self):
         assert set(engine_module.__all__) == {
+            "AcceptedDelivery",
             "AcceptDelivery",
             "AcceptResult",
             "Action",

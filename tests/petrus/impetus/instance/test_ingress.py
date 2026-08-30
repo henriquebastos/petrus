@@ -32,7 +32,7 @@ from petrus.impetus.history import (
 from petrus.impetus.history_store import InMemoryHistoryStore
 from petrus.impetus.petrinet import Marking, Token
 from petrus.impetus.history_store import JsonlHistoryStore
-from petrus.impetus.instance import Instance, PriorAcknowledgement
+from petrus.impetus.instance import AcceptedDelivery, Instance, PriorAcknowledgement
 from petrus.impetus.petrinet import Arc, Net, NetPath, Place, Transition
 
 PAYMENT = Token("Payment", {"amount": 150, "currency": "USD"})
@@ -59,16 +59,20 @@ class TestDelivery:
         # tokens, each landing where its color contract admits it — and the
         # recorded event fact carries every delivered token.
         instance = Instance(self.net())
-        instance.deliver(self.INGEST, (PAYMENT, SIGNAL))
+        accepted = instance.accept_delivery(self.INGEST, (PAYMENT, SIGNAL), identity="mixed-event")
+        assert isinstance(accepted, AcceptedDelivery)
+        instance.complete_delivery(accepted)
         assert instance.marking == Marking({self.PAYMENTS: (PAYMENT,), self.SIGNALS: (SIGNAL,)})
         assert (
-            ExternalEventDelivered(self.INGEST, (PAYMENT, SIGNAL), identity="occurrence-1", occurrence=1)
+            ExternalEventDelivered(self.INGEST, (PAYMENT, SIGNAL), identity="mixed-event", occurrence=1)
             in instance.history.records
         )
 
     def test_a_single_token_needs_no_sequence(self):
         instance = Instance(self.net())
-        instance.deliver(self.INGEST, PAYMENT)
+        accepted = instance.accept_delivery(self.INGEST, PAYMENT, identity="single-event")
+        assert isinstance(accepted, AcceptedDelivery)
+        instance.complete_delivery(accepted)
         assert instance.marking == Marking({self.PAYMENTS: (PAYMENT,)})
 
     def test_delivery_records_the_event_then_the_firing_lifecycle(self):
@@ -76,11 +80,13 @@ class TestDelivery:
         # the firing carries no selection record (the scheduler never chose)
         # and no consume records (a source consumes nothing).
         instance = Instance(self.net())
-        instance.deliver(self.INGEST, PAYMENT)
+        accepted = instance.accept_delivery(self.INGEST, PAYMENT, identity="lifecycle-event")
+        assert isinstance(accepted, AcceptedDelivery)
+        instance.complete_delivery(accepted)
         assert instance.history.records == (
             InstanceCreated(instance.instance_id),
             DeliveryRegistrationOpened(self.INGEST, "default", occurrence=None),
-            ExternalEventDelivered(self.INGEST, (PAYMENT,), identity="occurrence-1", occurrence=1),
+            ExternalEventDelivered(self.INGEST, (PAYMENT,), identity="lifecycle-event", occurrence=1),
             FiringBegun(self.INGEST, occurrence=1),
             TokensProduced(self.PAYMENTS, (PAYMENT,), occurrence=1),
             FiringCompleted(self.INGEST, occurrence=1),
@@ -88,21 +94,27 @@ class TestDelivery:
 
     def test_the_firing_reports_nothing_consumed(self):
         instance = Instance(self.net())
-        firing = instance.deliver(self.INGEST, PAYMENT)
+        accepted = instance.accept_delivery(self.INGEST, PAYMENT, identity="firing-event")
+        assert isinstance(accepted, AcceptedDelivery)
+        firing = instance.complete_delivery(accepted)
         assert firing.transition == self.INGEST
         assert firing.consumed == ()
         assert firing.produced == ((self.PAYMENTS, PAYMENT),)
 
     def test_replay_reapplies_the_recorded_movements(self):
         instance = Instance(self.net())
-        instance.deliver(self.INGEST, (PAYMENT, SIGNAL))
+        accepted = instance.accept_delivery(self.INGEST, (PAYMENT, SIGNAL), identity="replay-event")
+        assert isinstance(accepted, AcceptedDelivery)
+        instance.complete_delivery(accepted)
         assert replay_marking(instance.history) == instance.marking
 
     def test_delivered_tokens_no_arc_admits_are_leftover(self):
         # Permissive flow: an unadmitted delivered token is simply not
         # deposited — allowed, not an error [DR permissive-flow-defaults].
         instance = Instance(self.net())
-        firing = instance.deliver(self.INGEST, Token("Unknown", {"x": 1}))
+        accepted = instance.accept_delivery(self.INGEST, Token("Unknown", {"x": 1}), identity="unknown-event")
+        assert isinstance(accepted, AcceptedDelivery)
+        firing = instance.complete_delivery(accepted)
         assert firing.produced == ()
         assert instance.marking == Marking()
         assert not [r for r in instance.history if isinstance(r, TokensProduced)]
@@ -114,31 +126,24 @@ class TestDelivery:
         # Idempotent acceptance by that identity is the door's
         # (TestDeliveryIdentityEnforcement below).
         instance = Instance(self.net())
-        instance.deliver(self.INGEST, PAYMENT, identity="evt_123")
+        accepted = instance.accept_delivery(self.INGEST, PAYMENT, identity="evt_123")
+        assert isinstance(accepted, AcceptedDelivery)
+        instance.complete_delivery(accepted)
         assert (
             ExternalEventDelivered(self.INGEST, (PAYMENT,), identity="evt_123", occurrence=1)
             in instance.history.records
         )
 
-    def test_an_unsupplied_identity_derives_from_the_occurrence(self):
-        # No external identity supplied: the writer derives a self-identity
-        # from the occurrence id it mints — stable across replay, distinct
-        # per delivery, and honest that no transport identity existed.
+    def test_every_delivery_requires_an_identity_before_recording(self):
         instance = Instance(self.net())
-        instance.deliver(self.INGEST, PAYMENT)
-        instance.deliver(self.INGEST, SIGNAL)
-        identities = [r.identity for r in instance.history.records if isinstance(r, ExternalEventDelivered)]
-        assert identities == ["occurrence-1", "occurrence-2"]
+        before = instance.history.records
 
-    def test_a_supplied_identity_in_the_writer_reserved_namespace_is_rejected(self):
-        # "occurrence-" is the derived self-identity's namespace: a supplied
-        # "occurrence-2" would collide with a later derived one, and DS2's
-        # dedup would collapse two distinct events into one. Refused at the
-        # door, before anything is recorded, naming the reserved prefix.
-        instance = Instance(self.net())
-        with pytest.raises(ValueError, match=r"identity 'occurrence-2' uses the writer-reserved 'occurrence-' prefix"):
-            instance.deliver(self.INGEST, PAYMENT, identity="occurrence-2")
-        assert not [r for r in instance.history if isinstance(r, ExternalEventDelivered)]
+        with pytest.raises(TypeError, match="identity"):
+            instance.accept_delivery(self.INGEST, PAYMENT)
+        with pytest.raises(ValueError, match=r"identity must be a non-empty string"):
+            instance.accept_delivery(self.INGEST, PAYMENT, identity=None)
+
+        assert instance.history.records == before
 
     def test_an_empty_identity_is_rejected_before_recording(self):
         # The ingress seam validates before it records [convention 28]: an
@@ -146,7 +151,7 @@ class TestDelivery:
         # bug, not a fact.
         instance = Instance(self.net())
         with pytest.raises(ValueError, match=r"delivery to ingest: identity must be a non-empty string"):
-            instance.deliver(self.INGEST, PAYMENT, identity="")
+            instance.accept_delivery(self.INGEST, PAYMENT, identity="")
         assert not [r for r in instance.history if isinstance(r, ExternalEventDelivered)]
 
     def test_delivery_to_a_non_source_transition_is_rejected(self):
@@ -155,19 +160,19 @@ class TestDelivery:
         net = Net(places=[Place(a)], transitions=[Transition(t)], arcs=[Arc(a, t)])
         instance = Instance(net, Marking({a: (Token.black(),)}))
         with pytest.raises(ValueError, match=r"cannot deliver to transition t: it has input arcs"):
-            instance.deliver(t, PAYMENT)
+            instance.accept_delivery(t, PAYMENT, identity="non-source-event")
 
     def test_delivery_to_an_unknown_transition_is_rejected(self):
         instance = Instance(self.net())
         with pytest.raises(ValueError, match=r"cannot deliver to nowhere: not a transition"):
-            instance.deliver("nowhere", PAYMENT)
+            instance.accept_delivery("nowhere", PAYMENT, identity="unknown-source-event")
 
     def test_an_empty_delivery_is_rejected(self):
         # An external event carries at least one token; delivering nothing is
         # a caller bug, not a fact worth recording.
         instance = Instance(self.net())
         with pytest.raises(ValueError, match=r"delivery to ingest requires at least one token"):
-            instance.deliver(self.INGEST, ())
+            instance.accept_delivery(self.INGEST, (), identity="empty-event")
 
     def test_a_non_token_delivery_is_rejected_before_recording(self):
         # This is the seam where outside-world data enters the kernel, and a
@@ -176,7 +181,7 @@ class TestDelivery:
         # event fact is recorded (Navigator ruling, slice-8 review).
         instance = Instance(self.net())
         with pytest.raises(ValueError, match=r"delivery to ingest: every delivered item must be a Token"):
-            instance.deliver(self.INGEST, "oops")
+            instance.accept_delivery(self.INGEST, "oops", identity="invalid-token-event")
         assert not [r for r in instance.history if isinstance(r, ExternalEventDelivered)]
 
 
@@ -200,10 +205,12 @@ class TestDeliveryIdentityEnforcement:
 
     def test_a_redelivered_identity_returns_the_prior_acknowledgement_without_an_append(self):
         instance = Instance(self.net())
-        first = instance.deliver(self.SRC, PAYMENT, identity="evt_123")
+        accepted = instance.accept_delivery(self.SRC, PAYMENT, identity="evt_123")
+        assert isinstance(accepted, AcceptedDelivery)
+        first = instance.complete_delivery(accepted)
         before = instance.history.records
 
-        acknowledgement = instance.deliver(self.SRC, PAYMENT, identity="evt_123")
+        acknowledgement = instance.accept_delivery(self.SRC, PAYMENT, identity="evt_123")
 
         assert acknowledgement == PriorAcknowledgement("evt_123", first.occurrence)
         assert instance.history.records == before
@@ -214,16 +221,18 @@ class TestDeliveryIdentityEnforcement:
         # first commit, and the broker retry is still acknowledged — never
         # told "no armed delivery registration".
         instance = Instance(self.net())
-        first = instance.deliver(self.SRC, PAYMENT, identity="evt_123")
+        accepted = instance.accept_delivery(self.SRC, PAYMENT, identity="evt_123")
+        assert isinstance(accepted, AcceptedDelivery)
+        first = instance.complete_delivery(accepted)
         instance.seal(self.SRC)
 
-        acknowledgement = instance.deliver(self.SRC, PAYMENT, identity="evt_123")
+        acknowledgement = instance.accept_delivery(self.SRC, PAYMENT, identity="evt_123")
 
         assert acknowledgement == PriorAcknowledgement("evt_123", first.occurrence)
         # A NEW identity still meets the sealed door: the registration check
         # holds for everything that is not a redelivery.
         with pytest.raises(ValueError, match="no armed delivery registration"):
-            instance.deliver(self.SRC, PAYMENT, identity="evt_124")
+            instance.accept_delivery(self.SRC, PAYMENT, identity="evt_124")
 
     def test_reusing_an_identity_for_changed_content_or_source_is_a_conflict(self):
         # Exact transport redelivery is idempotent; an identity naming another
@@ -236,13 +245,18 @@ class TestDeliveryIdentityEnforcement:
             arcs=[Arc(self.SRC, self.OUT), Arc(other, self.OUT)],
         )
         instance = Instance(net)
-        instance.deliver(self.SRC, PAYMENT, identity="evt_123")
+        accepted = instance.accept_delivery(self.SRC, PAYMENT, identity="evt_123")
+        assert isinstance(accepted, AcceptedDelivery)
+        instance.complete_delivery(accepted)
         before = instance.history.records
 
-        with pytest.raises(ValueError, match="identity conflict.*different delivery content"):
-            instance.deliver(self.SRC, Token("Payment", {"amount": 8}), identity="evt_123")
-        with pytest.raises(ValueError, match="identity conflict.*source src"):
-            instance.deliver(other, PAYMENT, identity="evt_123")
+        with pytest.raises(ValueError, match="identity conflict.*canonical token content differs"):
+            instance.accept_delivery(self.SRC, Token("Payment", {"amount": 8}), identity="evt_123")
+        with pytest.raises(
+            ValueError,
+            match=r"identity conflict.*recorded source NetPath\('src'\).*attempted source NetPath\('other'\)",
+        ):
+            instance.accept_delivery(other, PAYMENT, identity="evt_123")
 
         assert instance.history.records == before
 
@@ -250,21 +264,15 @@ class TestDeliveryIdentityEnforcement:
         # Distinct business events carrying equal data are two facts; only
         # transport redelivery collapses [DR 2026-07-14].
         instance = Instance(self.net())
-        instance.deliver(self.SRC, PAYMENT, identity="evt_1")
-        instance.deliver(self.SRC, PAYMENT, identity="evt_2")
+        first = instance.accept_delivery(self.SRC, PAYMENT, identity="evt_1")
+        assert isinstance(first, AcceptedDelivery)
+        instance.complete_delivery(first)
+        second = instance.accept_delivery(self.SRC, PAYMENT, identity="evt_2")
+        assert isinstance(second, AcceptedDelivery)
+        instance.complete_delivery(second)
 
         events = [r for r in instance.history if isinstance(r, ExternalEventDelivered)]
         assert [e.identity for e in events] == ["evt_1", "evt_2"]
-        assert instance.marking == Marking({self.OUT: (PAYMENT, PAYMENT)})
-
-    def test_derived_self_identities_never_collapse_distinct_deliveries(self):
-        # No supplied identity: each delivery derives its own occurrence
-        # self-identity, honest that no transport identity existed — equal
-        # data alone never dedups.
-        instance = Instance(self.net())
-        instance.deliver(self.SRC, PAYMENT)
-        instance.deliver(self.SRC, PAYMENT)
-
         assert instance.marking == Marking({self.OUT: (PAYMENT, PAYMENT)})
 
     def test_an_identity_is_accepted_even_when_the_source_projection_fails(self):
@@ -283,10 +291,12 @@ class TestDeliveryIdentityEnforcement:
         )
         instance = Instance(net, handlers={"explode": explode})
 
+        accepted = instance.accept_delivery(self.SRC, PAYMENT, identity="evt_123")
+        assert isinstance(accepted, AcceptedDelivery)
         with pytest.raises(RuntimeError, match="projection bug"):
-            instance.deliver(self.SRC, PAYMENT, identity="evt_123")
+            instance.complete_delivery(accepted)
 
-        acknowledgement = instance.deliver(self.SRC, PAYMENT, identity="evt_123")
+        acknowledgement = instance.accept_delivery(self.SRC, PAYMENT, identity="evt_123")
 
         assert acknowledgement == PriorAcknowledgement("evt_123", 1)
         events = [r for r in instance.history if isinstance(r, ExternalEventDelivered)]
@@ -298,19 +308,21 @@ class TestDeliveryIdentityEnforcement:
         # against the recorded acceptance.
         path = tmp_path / "history.jsonl"
         instance = Instance(self.net(), history=JsonlHistoryStore(path))
-        first = instance.deliver(self.SRC, PAYMENT, identity="evt_123")
+        accepted = instance.accept_delivery(self.SRC, PAYMENT, identity="evt_123")
+        assert isinstance(accepted, AcceptedDelivery)
+        first = instance.complete_delivery(accepted)
         del instance  # the kill
 
         resumed = Instance.resume(self.net(), JsonlHistoryStore(path))
         before = resumed.history.records
 
-        acknowledgement = resumed.deliver(self.SRC, PAYMENT, identity="evt_123")
+        acknowledgement = resumed.accept_delivery(self.SRC, PAYMENT, identity="evt_123")
 
         assert acknowledgement == PriorAcknowledgement("evt_123", first.occurrence)
         assert resumed.history.records == before
 
         with pytest.raises(ValueError, match="identity conflict"):
-            resumed.deliver(self.SRC, Token("Payment", {"amount": 8}), identity="evt_123")
+            resumed.accept_delivery(self.SRC, Token("Payment", {"amount": 8}), identity="evt_123")
         assert resumed.history.records == before
 
     def test_a_trace_with_a_twice_accepted_identity_is_replay_divergence(self):
@@ -320,8 +332,11 @@ class TestDeliveryIdentityEnforcement:
         history = InMemoryHistoryStore()
         history.extend(
             [
+                DeliveryRegistrationOpened(self.SRC, "default", occurrence=None),
                 ExternalEventDelivered(self.SRC, (PAYMENT,), identity="evt_1", occurrence=1),
+                FiringBegun(self.SRC, occurrence=1),
                 ExternalEventDelivered(self.SRC, (PAYMENT,), identity="evt_1", occurrence=2),
+                FiringBegun(self.SRC, occurrence=2),
             ]
         )
         with pytest.raises(ValueError, match="replay divergence.*evt_1.*accepted twice"):
@@ -350,7 +365,9 @@ class TestHandledSource:
             return {self.RECEIPTS: (self.RECEIPT,)}
 
         instance = Instance(self.net(), handlers={"parse": parse})
-        instance.deliver(self.INGEST, self.RAW)
+        accepted = instance.accept_delivery(self.INGEST, self.RAW, identity="handler-binding-event")
+        assert isinstance(accepted, AcceptedDelivery)
+        instance.complete_delivery(accepted)
         assert seen == [(self.RAW,)]
         assert instance.marking == Marking({self.RECEIPTS: (self.RECEIPT,)})
 
@@ -361,11 +378,13 @@ class TestHandledSource:
         # [DR 2026-07-14 source-delivery-projection-and-identity], so no
         # activity records appear between the movements.
         instance = Instance(self.net(), handlers={"parse": lambda b, outputs: {self.RECEIPTS: (self.RECEIPT,)}})
-        instance.deliver(self.INGEST, self.RAW)
+        accepted = instance.accept_delivery(self.INGEST, self.RAW, identity="handler-lifecycle-event")
+        assert isinstance(accepted, AcceptedDelivery)
+        instance.complete_delivery(accepted)
         assert instance.history.records == (
             InstanceCreated(instance.instance_id),
             DeliveryRegistrationOpened(self.INGEST, "default", occurrence=None),
-            ExternalEventDelivered(self.INGEST, (self.RAW,), identity="occurrence-1", occurrence=1),
+            ExternalEventDelivered(self.INGEST, (self.RAW,), identity="handler-lifecycle-event", occurrence=1),
             FiringBegun(self.INGEST, occurrence=1),
             TokensProduced(self.RECEIPTS, (self.RECEIPT,), occurrence=1),
             FiringCompleted(self.INGEST, occurrence=1),
@@ -380,7 +399,9 @@ class TestHandledSource:
             return {self.RECEIPTS: (self.RECEIPT,)}
 
         instance = Instance(self.net(), handlers={"parse": parse})
-        instance.deliver(self.INGEST, self.RAW)
+        accepted = instance.accept_delivery(self.INGEST, self.RAW, identity="handler-replay-event")
+        assert isinstance(accepted, AcceptedDelivery)
+        instance.complete_delivery(accepted)
         assert replay_marking(instance.history) == instance.marking
         assert calls == [self.INGEST]
 
@@ -392,10 +413,12 @@ class TestHandledSource:
             raise RuntimeError("boom")
 
         instance = Instance(self.net(), handlers={"parse": parse})
+        accepted = instance.accept_delivery(self.INGEST, self.RAW, identity="raising-handler-event")
+        assert isinstance(accepted, AcceptedDelivery)
         with pytest.raises(RuntimeError, match="boom"):
-            instance.deliver(self.INGEST, self.RAW)
+            instance.complete_delivery(accepted)
         assert (
-            ExternalEventDelivered(self.INGEST, (self.RAW,), identity="occurrence-1", occurrence=1)
+            ExternalEventDelivered(self.INGEST, (self.RAW,), identity="raising-handler-event", occurrence=1)
             in instance.history.records
         )
         assert isinstance(instance.history.records[-1], FiringFailed)

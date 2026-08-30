@@ -491,7 +491,7 @@ def test_snapshot_blocks_between_append_and_projection_then_sees_coherent_after_
 
     def write():
         try:
-            engine.deliver(SOURCE, Token("X"))
+            engine.deliver(SOURCE, Token("X"), identity="barrier-event")
         except BaseException as error:
             errors.append(error)
 
@@ -545,7 +545,7 @@ def test_joined_commit_failure_poisons_observation_and_hides_uncommitted_frontie
         commit=lambda: (_ for _ in ()).throw(RuntimeError("commit refused"))
     )
     with pytest.raises(RuntimeError, match="commit refused"):
-        engine.deliver(SOURCE, Token("X"))
+        engine.deliver(SOURCE, Token("X"), identity="poison-event")
     assert committed_frontier < len(history)  # backend-owned double cannot roll back; Engine still refuses exposure
     with pytest.raises(RuntimeError, match="poisoned"):
         engine.snapshot()

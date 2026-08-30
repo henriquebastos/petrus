@@ -264,7 +264,7 @@ class TestConservativePolicy:
     def test_ingress_interrupts_once_then_candidate_and_time_make_progress(self):
         instance, _ = _independent_instance()
         begin = _begin(_binding_of(instance))
-        deliver = AcceptDelivery(Delivery(SRC, Token("X")))
+        deliver = AcceptDelivery(Delivery(SRC, Token("X"), identity="policy-event"))
 
         assert choose_conservative(Snapshot((begin, AdvanceTime(9), deliver, Stop()), ())) == deliver
         assert choose_conservative(Snapshot((begin, deliver, Stop()), (), previous=deliver)) == begin
@@ -273,7 +273,7 @@ class TestConservativePolicy:
         assert choose_conservative(Snapshot((Stop(),), ())) == Stop()
 
     def test_wait_does_not_block_buffered_ingress_even_after_a_delivery(self):
-        deliver = AcceptDelivery(Delivery(SRC, Token("X")))
+        deliver = AcceptDelivery(Delivery(SRC, Token("X"), identity="buffered-event"))
 
         snapshot = Snapshot((deliver, Wait(), Stop()), (), previous=deliver)
 
@@ -311,7 +311,7 @@ class TestThroughputPolicy:
     def test_ingress_interrupts_once_then_existing_candidate_precedence_resumes(self):
         instance, _ = _independent_instance()
         begin = _begin(_binding_of(instance))
-        deliver = AcceptDelivery(Delivery(SRC, Token("X")))
+        deliver = AcceptDelivery(Delivery(SRC, Token("X"), identity="throughput-event"))
         result = AcceptResult(1, {"ok": True})
 
         assert choose_throughput(Snapshot((result, begin, deliver, Stop()), ())) == deliver

@@ -39,6 +39,7 @@ from __future__ import annotations
 
 # Python imports
 from collections.abc import Callable
+from copy import deepcopy
 from dataclasses import dataclass
 
 # Internal imports
@@ -165,6 +166,21 @@ def replay_in_flight(history) -> tuple[FiringOccurrence, ...]:
     for occurrence_id, records in in_flight.items():
         transition, delivered = initiated[occurrence_id]
         _refuse_torn_batch(occurrence_id, transition, ending)
+        _refuse_disordered_begin_batch(occurrence_id, transition, records)
+        occurrences.append(_rebuilt_occurrence(occurrence_id, transition, delivered, records))
+    return tuple(occurrences)
+
+
+def replay_firing_occurrences(history, occurrence_ids: set[int]) -> tuple[FiringOccurrence, ...]:
+    """Rebuild the named begun occurrences, including ended ones, for authority validation."""
+    initiated, begun, ended, ending, _ = _sorted_lifecycle(history)
+    occurrences = []
+    for occurrence_id, records in begun.items():
+        if occurrence_id not in occurrence_ids:
+            continue
+        transition, delivered = initiated[occurrence_id]
+        if occurrence_id not in ended:
+            _refuse_torn_batch(occurrence_id, transition, ending)
         _refuse_disordered_begin_batch(occurrence_id, transition, records)
         occurrences.append(_rebuilt_occurrence(occurrence_id, transition, delivered, records))
     return tuple(occurrences)
@@ -300,6 +316,55 @@ def replay_activity_occurrences(history) -> tuple[FiringOccurrence, ...]:
     return tuple(occurrences)
 
 
+def _refuse_late_begin_record(
+    record: TokensConsumed | TokensRead | ActivityRequested,
+    ending: set[int],
+    ended: set[int],
+) -> None:
+    """Keep begin facts before every completion or terminal fact of their occurrence."""
+    if record.occurrence in ended:
+        raise ValueError(
+            f"replay divergence: {type(record).__name__} for firing occurrence {record.occurrence} "
+            "appears after its terminal boundary"
+        )
+    if record.occurrence in ending:
+        raise ValueError(
+            f"replay divergence: {type(record).__name__} for firing occurrence {record.occurrence} "
+            "appears after completion began"
+        )
+
+
+def _validate_begin_record_position(
+    record: TokensConsumed | TokensRead | ActivityRequested,
+    active: tuple[int, Instant] | None,
+) -> None:
+    """Require one begin-tail fact to remain in its writer-owned batch."""
+    if active is None or active[0] != record.occurrence:
+        raise ValueError(
+            f"replay divergence: {type(record).__name__} for firing occurrence {record.occurrence} "
+            "does not belong to its contiguous begin batch"
+        )
+    if record.instant != active[1]:
+        raise ValueError(
+            f"replay divergence: {type(record).__name__} for firing occurrence {record.occurrence} "
+            f"has instant {record.instant}, not its begin batch instant {active[1]}"
+        )
+
+
+def _validate_activity_record_transition(
+    record: ActivityRequested | ActivityCompleted | ActivityFailed | ActivityTerminalQuarantined,
+    begun: dict[int, list[Record]],
+) -> None:
+    """Keep every activity fact on its occurrence's begun transition."""
+    boundary = begun[record.occurrence][0]
+    assert isinstance(boundary, FiringBegun)
+    if record.transition != boundary.transition:
+        raise ValueError(
+            f"replay divergence: {type(record).__name__} transition {record.transition} for firing occurrence "
+            f"{record.occurrence} does not match begun transition {boundary.transition}"
+        )
+
+
 # Complexity exception (>15): this is a cohesive lifecycle-record fold whose
 # branches mirror the closed record union; splitting it would obscure ordering.
 def _sorted_lifecycle(  # noqa: C901
@@ -333,10 +398,26 @@ def _sorted_lifecycle(  # noqa: C901
     frozen: dict[int, object] = {}
     scoped_open: dict[int, LifecycleScope] = {}
     lifecycle_cancelled: set[int] = set()
+    active_begin: tuple[int, Instant] | None = None
+    previous: Record | None = None
     for record in history:
+        if not isinstance(record, (TokensConsumed, TokensRead, ActivityRequested)):
+            active_begin = None
         if isinstance(record, CandidateSelected):
+            if record.occurrence in initiated:
+                prior, _ = initiated[record.occurrence]
+                raise ValueError(
+                    f"replay divergence: firing occurrence {record.occurrence} initiated more than once "
+                    f"({prior} then {record.transition})"
+                )
             initiated[record.occurrence] = (record.transition, ())
         elif isinstance(record, ExternalEventDelivered):
+            if record.occurrence in initiated:
+                prior, _ = initiated[record.occurrence]
+                raise ValueError(
+                    f"replay divergence: firing occurrence {record.occurrence} initiated more than once "
+                    f"({prior} then {record.source})"
+                )
             initiated[record.occurrence] = (record.source, record.tokens)
         elif isinstance(record, FiringBegun):
             if record.occurrence not in initiated:
@@ -344,7 +425,24 @@ def _sorted_lifecycle(  # noqa: C901
                     f"replay divergence: firing occurrence {record.occurrence} ({record.transition}) "
                     f"begun with no initiation record"
                 )
+            if record.occurrence in begun:
+                raise ValueError(
+                    f"replay divergence: firing occurrence {record.occurrence} has more than one FiringBegun record"
+                )
+            if not isinstance(previous, (CandidateSelected, ExternalEventDelivered)) or (
+                previous.occurrence != record.occurrence
+            ):
+                raise ValueError(
+                    f"replay divergence: FiringBegun for occurrence {record.occurrence} does not immediately "
+                    "follow its initiation in the contiguous begin batch"
+                )
+            if previous.instant != record.instant:
+                raise ValueError(
+                    f"replay divergence: FiringBegun for occurrence {record.occurrence} has instant "
+                    f"{record.instant}, not its initiation instant {previous.instant}"
+                )
             begun[record.occurrence] = [record]
+            active_begin = (record.occurrence, record.instant)
             if record.scope is not None:
                 scoped_open[record.occurrence] = record.scope
         elif isinstance(record, (TokensConsumed, TokensRead)):
@@ -354,6 +452,8 @@ def _sorted_lifecycle(  # noqa: C901
                     f"replay divergence: tokens {verb} from {record.place} for firing occurrence "
                     f"{record.occurrence} with no begun boundary"
                 )
+            _refuse_late_begin_record(record, ending, ended)
+            _validate_begin_record_position(record, active_begin)
             begun[record.occurrence].append(record)
         elif isinstance(record, ActivityRequested):
             if record.occurrence not in begun:
@@ -361,11 +461,14 @@ def _sorted_lifecycle(  # noqa: C901
                     f"replay divergence: activity {record.activity!r} requested for firing occurrence "
                     f"{record.occurrence} with no begun boundary — the request joins the begin batch"
                 )
+            _validate_activity_record_transition(record, begun)
             if any(isinstance(existing, ActivityRequested) for existing in begun[record.occurrence]):
                 raise ValueError(
                     f"replay divergence: firing occurrence {record.occurrence} ({record.transition}) requested "
                     f"a second activity — one impure handler maps to exactly one activity"
                 )
+            _refuse_late_begin_record(record, ending, ended)
+            _validate_begin_record_position(record, active_begin)
             begun[record.occurrence].append(record)
         elif isinstance(record, ActivityCompleted):
             requested = record.occurrence in begun and any(
@@ -376,6 +479,7 @@ def _sorted_lifecycle(  # noqa: C901
                     f"replay divergence: activity completed for firing occurrence {record.occurrence} "
                     f"({record.transition}) but no activity was requested in its begin batch"
                 )
+            _validate_activity_record_transition(record, begun)
             if record.occurrence in frozen:
                 raise ValueError(
                     f"replay divergence: a second terminal activity fact for firing occurrence "
@@ -396,6 +500,7 @@ def _sorted_lifecycle(  # noqa: C901
                     f"replay divergence: activity failed for firing occurrence {record.occurrence} "
                     f"({record.transition}) but no activity was requested in its begin batch"
                 )
+            _validate_activity_record_transition(record, begun)
             if record.occurrence in frozen:
                 raise ValueError(
                     f"replay divergence: a second terminal activity fact for firing occurrence "
@@ -409,6 +514,13 @@ def _sorted_lifecycle(  # noqa: C901
             frozen[record.occurrence] = ActivityFailure(
                 record.error, record.kind, record.details, record.retryable, record.retry_after
             )
+        elif isinstance(record, ActivityTerminalQuarantined):
+            if record.occurrence not in begun:
+                raise ValueError(
+                    f"replay divergence: terminal quarantined for firing occurrence {record.occurrence} "
+                    "with no begun boundary"
+                )
+            _validate_activity_record_transition(record, begun)
         elif isinstance(record, (ScopeClosed, ScopeReset)):
             scope = record.scope if isinstance(record, ScopeClosed) else record.closed
             expected = tuple(occurrence for occurrence, provenance in scoped_open.items() if provenance == scope)
@@ -433,13 +545,30 @@ def _sorted_lifecycle(  # noqa: C901
             if record.occurrence is not None:
                 ending.add(record.occurrence)
         elif isinstance(record, (FiringCompleted, FiringFailed)):
+            if record.occurrence not in begun:
+                raise ValueError(
+                    f"replay divergence: firing occurrence {record.occurrence} reached "
+                    f"{type(record).__name__} with no begun boundary"
+                )
+            boundary = begun[record.occurrence][0]
+            assert isinstance(boundary, FiringBegun)
+            if record.transition != boundary.transition:
+                raise ValueError(
+                    f"replay divergence: firing occurrence {record.occurrence} terminal transition "
+                    f"{record.transition} does not match begun transition {boundary.transition}"
+                )
             if record.occurrence in lifecycle_cancelled:
                 raise ValueError(
                     f"replay divergence: firing occurrence {record.occurrence} reached "
                     f"{type(record).__name__} after lifecycle cancellation"
                 )
+            if record.occurrence in ended:
+                raise ValueError(
+                    f"replay divergence: firing occurrence {record.occurrence} has more than one firing terminal"
+                )
             scoped_open.pop(record.occurrence, None)
             ended.add(record.occurrence)
+        previous = record
     return initiated, begun, ended, ending, frozen
 
 
@@ -501,6 +630,11 @@ def _rebuilt_occurrence(
         None,
     )
     begun = next(record for record in records if isinstance(record, FiringBegun))
+    if begun.transition != transition:
+        raise ValueError(
+            f"replay divergence: firing occurrence {occurrence_id} initiation transition {transition} "
+            f"does not match begun transition {begun.transition}"
+        )
     scoped_records = tuple(
         record for record in records if isinstance(record, (FiringBegun, TokensConsumed, TokensRead, ActivityRequested))
     )
@@ -512,7 +646,7 @@ def _rebuilt_occurrence(
         )
     return FiringOccurrence(
         occurrence_id,
-        Binding(transition, consumed, read, delivered=delivered),
+        Binding(transition, consumed, read, delivered=deepcopy(delivered)),
         tuple(records),
         invocation=invocation,
         scope=begun.scope,

@@ -383,6 +383,7 @@ def test_dispatch_is_canonical_and_coordination_remains_private() -> None:
     assert importlib.util.find_spec("petrus.engine._coordination") is not None
     assert "Coordinator" not in engine.__all__
     assert set(engine.__all__) == {
+        "AcceptedDelivery",
         "AcceptDelivery",
         "AcceptResult",
         "Action",

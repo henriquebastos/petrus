@@ -327,7 +327,7 @@ def test_controlled_sequential_local_execution_is_byte_identical_to_inline_histo
             dispatch=dispatch,
             handlers={"spark_work": SparkWork()},
         )
-        engine.deliver(INGRESS, Token(ISSUE, {"id": "one"}))
+        engine.deliver(INGRESS, Token(ISSUE, {"id": "one"}), identity="issue-one")
         while engine.advance().ready:
             pass
         if arrangement == "local":

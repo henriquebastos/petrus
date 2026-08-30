@@ -4,7 +4,7 @@ Behavioral tests for the durable firing-occurrence seam — begin/complete/fail.
 The seam is the net-runtime half of ADR 0012: ``begin`` accounts input tokens
 and records the occurrence, an execution runtime runs the handler however it
 likes, and ``complete``/``fail`` commit the terminal outcome. Everything fires
-through the seam — ``step`` and ``deliver`` are inline drivers over it — and
+through the seam — ``step`` and ``complete_delivery`` are inline drivers over it — and
 every record of one firing carries its occurrence id, minted at the initiation
 record (a Navigator ruling: the pipeline's "selected firing occurrence" IS the
 durable record of the chosen candidate). Failure is not net semantics: ``fail``
@@ -101,7 +101,7 @@ class TestBegin:
         assert instance.status is Status.RUNNING
 
     def test_begin_rejects_a_delivered_binding(self):
-        # A delivered binding is a source firing; deliver() is its door.
+        # A delivered binding is a source firing; accept_delivery() is its door.
         source = NetPath("src")
         net = Net(places=[Place(B)], transitions=[Transition(source)], arcs=[Arc(source, B)])
         instance = Instance(net)
@@ -381,11 +381,12 @@ class TestDeliverThroughTheSeam:
         token = Token("X")
         instance = Instance(self._source_net())
 
-        firing = instance.deliver(self.SRC, token, at=5)
+        accepted = instance.accept_delivery(self.SRC, token, at=5, identity="source-event")
+        firing = instance.complete_delivery(accepted, at=5)
 
         assert firing.occurrence == 1
         assert instance.history.records[-4:] == (
-            ExternalEventDelivered(self.SRC, (token,), identity="occurrence-1", occurrence=1, instant=5),
+            ExternalEventDelivered(self.SRC, (token,), identity="source-event", occurrence=1, instant=5),
             FiringBegun(self.SRC, occurrence=1, instant=5),
             TokensProduced(self.OUT, (token,), occurrence=1, instant=5),
             FiringCompleted(self.SRC, occurrence=1, instant=5),
@@ -401,7 +402,8 @@ class TestDeliverThroughTheSeam:
             handlers={"ingest": lambda binding, outputs: {self.OUT: (Token("X"),)}},
         )
 
-        instance.deliver(self.SRC, Token("Raw"))
+        accepted = instance.accept_delivery(self.SRC, Token("Raw"), identity="handled-event")
+        instance.complete_delivery(accepted)
 
         assert not [r for r in instance.history if isinstance(r, (ActivityRequested, ActivityCompleted))]
         assert instance.marking == Marking({self.OUT: (Token("X"),)})

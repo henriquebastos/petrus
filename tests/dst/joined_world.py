@@ -224,7 +224,10 @@ DELIVERY_REFUSAL_PROFILE_IDENTITY = ProfileIdentity(
                 "joined-delivery-redelivered",
             ],
             "provider": "petrus.engine.absurd",
-            "property": "a refused identified delivery is not accepted and fresh load may accept it once",
+            "property": (
+                "a refused identified acceptance is absent; fresh load may accept and complete it in separate "
+                "transactions exactly once"
+            ),
         }
     ),
 )
@@ -246,7 +249,10 @@ DELIVERY_ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
                 "joined-delivery-ack-recovered",
             ],
             "provider": "petrus.engine.absurd",
-            "property": "an accepted identified delivery survives acknowledgement loss and redelivers idempotently",
+            "property": (
+                "an accepted identified delivery survives acknowledgement loss, resumes its separate completion, "
+                "and then redelivers idempotently"
+            ),
         }
     ),
 )
@@ -499,6 +505,7 @@ RESET_REFUSAL_PROFILE_IDENTITY = ProfileIdentity(
             "provider": "petrus.engine.absurd",
             "property": "a refused ScopeReset leaves the old lifecycle and Worker attempt authoritative",
             "queue": QUEUE,
+            "source_delivery": "acceptance and completion commit separately",
         }
     ),
 )
@@ -531,6 +538,7 @@ RESET_ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
             "provider": "petrus.engine.absurd",
             "property": "an accepted ScopeReset survives acknowledgement loss and installs one cancellation fence",
             "queue": QUEUE,
+            "source_delivery": "acceptance and completion commit separately",
         }
     ),
 )
@@ -559,6 +567,7 @@ CLOSE_REFUSAL_PROFILE_IDENTITY = ProfileIdentity(
             "provider": "petrus.engine.absurd",
             "property": "a refused ScopeClosed leaves the active lifecycle and Worker attempt authoritative",
             "queue": QUEUE,
+            "source_delivery": "acceptance and completion commit separately",
         }
     ),
 )
@@ -587,6 +596,7 @@ CLOSE_ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
             "provider": "petrus.engine.absurd",
             "property": "an accepted ScopeClosed survives acknowledgement loss and installs one cancellation fence",
             "queue": QUEUE,
+            "source_delivery": "acceptance and completion commit separately",
         }
     ),
 )
@@ -654,6 +664,7 @@ CANCELLATION_PROFILE_IDENTITY = ProfileIdentity(
             "provider": "petrus.engine.absurd",
             "property": "a committed scope reset survives refusal and fresh-load repair of its task tombstone",
             "queue": QUEUE,
+            "source_delivery": "acceptance and completion commit separately",
         }
     ),
 )
@@ -686,6 +697,7 @@ CANCELLATION_ACK_LOSS_PROFILE_IDENTITY = ProfileIdentity(
             "provider": "petrus.engine.absurd",
             "property": "an accepted post-reset cancellation survives loss of its commit acknowledgement",
             "queue": QUEUE,
+            "source_delivery": "acceptance and completion commit separately",
         }
     ),
 )
@@ -727,8 +739,8 @@ DELIVERY_CHECKER_IDENTITY = CheckerIdentity(
     digest=digest_json(
         {
             "property": (
-                "accepted PostgreSQL delivery transactions authorize one identified source fact and projection; "
-                "exact redelivery is idempotent"
+                "separate accepted PostgreSQL delivery and completion transactions authorize one identified "
+                "source fact and projection; exact redelivery is idempotent"
             )
         }
     ),
@@ -812,7 +824,7 @@ RESET_REFUSAL_CHECKER_IDENTITY = CheckerIdentity(
         {
             "property": (
                 "a refused ScopeReset leaves generation one and its Worker completion authoritative for one "
-                "terminal and projection after fresh load"
+                "terminal and projection after fresh load, following separate source acceptance and completion"
             )
         }
     ),
@@ -824,7 +836,7 @@ RESET_ACK_LOSS_CHECKER_IDENTITY = CheckerIdentity(
         {
             "property": (
                 "an acknowledgement-lost ScopeReset reconstructs generation two, installs one tombstone, and "
-                "fences its old Worker"
+                "fences its old Worker after separate source acceptance and completion"
             )
         }
     ),
@@ -833,14 +845,24 @@ CLOSE_REFUSAL_CHECKER_IDENTITY = CheckerIdentity(
     name="petrus.engine.joined-close-refusal-authority",
     version=1,
     digest=digest_json(
-        {"property": "a refused ScopeClosed leaves the active generation and Worker completion authoritative"}
+        {
+            "property": (
+                "after separate source acceptance and completion, a refused ScopeClosed leaves the active "
+                "generation and Worker completion authoritative"
+            )
+        }
     ),
 )
 CLOSE_ACK_LOSS_CHECKER_IDENTITY = CheckerIdentity(
     name="petrus.engine.joined-accepted-close-authority",
     version=1,
     digest=digest_json(
-        {"property": "an acknowledgement-lost ScopeClosed reconstructs terminal authority and one task tombstone"}
+        {
+            "property": (
+                "after separate source acceptance and completion, an acknowledgement-lost ScopeClosed "
+                "reconstructs terminal authority and one task tombstone"
+            )
+        }
     ),
 )
 OPEN_CHECKER_IDENTITY = CheckerIdentity(
@@ -856,8 +878,9 @@ CANCELLATION_CHECKER_IDENTITY = CheckerIdentity(
     digest=digest_json(
         {
             "property": (
-                "accepted reset authority survives a refused cancellation transaction; fresh load creates one "
-                "tombstone and fences the stale Worker without semantic terminal or projection"
+                "after separate source acceptance and completion, accepted reset authority survives a refused "
+                "cancellation transaction; fresh load creates one tombstone and fences the stale Worker without "
+                "semantic terminal or projection"
             )
         }
     ),
@@ -868,8 +891,9 @@ CANCELLATION_ACK_LOSS_CHECKER_IDENTITY = CheckerIdentity(
     digest=digest_json(
         {
             "property": (
-                "an acknowledgement-lost cancellation has one accepted reset and tombstone; fresh load and a "
-                "stale Worker cannot add a task, terminal, or projection"
+                "after separate source acceptance and completion, an acknowledgement-lost cancellation has one "
+                "accepted reset and tombstone; fresh load and a stale Worker cannot add a task, terminal, or "
+                "projection"
             )
         }
     ),
@@ -1189,7 +1213,8 @@ class JoinedFaultConnection:
         )
         cancellation_attempted = self._cancellation_attempted
         tracked = (
-            joined_begin
+            source_delivery
+            or joined_begin
             or scoped_drop
             or scoped_quarantine
             or any(
@@ -3211,33 +3236,55 @@ class JoinedDeliveryAuthorityChecker:
         canonical = cast(list[dict[str, JsonValue]], value["canonical_deliveries"])
         delivery_attempts = cast(list[dict[str, JsonValue]], value["delivery_attempts"])
         transactions = cast(list[dict[str, JsonValue]], value["transaction_attempts"])
-        source_batch = ["ExternalEventDelivered", "FiringBegun", "TokensProduced", "FiringCompleted"]
+        acceptance_batch = ["ExternalEventDelivered", "FiringBegun"]
+        completion_batch = ["TokensProduced", "FiringCompleted"]
         transactions_exact = all(
-            attempt["dispatch_attempted"] is False and attempt["record_types"] == source_batch
+            attempt["dispatch_attempted"] is False and attempt["record_types"] in (acceptance_batch, completion_batch)
             for attempt in transactions
         )
-        accepted = sum(attempt["accepted"] is True for attempt in transactions)
-        refused = sum(attempt["accepted"] is False for attempt in transactions)
+        accepted_acceptances = sum(
+            attempt["accepted"] is True and attempt["record_types"] == acceptance_batch for attempt in transactions
+        )
+        accepted_completions = sum(
+            attempt["accepted"] is True and attempt["record_types"] == completion_batch for attempt in transactions
+        )
+        refused_acceptances = sum(
+            attempt["accepted"] is False and attempt["record_types"] == acceptance_batch for attempt in transactions
+        )
         refusal_faults = cast(int, value["delivery_refusals"])
         ack_losses = cast(int, value["delivery_ack_losses"])
         reported = [cast(str, attempt["disposition"]) for attempt in delivery_attempts]
+        refused_acceptance = {
+            "accepted": False,
+            "dispatch_attempted": False,
+            "record_types": acceptance_batch,
+        }
+        accepted_acceptance = {**refused_acceptance, "accepted": True}
+        accepted_completion = {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": completion_batch,
+        }
         if refusal_faults:
-            expected_transactions = [False] if accepted == 0 else [False, True]
+            expected_transactions = [refused_acceptance]
             expected_reported = [ActionDisposition.REFUSED_EXPECTED.value]
-            if accepted:
+            if len(delivery_attempts) >= 2:
+                expected_transactions.extend((accepted_acceptance, accepted_completion))
                 expected_reported.append(ActionDisposition.APPLIED.value)
                 if len(delivery_attempts) == 3:
                     expected_reported.append(ActionDisposition.IDEMPOTENT.value)
         elif ack_losses:
-            expected_transactions = [True]
+            expected_transactions = [accepted_acceptance]
             expected_reported = [ActionDisposition.REFUSED_EXPECTED.value]
-            if len(delivery_attempts) == 2:
-                expected_reported.append(ActionDisposition.IDEMPOTENT.value)
+            if len(delivery_attempts) >= 2:
+                expected_transactions.append(accepted_completion)
+                expected_reported.append(ActionDisposition.APPLIED.value)
+                if len(delivery_attempts) == 3:
+                    expected_reported.append(ActionDisposition.IDEMPOTENT.value)
         else:
             expected_transactions = []
             expected_reported = []
-        transaction_acceptance = [cast(bool, attempt["accepted"]) for attempt in transactions]
-        if accepted and delivery_attempts:
+        if accepted_acceptances and delivery_attempts:
             first = delivery_attempts[0]
             expected_canonical: list[dict[str, JsonValue]] = [
                 {
@@ -3246,29 +3293,33 @@ class JoinedDeliveryAuthorityChecker:
                     "value": first["value"],
                 }
             ]
-            expected_values: list[JsonValue] = [first["value"]]
         else:
             expected_canonical = []
+        if accepted_completions and delivery_attempts:
+            expected_values: list[JsonValue] = [delivery_attempts[0]["value"]]
+        else:
             expected_values = []
         passed = (
             transactions_exact
-            and transaction_acceptance == expected_transactions
+            and transactions == expected_transactions
             and reported == expected_reported
             and canonical == expected_canonical
             and cast(list[JsonValue], value["produced_values"]) == expected_values
-            and cast(int, value["firing_completed"]) == accepted
-            and refused == refusal_faults <= 1
-            and ack_losses <= accepted <= 1
+            and cast(int, value["firing_completed"]) == accepted_completions
+            and refused_acceptances == refusal_faults <= 1
+            and ack_losses <= accepted_acceptances <= 1
+            and accepted_completions <= accepted_acceptances
             and refusal_faults + ack_losses <= 1
         )
         return CheckResult(
             passed=passed,
             detail={
-                "accepted_transactions": accepted,
+                "accepted_acceptances": accepted_acceptances,
+                "accepted_completions": accepted_completions,
                 "ack_losses": ack_losses,
                 "canonical_deliveries": canonical,
                 "expected_deliveries": expected_canonical,
-                "refused_transactions": refused,
+                "refused_acceptances": refused_acceptances,
                 "reported_dispositions": reported,
                 "transactions_exact": transactions_exact,
             },
@@ -4122,10 +4173,15 @@ class JoinedResetRefusalAuthorityChecker:
         attempts = cast(list[dict[str, JsonValue]], value["transaction_attempts"])
         lifecycle_attempts = cast(list[dict[str, JsonValue]], value["lifecycle_attempts"])
         tasks = cast(list[dict[str, JsonValue]], value["durable_tasks"])
-        source = {
+        source_acceptance = {
             "accepted": True,
             "dispatch_attempted": False,
-            "record_types": ["ExternalEventDelivered", "FiringBegun", "TokensProduced", "FiringCompleted"],
+            "record_types": ["ExternalEventDelivered", "FiringBegun"],
+        }
+        source_completion = {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["TokensProduced", "FiringCompleted"],
         }
         begin = {
             "accepted": True,
@@ -4142,13 +4198,13 @@ class JoinedResetRefusalAuthorityChecker:
             "dispatch_attempted": False,
             "record_types": ["TokensProduced", "FiringCompleted"],
         }
-        expected_attempts = [source, begin, terminal, projection]
+        expected_attempts = [source_acceptance, source_completion, begin, terminal, projection]
         attempts_exact = len(attempts) <= len(expected_attempts) and attempts == expected_attempts[: len(attempts)]
         refused_reset = {"accepted": False, "phase": "scope_reset", "record_types": ["ScopeReset"]}
         lifecycle_exact = lifecycle_attempts in ([], [refused_reset])
         accepted_begins = attempts.count(begin)
         accepted_terminals = attempts.count(terminal)
-        accepted_projections = attempts.count(projection)
+        accepted_projections = attempts[2:].count(projection)
         reset_attempts = cast(int, value["scope_resets"])
         reset_refusals = cast(int, value["reset_refusals"])
         worker_claims = cast(int, value["worker_claims"])
@@ -4213,17 +4269,22 @@ class JoinedAcceptedResetAuthorityChecker:
         attempts = cast(list[dict[str, JsonValue]], value["transaction_attempts"])
         lifecycle_attempts = cast(list[dict[str, JsonValue]], value["lifecycle_attempts"])
         tasks = cast(list[dict[str, JsonValue]], value["durable_tasks"])
-        source = {
+        source_acceptance = {
             "accepted": True,
             "dispatch_attempted": False,
-            "record_types": ["ExternalEventDelivered", "FiringBegun", "TokensProduced", "FiringCompleted"],
+            "record_types": ["ExternalEventDelivered", "FiringBegun"],
+        }
+        source_completion = {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["TokensProduced", "FiringCompleted"],
         }
         begin = {
             "accepted": True,
             "dispatch_attempted": True,
             "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
         }
-        expected_attempts = [source, begin]
+        expected_attempts = [source_acceptance, source_completion, begin]
         attempts_exact = len(attempts) <= len(expected_attempts) and attempts == expected_attempts[: len(attempts)]
         accepted_reset = {"accepted": True, "phase": "scope_reset", "record_types": ["ScopeReset"]}
         accepted_cancellation = {"accepted": True, "phase": "cancellation", "record_types": []}
@@ -4412,17 +4473,27 @@ class JoinedCancellationAuthorityChecker:
         attempts = cast(list[dict[str, JsonValue]], value["transaction_attempts"])
         lifecycle_attempts = cast(list[dict[str, JsonValue]], value["lifecycle_attempts"])
         tasks = cast(list[dict[str, JsonValue]], value["durable_tasks"])
-        source = {
+        source_acceptance = {
             "accepted": True,
             "dispatch_attempted": False,
-            "record_types": ["ExternalEventDelivered", "FiringBegun", "TokensProduced", "FiringCompleted"],
+            "record_types": ["ExternalEventDelivered", "FiringBegun"],
+        }
+        source_completion = {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["TokensProduced", "FiringCompleted"],
         }
         begin = {
             "accepted": True,
             "dispatch_attempted": True,
             "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
         }
-        attempts_exact = attempts in ([], [source], [source, begin])
+        attempts_exact = attempts in (
+            [],
+            [source_acceptance],
+            [source_acceptance, source_completion],
+            [source_acceptance, source_completion, begin],
+        )
         accepted_begins = sum(attempt == begin for attempt in attempts)
         scope_resets = cast(int, value["scope_resets"])
         expected_lifecycle: list[dict[str, JsonValue]] = []
@@ -4498,17 +4569,27 @@ class JoinedAcceptedCancellationAuthorityChecker:
         attempts = cast(list[dict[str, JsonValue]], value["transaction_attempts"])
         lifecycle_attempts = cast(list[dict[str, JsonValue]], value["lifecycle_attempts"])
         tasks = cast(list[dict[str, JsonValue]], value["durable_tasks"])
-        source = {
+        source_acceptance = {
             "accepted": True,
             "dispatch_attempted": False,
-            "record_types": ["ExternalEventDelivered", "FiringBegun", "TokensProduced", "FiringCompleted"],
+            "record_types": ["ExternalEventDelivered", "FiringBegun"],
+        }
+        source_completion = {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["TokensProduced", "FiringCompleted"],
         }
         begin = {
             "accepted": True,
             "dispatch_attempted": True,
             "record_types": ["CandidateSelected", "FiringBegun", "TokensConsumed", "ActivityRequested"],
         }
-        attempts_exact = attempts in ([], [source], [source, begin])
+        attempts_exact = attempts in (
+            [],
+            [source_acceptance],
+            [source_acceptance, source_completion],
+            [source_acceptance, source_completion, begin],
+        )
         accepted_begins = sum(attempt == begin for attempt in attempts)
         scope_resets = cast(int, value["scope_resets"])
         accepted_cancellation = {"accepted": True, "phase": "cancellation", "record_types": []}
@@ -4796,7 +4877,7 @@ def execute_joined_delivery_refusal_story(
         {
             "accepted": False,
             "dispatch_attempted": False,
-            "record_types": ["ExternalEventDelivered", "FiringBegun", "TokensProduced", "FiringCompleted"],
+            "record_types": ["ExternalEventDelivered", "FiringBegun"],
         }
     ]
     assert refused_value["status"] == "poisoned"
@@ -4812,6 +4893,23 @@ def execute_joined_delivery_refusal_story(
     assert recovered_value["canonical_deliveries"] == [{"identity": "event-3", "occurrence": 1, "value": 3}]
     assert recovered_value["produced_values"] == [3]
     assert recovered_value["firing_completed"] == 1
+    assert recovered_value["transaction_attempts"] == [
+        {
+            "accepted": False,
+            "dispatch_attempted": False,
+            "record_types": ["ExternalEventDelivered", "FiringBegun"],
+        },
+        {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["ExternalEventDelivered", "FiringBegun"],
+        },
+        {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["TokensProduced", "FiringCompleted"],
+        },
+    ]
     accepted_frontier = recovered_value["frontier"]
 
     duplicate = timeline.command("source.deliver", payload)
@@ -4845,7 +4943,7 @@ def build_joined_delivery_refusal_artifact(dsn: str) -> ScenarioArtifactV3:
 def execute_joined_delivery_ack_loss_story(
     dsn: str,
 ) -> tuple[World, JoinedDeliveryAckLossProfile, Timeline]:
-    """Lose one accepted delivery acknowledgement and redeliver after load."""
+    """Lose one acceptance acknowledgement, resume its completion, then redeliver after load."""
 
     profile = JoinedDeliveryAckLossProfile(dsn)
     world = World(profile, WORLD_BUDGET, checkers=(JoinedDeliveryAuthorityChecker(),))
@@ -4863,15 +4961,16 @@ def execute_joined_delivery_ack_loss_story(
     lost = timeline.observe("joined-delivery-ack-lost")
     lost_value = cast(dict[str, JsonValue], lost.value)
     assert lost_value["canonical_deliveries"] == [{"identity": "event-3", "occurrence": 1, "value": 3}]
-    assert lost_value["produced_values"] == [3]
-    assert lost_value["frontier"] == 6
+    assert lost_value["produced_values"] == []
+    assert lost_value["firing_completed"] == 0
+    assert lost_value["frontier"] == 4
     assert lost_value["delivery_refusals"] == 0
     assert lost_value["delivery_ack_losses"] == 1
     assert lost_value["transaction_attempts"] == [
         {
             "accepted": True,
             "dispatch_attempted": False,
-            "record_types": ["ExternalEventDelivered", "FiringBegun", "TokensProduced", "FiringCompleted"],
+            "record_types": ["ExternalEventDelivered", "FiringBegun"],
         }
     ]
     assert lost_value["status"] == "poisoned"
@@ -4881,17 +4980,36 @@ def execute_joined_delivery_ack_loss_story(
     world.restart()
     timeline = world.timeline()
     duplicate = timeline.command("source.deliver", payload)
-    assert duplicate.disposition == ActionDisposition.IDEMPOTENT.value
+    assert duplicate.disposition == ActionDisposition.APPLIED.value
     recovered = timeline.observe("joined-delivery-ack-recovered")
     recovered_value = cast(dict[str, JsonValue], recovered.value)
-    assert recovered_value["frontier"] == lost_value["frontier"]
+    assert recovered_value["frontier"] == 6
     assert recovered_value["canonical_deliveries"] == lost_value["canonical_deliveries"]
     assert recovered_value["produced_values"] == [3]
     assert recovered_value["firing_completed"] == 1
+    assert recovered_value["transaction_attempts"] == [
+        {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["ExternalEventDelivered", "FiringBegun"],
+        },
+        {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["TokensProduced", "FiringCompleted"],
+        },
+    ]
+    acknowledged = timeline.command("source.deliver", payload)
+    assert acknowledged.disposition == ActionDisposition.IDEMPOTENT.value
     assert [
         attempt["disposition"] for attempt in cast(list[dict[str, JsonValue]], recovered_value["delivery_attempts"])
     ] == [
         ActionDisposition.REFUSED_EXPECTED.value,
+        ActionDisposition.APPLIED.value,
+    ]
+    assert [attempt["disposition"] for attempt in profile.delivery_attempts] == [
+        ActionDisposition.REFUSED_EXPECTED.value,
+        ActionDisposition.APPLIED.value,
         ActionDisposition.IDEMPOTENT.value,
     ]
 
@@ -5544,7 +5662,12 @@ def execute_joined_reset_refusal_story(dsn: str) -> tuple[World, JoinedResetRefu
         {
             "accepted": True,
             "dispatch_attempted": False,
-            "record_types": ["ExternalEventDelivered", "FiringBegun", "TokensProduced", "FiringCompleted"],
+            "record_types": ["ExternalEventDelivered", "FiringBegun"],
+        },
+        {
+            "accepted": True,
+            "dispatch_attempted": False,
+            "record_types": ["TokensProduced", "FiringCompleted"],
         },
         {
             "accepted": True,

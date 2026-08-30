@@ -854,18 +854,18 @@ specific numbered convention wins where one applies.
     rule itself).
 
 65. **A writer-derived fallback in a caller-writable field reserves its
-    namespace.** `deliver()` derives `"occurrence-{id}"` into the same
-    `identity` field ingress adapters supply, so a supplied
-    `"occurrence-2"` would collide with a later derived one — and the
-    dedup that identity exists for would collapse two distinct events
-    into one acknowledgement. When a writer mints fallback values into a
-    domain callers also write, the derived form's shape is a reserved
-    namespace: state the reservation where the derivation lives, and
-    reject supplied values inside it at the admitting door, before
+    namespace.** Firing begin derives `"occurrence-{id}"` when an activity
+    handler supplies no correlation or idempotency, so a supplied value in
+    that namespace could collide with a later derived one. When a writer mints
+    fallback values into a domain callers also write, the derived form's shape
+    is a reserved namespace: state the reservation where the derivation lives,
+    and reject supplied values inside it at the admitting door, before
     anything is recorded, naming the reserved prefix. Convention 17's
-    normalize-at-the-boundary for identity minting: the collision is
-    created at the door that admits both spellings, so it is refused
-    there — never left for the consumer (dedup) to misread as equality.
+    normalize-at-the-boundary for identity minting: the collision is created
+    at the door that admits both spellings, so it is refused there — never left
+    for the consumer to misread as equality. Source delivery no longer has a
+    writer-derived fallback: every ingress adapter must supply its stable
+    reconstructible identity.
 
 ## From the DS1b review (`f80f075` → `9bd42ce`)
 
@@ -882,10 +882,11 @@ specific numbered convention wins where one applies.
     before anything freezes or appends: the retained value IS the durable
     value, lossy shapes canonicalize exactly once, and the unencodable
     payload fails loud at the door instead of at the backend. The contrast
-    is the discipline's edge: token data is NOT canonicalized, because no
-    writer decision compares it — there a documented durability constraint
-    suffices. Convention 17's normalize-at-the-boundary, sharpened to WHEN
-    it is owed: at the door whose later judgment reads the value back.
+    is the discipline's edge: ordinary token-data doors do not canonicalize
+    because no writer decision compares their data; identified source
+    delivery does because acknowledge-or-conflict compares its complete token
+    content. Convention 17's normalize-at-the-boundary, sharpened to WHEN it
+    is owed: at the door whose later judgment reads the value back.
 
 67. **A ruled seam contract crosses the seam whole — the carrier, not a
     projection of it.** The `Activity` callable took bare `input` while the

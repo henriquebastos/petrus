@@ -443,9 +443,11 @@ class TestCallerTransactionJoin:
         net = Net(places=[Place(out)], transitions=[Transition(intake)], arcs=[Arc(intake, out)])
         with psycopg.connect(postgres_dsn, autocommit=False) as caller:
             instance = Instance(net, history=PostgresHistoryStore(caller, instance=instance_id))
-            instance.deliver(intake, Token.black(), identity="evt_1", at=3)
+            accepted = instance.accept_delivery(intake, Token.black(), identity="evt_1", at=3)
+            instance.complete_delivery(accepted, at=3)
             caller.commit()
-            instance.deliver(intake, Token.black(), identity="evt_2", at=5)
+            accepted = instance.accept_delivery(intake, Token.black(), identity="evt_2", at=5)
+            instance.complete_delivery(accepted, at=5)
             caller.rollback()
             # The live instance speaks the retracted delivery — the proof it
             # must be discarded whole, not patched around.
@@ -455,7 +457,8 @@ class TestCallerTransactionJoin:
         resumed = Instance.resume(net, PostgresHistoryStore(pg_connection, instance=instance_id))
         assert resumed.watermark == 3
         assert len(resumed.marking.place(out)) == 1
-        redelivered = resumed.deliver(intake, Token.black(), identity="evt_2", at=7)
+        accepted = resumed.accept_delivery(intake, Token.black(), identity="evt_2", at=7)
+        redelivered = resumed.complete_delivery(accepted, at=7)
         assert redelivered.occurrence == 2  # the rolled-back id was never durable, so it re-mints
         assert len(resumed.marking.place(out)) == 2
 

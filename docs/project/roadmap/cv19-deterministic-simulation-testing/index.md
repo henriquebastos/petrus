@@ -94,8 +94,9 @@ At minimum, every campaign must continuously check:
    invocation, regardless of redispatch or process restart;
 4. a frozen Activity terminal is never re-executed merely because projection
    or the host crashes;
-5. one accepted source-delivery identity creates at most one semantic fact and
-   exact redelivery receives the prior acknowledgement;
+5. one accepted source-delivery identity creates at most one semantic fact;
+   exact redelivery reconstructs its accepted unfinished occurrence or, after
+   that occurrence ends, receives the prior acknowledgement;
 6. close/reset ordering and late terminal handling never mutate a closed
    lifecycle generation;
 7. an append or transaction failure exposes no state that only an uncommitted
@@ -197,11 +198,12 @@ the minimized expanded scenario becomes the durable regression fixture.
    semantic terminal or projection. A thirteenth loses the acknowledgement
    after that tombstone commits, then proves fresh load recognizes the accepted
    custody without a second cancellation mutation and still fences the stale
-   Worker. A fourteenth refuses an identified source-delivery transaction and
+   Worker. A fourteenth refuses an identified source-acceptance transaction and
    proves fresh load can accept that identity exactly once. A fifteenth loses
-   the accepted delivery transaction's acknowledgement, then proves fresh load
-   returns the prior acknowledgement on exact redelivery without another
-   external-event fact, source firing, or output token. A sixteenth profile
+   the accepted source-acceptance transaction's acknowledgement, then proves
+   fresh load reconstructs and completes that unfinished occurrence before a
+   subsequent exact redelivery returns the prior acknowledgement. A sixteenth
+   profile
    refuses the initial `InstanceCreated` and marking transaction and proves a
    fresh generation observes no instance before the normalized create command
    retries successfully. A seventeenth loses the accepted creation commit's

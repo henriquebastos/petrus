@@ -59,9 +59,12 @@ def test_close_discards_duplicate_valued_entries_by_identity_and_replay_preserve
     first = runtime.open_scope("first", at=1)
     second = runtime.open_scope("second", at=1)
     token = Token("Value", {"same": True})
-    runtime.deliver(SOURCE, token, identity="first-1", scope=first, at=2)
-    runtime.deliver(SOURCE, token, identity="second-1", scope=second, at=2)
-    runtime.deliver(SOURCE, token, identity="first-2", scope=first, at=2)
+    accepted = runtime.accept_delivery(SOURCE, token, identity="first-1", scope=first, at=2)
+    runtime.complete_delivery(accepted, at=2)
+    accepted = runtime.accept_delivery(SOURCE, token, identity="second-1", scope=second, at=2)
+    runtime.complete_delivery(accepted, at=2)
+    accepted = runtime.accept_delivery(SOURCE, token, identity="first-2", scope=first, at=2)
+    runtime.complete_delivery(accepted, at=2)
 
     before = replay_queues(history)
     first_ids = tuple(
@@ -84,7 +87,8 @@ def test_queue_identity_never_reuses_a_spent_occurrence_after_restart():
     history = InMemoryHistoryStore()
     runtime = instance(activity=True, history=history)
     first = runtime.open_scope("draft")
-    runtime.deliver(SOURCE, Token("Value", 7), identity="draft-7", scope=first)
+    accepted = runtime.accept_delivery(SOURCE, Token("Value", 7), identity="draft-7", scope=first)
+    runtime.complete_delivery(accepted)
     occurrence = runtime.begin(runtime.candidates()[0])
     first_entry = next(
         record.entries[0] for record in history if isinstance(record, TokensProduced) and record.scope == first
@@ -93,7 +97,8 @@ def test_queue_identity_never_reuses_a_spent_occurrence_after_restart():
 
     resumed = Instance.resume(scoped_net(activity=True), history, handlers={"work": Work()})
     second = resumed.open_scope("draft")
-    resumed.deliver(SOURCE, Token("Value", 8), identity="draft-8", scope=second)
+    accepted = resumed.accept_delivery(SOURCE, Token("Value", 8), identity="draft-8", scope=second)
+    resumed.complete_delivery(accepted)
     second_entry = next(
         record.entries[0]
         for record in reversed(history.records)
@@ -107,15 +112,18 @@ def test_queue_identity_never_reuses_a_spent_occurrence_after_restart():
 def test_scoped_identity_allocation_matches_live_and_replay_after_unscoped_movements():
     live_history = InMemoryHistoryStore()
     live = instance(history=live_history)
-    live.deliver(SOURCE, Token("Value", 1), identity="unscoped")
+    accepted = live.accept_delivery(SOURCE, Token("Value", 1), identity="unscoped")
+    live.complete_delivery(accepted)
     live.step()
     scope = live.open_scope("draft")
     resumed_history = InMemoryHistoryStore()
     resumed_history.extend(list(live_history.records))
     resumed = Instance.resume(scoped_net(), resumed_history)
 
-    live.deliver(SOURCE, Token("Value", 2), identity="live-scoped", scope=scope)
-    resumed.deliver(SOURCE, Token("Value", 2), identity="resumed-scoped", scope=scope)
+    accepted = live.accept_delivery(SOURCE, Token("Value", 2), identity="live-scoped", scope=scope)
+    live.complete_delivery(accepted)
+    accepted = resumed.accept_delivery(SOURCE, Token("Value", 2), identity="resumed-scoped", scope=scope)
+    resumed.complete_delivery(accepted)
 
     live_entry = next(
         record.entries
@@ -133,7 +141,8 @@ def test_scoped_identity_allocation_matches_live_and_replay_after_unscoped_movem
 def test_begin_records_exact_consumed_identity_and_scope_on_the_activity_outbox():
     runtime = instance(activity=True)
     scope = runtime.open_scope("draft")
-    runtime.deliver(SOURCE, Token("Value", 7), identity="draft-7", scope=scope)
+    accepted = runtime.accept_delivery(SOURCE, Token("Value", 7), identity="draft-7", scope=scope)
+    runtime.complete_delivery(accepted)
 
     occurrence = runtime.begin(runtime.candidates()[0])
 
@@ -149,7 +158,8 @@ def test_close_cancels_an_activity_without_restoring_its_consumed_input():
     runtime = instance(activity=True)
     scope = runtime.open_scope("draft")
     token = Token("Value", 7)
-    runtime.deliver(SOURCE, token, identity="draft-7", scope=scope)
+    accepted = runtime.accept_delivery(SOURCE, token, identity="draft-7", scope=scope)
+    runtime.complete_delivery(accepted)
     occurrence = runtime.begin(runtime.candidates()[0])
 
     closure = runtime.close_scope(scope)
@@ -163,7 +173,8 @@ def test_close_cancels_an_activity_without_restoring_its_consumed_input():
 def test_completion_before_close_at_the_same_instant_is_accepted_then_its_output_is_cleaned():
     runtime = instance(activity=True)
     scope = runtime.open_scope("draft", at=1)
-    runtime.deliver(SOURCE, Token("Value", 7), identity="draft-7", scope=scope, at=2)
+    accepted = runtime.accept_delivery(SOURCE, Token("Value", 7), identity="draft-7", scope=scope, at=2)
+    runtime.complete_delivery(accepted, at=2)
     occurrence = runtime.begin(runtime.candidates()[0], at=3)
     assert runtime.record_activity_completion(occurrence, {"answer": 8}, at=20) is TerminalDisposition.ACCEPTED
     runtime.complete(occurrence, at=20)
@@ -179,7 +190,8 @@ def test_completion_before_close_at_the_same_instant_is_accepted_then_its_output
 def test_close_before_completion_at_the_same_instant_quarantines_exact_redelivery_and_refuses_conflict():
     runtime = instance(activity=True)
     scope = runtime.open_scope("draft", at=1)
-    runtime.deliver(SOURCE, Token("Value", 7), identity="draft-7", scope=scope, at=2)
+    accepted = runtime.accept_delivery(SOURCE, Token("Value", 7), identity="draft-7", scope=scope, at=2)
+    runtime.complete_delivery(accepted, at=2)
     occurrence = runtime.begin(runtime.candidates()[0], at=3)
     runtime.close_scope(scope, at=20)
 
@@ -195,7 +207,8 @@ def test_close_before_completion_at_the_same_instant_quarantines_exact_redeliver
 def test_reset_is_one_record_that_closes_cleanup_and_opens_the_next_generation():
     runtime = instance(activity=True)
     first = runtime.open_scope("draft", at=1)
-    runtime.deliver(SOURCE, Token("Value", 7), identity="draft-7", scope=first, at=2)
+    accepted = runtime.accept_delivery(SOURCE, Token("Value", 7), identity="draft-7", scope=first, at=2)
+    runtime.complete_delivery(accepted, at=2)
     occurrence = runtime.begin(runtime.candidates()[0], at=3)
     before = len(runtime.history)
 
@@ -222,7 +235,8 @@ def test_scope_append_failure_leaves_live_state_unchanged():
     history = RefusingHistory()
     runtime = instance(activity=True, history=history)
     scope = runtime.open_scope("draft")
-    runtime.deliver(SOURCE, Token("Value", 7), identity="draft-7", scope=scope)
+    accepted = runtime.accept_delivery(SOURCE, Token("Value", 7), identity="draft-7", scope=scope)
+    runtime.complete_delivery(accepted)
     occurrence = runtime.begin(runtime.candidates()[0])
     history.refuse = True
 
@@ -240,17 +254,17 @@ def test_closed_and_uncertain_scoped_delivery_are_canonical_idempotent_dispositi
     runtime.seal(SOURCE)
     token = Token("Value", 7)
 
-    dropped = runtime.deliver(SOURCE, token, identity="closed", scope=scope)
-    quarantined = runtime.deliver(SOURCE, token, identity="uncertain", scope="draft")
+    dropped = runtime.accept_delivery(SOURCE, token, identity="closed", scope=scope)
+    quarantined = runtime.accept_delivery(SOURCE, token, identity="uncertain", scope="draft")
 
     assert dropped == ScopedDeliveryAcknowledgement("closed", DeliveryDisposition.DROPPED, scope)
     assert quarantined == ScopedDeliveryAcknowledgement("uncertain", DeliveryDisposition.QUARANTINED, "draft")
     before = len(runtime.history)
-    assert runtime.deliver(SOURCE, token, identity="closed", scope=scope) == dropped
-    assert runtime.deliver(SOURCE, token, identity="uncertain", scope="draft") == quarantined
+    assert runtime.accept_delivery(SOURCE, token, identity="closed", scope=scope) == dropped
+    assert runtime.accept_delivery(SOURCE, token, identity="uncertain", scope="draft") == quarantined
     assert len(runtime.history) == before
     with pytest.raises(ValueError, match="delivery identity conflict"):
-        runtime.deliver(SOURCE, Token("Value", 8), identity="uncertain", scope="draft")
+        runtime.accept_delivery(SOURCE, Token("Value", 8), identity="uncertain", scope="draft")
     assert len([record for record in runtime.history if isinstance(record, ScopedDeliveryDropped)]) == 1
     assert len([record for record in runtime.history if isinstance(record, ScopedDeliveryQuarantined)]) == 1
 
@@ -260,7 +274,7 @@ def test_exact_future_generation_is_quarantined_without_losing_its_target_identi
     current = runtime.open_scope("draft")
     future = LifecycleScope("draft", current.generation + 1)
 
-    acknowledgement = runtime.deliver(
+    acknowledgement = runtime.accept_delivery(
         SOURCE,
         Token("Value", 7),
         identity="future",
@@ -276,7 +290,8 @@ def test_scope_projection_and_quarantine_rebuild_deterministically_on_resume():
     history = InMemoryHistoryStore()
     runtime = instance(activity=True, history=history)
     first = runtime.open_scope("draft")
-    runtime.deliver(SOURCE, Token("Value", 7), identity="draft-7", scope=first)
+    accepted = runtime.accept_delivery(SOURCE, Token("Value", 7), identity="draft-7", scope=first)
+    runtime.complete_delivery(accepted)
     occurrence = runtime.begin(runtime.candidates()[0])
     second = runtime.reset_scope(first)
     runtime.record_activity_completion(occurrence, {"answer": 8})
@@ -294,7 +309,8 @@ def test_replay_refuses_a_scope_close_that_omits_queued_cleanup():
     history = InMemoryHistoryStore()
     runtime = instance(history=history)
     scope = runtime.open_scope("draft")
-    runtime.deliver(SOURCE, Token("Value", 7), identity="draft-7", scope=scope)
+    accepted = runtime.accept_delivery(SOURCE, Token("Value", 7), identity="draft-7", scope=scope)
+    runtime.complete_delivery(accepted)
     malformed = InMemoryHistoryStore()
     malformed.extend(list(history.records))
     malformed.append(ScopeClosed(scope))
@@ -307,7 +323,8 @@ def test_replay_refuses_a_scope_close_that_omits_an_in_flight_occurrence():
     history = InMemoryHistoryStore()
     runtime = instance(activity=True, history=history)
     scope = runtime.open_scope("draft")
-    runtime.deliver(SOURCE, Token("Value", 7), identity="draft-7", scope=scope)
+    accepted = runtime.accept_delivery(SOURCE, Token("Value", 7), identity="draft-7", scope=scope)
+    runtime.complete_delivery(accepted)
     runtime.begin(runtime.candidates()[0])
     malformed = InMemoryHistoryStore()
     malformed.extend(list(history.records))
@@ -321,7 +338,8 @@ def test_replay_refuses_a_scope_close_that_reclassifies_an_already_ended_occurre
     history = InMemoryHistoryStore()
     runtime = instance(activity=True, history=history)
     scope = runtime.open_scope("draft")
-    runtime.deliver(SOURCE, Token("Value", 7), identity="draft-7", scope=scope)
+    accepted = runtime.accept_delivery(SOURCE, Token("Value", 7), identity="draft-7", scope=scope)
+    runtime.complete_delivery(accepted)
     occurrence = runtime.begin(runtime.candidates()[0])
     runtime.record_activity_completion(occurrence, {"answer": 8})
     runtime.complete(occurrence)
@@ -344,7 +362,8 @@ def test_replay_refuses_a_scope_close_that_reclassifies_an_accepted_terminal_awa
     history = InMemoryHistoryStore()
     runtime = instance(activity=True, history=history)
     scope = runtime.open_scope("draft")
-    runtime.deliver(SOURCE, Token("Value", 7), identity="draft-7", scope=scope)
+    accepted = runtime.accept_delivery(SOURCE, Token("Value", 7), identity="draft-7", scope=scope)
+    runtime.complete_delivery(accepted)
     occurrence = runtime.begin(runtime.candidates()[0])
     runtime.record_activity_completion(occurrence, {"answer": 8})
     malformed = InMemoryHistoryStore()
@@ -359,7 +378,8 @@ def test_replay_refuses_a_normal_terminal_boundary_after_lifecycle_cancellation(
     history = InMemoryHistoryStore()
     runtime = instance(activity=True, history=history)
     scope = runtime.open_scope("draft")
-    runtime.deliver(SOURCE, Token("Value", 7), identity="draft-7", scope=scope)
+    accepted = runtime.accept_delivery(SOURCE, Token("Value", 7), identity="draft-7", scope=scope)
+    runtime.complete_delivery(accepted)
     occurrence = runtime.begin(runtime.candidates()[0])
     runtime.close_scope(scope)
     malformed = InMemoryHistoryStore()
@@ -375,7 +395,8 @@ def test_replay_refuses_inconsistent_same_occurrence_scope_provenance():
     runtime = instance(activity=True, history=history)
     first = runtime.open_scope("first")
     second = runtime.open_scope("second")
-    runtime.deliver(SOURCE, Token("Value", 7), identity="first-7", scope=first)
+    accepted = runtime.accept_delivery(SOURCE, Token("Value", 7), identity="first-7", scope=first)
+    runtime.complete_delivery(accepted)
     runtime.begin(runtime.candidates()[0])
     malformed = InMemoryHistoryStore()
     malformed.extend(

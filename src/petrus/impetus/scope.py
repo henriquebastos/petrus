@@ -13,10 +13,12 @@ class LifecycleScope:
     generation: int
 
     def __post_init__(self) -> None:
-        if not isinstance(self.name, str) or not self.name or "\x00" in self.name:
-            raise ValueError("LifecycleScope name must be a non-empty string without NUL")
-        if isinstance(self.generation, bool) or not isinstance(self.generation, int) or self.generation < 1:
-            raise ValueError("LifecycleScope generation must be a positive integer")
+        if type(self.name) is not str or not self.name or "\x00" in self.name:
+            raise ValueError(
+                "LifecycleScope name must be a non-empty string without NUL and use the exact built-in type"
+            )
+        if type(self.generation) is not int or self.generation < 1:
+            raise ValueError("LifecycleScope generation must be a positive integer of the exact built-in type")
 
 
 __all__ = ["LifecycleScope"]

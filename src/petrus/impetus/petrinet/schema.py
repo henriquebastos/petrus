@@ -84,6 +84,19 @@ class NetPath(tuple):
     def __repr__(self) -> str:
         return f"{type(self).__name__}({str(self)!r})"
 
+    def __deepcopy__(self, memo: dict[int, object]) -> NetPath:
+        memo[id(self)] = self
+        return self
+
+
+def canonical_net_path(value: object, noun: str) -> NetPath:
+    """Return a base NetPath from an exact protocol spelling."""
+    if type(value) is NetPath:
+        return value
+    if type(value) is str:
+        return NetPath(value)
+    raise ValueError(f"{noun} must be an exact NetPath or built-in string, got {value!r}")
+
 
 @dataclass(frozen=True, order=True)
 class NetUri:

@@ -8,7 +8,7 @@ persisted by a backend [DR 2026-07-10 durable-history-is-a-history-backend].
 ``JsonlHistoryStore``: a write-through ``InMemoryHistoryStore`` whose every append is
 durable before it is in memory. Injecting one at ``Instance`` construction
 makes the whole history durable from the first record — construction records
-and ``deliver()``'s inline firings included, with no sync step for a lag to
+and accepted delivery firings included, with no sync step for a lag to
 hide behind.
 """
 
@@ -579,11 +579,12 @@ class TestInstanceDurableHistory:
         assert JsonlHistoryStore(path).records == instance.history.records
 
     def test_every_appending_door_writes_through(self, tmp_path):
-        # deliver's inline firing (the spike's ingress lag), the scheduled
-        # firing, and seal — one durable record stream, no door outside it.
+        # Source acceptance and completion, the scheduled firing, and seal —
+        # one durable record stream, no door outside it.
         path = tmp_path / "history.jsonl"
         instance = Instance(self.net(), history=JsonlHistoryStore(path))
-        instance.deliver(self.SOURCE, Token.black())
+        accepted = instance.accept_delivery(self.SOURCE, Token.black(), identity="durable-event")
+        instance.complete_delivery(accepted)
         instance.run()
         instance.seal(self.SOURCE)
         durable = JsonlHistoryStore(path).records
@@ -593,26 +594,27 @@ class TestInstanceDurableHistory:
         assert any(isinstance(record, DeliveryRegistrationClosed) for record in durable)
         assert instance.marking == Marking({self.OUT: (Token.black(),)})
 
-    def test_a_refused_durable_append_leaves_the_instance_unchanged(self, tmp_path):
-        # The seam's failure contract, pinned with a real backend: a delivery
-        # whose token data cannot be encoded raises at the append, and the
-        # instance moves NOTHING — watermark, occurrence counter, marking, and
-        # in-flight all still speak only appended records (advance-after-
-        # append). The next delivery proves it: same occurrence id the failed
+    def test_a_refused_delivery_payload_leaves_the_instance_unchanged(self, tmp_path):
+        # The seam's failure contract, pinned with a real backend: delivery
+        # content without a durable spelling fails at acceptance before any
+        # append, and the instance moves NOTHING — watermark, occurrence
+        # counter, marking, and in-flight all still speak only appended
+        # records. The next delivery proves it: same occurrence id the failed
         # one never burned.
         path = tmp_path / "history.jsonl"
         instance = Instance(self.net(), history=JsonlHistoryStore(path))
         constructed = instance.history.records
 
-        with pytest.raises(ValueError, match="ExternalEventDelivered"):
-            instance.deliver(self.SOURCE, Token("bad", object()), at=7)
+        with pytest.raises(ValueError, match="token 1 has invalid data.*must be JSON-faithful"):
+            instance.accept_delivery(self.SOURCE, Token("bad", object()), at=7, identity="invalid-event")
 
         assert instance.history.records == constructed
         assert JsonlHistoryStore(path).records == constructed
         assert instance.watermark == 0
         assert instance.marking == Marking()
         assert instance.in_flight == ()
-        assert instance.deliver(self.SOURCE, Token.black(), at=7).occurrence == 1
+        accepted = instance.accept_delivery(self.SOURCE, Token.black(), at=7, identity="valid-event")
+        assert instance.complete_delivery(accepted, at=7).occurrence == 1
         assert instance.watermark == 7
 
     def test_a_recorded_history_is_rejected_at_construction(self, tmp_path):
@@ -665,10 +667,11 @@ class TestARaisingAppendMovesNothingElse:
 
         assert instance.watermark == 0
         history.refuse = False
-        instance.deliver(self.SOURCE, Token.black())  # still armed: the failed seal closed nothing
+        accepted = instance.accept_delivery(self.SOURCE, Token.black(), identity="after-refused-seal")
+        instance.complete_delivery(accepted)  # still armed: the failed seal closed nothing
         instance.seal(self.SOURCE)
         with pytest.raises(ValueError, match="no armed delivery registration"):
-            instance.deliver(self.SOURCE, Token.black())
+            instance.accept_delivery(self.SOURCE, Token.black(), identity="after-seal")
 
     def test_a_refused_complete_leaves_the_occurrence_in_flight(self):
         net = Net(

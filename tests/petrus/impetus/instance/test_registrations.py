@@ -11,7 +11,7 @@ closes registrations — the ``HandlerResult`` envelope, handlers drive the
 lifecycle — and ``seal`` is the runtime-policy close-all (Navigator rulings,
 slices 8 and 10b). Open and close are recorded process facts, because status
 can flip on a registration close with zero net activity. Armed = opened and
-not yet closed; ``deliver`` requires at least one armed registration. When
+not yet closed; ``accept_delivery`` requires at least one armed registration. When
 quiescent: COMPLETED if the declared condition holds, else AWAITING if any
 registration is armed, else STUCK (condition declared) or TERMINATED
 (neutral collapse).
@@ -99,7 +99,7 @@ class TestDeliveryRegistrationLifecycle:
             instance.seal(WEBHOOK)
 
     def test_sealing_a_non_source_transition_is_rejected(self):
-        # The rejection discriminates like its sibling deliver(): a real
+        # The rejection discriminates like its sibling accept_delivery(): a real
         # transition that merely has input arcs is a concept error, not a typo.
         instance = Instance(_webhook_net())
         with pytest.raises(ValueError, match=r"cannot seal transition settle: it has input arcs"):
@@ -116,11 +116,11 @@ class TestDeliveryRegistrationLifecycle:
         with pytest.raises(
             ValueError, match=r"cannot deliver to source transition webhook: no armed delivery registration"
         ):
-            instance.deliver(WEBHOOK, Token("X"))
+            instance.accept_delivery(WEBHOOK, Token("X"), identity="after-seal")
 
 
 class TestArmedProjection:
-    """The armed registrations made public: which doors deliver() can land on — the read an Engine sensor observation decides by."""
+    """The armed registrations made public: which source doors an Engine sensor observation can choose."""
 
     def test_armed_exposes_each_armed_source_with_its_open_keys(self):
         instance = Instance(_webhook_net())
@@ -196,10 +196,12 @@ class TestHandlerDrivenLifecycle:
         )
         instance = Instance(net, Marking({self.REQUESTS: (Token.black(),)}), handlers={"hook": hook})
         instance.run()
-        firing = instance.deliver(WEBHOOK, Token("Final"))
+        accepted = instance.accept_delivery(WEBHOOK, Token("Final"), identity="final-event")
+        firing = instance.complete_delivery(accepted)
         assert DeliveryRegistrationClosed(WEBHOOK, "sub", occurrence=firing.occurrence) in instance.history.records
         assert instance.status is Status.AWAITING
-        instance.deliver(WEBHOOK, Token("X"))  # the default registration still delivers
+        accepted = instance.accept_delivery(WEBHOOK, Token("X"), identity="default-event")
+        instance.complete_delivery(accepted)  # the default registration still delivers
 
     def test_a_handler_closing_the_last_registration_stops_delivery(self):
         # The source's own handler unsubscribes the default registration: the
@@ -214,10 +216,11 @@ class TestHandlerDrivenLifecycle:
             arcs=[Arc(WEBHOOK, self.EVENTS)],
         )
         instance = Instance(net, handlers={"hook": hook})
-        instance.deliver(WEBHOOK, Token("X"))
+        accepted = instance.accept_delivery(WEBHOOK, Token("X"), identity="closing-event")
+        instance.complete_delivery(accepted)
         assert instance.status is Status.TERMINATED
         with pytest.raises(ValueError, match=r"no armed delivery registration"):
-            instance.deliver(WEBHOOK, Token("X"))
+            instance.accept_delivery(WEBHOOK, Token("X"), identity="after-close")
 
     def test_a_handler_open_rearms_a_sealed_source(self):
         # Seal is close-all, not a permanent state (a Navigator ruling): a
@@ -227,7 +230,8 @@ class TestHandlerDrivenLifecycle:
         assert instance.status is Status.RUNNING  # subscribe is still enabled
         instance.step()
         assert instance.status is Status.AWAITING
-        instance.deliver(WEBHOOK, Token("X"))
+        accepted = instance.accept_delivery(WEBHOOK, Token("X"), identity="rearmed-event")
+        instance.complete_delivery(accepted)
         assert instance.marking.place(self.EVENTS) == (Token("X"),)
 
     def test_seal_closes_every_armed_registration(self):
@@ -354,12 +358,12 @@ class TestEffectValidation:
 
     def test_a_non_registration_effect_is_rejected(self):
         # The seam where handler-owned data enters the kernel checks its
-        # elements, like deliver() does for tokens.
+        # elements, like accept_delivery() does for tokens.
         instance, occurrence = self.begun()
         with pytest.raises(
             ValueError,
             match=r"cannot complete firing occurrence 1 \(subscribe\): "
-            r"every delivery-registration effect must be a DeliveryRegistration",
+            r"every delivery-registration effect must be an exact DeliveryRegistration",
         ):
             instance.complete(occurrence, HandlerResult(opens=((WEBHOOK, "sub"),)))
 
