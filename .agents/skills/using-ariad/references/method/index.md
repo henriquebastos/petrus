@@ -16,7 +16,8 @@ The method has a small set of core pieces:
 - living documentation that lets the repository remember itself,
 - [Memory Closure](memory-closure.md) that promotes durable meaning and releases short-term context,
 - a separation between Ariad's method contract, project contract, and configurable Navigator preferences,
-- explicit policies for recurring operational decisions such as coherent updates.
+- explicit policies for recurring operational decisions such as coherent updates,
+- [domain language](domain-language.md) that gives ambiguous project concepts one accepted current meaning.
 
 Ariad is opinionated. It ships with [Navigator preference defaults](contracts-and-preferences.md), such as conservative commit and push behavior, full checkpoints for non-trivial work, and documentation updates when project truth changes. These defaults are recommended starting points, not universal laws. Advanced Navigators and projects can override them explicitly.
 

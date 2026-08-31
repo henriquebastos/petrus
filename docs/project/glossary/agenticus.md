@@ -7,5 +7,4 @@ Hands, Episode Attachment, effect fences, and host capability
 registration. It may depend on Impetus and Motus; neither depends on
 it, and it is not a fourth foundational component.
 
-Related: [Agent Connection](agent-connection.md),
-[Agent Program](agent-program.md), [Episode](episode.md)
+- Related: [Agent Connection](agent-connection.md), [Agent Program](agent-program.md), [Episode](episode.md)

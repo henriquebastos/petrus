@@ -5,3 +5,5 @@ for one firing occurrence: activity binding reference, typed input,
 resolved execution policy, correlation identity, and provider
 idempotency identity. `ActivityRequested` records it before dispatch
 and acts as the authoritative outbox.
+
+- Detail: [spec/handler-contract.md](../../../spec/handler-contract.md)

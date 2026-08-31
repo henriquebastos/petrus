@@ -6,4 +6,8 @@ What does this project exist to do? Name its value, audience, and reason for exi
 
 ## Product Premises
 
-Which stable assumptions guide implementation? Include target users, experience constraints, positioning, non-negotiable behaviors, or quality expectations. Put actionable trade-off guidance in `docs/product/principles/current-principles.md` and canonical domain language in `docs/project/glossary/`.
+Which stable assumptions guide implementation? Include target users, experience constraints, positioning, non-negotiable behaviors, or quality expectations. Put actionable trade-off guidance in `docs/product/principles/current-principles.md`.
+
+## Domain Language
+
+Accepted project-specific terminology lives in the [glossary](../glossary/index.md). Link to that owner instead of copying definitions here.

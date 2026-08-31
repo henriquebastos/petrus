@@ -201,6 +201,18 @@ briefing, development guide, engineering conventions, the Ariad router, and
 `engine/_coordination.py` retargeted. Historical mentions in older decision
 records and worklog entries left as written.
 
+Aligned to Ariad main 0.3.0 on 2026-08-31 after running its read-only
+`upgrading-ariad` audit (clean: no destructive or ambiguous classes beyond
+the deliberate package replacement). `using-ariad` replaced wholesale
+0.2.2 → 0.3.0, manifest verified; `docs/project/glossary/index.md` updated
+to the 0.3.0 template; all 127 term files converted to the 0.3.0 entry form
+(`Avoid`/`Related` as bullets) with `Detail:` links to each term's owning
+spec file per the dissolve coverage audit. Boundary bullets (`Use when` /
+`Do not use for` / `Example`) are added opportunistically as terms are
+touched, not fabricated in bulk. The audit also flagged the legacy
+monolithic `briefing.md` / `development-guide.md` / `principles.md` as an
+optional modular-docs migration — deferred to WS3.
+
 Ruling backlog, one per session, Navigator-paced:
 
 1. History vs event history — the 2026-07-06 decision ratified "event

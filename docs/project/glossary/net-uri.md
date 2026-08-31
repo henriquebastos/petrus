@@ -6,6 +6,6 @@ net, using typed URI schemes such as `place:/review/pending`,
 `arc:/review/pending->/review/start`. `NetPath` is the subset that
 addresses place and transition nodes.
 
-Avoid: schema reference
-
-Related: [Net path](net-path.md), [Declaration](declaration.md)
+- Avoid: schema reference
+- Related: [Net path](net-path.md), [Declaration](declaration.md)
+- Detail: [spec/net-schema.md](../../../spec/net-schema.md)

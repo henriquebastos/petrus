@@ -6,5 +6,4 @@ and top-level namespace. A running Petrus system composes Impetus's
 event History and Petri-net responsibilities with Motus's Activity
 responsibilities.
 
-Related: [Impetus](impetus.md), [Motus](motus.md), [Arx](arx.md),
-[Agenticus](agenticus.md)
+- Related: [Impetus](impetus.md), [Motus](motus.md), [Arx](arx.md), [Agenticus](agenticus.md)

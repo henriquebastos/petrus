@@ -7,4 +7,5 @@ invocations, accepting results and deliveries, and advancing recorded
 time. Mutation of one `Instance` is serialized; activities may run
 concurrently outside that writer.
 
-Related: [Engine](engine.md)
+- Related: [Engine](engine.md)
+- Detail: [spec/firing-semantics.md](../../../spec/firing-semantics.md)

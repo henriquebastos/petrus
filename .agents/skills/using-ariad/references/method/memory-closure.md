@@ -66,7 +66,7 @@ If no authorized durable owner exists, do not invent one. Mark context release *
 | Short-term material | Durable owner |
 | --- | --- |
 | Current project, product, architecture, environment, or process truth | The focused current document that owns that truth |
-| Canonical project-specific domain term | One term file under `docs/project/glossary/` |
+| Accepted project-specific domain language | The project's configured glossary owner; by default one term file in `docs/project/glossary/` |
 | Consequential accepted choice and rationale | Decision record |
 | Planned, active, blocked, deferred, or completed work state | Owning roadmap, Workbench, Change Request, Refinement Story, or issue record |
 | Meaningful completed operational milestone | Worklog entry |
@@ -114,7 +114,9 @@ This is a semantic inventory, not a transcript summary.
 
 ### 3. Promote into Existing Owners
 
-Update only the smallest surfaces needed to make project memory true. Prefer an existing work item, focused current document, decision, debt item, exploration record, specification, or worklog entry over creating a new category.
+Update only the smallest surfaces needed to make project memory true. Prefer an existing work item, focused current document, glossary, decision, debt item, exploration record, specification, or worklog entry over creating a new category.
+
+Promote accepted domain language into the configured glossary owner in the same work cycle as the change that adopts it. Keep tentative terminology in Exploration. Require Navigator acceptance before adding or redefining a canonical term, and surface conflicts with code, specifications, project docs, or Navigator language instead of choosing a winner silently.
 
 Do not create a worklog entry for every session. Do not create a decision record for ordinary implementation. Do not copy the same conclusion into the briefing, roadmap, worklog, and a handoff file.
 
@@ -124,7 +126,7 @@ Do not publish planned, interrupted, or unvalidated behavior as established curr
 
 Check that promoted information has one authoritative owner and that indexes remain routing surfaces rather than mutable history ledgers. Replace stale current truth instead of appending versions to the same policy document. Let Git retain the old text.
 
-When a durable record links to detail elsewhere, preserve the link and a concise conclusion rather than copying the full evidence.
+When a durable record links to detail elsewhere, preserve the link and a concise conclusion rather than copying the full evidence. Store a canonical domain definition once in the glossary and link to it from briefing, specifications, decisions, and work records.
 
 ### 5. Check Coherence and Retrieval
 
@@ -133,6 +135,7 @@ Verify that Process, Project, and Product agree with the resulting state. Check 
 - links and status metadata point to real owners;
 - active or blocked work is discoverable;
 - decisions, debt, and follow-up are not stranded in conversation;
+- accepted terminology is current in its glossary owner, while tentative terminology remains in Exploration;
 - validation claims match executed evidence;
 - a future Driver can find detail progressively from project indexes and Git.
 
@@ -196,6 +199,7 @@ Do not read every historical record by default. Progressive retrieval is part of
 
 - Preserve durable meaning, not the transcript.
 - Store a fact or rationale once and link to it elsewhere.
+- Store each accepted domain definition once in the configured glossary and link to it elsewhere.
 - Keep current truth current; let Git preserve superseded text.
 - Use worklogs for meaningful milestones, not session exhaust.
 - Use decisions for consequential rationale, not routine implementation.

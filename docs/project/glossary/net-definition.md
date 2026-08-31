@@ -6,4 +6,5 @@ subnet boundaries, and transition contracts. It contains no concrete
 external behavior; handlers bind to transitions rather than deriving
 the net from handler order.
 
-Related: [Handler binding](handler-binding.md)
+- Related: [Handler binding](handler-binding.md)
+- Detail: [spec/net-schema.md](../../../spec/net-schema.md)

@@ -24,6 +24,7 @@ These are invariants:
 - validation is part of delivery;
 - user-visible or product-visible work needs a concrete validation route;
 - documentation is updated when project truth changes;
+- accepted project-specific domain language has one current owner and changes only with Navigator acceptance;
 - coherence is checked across Process, Project, and Product;
 - the Navigator retains judgment, trade-offs, and acceptance;
 - project history should record intention, not just file changes.

@@ -5,4 +5,5 @@ a transition and a place (output arc), first-class in the flattened
 net and addressed by a typed URI such as
 `arc:/review/pending->/review/start`.
 
-Related: [Arc mode](arc-mode.md), [Arc inscription](arc-inscription.md)
+- Related: [Arc mode](arc-mode.md), [Arc inscription](arc-inscription.md)
+- Detail: [spec/net-schema.md](../../../spec/net-schema.md)

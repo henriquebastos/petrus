@@ -6,5 +6,4 @@ Candidate Selection, and advancement lane. It is not a fleet or
 multi-Instance supervisor; Fabric connects Instances rather than
 sharing their state.
 
-Related: [Petrinet Instance](petrinet-instance.md),
-[Driving runtime](driving-runtime.md), [Fabric](fabric.md)
+- Related: [Petrinet Instance](petrinet-instance.md), [Driving runtime](driving-runtime.md), [Fabric](fabric.md)

@@ -6,5 +6,5 @@ allowed, a typed result or terminal execution failure out. It never
 receives a live `Instance`, marking, History, topology, or output-arc
 contract.
 
-Related: [Activity invocation](activity-invocation.md),
-[Handler](handler.md), [Dispatch](dispatch.md)
+- Related: [Activity invocation](activity-invocation.md), [Handler](handler.md), [Dispatch](dispatch.md)
+- Detail: [spec/handler-contract.md](../../../spec/handler-contract.md)

@@ -6,5 +6,5 @@ deterministically prepares one Petri-agnostic activity invocation,
 then projects the frozen activity result into token and
 delivery-registration effects.
 
-Related: [Activity](activity.md),
-[Derived Activity handler](derived-activity-handler.md)
+- Related: [Activity](activity.md), [Derived Activity handler](derived-activity-handler.md)
+- Detail: [spec/handler-contract.md](../../../spec/handler-contract.md)

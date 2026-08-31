@@ -6,3 +6,5 @@ definition and one transition's arc inscriptions, refusing missing,
 ambiguous, reused, weighted, or unmatched typed shapes at composition.
 Explicit Activity handlers remain the escape hatch for semantics the
 net shape cannot derive.
+
+- Detail: [spec/handler-contract.md](../../../spec/handler-contract.md)

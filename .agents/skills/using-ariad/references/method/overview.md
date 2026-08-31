@@ -10,6 +10,8 @@ Ariad treats coherence as part of the work, not as polish after the work. The ag
 
 The core operating model is small. The agent is the Driver. The human is the Navigator. The work is held across Process, Project, and Product. Documentation becomes the project's memory surface.
 
+That memory includes the project's [domain language](domain-language.md). When project-specific terms affect reasoning, behavior, boundaries, validation, or product meaning, the Driver reads the current glossary, surfaces conflicts, and proposes one canonical meaning for Navigator acceptance. Tentative terms remain in Exploration until accepted.
+
 Ariad then distinguishes three kinds of work.
 
 **Exploratory Work** happens when something matters before it is ready to become a delivery commitment. A signal appears, a friction repeats, an inquiry opens, an experiment teaches something, or a candidate begins to form. [Exploration](../exploration/index.md) keeps that material visible without forcing it into the roadmap too early.

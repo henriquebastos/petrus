@@ -7,6 +7,5 @@ Instance is isolated with one history writer and coordinates with
 other Instances by identified messaging, never shared marking or
 history.
 
-Avoid: net instance
-
-Related: [Marking](marking.md), [History](history.md)
+- Avoid: net instance
+- Related: [Marking](marking.md), [History](history.md)
