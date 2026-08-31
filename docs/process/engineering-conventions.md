@@ -155,7 +155,7 @@ specific numbered convention wins where one applies.
    idea.
 
 5. **Don't leak oracle/fixture vocabulary into the kernel.** Names come from the
-   `CONTEXT.md` ubiquitous language, not the trace format (`TokensInitialized`,
+   `docs/project/glossary/` ubiquitous language, not the trace format (`TokensInitialized`,
    not `TokensSeeded` from the fixtures' `seedMarking`). The harness owns the
    oracle dialect; the kernel owns the spec's.
 

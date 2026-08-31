@@ -190,9 +190,10 @@ belongs in executable tests and conformance fixtures. The language-neutral
 `spec/` is supported by golden replay plus Impetus-native behavior tests, with
 known unsupported or deferred coverage stated in the trace documentation. A
 normative behavior without executable evidence is a visible coverage gap, not
-verified behavior. `CONTEXT.md` is an orientation and ubiquitous-language
-surface maintained through review and the coherence check; no standing gate
-claims to prove its prose mechanically against implementation. The project
+verified behavior. The glossary at `docs/project/glossary/` is the
+ubiquitous-language surface maintained through review and the coherence
+check; no standing gate claims to prove its prose mechanically against
+implementation. The project
 does not substitute a generic prose-to-code checker for behavioral evidence.
 
 For a User Story, the Driver owns end-to-end QA and submits an **Experience Report** at the Behavior Checkpoint. The report is the routine acceptance surface and must make approval low-effort:

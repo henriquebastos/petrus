@@ -146,7 +146,8 @@ uv sync --extra agenticus-claude
 
 The canonical specification is under [`spec/`](spec/), including golden traces
 in [`spec/traces/`](spec/traces/). Project terminology is defined in
-[`CONTEXT.md`](CONTEXT.md). Development and architecture conventions are in
+[`docs/project/glossary/`](docs/project/glossary/), one file per term.
+Development and architecture conventions are in
 [`docs/process/`](docs/process/).
 
 ## Shared Activity workers

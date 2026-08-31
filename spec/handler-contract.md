@@ -112,7 +112,7 @@ projects its firing effects locally. An impure handler deterministically
 prepares one Petri-agnostic **activity invocation** from the immutable firing
 binding and later projects the frozen activity result into net effects; the
 activity — not the handler — is what a worker executes [DR 2026-07-14
-activity-invocation-runtime-seam, CONTEXT.md]. The **handler
+activity-invocation-runtime-seam, glossary]. The **handler
 implementation/contract is the source of truth
 for its typed inputs and outputs** [ADR 0020]. The net schema does not
 duplicate transition input declarations to name handler arguments or repeat
@@ -126,7 +126,7 @@ resolved by matching the handler's required input types against the incoming
 arc token types; the handler receives typed arguments per its own
 contract/signature [ADR 0020]. For fallback cases, a **generic token-set
 handler** receives the selected token set or context bag directly and
-interprets it itself [ADR 0020, CONTEXT.md]. If multiple incoming arcs supply
+interprets it itself [ADR 0020, glossary]. If multiple incoming arcs supply
 the same token color, the binding layer requires disambiguation through
 handler contract metadata, transition-local configuration, or a generic
 token-set handler — never arc-level argument names [ADR 0020, ADR 0019].
@@ -145,7 +145,9 @@ The Python reference binding provides one narrow derived form: a typed
 transformation or predicate over concrete dataclass parameters, each matched
 uniquely to one effective weight-one consume/read arc by nominal color. A
 transformation's concrete dataclass result must match every weight-one output
-arc; a predicate must declare and return exact `bool`. Source transitions,
+arc; a predicate must declare and return exact `bool`. Inhibitor arcs may
+gate the transition without becoming handler arguments [glossary]. Source
+transitions,
 collections/weighted selections, ambiguous same-color inputs, unions,
 heterogeneous outputs, and registration effects require an explicit
 Petri-aware binding instead of inference [DR 2026-07-28
@@ -157,7 +159,7 @@ A **guard** is a pure boolean over the full firing binding, declared as a
 named symbol (a boolean function bound through the implementation mapping) or
 an inline CEL expression (compiled at instantiation); it participates in
 enabledness by returning true or false over peeked (unconsumed) tokens
-[ADR 0021, CONTEXT.md, DR 2026-07-07
+[ADR 0021, glossary, DR 2026-07-07
 arc-filters-and-guards-cel-or-named-both-pure]. Cross-token conditions and
 correlation live in guards, not arc inscriptions [ADR 0018].
 
@@ -209,7 +211,7 @@ activity-invocation-runtime-seam]. Temporal is an execution runtime option,
 never the net runtime itself [ADR 0012]. An **activity** is the
 Petri-agnostic unit of work a handler prepares and a worker executes — not a
 kind of transition [ADR 0003, DR 2026-07-14 activity-invocation-runtime-seam,
-CONTEXT.md]. The activity's terminal result is a durable observed fact; the
+glossary]. The activity's terminal result is a durable observed fact; the
 handler's deterministic projection is represented directly by the token,
 registration open/close, and failure records it produces [ADR 0004, ADR 0034]
 (see `event-history.md`). The shipped seam separates the phases exactly so:
@@ -257,6 +259,6 @@ So a user can reuse a net with custom handlers, reuse handlers with a modified
 net when contracts still match, swap local for remote execution, or replace an
 integration library without changing process topology [ADR 0002]. A
 **process** is the runnable composition of net definition, bindings, runtime
-adapter, configuration, policies, and secret references [CONTEXT.md].
+adapter, configuration, policies, and secret references [glossary].
 Encoding handler kinds into transition types was explicitly rejected
 [ADR 0002, ADR 0003].

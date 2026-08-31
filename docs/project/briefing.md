@@ -96,6 +96,7 @@ UV_FROZEN=1 uv run python scripts/cv5-fabric-demo.py
 UV_FROZEN=1 uv run python scripts/cv5-lifecycle-demo.py
 ```
 
-The ubiquitous language is in [`CONTEXT.md`](../../CONTEXT.md). Decisions,
+The ubiquitous language is in [`docs/project/glossary/`](glossary/), one
+file per term. Decisions,
 roadmap items, technical debt, and process documents are self-contained under
 `docs/`.

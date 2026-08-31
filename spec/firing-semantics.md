@@ -8,7 +8,7 @@ execution obeys `handler-contract.md`.
 
 ## Enabledness
 
-A transition is **enabled** when, under the current marking [CONTEXT.md]:
+A transition is **enabled** when, under the current marking [glossary]:
 
 1. every **consume** input arc has matching token(s) satisfying its
    inscription's color/type, cardinality, and optional filter [ADR 0006,
@@ -49,7 +49,7 @@ guard signatures; Impetus reproduces the *skip*, rejects the *silence*.
 
 ## Firing pipeline
 
-The pipeline, in the ubiquitous language [CONTEXT.md]:
+The pipeline, in the ubiquitous language [glossary]:
 
 ```txt
 enabledness
@@ -73,7 +73,7 @@ seam separates preparation, execution, and projection exactly so: an
 execution adapter runs the activity, the frozen result projects
 deterministically [DR 2026-07-14 activity-invocation-runtime-seam].
 
-A transition may be enabled under many firing bindings at once [CONTEXT.md].
+A transition may be enabled under many firing bindings at once [glossary].
 The distinction between "enabled firing candidate" and "selected firing
 occurrence" is where scheduling policy enters [ADR 0008].
 
@@ -187,6 +187,20 @@ conflict-free batch selection and partial commits are deferred. Firing movement
 records explain the actual Binding without a new durable Binding key or record
 [DR 2026-07-22 candidate-selection-is-instance-scoped-immutable-policy].
 
+One Engine advancement turn applies at most one normal whole Action after
+finite first-load reconciliation, then returns control to its host.
+`DriveOutcome.ready` asks the host to re-drive immediately (the conservative
+re-drive may discover quiescence); `waiting` means conservative policy is
+holding for an outstanding Activity; `next_maturation` reports the earliest
+timer deadline. Waiting and timer scheduling are host-owned: Engine
+advancement never sleeps, and clock observation is nonblocking [glossary].
+
+Both shipped `DrivingPolicy` implementations alternate already-buffered
+ingress with eligible internal work; a custom policy owns its own fairness.
+If a custom policy first chooses an immature wall-clock action, it may be
+called once more with only that unavailable action removed from the same
+Snapshot; the turn still applies no more than one Action [glossary].
+
 For reference, the Petrus oracle prioritizes immediates (input arcs, no
 handler) over handled transitions when picking the next fireable — "resolving
 all routing before committing to an activity ensures the marking is stable" —
@@ -296,7 +310,7 @@ instance-scoping OPEN (ES-007).
 
 The runtime model aims for deterministic replay: given the same external
 events, activity results, and timer events in the same order, a net instance
-reaches the same state [ADR 0004, CONTEXT.md]. Net execution advances
+reaches the same state [ADR 0004, glossary]. Net execution advances
 deterministically from recorded history; side effects occur through the
 activities handlers prepare, and their observed results are recorded durably
 and reintroduced as tokens, failure records, or events — replay never re-runs

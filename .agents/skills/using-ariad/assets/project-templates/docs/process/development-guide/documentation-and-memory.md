@@ -4,11 +4,20 @@ Update documentation in the same cycle as the change when project truth changes.
 
 - `README.md`
 - `docs/project/briefing/`
+- `docs/project/glossary/`
 - `docs/project/decisions/`
 - `docs/project/roadmap/`
 - `docs/project/debt/`
 - `docs/process/worklog/`
 - `docs/product/principles/`
+
+## Optional Personal Memory
+
+A separately configured personal, cross-repository memory companion is optional and advisory. The repository and its project-owned work surfaces remain authoritative. Continue normally when the companion is absent or unavailable, and verify recalled claims against the current repository before acting.
+
+Do not mirror this project's vision, explorations, decisions, principles, tasks, or delivery history into a personal store. A horizontal lesson may point back to project meaning with repository identity, the Ariad artifact path or stable ID, and the source revision; follow the pointer to the current artifact rather than trusting or copying a stale snapshot. Personal capture or recall does not satisfy Memory Closure, validation, or a history checkpoint.
+
+Document any repository-visible personal-memory configuration, privacy constraints, or capture exceptions under project constraints and environment. Ariad adoption itself requires no personal-memory command, service, database, or marker file.
 
 ## Conflict-Resistant Memory
 

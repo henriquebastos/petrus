@@ -4,7 +4,8 @@ Load the installed Ariad skill at `.agents/skills/using-ariad/SKILL.md`. If skil
 
 For Petrus work, read only the local context relevant to the task:
 
-- `README.md`, `CONTEXT.md`, and `docs/project/briefing.md` for project identity, current state, and ubiquitous language;
+- `README.md` and `docs/project/briefing.md` for project identity and current state;
+- `docs/project/glossary/` for the ubiquitous language: canonical domain terms, one file per term;
 - `docs/process/development-guide.md` for the binding local operating contract and `docs/product/principles.md` for product trade-offs;
 - the relevant indexes under `docs/project/decisions/`, `docs/project/roadmap/`, `docs/project/debt/`, and `docs/process/worklog/` before their focused records; and
 - `spec/OVERVIEW.md` and focused files under `spec/` for language-neutral runtime contracts.

@@ -11,12 +11,12 @@ execution is recorded is specified in `event-history.md`.
 A **net definition** describes process topology and coordination semantics:
 places, transitions, arcs, token/color types, guards, subnet boundaries, and
 transition contracts. It contains no concrete external behavior — no GitHub
-clients, LLM calls, worker queues, or deployment choices [CONTEXT.md].
+clients, LLM calls, worker queues, or deployment choices [glossary].
 
 A **Petrinet Instance** (publicly `Instance`; the current pre-release root alias
 `NetInstance` is scheduled for removal) is a durable execution of a `Net`, with concrete
 tokens, a current marking, event history, timers, and recorded activity results
-[CONTEXT.md]. Many independent Instances of one Net run concurrently, each
+[glossary]. Many independent Instances of one Net run concurrently, each
 with its own marking and canonical history. There is no single global net;
 Instances communicate through identified messaging, never shared state. The
 older process analogy is superseded as formal ontology while its per-Instance
@@ -42,7 +42,7 @@ validation rejects them [ADR 0015].
 
 ## Places
 
-A place is a location that holds colored tokens [CONTEXT.md]. A place MAY
+A place is a location that holds colored tokens [glossary]. A place MAY
 declare one nominal **color** as an authoring default for its token domain; an
 untyped place holds tokens of any color. During flattened-net construction, a
 place color is resolved once onto each otherwise-untyped incident arc. An
@@ -55,7 +55,9 @@ A typed place's initial marking MUST contain only its declared color; validation
 rejects a mismatch before recording initial History. A place with no outgoing
 arcs remains a legal accumulator (e.g. a counter summed by a projection). The
 token types known to a composed net are derived from place colors, arc
-inscriptions, handler contracts, and initial markings [CONTEXT.md].
+inscriptions, handler contracts, and initial markings [glossary].
+**OPEN:** the exact boundary between formal core and composition layer for
+the token type ledger remains unresolved [glossary].
 
 A place MAY carry an optional **role** annotation: `input` (externally
 fed/boundary-start), `output` (emitted results/boundary output), `control`
@@ -70,7 +72,7 @@ Places have no time-related behavior; timers belong to transitions
 ## Transitions
 
 A transition is a process step that may fire when enabled; transitions are the
-only things that fire [CONTEXT.md]. A transition has **no implementation
+only things that fire [glossary]. A transition has **no implementation
 kind**. Terms such as agent, human, webhook, polling, or activity describe
 bindings or handlers, not transition types in the net [ADR 0003]. The same net
 definition remains portable across handler implementations [ADR 0003].
@@ -108,6 +110,17 @@ for the termination status rule [DR 2026-07-08 termination-instance-status-rule]
 Because output-arc color contracts route by type and unmatched tokens are
 leftover [DR permissive-flow-defaults], one general source transition can
 demultiplex mixed incoming events to different places with no extra machinery.
+
+An ingress adapter (**Sensor**) offering deliveries to source transitions is a
+prompt, nonblocking observation of already-available process-local ingress;
+blocking pull work is modeled as an Activity instead. A Sensor may normalize
+observations and choose a declared coalescing rule (for example one delivery
+identity per file-content version). If it learns an answer before canonical
+acceptance, it MUST retain and re-offer that answer under the same stable
+delivery identity across later observations — and across restart when its
+substrate supports recovery. The single writer, not the Sensor's cache,
+enforces idempotent acceptance [glossary, DR 2026-07-14
+source-delivery-projection-and-identity].
 
 ## Arcs
 
@@ -231,10 +244,17 @@ resolve and that a named symbol has embodiment [ADR 0021].
 
 A **colored token** carries typed data; its **token color** is the type/schema
 associated with it. Colored tokens unify control flow and data flow
-[CONTEXT.md]. The **marking** — the distribution of colored tokens across
-places — is the first-class state of a net instance [ADR 0012, CONTEXT.md].
-For reference, the Petrus oracle stores markings as per-place FIFO token
-queues: consume pops from the front, deposit appends [Petrus oracle].
+[glossary]. The **marking** — the distribution of colored tokens across
+places — is the first-class state of a net instance [ADR 0012, glossary].
+
+The tokens at one place form its **token queue**: FIFO order, each token
+paired with its **entry instant** (the instant of the movement record that
+deposited it). The queue is not a set — duplicates are legal and order is
+significant. A consume removes the **front-most equal occurrence** (the
+earliest queued token equal to the requested one) and reads are positional.
+The marking is the queue's time-blind view; the entry instants are its time
+view — one structure, two projections [glossary]. This matches the Petrus
+oracle's per-place FIFO storage [Petrus oracle].
 
 ## Addressing
 
@@ -282,7 +302,7 @@ not just a node — must be named [ADR 0023, DR addressing-uri-syntax-and-public
 
 Nested nets and subnets compile into a **flattened net**: a flat set of
 addressed places, transitions, arcs, and declarations for efficient execution
-and lookup [ADR 0012, CONTEXT.md]. In the flattened net every declaration —
+and lookup [ADR 0012, glossary]. In the flattened net every declaration —
 including anonymous ones — receives a deterministic canonical NetUri
 [ADR 0025]. The flattened net exposes typed indexes: a node dictionary keyed
 by NetPath, a declaration dictionary keyed by NetUri, and binding-oriented

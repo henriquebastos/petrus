@@ -13,8 +13,9 @@ mechanically checked. Golden replay covers the normative Impetus-native corpus;
 focused semantic tests cover broader and newer semantics. Known unsupported and
 deferred areas are named in `spec/traces/README.md`. A
 normative behavior without executable evidence is a visible coverage gap, not
-verified behavior. `CONTEXT.md` supplies reviewed ubiquitous language and
-orientation; it is not mechanically proven line by line against the binding.
+verified behavior. The glossary at `docs/project/glossary/` supplies reviewed
+ubiquitous language and orientation; it is not mechanically proven line by
+line against the binding.
 
 ## Documents
 
@@ -39,7 +40,8 @@ normative statement cites its source inline:
   as `*hermes-adr-NNNN-*.md` (35 records, the backbone of this spec).
 - `[DR <date> <slug>]` — an Ariad decision record in the same folder, e.g.
   `[DR 2026-07-06 net-instance-is-a-process]`.
-- `[CONTEXT.md]` — the ubiquitous-language glossary at the repository root.
+- `[glossary]` — the ubiquitous-language glossary at `docs/project/glossary/`,
+  one file per term (formerly the repository-root `CONTEXT.md`).
 - `[Petrus oracle]` — production-proven behavior of the Petrus Python engine,
   semantics, not as a decision; where this spec deliberately differs from
   Petrus, the difference is stated explicitly.

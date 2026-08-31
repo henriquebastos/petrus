@@ -11,7 +11,7 @@ updated: 2026-08-31
 related:
   - CV20
   - CV19
-  - CONTEXT.md
+  - docs/project/glossary/index.md
   - spec/OVERVIEW.md
   - docs/ariad/index.md
   - docs/process/deterministic-simulation-testing.md
@@ -171,3 +171,54 @@ Two survey findings did not survive verification and were re-dispositioned:
   `updated: YYYY-MM-DD` is the item template inside a code block. No change.
 
 `tests/project` (29 tests, includes the conventions gate) passes.
+
+### WS2 — Glossary (in progress, opened 2026-08-31)
+
+Ariad updated by whole-package replacement: `using-ariad` 0.2.1 → 0.2.2 from
+`https://github.com/henriquebastos/ariad`; manifest hashes verified.
+`docs/project/glossary/` created from
+the packaged template (one term per kebab-case file, one-or-two-sentence
+definitions, optional `Avoid`/`Related`; behavior and invariants stay in
+their focused owners). The Petrus router now lists the glossary surface.
+
+Bulk migration done 2026-08-31: 127 term files created from CONTEXT.md's
+accepted language, definitions distilled to the glossary format.
+Compatibility-era names became `Avoid` lines instead of files (Impetus
+Kernel, Petri-net core → petrinet-kernel; net instance → petrinet-instance;
+schema reference → net-uri).
+
+CONTEXT.md deleted 2026-08-31 (decision
+`2026-08-31T1922Z-glossary-directory-replaces-context-md`). A coverage audit
+confirmed all but six pieces of its surplus contract detail were already in
+`spec/` or decision records; the six were re-homed first: token-queue
+front-most-equal-occurrence removal and Sensor retain-and-re-offer →
+`spec/net-schema.md`; Engine `DriveOutcome` host posture and the
+`DrivingPolicy` re-ask contract → `spec/firing-semantics.md` §Scheduling;
+derived-handler inhibitor exemption → `spec/handler-contract.md`; token type
+ledger boundary → `**OPEN:**` marker in `spec/net-schema.md`. Spec citation
+tags `[CONTEXT.md]` renamed to `[glossary]`; live references in README,
+briefing, development guide, engineering conventions, the Ariad router, and
+`engine/_coordination.py` retargeted. Historical mentions in older decision
+records and worklog entries left as written.
+
+Ruling backlog, one per session, Navigator-paced:
+
+1. History vs event history — the 2026-07-06 decision ratified "event
+   history"; CONTEXT.md, code, and the migrated glossary say "History".
+2. Candidate Selection — used as a proper concept (Engine, Scheduler
+   entries) but never defined.
+3. DST vocabulary — World, Scenario, Checker, Fault, Budget, ProcessRunner,
+   ChoiceStreams, Generation… all undefined in the glossary.
+4. Net document family — Net document, PortableView, ExecutionLineage, fork
+   (decided in the 2026-08-27 ADR and spec/net-document-v1.md, no glossary
+   entries).
+5. Engine surface verbs — Action, Snapshot, DriveOutcome, AcceptDelivery…;
+   the Engine deep entry in CONTEXT.md still describes pre-split
+   `Engine.deliver()`.
+6. Overloaded words needing Avoid/qualification rulings: delivery,
+   execution, lineage, view, snapshot, profile, attempt, command,
+   territory (used, never defined).
+7. Undefined coined names: Gondolin, orb, pi/A2; Absurd has an ADR but no
+   glossary entry.
+8. "Library, not framework" — a design constraint living in the old
+   glossary; likely belongs in docs/product/principles.md.

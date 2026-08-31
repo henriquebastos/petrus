@@ -3,7 +3,8 @@
 A narrative synthesis of the ratified model, for a reader who should understand
 Impetus without reading every decision record. The four spec documents
 (`net-schema`, `firing-semantics`, `event-history`, `handler-contract`) are the
-normative reference; `CONTEXT.md` is the glossary; this file is the map.
+normative reference; `docs/project/glossary/` holds the term definitions,
+one file per term; this file is the map.
 
 ## The one idea
 

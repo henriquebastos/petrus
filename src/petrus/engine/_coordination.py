@@ -210,7 +210,7 @@ class SimulatedClock:
     when observed — ``observe`` jumps straight to the requested instant (never
     rewinding), so timed advancement remains deterministic. A wall-clock adapter belongs to a real substrate,
     outside the kernel. (Named for what it does; "virtual clock" stays the
-    watermark's name [CONTEXT.md].)
+    watermark's name [glossary].)
     """
 
     def __init__(self, at: Instant = 0):

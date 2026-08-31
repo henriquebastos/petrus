@@ -126,7 +126,7 @@ deferral above [ADR 0031].
 
 External events MUST be recorded as facts when they arrive, even when no
 transition consumes them yet — recording precedes and is independent of
-consumption ("recorded and then used to advance the net" [CONTEXT.md],
+consumption ("recorded and then used to advance the net" [glossary],
 category 1 above [ADR 0031]). This encodes the production lesson from the
 Temporal-hosted Petri-net predecessor: external results enter durable history
 first, and the net advances deterministically from recorded history
@@ -238,7 +238,7 @@ startup/shutdown, sandbox/container details, stdout/stderr, resource usage,
 and delivery failures belong in **worker operational logs**, correlated back
 to the canonical history by IDs such as `activityId`, `activityAttemptId`,
 `firingOccurrenceId`, `netInstanceId`, `eventId`, `queueMessageId`, and
-`workerId` [ADR 0035, CONTEXT.md].
+`workerId` [ADR 0035, glossary].
 
 The attempt boundary is decided [DR 2026-07-14
 activity-invocation-runtime-seam], resolving both ADR 0035's open question
