@@ -1,0 +1,173 @@
+---
+code: ES-062
+title: Consolidation and coherence baseline
+status: Active
+status_reason: >-
+  Five parallel repository surveys (architecture, vision alignment, domain
+  language, DST centrality, documentation inventory) are captured below.
+  Workstreams are being dispositioned one at a time with the Navigator.
+opened: 2026-08-31
+updated: 2026-08-31
+related:
+  - CV20
+  - CV19
+  - CONTEXT.md
+  - spec/OVERVIEW.md
+  - docs/ariad/index.md
+  - docs/process/deterministic-simulation-testing.md
+  - docs/process/engineering-conventions.md
+source_context:
+  - /Users/henrique/me/open-source/impetus/docs/references/2026-07-09-matt-hb-vision-call-transcript.md
+  - /Users/henrique/me/open-source/impetus/docs/references/2026-07-09-vision-themes.md
+---
+
+# Consolidation and coherence baseline
+
+## Inquiry
+
+After two intense months (ES-050 through ES-061, CV8–CV19 closed, CV20
+active), does the repository still cohere? Specifically: is the code aligned
+with the founding vision, is the declared domain language current, does the
+documentation still tell the truth, and does everything fit the DST driver
+that emerged mid-project? This story is the consolidation surface: it holds
+the evidence and dispositions each workstream one at a time, protecting the
+Navigator's cognitive load.
+
+## Method
+
+Five independent read-only surveys ran in parallel on 2026-08-31 against the
+working tree at `4e5c250`: package architecture, vision provenance and
+alignment, declared-vs-actual domain language, DST centrality, and
+documentation inventory. Findings below cite exact paths; nothing here is
+speculative.
+
+## Findings
+
+### F1 — Vision: aligned, but the founding documents live in another repo
+
+The first dream description is the Matt Scott call transcript at
+`impetus/docs/references/2026-07-09-matt-hb-vision-call-transcript.md`
+(sibling repo), with the Navigator's decomposition in
+`2026-07-09-vision-themes.md` ("agents are wrongly built as imperative loops;
+model coordination as a pure Petri net; the harness is the net"). Petrus
+carries no copy; its only pointer is `spec/README.md:53`. The repo's own
+vision (briefing, principles, roadmap) is consistent with that dream, and
+CV20 Approachable Petrus is the natural next step of it. Verdict: direction
+aligned; provenance not portable with this repo.
+
+### F2 — Architecture: layered and mostly clean, with bounded drift
+
+Layering is acyclic at package level: `impetus → engine → agenticus`, with
+`motus.activity` as a shared leaf. Sizes: agenticus 46 files (~15k LOC,
+largest), impetus 25 (~9k, `instance/__init__.py` alone is 2,376 lines),
+tests/dst ~23.5k LOC. Concrete drift:
+
+- `src/petrus/motus/_execution/model.py` is a self-declared compatibility
+  module no code imports — dead.
+- `src/petrus/processes/{postgres,spawn,call}.py` import private names
+  (`_text`, `_json_object`, `_freeze_json`) from `petrus.fabric.model`.
+- `tests/project/test_package_boundaries.py` carries
+  `TEMPORARY_COORDINATION_EXPORTS` and `REMOVED_ROOT_EXPORTS` — an in-flight
+  facade removal never finished.
+- Root modules `simulation.py`/`simulation_http.py` sit above impetus+engine
+  but outside any package.
+- One upward edge: `agenticus/runtime/agent_net_runner.py:38` imports
+  `Engine`.
+
+### F3 — Domain language: 108 declared terms, zero for the newest domains
+
+`CONTEXT.md` (783 lines) defines 108 terms but none for DST (World, Scenario,
+Checker, ChoiceStreams, Fault, Budget, ProcessRunner…), none for the Net
+document family (Net document, PortableView, ExecutionLineage, fork), and
+none for the new Engine surface verbs (`AcceptDelivery`, `Snapshot`,
+`DriveOutcome`…). The `Engine` entry still describes `Engine.deliver()`
+although `4e5c250` split delivery into phases. Coined names lacking any
+definition: Gondolin (docstring only), orb (one CONTEXT.md use), pi/A2
+(code + ADRs only); Absurd has an ADR but no glossary entry. Overloaded
+words needing rulings: delivery, execution, lineage, instance, process,
+profile, view, snapshot, selection, attempt; plus History vs event history
+(the ADR ratified "event history", CONTEXT.md says bare "History").
+
+### F4 — DST: code aligned, process driver drifting
+
+`src/petrus/testing/dst.py` (2,656 lines) plus `tests/dst/` (53 fixtures,
+real Postgres/Absurd/ZeroMQ worlds) is real and load-bearing — HEAD's engine
+change re-expanded 8 fixtures. But DST covers only the Impetus/Engine/Motus
+spine: agenticus (~20k lines, the largest package), fabric, and processes
+have zero simulation coverage, and CV20 plans contain no DST reference
+despite DST being the declared design driver. The cross-project test-kit
+promise (2026-08-17 decision) is packaged but unguarded —
+`test_package_boundaries.py` never mentions `petrus.testing`. Doc lineage:
+v4 is current but is a delta; v3 (905 lines) holds the substantive spec body
+and is not prunable; v1/v2 are kept alive only by 5 legacy fixtures;
+`dst-scenario-v1.md` is a parallel superseded format kept by one fixture —
+the strongest pruning candidate.
+
+### F5 — Documentation: large, mostly closed history, with false claims
+
+286 markdown files. 129 decisions (117 Decided, 12 Superseded, 0 Open), 70
+worklog entries, 12 explorations (10 Completed, ES-052 and ES-060 Paused),
+36 roadmap files of which only CV20 is live. Bulk: ES-059 alone is 2.9M of
+the 3.4M exploration tree, including 52 committed `.pyc` files.
+`engineering-conventions.md` (1,214 lines) restates ~90 conventions, several
+now enforced mechanically by `rules/` + `sgconfig.yml`. Statements that are
+now false: `spec/OVERVIEW.md` says "65 decision records" (129) and asserts a
+stdlib `unpack` handler exists (only `passthrough` does —
+`src/petrus/impetus/binding/__init__.py:364`); `docs/ariad/index.md:12` says
+the worklog "currently has no entries" (70) and that reference captures are
+absent (ES-059's experiment tree exists). `roadmap/index.md` frontmatter is
+an unfilled template (`updated: YYYY-MM-DD`).
+
+## Candidate workstreams
+
+Each is sized to be dispositioned in one focused session. Order is the
+Navigator's call; suggested sequence reflects risk and leverage.
+
+1. **WS1 Truth repairs + mechanical cleanup** (no design decisions): fix the
+   false claims in `spec/OVERVIEW.md` and `docs/ariad/index.md`; delete
+   committed `.pyc` under ES-059; remove the dead
+   `motus/_execution/model.py`; fill `roadmap/index.md` frontmatter.
+2. **WS2 Glossary and domain-language ruling**: adopt the glossary-capable
+   Ariad (`feat/domain-modeling-integration`, unmerged on GitHub as of
+   2026-08-31); migrate CONTEXT.md terms; add the missing DST/Net-document/
+   Engine vocabulary; rule on the overloaded words (F3).
+3. **WS3 Documentation shrink**: archive concluded explorations' bulk,
+   consolidate dst-world v1–v3 into v4 after re-expanding 5 legacy fixtures,
+   retire `dst-scenario-v1`, condense `engineering-conventions.md` to what
+   the mechanical gate does not already enforce.
+4. **WS4 DST driver alignment**: decide whether agenticus/fabric/processes
+   come under DST worlds and make CV20 stories carry DST obligations; guard
+   the test-kit boundary.
+5. **WS5 Architecture debt**: finish the facade removal, fix the fabric
+   private-name leakage, place the root simulation modules.
+6. **WS6 Python style review**: audit the codebase against the Navigator's
+   python-* style skills (call sites, composition, naming, typed data,
+   errors, comments, testing).
+
+## Disposition
+
+Open. Dispositions are appended per workstream as each is decided.
+
+### WS1 — Truth repairs (done 2026-08-31)
+
+Applied after re-verifying each survey claim against the working tree:
+
+- `spec/OVERVIEW.md` no longer states a decision-record count (was "65",
+  actual 129 and growing) and now says `unpack` is Decided but not yet
+  implemented, matching `spec/handler-contract.md:48` and the code (only
+  `passthrough` exists).
+- `docs/ariad/index.md` now points at the real exploration and worklog
+  surfaces instead of claiming the worklog has no entries.
+- Untracked `__pycache__` noise under `docs/project/exploration/` deleted
+  from disk; nothing was ever committed, so F5's "52 committed `.pyc`"
+  claim was wrong — the repository history is clean.
+
+Two survey findings did not survive verification and were re-dispositioned:
+
+- `motus/_execution/model.py` is not dead —
+  `tests/petrus/motus/test_execution_contract.py:64` imports it as a pinned
+  compatibility surface. Retiring it is a decision, moved to WS5.
+- `roadmap/index.md` has no unfilled frontmatter; the flagged
+  `updated: YYYY-MM-DD` is the item template inside a code block. No change.
+
+`tests/project` (29 tests, includes the conventions gate) passes.

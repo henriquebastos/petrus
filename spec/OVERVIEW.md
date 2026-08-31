@@ -1,7 +1,7 @@
 # Impetus — design overview
 
 A narrative synthesis of the ratified model, for a reader who should understand
-Impetus without reading 65 decision records. The four spec documents
+Impetus without reading every decision record. The four spec documents
 (`net-schema`, `firing-semantics`, `event-history`, `handler-contract`) are the
 normative reference; `CONTEXT.md` is the glossary; this file is the map.
 
@@ -41,11 +41,12 @@ annotations: a place's ordinary color, an input arc's color + optional pure
 **consume / read / inhibit**; a transition **guard** (pure, over the whole
 binding, where cross-token correlation lives); weights. A transition with no
 handler is default-bound to the pure **`passthrough`** handler, which routes
-each consumed token through every admitting output arc. Two more pure stdlib
-shaping handlers exist: **`unpack`** (project an aggregate's fields to typed
-output arcs). There is deliberately **no `pack`** — construction is a user
-handler's job, because a built-in constructor would drift into a hidden
-expression language and couple the net to type construction.
+each consumed token through every admitting output arc. One more pure stdlib
+shaping handler is Decided but not yet implemented: **`unpack`** (project an
+aggregate's fields to typed output arcs). There is deliberately **no `pack`**
+— construction is a user handler's job, because a built-in constructor would
+drift into a hidden expression language and couple the net to type
+construction.
 
 ## Behavior lives in handlers
 

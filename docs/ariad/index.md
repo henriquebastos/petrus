@@ -9,7 +9,7 @@ For Petrus work, read only the local context relevant to the task:
 - the relevant indexes under `docs/project/decisions/`, `docs/project/roadmap/`, `docs/project/debt/`, and `docs/process/worklog/` before their focused records; and
 - `spec/OVERVIEW.md` and focused files under `spec/` for language-neutral runtime contracts.
 
-Reference captures and exploratory notebooks are intentionally absent from the public source tree, and the retained worklog currently has no entries. Do not create replacement surfaces merely to match packaged templates.
+Reference captures remain outside this source tree; Exploratory Stories live under `docs/project/exploration/` and the retained worklog under `docs/process/worklog/entries/`. Do not create replacement surfaces merely to match packaged templates.
 
 Before ending, pausing, compacting, interrupting, or handing off context, follow the canonical `method/memory-closure` route. Fold it into Petrus's existing closure surfaces as appropriate; do not create transcript or session-summary files.
 
