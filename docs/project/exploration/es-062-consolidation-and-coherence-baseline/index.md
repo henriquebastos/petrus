@@ -215,8 +215,10 @@ optional modular-docs migration — deferred to WS3.
 
 Ruling backlog, one per session, Navigator-paced:
 
-1. History vs event history — the 2026-07-06 decision ratified "event
-   history"; CONTEXT.md, code, and the migrated glossary say "History".
+1. ~~History vs event history~~ — ruled 2026-08-31: capitalized **History**
+   is canonical; "event history" stays as an acceptable descriptive long
+   form. Recorded in the glossary and as a review outcome on the 2026-07-06
+   record.
 2. Candidate Selection — used as a proper concept (Engine, Scheduler
    entries) but never defined.
 3. DST vocabulary — World, Scenario, Checker, Fault, Budget, ProcessRunner,

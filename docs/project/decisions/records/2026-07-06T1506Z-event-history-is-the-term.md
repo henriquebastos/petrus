@@ -31,3 +31,12 @@ The disagreement is scope, not taste: a *firing journal* records firings; the Na
 ## Review Trigger
 
 The naming conversation with Matt; revisit if a better name captures the full scope.
+
+## Review outcome (2026-08-31)
+
+The anticipated evolution happened: practice converged on capitalized
+**History** as the canonical short name (code `HistoryStore`/`HistoryRecord`,
+glossary `docs/project/glossary/history.md`), and the Navigator ratified it
+during ES-062 consolidation. "Event history" remains an acceptable
+descriptive long form — the scope argument of this record stands unchanged;
+only the short name evolved. `spec/event-history.md` keeps its filename.
