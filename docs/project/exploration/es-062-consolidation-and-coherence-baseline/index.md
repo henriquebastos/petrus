@@ -256,7 +256,11 @@ Ruling backlog, one per session, Navigator-paced:
 6. Overloaded words needing Avoid/qualification rulings: delivery,
    execution, lineage, view, snapshot, profile, attempt, command,
    territory (used, never defined).
-7. Undefined coined names: Gondolin, orb, pi/A2; Absurd has an ADR but no
-   glossary entry.
+7. ~~Undefined coined names~~ — ruled 2026-08-31: **Gondolin** and
+   **Absurd** got glossary entries; **orb** and **pi/A2** were deliberately
+   excluded as incidental substrate vocabulary and vendor runtime lane
+   names (same rule as claude/codex/amp). "A2" has no recorded expansion
+   anywhere in the repo; capture it if it means something. Gondolin's
+   entry leans on "execution territory", still undefined — see ruling 6.
 8. "Library, not framework" — a design constraint living in the old
    glossary; likely belongs in docs/product/principles.md.
