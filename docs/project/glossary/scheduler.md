@@ -1,8 +1,8 @@
 # Scheduler
 
-Temporary implementation vocabulary for the Planned Candidate
-Selection boundary, which admits, ranks, and chooses at most one
-existing Binding within the `BeginCandidate` action class. The name
-remains only until Candidate Selection supplies its replacement.
+Retired temporary vocabulary for the boundary now named
+[Transition Selection](transition-selection.md); the implementing component
+is a Transition Selector. Code identifiers still spelling `Scheduler` and
+the `SelectionPolicy` family are pending rename.
 
-- Detail: [spec/firing-semantics.md](../../../spec/firing-semantics.md)
+- Do not use for: new prose or APIs — name the concept Transition Selection.

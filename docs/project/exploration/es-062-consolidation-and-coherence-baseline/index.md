@@ -219,8 +219,13 @@ Ruling backlog, one per session, Navigator-paced:
    is canonical; "event history" stays as an acceptable descriptive long
    form. Recorded in the glossary and as a review outcome on the 2026-07-06
    record.
-2. Candidate Selection — used as a proper concept (Engine, Scheduler
-   entries) but never defined.
+2. ~~Candidate Selection~~ — ruled 2026-08-31: the Navigator renamed the
+   pair to **Transition Selection** (policy level; implementation:
+   Transition Selector) and **Token Selection** (arc level, formerly bare
+   "Selection"). Glossary terms added with mirror boundaries, spec prose
+   swept, review outcome recorded on the 2026-07-22 record. Follow-up:
+   code identifiers (`Scheduler`, the `petrus.impetus.selection`
+   `SelectionPolicy` family) are pending rename.
 3. DST vocabulary — World, Scenario, Checker, Fault, Budget, ProcessRunner,
    ChoiceStreams, Generation… all undefined in the glossary.
 4. Net document family — Net document, PortableView, ExecutionLineage, fork

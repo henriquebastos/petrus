@@ -171,3 +171,13 @@ Return to the Navigator if implementation needs a durable Binding identity, a
 new semantic record, binding-level/configurable fairness, arbitrary recursive
 composition, batch/partial commit, shared state across Engines, priority in the
 Net, or an Observation contract before DEC-038 is ruled.
+
+## Review outcome (2026-08-31)
+
+During ES-062 consolidation the Navigator renamed the boundary **Transition
+Selection** (implementation: **Transition Selector**), paired with **Token
+Selection** for the arc-level `(place, tokens)` concept. Everything this
+record rules — Instance scope, immutability, policy shape — stands unchanged
+under the new name. "Scheduler" remains retired temporary vocabulary; code
+identifiers are pending rename.
+

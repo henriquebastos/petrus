@@ -70,7 +70,7 @@ The working semantic record categories are [ADR 0031]:
 1. **External event recorded** — a webhook, user message, poll result, human
    decision, imported file, or other outside signal entered the history.
 2. **Timer matured** — a time-based enablement condition became true.
-3. **Firing candidate selected** — Candidate Selection chose an enabled
+3. **Firing candidate selected** — Transition Selection chose an enabled
    transition/Binding to proceed. The transition fact supports initial policy
    replay; the firing's movement records explain the actual Binding without a
    separate scheduler-decision record [DR 2026-07-22

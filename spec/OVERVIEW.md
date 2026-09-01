@@ -68,7 +68,7 @@ destination, so one firing can fan out different payloads to different branches.
 A transition is **enabled** when its input arcs (with filters), inhibitors, and
 guards are satisfied and its timers matured. Firing is a durable **begin/end
 lifecycle** (consume at begin, produce at end) so handlers can take time, retry,
-or run elsewhere. The ruled **Candidate Selection** target is Engine-composed
+or run elsewhere. The ruled **Transition Selection** target is Engine-composed
 per Instance and chooses at most one enabled Binding within a `BeginCandidate`
 action. Planned initial policies are First, Priority, and transition-level
 Round-Robin, while whole-action `DrivingPolicy` remains separate. Selection
@@ -81,7 +81,7 @@ silently disabling a transition.
 External state enters a net **only as tokens** (projection). Discrete events
 arrive through a **source transition** (no input arcs): the runtime delivers an
 event, the transition's handler turns it into typed tokens, output arcs route
-them. Source transitions are **excluded from Candidate Selection** — they fire only on
+them. Source transitions are **excluded from Transition Selection** — they fire only on
 external delivery, so a source transition with an armed event-projection
 registration is the structural *awaiting* marker. Continuous time enters through the **clock watermark** (the instant of
 the latest recorded event; "now" never reads a wall clock). Because impurity is

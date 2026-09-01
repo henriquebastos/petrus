@@ -193,7 +193,7 @@ Impetus separates concepts before runtime composition [ADR 0012, DR 2026-07-21
 concept-first-ontology-boundaries]:
 
 - **Petrinet Kernel** owns `Net`, Instance semantics, markings, enabledness,
-  firing, and replay-derived state, but not Candidate Selection;
+  firing, and replay-derived state, but not Transition Selection;
 - **activity** owns Petri/history-agnostic `Activity`, `ActivityInvocation`,
   `ActivityFailure`, `ExecutionPolicy`, and result conventions;
 - **binding** owns `Handler`, `HandlerResult`, and the Petri-aware

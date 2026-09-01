@@ -55,7 +55,7 @@ The pipeline, in the ubiquitous language [glossary]:
 enabledness
 → firing binding            (a concrete assignment satisfying all input arcs + guards)
 → enabled firing candidate  (transition + firing binding, valid but not selected)
-→ Candidate Selection       (per-Instance policy chooses at most one Binding
+→ Transition Selection       (per-Instance policy chooses at most one Binding
                              within the BeginCandidate action class)
 → DrivingPolicy             (chooses among whole action classes)
 → selected firing occurrence (durable record when BeginCandidate commits)
@@ -142,20 +142,20 @@ adopts the per-arc contract; the normative `per_arc_passthrough` and
 
 ## Scheduling
 
-Petrinet Kernel, Candidate Selection, and whole-action policy have distinct
+Petrinet Kernel, Transition Selection, and whole-action policy have distinct
 jobs [ADR 0008, DR 2026-07-21 concept-first-ontology-boundaries, DR 2026-07-22
 candidate-selection-is-instance-scoped-immutable-policy]:
 
 - the **kernel** evaluates the marking and Net to enumerate enabled
   firing candidates;
-- **Candidate Selection**, outside the kernel and composed per Instance by its
+- **Transition Selection**, outside the kernel and composed per Instance by its
   Engine, chooses at most one already-enabled Binding within the
   `BeginCandidate` action class;
 - whole-action **`DrivingPolicy`** still chooses whether accepting an outcome
   or delivery, beginning a candidate, advancing time, waiting, or stopping
   takes precedence;
 - begin firing applies the one chosen Binding;
-- Candidate Selection configuration is snapshotted by the one-Instance Engine,
+- Transition Selection configuration is snapshotted by the one-Instance Engine,
   never hard-coded into the Net or inherited from ambient fleet policy.
 
 **Source transitions are excluded from the enabled-candidate set.** A source
@@ -167,7 +167,7 @@ rule below — is therefore "no *non-source* transition enabled": a source
 transition with an armed registration does not keep an instance out of
 quiescence, it makes the instance *awaiting* (see §Termination).
 
-The initial Candidate Selection policies are **First**, **Priority**, and
+The initial Transition Selection policies are **First**, **Priority**, and
 **transition-level Round-Robin**. Each documents its behavior; the base
 contract promises no universal fairness grain. Every policy uses a fixed
 filters → stable rankers → one strategy pipeline and preserves deterministic
@@ -208,7 +208,7 @@ and excludes timed transitions from that pick [Petrus oracle].
 
 **VELOCITRON-DIVERGENCE:** velocitron's default firing policy is first-found
 in net declaration order, with policies as pluggable handlers / Impetus
-uses per-Instance Candidate Selection with First, Priority, and
+uses per-Instance Transition Selection with First, Priority, and
 transition-level Round-Robin initial policies, immutable state advancing only
 after begin commits, and deterministic Petrinet candidate order as final
 tie-breaker [DR 2026-07-22 candidate-selection-is-instance-scoped-immutable-policy]
@@ -288,7 +288,7 @@ advances only at appends [DR time-projection...]. On wakeup the adapter
 appends a **timer matured** record (category 2, deterministic [ADR 0031,
 ADR 0034]); any record's instant advances the clock, and replay re-derives
 every maturation from the log with no clock read (see `event-history.md`).
-There is **no urgency**: maturation enables; Candidate Selection and
+There is **no urgency**: maturation enables; Transition Selection and
 whole-action `DrivingPolicy` choose whether a Binding begins [ADR 0008, ADR
 0009, DR 2026-07-22 candidate-selection-is-instance-scoped-immutable-policy]
 — deadline pressure is modeled as racing timeout transitions.
