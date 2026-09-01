@@ -226,8 +226,21 @@ Ruling backlog, one per session, Navigator-paced:
    swept, review outcome recorded on the 2026-07-22 record. Follow-up:
    code identifiers (`Scheduler`, the `petrus.impetus.selection`
    `SelectionPolicy` family) are pending rename.
-3. DST vocabulary — World, Scenario, Checker, Fault, Budget, ProcessRunner,
-   ChoiceStreams, Generation… all undefined in the glossary.
+3. DST vocabulary — PROPOSED 2026-08-31, pending Navigator acceptance of
+   the final definitions: eleven terms drafted (Deterministic Simulation
+   Testing, World, Workload, Checker, Fault, Durability boundary, Choice
+   streams, Budget, Campaign, Scripted scenario, Process Runner). Navigator
+   review reshaped the batch: **Workload** replaces "Scenario profile" (the
+   FoundationDB/TigerBeetle term; `ScenarioProfile` class pending rename),
+   **Durability boundary** replaces "Durable cut" ("cut" remains the shipped
+   artifact/code spelling), and the two drivers over one World are named
+   apart — **Scripted scenario** (author-chosen schedule: prove known cases,
+   debug, pin found bugs) vs **Campaign** (seed-driven exploration: hunt
+   unknown cases). The boundary-faults-only rationale (mid-step crash
+   instants collapse observationally into boundary outcomes) is now recorded
+   in the owner doc §Durable and irreversible cuts. Timeline, JournalEntry,
+   Observation, Disposition, and ScenarioRegistry stay out as implementation
+   vocabulary.
 4. Net document family — Net document, PortableView, ExecutionLineage, fork
    (decided in the 2026-08-27 ADR and spec/net-document-v1.md, no glossary
    entries).

@@ -389,6 +389,20 @@ The schedule can stop, fault, crash, or resume only at the named cuts below.
 semantic batch, not merely that Python constructed a record. The harness must
 not invent finer cuts inside a production atomic batch.
 
+The canonical glossary name for these edges is **durability boundary**
+([`durability-boundary.md`](../project/glossary/durability-boundary.md));
+“cut” remains the shipped artifact and code spelling. Faults land only on
+boundaries because a step's atomicity is the substrate's contract: any real
+crash instant inside a transaction is observationally equal, after reload, to
+one boundary outcome — the batch is absent (refused/never happened) or
+present with the acknowledgement lost. Boundary faults therefore exercise
+every distinct observable outcome exactly once, while a finer cut would
+simulate a state the backend cannot produce. Where atomicity genuinely does
+not hold, the model gives that fact its own boundary — the JSONL torn tail is
+reported as a backend failure, and `external_effect` models the non-atomic
+provider world — and whether a substrate keeps its atomicity promise at all
+is the real-boundary qualification column, not simulation's.
+
 | Cut id | Production boundary and required fact | Recovery obligation | Evidence |
 | --- | --- | --- | --- |
 | `instance_created` | `InstanceCreated` and the net's initial durable state—initial marking or source-delivery registration—are accepted as one creation boundary. | A refused transaction leaves no canonical instance, marking, or registration; an accepted-but-unacknowledged creation loads the exact identity and initial state without recreating. | [E: retained [`joined-creation-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-creation-commit-refusal-world-v3.json), [`joined-creation-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-creation-ack-loss-world-v3.json), [`joined-source-creation-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-source-creation-commit-refusal-world-v3.json), and [`joined-source-creation-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-source-creation-ack-loss-world-v3.json), plus [`test_instance_identity.py`](../../tests/petrus/impetus/instance/test_instance_identity.py) and [`test_instance_replay_properties.py`](../../tests/petrus/impetus/instance/test_instance_replay_properties.py)] |
