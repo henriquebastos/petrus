@@ -241,9 +241,15 @@ Ruling backlog, one per session, Navigator-paced:
    in the owner doc §Durable and irreversible cuts. Timeline, JournalEntry,
    Observation, Disposition, and ScenarioRegistry stay out as implementation
    vocabulary.
-4. Net document family — Net document, PortableView, ExecutionLineage, fork
-   (decided in the 2026-08-27 ADR and spec/net-document-v1.md, no glossary
-   entries).
+4. ~~Net document family~~ — ruled 2026-08-31, Navigator-accepted after a
+   naming session: **Net document** (envelope; "Net Schema" rejected as
+   overloading the schema sense), **Layout** (was portable view; "viewport"
+   rejected as meaning the visible window), **Net identity** (was definition
+   identity), **Timeline** (was execution lineage; forks into parallel
+   timelines; boundaries versus History and spawn/Thread lineage). Pending
+   renames now include `PortableViewV1`, `ExecutionLineage`/`LineageEntry`,
+   the DST `Timeline` authoring facade, and the spec/net-document-v1.md
+   prose sweep.
 5. Engine surface verbs — Action, Snapshot, DriveOutcome, AcceptDelivery…;
    the Engine deep entry in CONTEXT.md still describes pre-split
    `Engine.deliver()`.

@@ -90,3 +90,16 @@ Review before the first stable release of document v1, when measured retained
 artifacts require external attachment custody, or if a non-Arx consumer
 demonstrates that direct node positions or flat parent-linked entries cannot
 preserve required portable truth.
+
+## Review outcome (2026-08-31)
+
+During ES-062 consolidation the Navigator named the family's components:
+the envelope stays **Net document**; the identity-neutral view is **Layout**;
+the definition digest is **Net identity**; the forkable execution lineage is
+**Timeline** (a branch forks a parallel timeline). Everything this record
+rules — one envelope, optional facts, flat parent-linked entries, explicit
+provenance, authority over file shape — stands unchanged under the new
+names. Shipped spellings (`PortableViewV1`, `ExecutionLineage`,
+`LineageEntry`, spec prose) are pending rename; the DST `Timeline` authoring
+facade needs disambiguation.
+
