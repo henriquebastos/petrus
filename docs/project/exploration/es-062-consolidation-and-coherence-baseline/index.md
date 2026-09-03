@@ -254,8 +254,12 @@ Ruling backlog, one per session, Navigator-paced:
    the Engine deep entry in CONTEXT.md still describes pre-split
    `Engine.deliver()`.
 6. Overloaded words needing Avoid/qualification rulings: delivery,
-   execution, lineage, view, snapshot, profile, attempt, command,
-   territory (used, never defined).
+   execution, lineage, view, snapshot, profile, attempt, command.
+   ~~territory~~ — ruled 2026-09-03, Navigator-accepted: **Execution
+   territory** glossary entry anchored in the Motus execution contract
+   (`src/petrus/motus/execution/__init__.py`) and the
+   episode-owns-independent-execution-territory decision; bare
+   "territory" blessed as the short form in Motus context.
 7. ~~Undefined coined names~~ — ruled 2026-08-31: **Gondolin** and
    **Absurd** got glossary entries; **orb** and **pi/A2** were deliberately
    excluded as incidental substrate vocabulary and vendor runtime lane
