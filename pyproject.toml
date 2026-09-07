@@ -106,6 +106,7 @@ timeout_constant = 0.2
 [tool.ruff]
 line-length = 120
 target-version = "py314"
+extend-exclude = [".agents/skills"]
 
 [tool.ruff.lint]
 extend-select = ["C901"]

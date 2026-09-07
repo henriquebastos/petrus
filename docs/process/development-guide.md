@@ -32,6 +32,12 @@ never permits inventing a Navigator ruling that was not made.
 
 Python ≥3.14, managed with `uv`. Python source lives in `src/petrus/`; tests mirror ownership under `tests/`.
 
+The routine suite also needs Git repository metadata, Node, Graphviz `dot`,
+`ps`, `flock`, and Docker. The simulated Gondolin guest executes private-file
+helpers through `/usr/bin/python3` or `/bin/python3`; a container with Python
+only under `/usr/local/bin` is insufficient. Ruff excludes installed
+`.agents/skills` packages, which are maintained through their own update path.
+
 - Install/sync: `uv sync`
 - Focused behavior test: `uv run pytest -q PATH::NODE`
 - Fast static feedback: `scripts/check quick [PATH ...]`
