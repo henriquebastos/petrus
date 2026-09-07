@@ -743,6 +743,65 @@ while True:
             process.wait(5)
 
 
+@pytest.mark.parametrize("clean_shutdown", [True, False])
+@pytest.mark.parametrize("fresh_key", [b"replacement-installation-key", b""])
+def test_reconstructed_host_requires_current_authority_for_new_work(
+    tmp_path: Path, clean_shutdown: bool, fresh_key: bytes
+) -> None:
+    child = """
+import os
+from pathlib import Path
+from tests.petrus.agenticus.runtime.test_pi_a2_host import Authority, _host, _start
+
+root = Path({root!r})
+host = _host(root, Authority())
+operation = host.start(_start(root, "prior"))
+assert operation.wait(2).output_reference
+assert operation.close().verified
+if {clean!r}:
+    assert host.close()
+os._exit(0)
+""".format(root=str(tmp_path), clean=clean_shutdown)
+    completed = subprocess.run(
+        (sys.executable, "-c", child), cwd=Path(__file__).parents[4], capture_output=True, text=True, timeout=10
+    )
+    assert completed.returncode == 0, completed.stderr
+    authority = Authority()
+    calls = 0
+
+    def supply() -> bytearray:
+        nonlocal calls
+        calls += 1
+        return bytearray(fresh_key)
+
+    factory = Factory(Plan(), Plan())
+    reopened = _compose_pi_a2_scripted_client_runtime(
+        config=_config(tmp_path),
+        authority=PiA2DirectAuthority(authority.value().connection, authority.keys, supply),
+        client_factory=factory,
+    )
+    reopened.scripted_readiness()
+    try:
+        replay = reopened.start(_start(tmp_path, "prior"))
+        assert replay.wait(1).output_reference and replay.close().verified
+        assert calls == 0
+        for name in ("new", "another"):
+            if not fresh_key:
+                with pytest.raises(
+                    RuntimeProtocolError, match="credential-invalid" if calls == 0 else "authority-unavailable"
+                ):
+                    reopened.start(_start(tmp_path, name))
+                continue
+            operation = reopened.start(_start(tmp_path, name))
+            settlement = operation.wait(2)
+            assert bool(settlement.output_reference) is bool(fresh_key)
+            assert operation.close().verified
+        assert calls == 1
+        assert [client.api_key for client in factory.clients] == ([fresh_key.decode()] * 2 if fresh_key else [])
+    finally:
+        assert reopened.close()
+
+
 def test_pre_workspace_fingerprint_conflicts_without_authority_or_provider_work(tmp_path: Path) -> None:
     authority = Authority()
     provider = LocalProcessEnvironment()

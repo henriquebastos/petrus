@@ -1008,6 +1008,7 @@ class _PiA2RuntimeHost:
         self._scripted_conformance = False
         self._scripted_ready = False
         self._authority_requested = False
+        self._authority_ready = False
         self._closed = False
         self._close_error: RuntimeProtocolError | None = None
         self._lifecycle = uuid.uuid4().hex
@@ -1290,7 +1291,8 @@ class _PiA2RuntimeHost:
             if connection is not None and connection.status is ConnectionStatus.READY:
                 if connection.identity != self.authority.connection:
                     raise RuntimeProtocolError("connection-identity-mismatch")
-                return connection
+                if self._authority_ready:
+                    return connection
             if self._authority_requested:
                 raise RuntimeProtocolError("authority-unavailable")
             self._authority_requested = True
@@ -1302,11 +1304,20 @@ class _PiA2RuntimeHost:
             opaque = OpaqueState(supplied)
             _erase(supplied)
             try:
-                return self._custody.authorize(
-                    self.authority.connection,
-                    opaque,
-                    operation_id=self._lifecycle_operation("authorize"),
-                )
+                if connection is not None and connection.status is ConnectionStatus.READY:
+                    current = self._custody.rotate(
+                        connection.identity.connection_id,
+                        opaque,
+                        operation_id=self._lifecycle_operation("rotate"),
+                    )
+                else:
+                    current = self._custody.authorize(
+                        self.authority.connection,
+                        opaque,
+                        operation_id=self._lifecycle_operation("authorize"),
+                    )
+                self._authority_ready = True
+                return current
             finally:
                 opaque.erase()
 
