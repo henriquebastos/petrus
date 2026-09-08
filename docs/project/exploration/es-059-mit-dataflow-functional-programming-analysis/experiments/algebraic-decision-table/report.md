@@ -23,7 +23,7 @@ nineteen, and one genuinely sequential piece of the ladder — the
 `(lineage, fingerprint)` rung reset — did **not** become a case. It moved into
 a `normalize` pre-step, which is `route_ci` in miniature (§10.5, honestly).
 
-Baseline: Petrus `main` at `9a3cf8a`, the commit that landed v1. Nothing under
+Baseline: Petrus `main` at `40f73a2`, the commit that landed v1. Nothing under
 `src/`, `spec/`, `tests/`, or `../typed-flow-vertical-slice/` was modified;
 `git status` shows only this new directory `[E]`.
 

@@ -75,7 +75,7 @@ specific facts without becoming canonical.
 Trinity was inspected at exact commit
 [`499cac04a1bd3c4a9cca074a198387e03140eb56`](https://github.com/Abilityai/trinity/tree/499cac04a1bd3c4a9cca074a198387e03140eb56),
 whose repository version is `0.8.5`. Petrus was inspected at current local
-commit `8d15820880521b5059f3eb624a7db457bf1e9a84`. The comparison reads code,
+commit `ac07ff04de53064f18500cfcbbb93efb74e5b9fb`. The comparison reads code,
 schemas, tests, deployment composition, contributor invariants, and retained
 architecture—not only marketing pages.
 

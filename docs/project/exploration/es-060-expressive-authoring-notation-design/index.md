@@ -20,7 +20,7 @@ related:
 source_context:
   - StrangeLoop 2011 slide deck, Gerald Jay Sussman, "We Really Don't Know
     How to Compute!" (local copy analyzed on 2026-08-26)
-  - ES-059 experiment verdicts at Petrus commit af1d0f9
+  - ES-059 experiment verdicts at Petrus commit 5b81e9a
 research_sources:
   - https://www.infoq.com/presentations/We-Really-Dont-Know-How-To-Compute/
   - https://dspace.mit.edu/handle/1721.1/44215

@@ -108,7 +108,7 @@ Read these before editing the experiment:
 7. [Product principles](../../../product/principles.md).
 
 The Petrus source/API baseline inspected for this brief is commit
-[`c6c9bfde3f88e1d123e0141bf28d04eaa0665e65`](https://github.com/henriquebastos/petrus/tree/c6c9bfde3f88e1d123e0141bf28d04eaa0665e65).
+[`0123f6cbd8780f55ad31527891899afb5e4e6132`](https://github.com/henriquebastos/petrus/tree/0123f6cbd8780f55ad31527891899afb5e4e6132).
 The implementation session uses its current checkout, but if any defining API
 below has changed it must update this brief or the experiment report with the
 new source of truth rather than silently preserving stale calls.
