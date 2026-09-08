@@ -1,0 +1,31 @@
+name: Release validation
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+        with:
+          version: 0.12.7
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - run: sudo apt-get update && sudo apt-get install -y graphviz
+      - run: uv sync --frozen
+      - name: Run scheduled DST campaign
+        env:
+          CAMPAIGN_ID: release-${{ github.sha }}
+        run: >-
+          uv run --frozen python -m tests.dst.campaign --tier scheduled
+          --campaign-id "$CAMPAIGN_ID" --report /tmp/petrus-dst-campaign.json
+      - name: Record campaign evidence
+        run: python3 -c 'from pathlib import Path; print(Path("/tmp/petrus-dst-campaign.json").read_text())'
+      - run: scripts/check release
