@@ -1,26 +1,12 @@
-# DST executable World version 3
+# 1 DST World version 3 compatibility
 
-**Status:** Supported legacy cross-project test-kit contract. Version 4 is the
-current artifact-authoring contract; version 3 decode and replay remain
-supported unchanged. This is not a Petrus runtime product API and is not
-re-exported from the `petrus` package root.
+A World using `Budget` still authors v3 artifacts, with optional seeded
+provenance. `BudgetV4` authors v4 and measures profile resources. Read the
+complete [World reference](dst-world.md) for both authoring paths.
 
-This document specifies `petrus.testing.dst/v3` and `petrus-dst-world`
-artifact version 3. It adds seeded discovery provenance to the exact operations
-and failure semantics owned by the supported [version 2 contract](dst-world-v2.md).
-The replay-result shape does not change: version 3 artifacts still produce
-`petrus-dst-world-replay-result` version 2. Artifact and result versions evolve
-independently.
+<a id="compatibility-change"></a>
+## 1a Compatibility change
 
-Versions 1 and 2 remain strict decode/replay contracts under
-[`dst-world-v1`](dst-world-v1.md) and [`dst-world-v2`](dst-world-v2.md). The
-[test-kit decision](../project/decisions/records/2026-08-17T2249Z-ship-a-supported-cross-project-dst-test-kit.md)
-continues to own the support boundary.
-
-New scenarios which account for profile-owned retained state use the
-[`petrus.testing.dst/v4` contract](dst-world-v4.md).
-
-## Compatibility change
 
 | Concern | Previous | Current |
 | --- | --- | --- |
@@ -34,872 +20,117 @@ opaque generation ownership, checker cadence, scheduling, failure retention,
 and replay meanings do not change. The defining module exports explicit v1/v2
 constants and models; unknown artifact versions still fail closed.
 
-## Seeded authorities
+<a id="seeded-authorities"></a>
+## 1b Seeded authorities
 
-`ChoiceStreams` uses the pinned `sha256-counter-v1` algorithm. One integer seed
-from 0 through `2^53 - 1` derives four explicit authorities:
+The [seeded-choice contract](dst-world.md#seeded-authorities) pins the exact
+`sha256-counter-v1` algorithm, isolated counters, ranges, and golden vectors.
 
-| Authority | Intended ownership |
+<a id="provenance-and-replay"></a>
+## 1c Provenance and replay
+
+The [provenance contract](dst-world.md#provenance-and-replay) defines `origin`
+and expanded-operation replay. Replay uses no seed or generator.
+
+<a id="retained-proofs"></a>
+## 1d Retained proofs
+
+Each fixture contains the exact profile/checker identities, operations,
+expectations, and journal digest. The tests own the executable assertions;
+[CV19.DS2](../project/roadmap/cv19-deterministic-simulation-testing/cv19-ds2-deterministic-event-and-fault-harness.md)
+records delivery evidence. Earlier prose and run counts remain in Git history.
+
+| Boundary | Retained fixtures |
 | --- | --- |
-| `workload` | Which valid or deliberately invalid normalized external action a DS3 generator proposes. |
-| `fault` | Which profile-owned fault/cut/disposition a generator proposes. |
-| `identifier` | Stable generated IDs, isolated further by normalized namespace. |
-| `event_order` | Which eligible external/scheduler ordering a generator proposes. |
+| <a id="seeded-choice-provenance"></a>Seeded choice provenance | [seeded-projection-crash-recovery-world-v3.json](../../tests/dst/fixtures/seeded-projection-crash-recovery-world-v3.json) |
+| <a id="pre-commit-terminal-refusal"></a>Pre-commit terminal refusal | [history-refusal-crash-recovery-world-v3.json](../../tests/dst/fixtures/history-refusal-crash-recovery-world-v3.json) |
+| <a id="dispatch-acceptance-refusal"></a>Dispatch acceptance refusal | [dispatch-refusal-crash-recovery-world-v3.json](../../tests/dst/fixtures/dispatch-refusal-crash-recovery-world-v3.json) |
+| <a id="joined-begin-transaction-commit-refusal"></a>Joined begin-transaction commit refusal | [joined-begin-commit-refusal-world-v3.json](../../tests/dst/fixtures/joined-begin-commit-refusal-world-v3.json) |
+| <a id="joined-initial-creation-commit-refusal"></a>Joined initial-creation commit refusal | [joined-creation-commit-refusal-world-v3.json](../../tests/dst/fixtures/joined-creation-commit-refusal-world-v3.json) |
+| <a id="joined-initial-creation-acknowledgement-loss"></a>Joined initial-creation acknowledgement loss | [joined-creation-ack-loss-world-v3.json](../../tests/dst/fixtures/joined-creation-ack-loss-world-v3.json) |
+| <a id="joined-initial-source-registration-transaction-pair"></a>Joined initial source-registration transaction pair | [joined-source-creation-commit-refusal-world-v3.json](../../tests/dst/fixtures/joined-source-creation-commit-refusal-world-v3.json)<br>[joined-source-creation-ack-loss-world-v3.json](../../tests/dst/fixtures/joined-source-creation-ack-loss-world-v3.json) |
+| <a id="joined-dispatch-refusal-before-commit"></a>Joined Dispatch refusal before commit | [joined-dispatch-refusal-world-v3.json](../../tests/dst/fixtures/joined-dispatch-refusal-world-v3.json) |
+| <a id="lifecycle-reset-and-late-terminal"></a>Lifecycle reset and late terminal | [lifecycle-reset-late-terminal-world-v3.json](../../tests/dst/fixtures/lifecycle-reset-late-terminal-world-v3.json) |
+| <a id="timer-reconstruction"></a>Timer reconstruction | [timer-crash-recovery-world-v3.json](../../tests/dst/fixtures/timer-crash-recovery-world-v3.json) |
+| <a id="localdispatch-retry-reconstruction"></a>LocalDispatch retry reconstruction | [retry-crash-exhaustion-world-v3.json](../../tests/dst/fixtures/retry-crash-exhaustion-world-v3.json) |
+| <a id="localdispatch-delayed-retry-reconstruction"></a>LocalDispatch delayed-retry reconstruction | [delayed-retry-crash-recovery-world-v3.json](../../tests/dst/fixtures/delayed-retry-crash-recovery-world-v3.json) |
+| <a id="lifecycle-cancellation-refusal-reconstruction"></a>Lifecycle cancellation-refusal reconstruction | [lifecycle-cancellation-refusal-world-v3.json](../../tests/dst/fixtures/lifecycle-cancellation-refusal-world-v3.json) |
+| <a id="localdispatch-successful-terminal-recollection"></a>LocalDispatch successful-terminal recollection | [local-terminal-redelivery-world-v3.json](../../tests/dst/fixtures/local-terminal-redelivery-world-v3.json) |
+| <a id="identified-source-delivery-and-redelivery"></a>Identified source delivery and redelivery | [identified-delivery-redelivery-world-v3.json](../../tests/dst/fixtures/identified-delivery-redelivery-world-v3.json) |
+| <a id="delayed-external-terminal-reconstruction"></a>Delayed external terminal reconstruction | [delayed-terminal-recovery-world-v3.json](../../tests/dst/fixtures/delayed-terminal-recovery-world-v3.json) |
+| <a id="post-commit-history-acknowledgement-loss"></a>Post-commit History acknowledgement loss | [history-ack-loss-recovery-world-v3.json](../../tests/dst/fixtures/history-ack-loss-recovery-world-v3.json) |
+| <a id="joined-identified-delivery-commit-refusal"></a>Joined identified-delivery commit refusal | [joined-delivery-commit-refusal-world-v3.json](../../tests/dst/fixtures/joined-delivery-commit-refusal-world-v3.json) |
+| <a id="joined-identified-delivery-acknowledgement-loss"></a>Joined identified-delivery acknowledgement loss | [joined-delivery-ack-loss-world-v3.json](../../tests/dst/fixtures/joined-delivery-ack-loss-world-v3.json) |
+| <a id="joined-stale-scope-drop-transaction-pair"></a>Joined stale-scope drop transaction pair | [joined-scoped-drop-commit-refusal-world-v3.json](../../tests/dst/fixtures/joined-scoped-drop-commit-refusal-world-v3.json)<br>[joined-scoped-drop-ack-loss-world-v3.json](../../tests/dst/fixtures/joined-scoped-drop-ack-loss-world-v3.json) |
+| <a id="joined-future-scope-quarantine-transaction-pair"></a>Joined future-scope quarantine transaction pair | [joined-scoped-quarantine-commit-refusal-world-v3.json](../../tests/dst/fixtures/joined-scoped-quarantine-commit-refusal-world-v3.json)<br>[joined-scoped-quarantine-ack-loss-world-v3.json](../../tests/dst/fixtures/joined-scoped-quarantine-ack-loss-world-v3.json) |
+| <a id="joined-begin-acknowledgement-loss"></a>Joined begin acknowledgement loss | [joined-begin-ack-loss-world-v3.json](../../tests/dst/fixtures/joined-begin-ack-loss-world-v3.json) |
+| <a id="joined-terminal-commit-refusal"></a>Joined terminal commit refusal | [joined-terminal-commit-refusal-world-v3.json](../../tests/dst/fixtures/joined-terminal-commit-refusal-world-v3.json) |
+| <a id="joined-terminal-acknowledgement-loss"></a>Joined terminal acknowledgement loss | [joined-terminal-ack-loss-world-v3.json](../../tests/dst/fixtures/joined-terminal-ack-loss-world-v3.json) |
+| <a id="joined-failed-terminal-commit-refusal"></a>Joined failed-terminal commit refusal | [joined-failure-commit-refusal-world-v3.json](../../tests/dst/fixtures/joined-failure-commit-refusal-world-v3.json) |
+| <a id="joined-failed-terminal-acknowledgement-loss"></a>Joined failed-terminal acknowledgement loss | [joined-failure-ack-loss-world-v3.json](../../tests/dst/fixtures/joined-failure-ack-loss-world-v3.json) |
+| <a id="joined-failed-firing-projection-transaction-pair"></a>Joined failed-firing projection transaction pair | [joined-failure-projection-commit-refusal-world-v3.json](../../tests/dst/fixtures/joined-failure-projection-commit-refusal-world-v3.json)<br>[joined-failure-projection-ack-loss-world-v3.json](../../tests/dst/fixtures/joined-failure-projection-ack-loss-world-v3.json) |
+| <a id="joined-terminal-and-refused-projection-commit"></a>Joined terminal and refused projection commit | [joined-projection-commit-refusal-world-v3.json](../../tests/dst/fixtures/joined-projection-commit-refusal-world-v3.json) |
+| <a id="joined-projection-acknowledgement-loss"></a>Joined projection acknowledgement loss | [joined-projection-ack-loss-world-v3.json](../../tests/dst/fixtures/joined-projection-ack-loss-world-v3.json) |
+| <a id="joined-handler-registration-projection-transaction-pair"></a>Joined handler-registration projection transaction pair | [joined-registration-projection-commit-refusal-world-v3.json](../../tests/dst/fixtures/joined-registration-projection-commit-refusal-world-v3.json)<br>[joined-registration-projection-ack-loss-world-v3.json](../../tests/dst/fixtures/joined-registration-projection-ack-loss-world-v3.json) |
+| <a id="joined-runtime-policy-source-seal-transaction-pair"></a>Joined runtime-policy source seal transaction pair | [joined-seal-commit-refusal-world-v3.json](../../tests/dst/fixtures/joined-seal-commit-refusal-world-v3.json)<br>[joined-seal-ack-loss-world-v3.json](../../tests/dst/fixtures/joined-seal-ack-loss-world-v3.json) |
+| <a id="joined-lifecycle-reset-commit-refusal"></a>Joined lifecycle reset commit refusal | [joined-reset-commit-refusal-world-v3.json](../../tests/dst/fixtures/joined-reset-commit-refusal-world-v3.json) |
+| <a id="joined-lifecycle-reset-acknowledgement-loss"></a>Joined lifecycle reset acknowledgement loss | [joined-reset-ack-loss-world-v3.json](../../tests/dst/fixtures/joined-reset-ack-loss-world-v3.json) |
+| <a id="joined-lifecycle-cancellation-commit-refusal"></a>Joined lifecycle cancellation commit refusal | [joined-cancellation-commit-refusal-world-v3.json](../../tests/dst/fixtures/joined-cancellation-commit-refusal-world-v3.json) |
+| <a id="joined-lifecycle-cancellation-acknowledgement-loss"></a>Joined lifecycle cancellation acknowledgement loss | [joined-cancellation-ack-loss-world-v3.json](../../tests/dst/fixtures/joined-cancellation-ack-loss-world-v3.json) |
+| <a id="joined-lifecycle-close-transaction-pair"></a>Joined lifecycle close transaction pair | [joined-close-commit-refusal-world-v3.json](../../tests/dst/fixtures/joined-close-commit-refusal-world-v3.json)<br>[joined-close-ack-loss-world-v3.json](../../tests/dst/fixtures/joined-close-ack-loss-world-v3.json) |
+| <a id="joined-lifecycle-open-transaction-pair"></a>Joined lifecycle open transaction pair | [joined-open-commit-refusal-world-v3.json](../../tests/dst/fixtures/joined-open-commit-refusal-world-v3.json)<br>[joined-open-ack-loss-world-v3.json](../../tests/dst/fixtures/joined-open-ack-loss-world-v3.json) |
 
-Every authority has its own counter and hash domain. Identifier namespaces have
-their own counters as well. Additional fault, identifier, or event-order draws
-therefore cannot perturb the workload sequence. `index(authority, stop)` uses
-deterministic rejection sampling rather than biased modulo reduction;
-`identifier(namespace)` returns a seeded 128-bit hexadecimal identifier.
+The fixture families make different claims:
 
-For draw ordinal `n` and rejection probe `p`, the algorithm hashes the UTF-8
-compact JSON array `["sha256-counter-v1", seed, stream_key, n, p]`. It reads
-the digest as one unsigned big-endian 256-bit integer. For `stop` from 1 through
-`2^53 - 1`, index draws accept values below the largest multiple of `stop` in
-the 256-bit range and return the remainder; a rejection increments only `p`,
-with a fail-loud ceiling of 16 probes. Identifier draws use stream key
-`identifier:<namespace>`, probe `0`, and the first 16 digest bytes. Public tests
-pin seed `1729` to workload indexes `[584, 541, 292, 147]` for `stop=1000` and
-identifier `scenario-4a6cb3d68a08da140c56fd1ed8bcbce2`.
+1. JSONL and split Dispatch cases distinguish custody refusal, terminal
+   commit refusal, and acknowledgement loss after durable acceptance.
+   Recovery preserves recorded invocation identity and avoids re-preparation.
+2. Joined PostgreSQL/Absurd cases distinguish refused transactions from
+   accepted transactions whose acknowledgement is lost. Begin records and
+   task spawn commit together; terminal and projection commit separately.
+   A refused begin may prepare again because no invocation became durable.
+3. Lifecycle cases distinguish canonical open/reset/close from later
+   cancellation repair. A refused reset leaves the old Worker authoritative;
+   an accepted reset fences its completion. Terminal close opens no successor
+   generation. Dropping an Engine does not kill the external Worker.
+4. Identified delivery preserves prior acknowledgement across reload.
+   Stale-scope drop and future-scope quarantine have separate transaction pairs.
+   A poisoned Engine is never read or reused; observations use detached durable
+   truth or the last legal snapshot and disclose unavailable live views.
+5. The zero-backoff retry fixture makes no delayed-time claim. Delayed retry
+   uses the public LocalDispatch provider clock, with SQLite retaining custody.
+   Timer reconstruction and delayed external delivery are separate cases.
+6. Independent checkers compare authored external/transaction facts with
+   detached production observations. Their deliberate-failure tests exercise
+   refusal; this inventory does not claim exhaustive adapter fault coverage.
 
-The World exposes these authorities only to the scenario author/generator as
-`world.choices`. A World without a seed refuses that property. Profiles and
-`ScenarioContext` receive no choice door: application semantics cannot hide a
-random choice inside `apply`, `observe`, or lifecycle construction. Chosen
-state-affecting values must return through ordinary normalized commands,
-faults, and ordering operations.
+Replay Local/JSONL/SQLite fixtures through `tests.dst.replay_world`, for example:
 
-## Provenance and replay
-
-The artifact `origin` records:
-
-- exact algorithm identity;
-- root seed; and
-- a sorted map of authority/identifier-namespace draw counts.
-
-Provenance explains discovery but does not define reproduction. The expanded
-operation list remains authoritative. Replay deliberately constructs an
-unseeded World, never calls `ChoiceStreams`, and executes the retained commands,
-faults, observations, queue choices, lifecycle operations, and terminal failure
-attempts. Changing only `origin.seed` cannot change replay output. A future
-algorithm change requires a new API/artifact compatibility identity, but old
-expanded artifacts remain replayable without the old generator.
-
-Choice draws are not a second interpreter and are not serialized as executable
-callbacks. DS3 owns Hypothesis state machines, generator policy, semantic
-coverage, and shrinking; those generators call these authorities and submit the
-result through the same World/Timeline interpreter.
-
-## Retained proofs
-
-### Seeded choice provenance
-
-[`seeded-projection-crash-recovery-world-v3.json`](../../tests/dst/fixtures/seeded-projection-crash-recovery-world-v3.json)
-uses seed `1729` and all four authorities around the real public Engine profile.
-Two fresh authored runs produce the same 17 expanded operations. Data-only
-replay reconstructs after the retained crash and converges without consulting
-the seed:
-
-```bash
-UV_FROZEN=1 uv run python -m tests.dst.replay_world \
+```sh
+uv run --frozen python -m tests.dst.replay_world \
   tests/dst/fixtures/seeded-projection-crash-recovery-world-v3.json
 ```
 
-The route returns `outcome: "pass"`, `converged`, 17 operations, 27 journal
-entries, and digest
-`sha256:ddf70617988b010a3300fc6703eb0c8f1bc1c4b0751b4156c2059f851d34a779`.
+Joined fixtures need the Docker PostgreSQL harness. Their replay tests are in
+[test_joined_world.py](../../tests/dst/test_joined_world.py). For example:
 
-### Pre-commit terminal refusal
-
-[`history-refusal-crash-recovery-world-v3.json`](../../tests/dst/fixtures/history-refusal-crash-recovery-world-v3.json)
-uses a second exact public-Engine profile around a faulting JSONL History
-delegate. The profile refuses `ActivityCompleted` before the delegate accepts
-it, observes no terminal or projection beyond the prior durable frontier,
-abruptly drops the poisoned generation, and reloads through `Engine.load`.
-Reconciliation republishes the recorded invocation without calling `prepare`;
-the retained observation proves its occurrence, activity, input, execution
-policy, correlation, and idempotency identities are unchanged. An exact
-external terminal redelivery then converges under the fair suffix.
-
-The independent commit-authority checker compares canonical terminal records
-with authored external terminal deliveries minus observed pre-commit refusals
-after every atomic operation and fresh load. Its deliberate-failure test proves
-that it rejects a terminal above that external acceptance bound.
-
-```bash
-UV_FROZEN=1 uv run python -m tests.dst.replay_world \
-  tests/dst/fixtures/history-refusal-crash-recovery-world-v3.json
+```sh
+uv run --frozen pytest -q \
+  tests/dst/test_joined_world.py::test_retained_joined_begin_fixture_replays_without_the_authored_scenario \
+  --forbid-skips
 ```
 
-The route returns `outcome: "pass"`, `converged`, 19 operations, 31 journal
-entries including 11 checker evaluations, and digest
-`sha256:d8a9dec14dc40dc5a27afeaec9028ac37646695e22ff75bee2ce7f2c0f06aff1`.
-
-### Dispatch acceptance refusal
-
-[`dispatch-refusal-crash-recovery-world-v3.json`](../../tests/dst/fixtures/dispatch-refusal-crash-recovery-world-v3.json)
-targets the existing public `Dispatch.dispatch` contract after the production
-Engine has committed `ActivityRequested`. The test adapter refuses custody,
-and the profile observes six canonical records, no pending Dispatch work, and
-a poisoned live Engine. Abrupt process loss then discards the generation.
-
-Fresh `Engine.load` reconstructs the outstanding Activity solely from History
-and republishes the byte-equivalent occurrence, activity, input, execution
-policy, correlation, and idempotency through a new Dispatch. The total handler
-`prepare` count remains one. An independent checker continuously bounds
-terminal authority by accepted Dispatch attempts and rejects re-preparation or
-a changed invocation.
-
-```bash
-UV_FROZEN=1 uv run python -m tests.dst.replay_world \
-  tests/dst/fixtures/dispatch-refusal-crash-recovery-world-v3.json
-```
-
-The route returns `outcome: "pass"`, `converged`, 14 operations, 24 journal
-entries including 9 checker evaluations, and digest
-`sha256:63301ff867ae1c9950d0307e9ad74952e4c10105e3d60d24cd00a5e0496f733a`.
-
-### Joined begin-transaction commit refusal
-
-[`joined-begin-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-begin-commit-refusal-world-v3.json)
-uses the public `petrus.engine.absurd` provider over disposable PostgreSQL.
-Unlike the split Dispatch-refusal profile, Absurd places
-`CandidateSelected`, the firing prefix, `ActivityRequested`, and task spawn in
-one joined transaction. A connection-boundary adapter refuses that commit
-before acceptance; production Engine rollback and poison handling run
-unchanged. Independent PostgreSQL observations then find only the two-record
-construction prefix and no Absurd queue task.
-
-The World revokes and drops the poisoned generation. Fresh public provider
-load reconstructs the original marking, prepares the candidate again because
-no invocation was ever durable, and accepts exactly one four-record begin plus
-one pending task. The checker continuously equates durable candidate, firing,
-request, and task counts with the adapter's accepted joined-transaction ledger
-and rejects a phantom post-rollback task. The scenario ends in the legitimate
-external wait for a Worker result; it does not invent one.
-
-This profile is real-boundary qualification, not a claim that the generic
-World simulates PostgreSQL or Absurd. Its data-only concrete replay route uses
-the ordinary pytest PostgreSQL harness:
-
-```bash
-UV_FROZEN=1 uv run pytest -q \
-  tests/dst/test_joined_world.py::test_retained_joined_begin_fixture_replays_without_the_authored_scenario
-```
-
-The route returns `outcome: "pass"`, `external_wait`, 9 operations, 16 journal
-entries including 6 checker evaluations, and digest
-`sha256:0b2129eaf3802d174a5526f5e32b0e6de8f923cd2d8ce3e05bd89c2904c930c7`.
-
-### Joined initial-creation commit refusal
-
-[`joined-creation-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-creation-commit-refusal-world-v3.json)
-qualifies the refused side of the real Absurd/PostgreSQL initial-construction
-boundary. The profile's opaque process generation exists before an Engine;
-its authored `engine.create` command alone calls public `create_engine` through
-the normalized interpreter. Production prepares `InstanceCreated` and the
-initial `TokensInitialized`, but the test connection refuses the transaction
-before PostgreSQL accepts either record.
-
-After revocation and abrupt drop, a fresh generation observes no canonical
-instance. Retrying the same command creates the supplied identity and marking
-once. The independent checker derives authority from accepted/refused
-PostgreSQL transaction evidence and detached canonical records, and rejects an
-instance backed only by rollback. The retained route returns `outcome: "pass"`,
-`external_wait`, 9 operations, 16 journal entries including 6 checker
-evaluations, and digest
-`sha256:f9a40de727afd825a844fb5657d851fc5b49a7e509c424cfc75c9c75052fbe6a`.
-
-### Joined initial-creation acknowledgement loss
-
-[`joined-creation-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-creation-ack-loss-world-v3.json)
-proves the accepted side of the same construction boundary. Production commits
-one `InstanceCreated` and initial marking, then the test connection raises as
-if the commit acknowledgement were lost before an Engine can be returned.
-Detached PostgreSQL truth remains the only authority at that boundary.
-
-Fresh public `load_engine` reconstructs exactly those two records, the supplied
-identity, and the initial token without another creation transaction. The same
-checker rejects acknowledgement-loss evidence without an accepted transaction.
-The retained route returns `outcome: "pass"`, `external_wait`, 7 operations,
-13 journal entries including 5 checker evaluations, and digest
-`sha256:cc2123263ec933f7fb57c21c05a19f2a44dcb413556bb239ee1816596bd80836`.
-
-### Joined initial source-registration transaction pair
-
-[`joined-source-creation-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-source-creation-commit-refusal-world-v3.json)
-qualifies the distinct initial-construction shape for a net with a source
-transition and no initial marking. Production prepares `InstanceCreated` and
-`DeliveryRegistrationOpened` in one PostgreSQL transaction. The test
-connection refuses that transaction before acceptance, so detached truth
-contains neither instance nor registration. After abrupt drop, fresh profile
-load observes absence; retrying the same normalized `engine.create` command
-commits the identity and default registration exactly once. Public snapshot
-then reports one armed `source` registration and `awaiting` status. The
-retained route has 9 operations, 16 journal entries including 6 checker
-evaluations, disposition `external_wait`, and journal digest
-`sha256:fd75f35182dff7f1459ccb62ced71bc1ef3820f275987623ee9e5e03d2f95891`.
-
-[`joined-source-creation-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-source-creation-ack-loss-world-v3.json)
-commits that same two-record batch and then loses the acknowledgement before
-an Engine is returned. Fresh public `load_engine` reconstructs the exact
-instance and armed registration without another creation transaction. Its
-retained route has 7 operations, 13 journal entries including 5 checker
-evaluations, disposition `external_wait`, and journal digest
-`sha256:f2b3ee631609f46d598aa3662ea73fd27f9d9d94e921251dcabecc06d0dec6a3`.
-The independent checker compares accepted/refused PostgreSQL transactions with
-detached History and public snapshot facts; mutation checks reject both a
-phantom registration after rollback and acknowledgement loss without accepted
-authority.
-
-### Joined Dispatch refusal before commit
-
-[`joined-dispatch-refusal-world-v3.json`](../../tests/dst/fixtures/joined-dispatch-refusal-world-v3.json)
-uses a separate profile identity over the same public Absurd/PostgreSQL
-composition. Its one-shot adapter raises at the provider's task-spawn call,
-after production has prepared the four semantic begin records but before task
-insertion or transaction commit. Production rollback again leaves only the
-construction prefix and no task, but this cut proves the Dispatch-failure path
-rather than a refused commit acknowledgement.
-
-After abrupt drop, fresh public provider load prepares from the original
-marking and commits exactly one begin plus one pending task. The same detached
-transaction-authority checker rejects partial prefixes and phantom tasks; the
-scenario again stops at the legitimate external wait for a Worker result.
-
-```bash
-UV_FROZEN=1 uv run pytest -q \
-  tests/dst/test_joined_world.py::test_retained_joined_dispatch_fixture_replays_without_the_authored_scenario
-```
-
-The route returns `outcome: "pass"`, `external_wait`, 9 operations, 16 journal
-entries including 6 checker evaluations, and digest
-`sha256:e9bc6574670b3c2d55c8659c3ba9b0bea826544502bd174cd4d5885577483a7a`.
-
-### Lifecycle reset and late terminal
-
-[`lifecycle-reset-late-terminal-world-v3.json`](../../tests/dst/fixtures/lifecycle-reset-late-terminal-world-v3.json)
-uses a third exact public-Engine profile. It opens lifecycle generation 1,
-delivers identified scoped input, begins one Activity, and resets the scope to
-generation 2 while that Activity is in flight. After an abrupt process drop,
-`Engine.load` reconstructs the reset, and the fresh generation's first public
-`advance` reconciles the cancellation fence before any late terminal enters
-the new Dispatch.
-
-The exact late result is quarantined once as `ActivityTerminalQuarantined`.
-Redelivering it again is acknowledged without another History append, and the
-cancelled Activity never records an ordinary terminal or projection effect. A
-detached lifecycle-authority checker independently compares active generation,
-canonical opens/resets/quarantines, terminal deliveries, and projection bounds
-against authored world facts after every atomic operation and fresh load.
-
-```bash
-UV_FROZEN=1 uv run python -m tests.dst.replay_world \
-  tests/dst/fixtures/lifecycle-reset-late-terminal-world-v3.json
-```
-
-The route returns `outcome: "pass"`, `quiescent`, 22 operations, 36 journal
-entries including 13 checker evaluations, and digest
-`sha256:1719800ed00cfb705535b47b359d23988080b19a073f6247a995776ab7d9b194`.
-
-### Timer reconstruction
-
-[`timer-crash-recovery-world-v3.json`](../../tests/dst/fixtures/timer-crash-recovery-world-v3.json)
-uses a public-Engine profile with the World logical clock. The first generation
-returns deadline 5 and is dropped while that deadline exists only in the
-World's volatile queue. Fresh `Engine.load` reconstructs the same deadline
-from canonical History. The World then advances once to instant 5 and records
-exactly one `TimerMatured` plus one delayed firing.
-
-The independent checker rejects early or duplicate maturation and any delayed
-firing without its canonical maturation fact. The retained route returns
-`outcome: "pass"`, `converged`, 15 operations, 24 journal entries including 8
-checker evaluations, and digest
-`sha256:82460bacb8628c897a35e19883cb0f91e07bc1343cd5944ea22592c940fc8a69`.
-
-### LocalDispatch retry reconstruction
-
-[`retry-crash-exhaustion-world-v3.json`](../../tests/dst/fixtures/retry-crash-exhaustion-world-v3.json)
-composes the production SQLite LocalDispatch and Worker doors. A two-attempt
-Activity reports one classified zero-backoff retryable failure, the process is
-dropped, and a fresh Engine/LocalDispatch generation reclaims the same logical
-invocation at epoch 2 without another `prepare`. The second retryable failure
-exhausts the policy and records exactly one `ActivityFailed` plus
-`FiringFailed`, with no business projection.
-
-The profile deliberately claims only zero-backoff retry semantics; provider
-time, delayed backoff, and lease expiry remain separate in that retained
-profile. Its independent checker bounds terminal authority by authored
-failures and preserves logical invocation identity across epochs. The retained
-route returns `outcome: "pass"`, `quarantined`, 18 operations, 30 journal
-entries including 11 checker evaluations, and digest
-`sha256:8158a70525b02afd7fb705ddec9ffc62a66d8c4ec6c9c0872062d36a05402392`.
-
-### LocalDispatch delayed-retry reconstruction
-
-[`delayed-retry-crash-recovery-world-v3.json`](../../tests/dst/fixtures/delayed-retry-crash-recovery-world-v3.json)
-uses the separately accepted LocalDispatch provider clock while leaving SQLite
-as custody and serialization authority. Epoch 1 fails at World instant 0 with
-a five-second retry interval. The process drops after retry admission; fresh
-public `Engine.load` and LocalDispatch construction preserve the durable
-availability deadline without another handler `prepare`.
-
-The World executes one public Worker claim at instant 4 and observes no work,
-then executes the same door at instant 5 and receives epoch 2 with unchanged
-activity, input, policy, correlation, and idempotency. An independent checker
-rejects any claim sequence other than first claim → unavailable-before-deadline
-→ available-at-deadline while retaining the original retry/exhaustion bounds.
-The retained route returns `outcome: "pass"`, `quarantined`, 22 operations, 35
-journal entries including 12 checker evaluations, and digest
-`sha256:339da88d51c682641b7e8fc8fbf8964622c2c031dd6c373f327b94464e26a6c1`.
-
-### Lifecycle cancellation-refusal reconstruction
-
-[`lifecycle-cancellation-refusal-world-v3.json`](../../tests/dst/fixtures/lifecycle-cancellation-refusal-world-v3.json)
-targets the public Dispatch cancellation door after `ScopeReset` has committed.
-The first generation retains the exact cancellation instruction but refuses
-custody, leaving the live Engine poisoned while canonical History already owns
-generation 2. The World revokes and drops that generation without settlement.
-
-Fresh `Engine.load` reconstructs the reset and submits the byte-equivalent
-occurrence, Activity invocation, policy, correlation, idempotency, and History
-position to a new Dispatch. The reset remains terminal authority; the accepted
-tombstone proves operational repair before the authored late delivery. The
-cancelled result never becomes an ordinary terminal or projection. The
-independent checker derives lifecycle and terminal bounds from authored facts
-and rejects changed repair instructions. The retained
-route returns `outcome: "pass"`, `quiescent`, 19 operations, 32 journal entries
-including 12 checker evaluations, and digest
-`sha256:0b4ccbadb61d020c28ea3f330fbd2a7bf27b1af9157db2a375e25f6bcbb3da69`.
-
-### LocalDispatch successful-terminal recollection
-
-[`local-terminal-redelivery-world-v3.json`](../../tests/dst/fixtures/local-terminal-redelivery-world-v3.json)
-proves the complementary successful-terminal cut. The Worker durably reports
-one result to LocalDispatch, its exact duplicate is acknowledged, and a
-different report is refused while canonical History still ends at
-`ActivityRequested`. The process is then dropped before Engine collection.
-Fresh `Engine.load` republishes the recorded invocation without another
-`prepare`, recollects the durable terminal, and records one
-`ActivityCompleted` plus one `FiringCompleted` with the first result.
-
-The independent checker derives result authority and expected duplicate/
-conflict dispositions from the authored provider-report ledger, then compares
-that model with detached canonical History and marking observations. Claimant
-UUIDs and provider timestamps do not enter the artifact. The retained route
-returns `outcome: "pass"`, `converged`, 15 operations, 26 journal entries
-including 10 checker evaluations, and digest
-`sha256:ff332ce259e54320354ba2006e59053d4c5fb83488482de32081b8a5503ceab9`.
-
-### Identified source delivery and redelivery
-
-[`identified-delivery-redelivery-world-v3.json`](../../tests/dst/fixtures/identified-delivery-redelivery-world-v3.json)
-drives the public Engine source door with stable external identities. One
-delivery commits before process loss; a fresh `Engine.load` acknowledges its
-exact redelivery without another canonical fact. Equal data under a distinct
-identity remains a distinct delivery. Reusing the first identity for changed
-content is refused by production ingress and poisons that writing generation,
-so the World drops it and resumes only through a second public load.
-
-The checker independently derives accepted identities, expected dispositions,
-and output values from the authored delivery-attempt ledger, then compares
-them with detached canonical delivery records and the public marking. During
-the refused-command boundary, observations use the last legal detached marking
-plus the unchanged durable JSONL History; the poisoned Engine is never read or
-reused. The retained route returns `outcome: "pass"`, `external_wait`, 15
-operations, 26 journal entries including 10 checker evaluations, and digest
-`sha256:e0223b0e0dd5ce6ce964cb9a72e38a9370f7f6b8a38d9571cdc1179e9a03d8bc`.
-
-### Delayed external terminal reconstruction
-
-[`delayed-terminal-recovery-world-v3.json`](../../tests/dst/fixtures/delayed-terminal-recovery-world-v3.json)
-separates external event delay from Dispatch-owned retry time. The profile
-authors one provider result for logical instant 5 and returns it to the World
-as a scheduled command. A crash discards that volatile queue entry while the
-profile's modeled external truth remains. Fresh public `Engine.load` re-proposes
-the same command; the fair phase advances directly to 5 and records one
-Activity completion, firing completion, and projection.
-
-The checker bounds canonical terminal facts by authored external deliveries
-and rejects any completion before the authored logical instant. The retained
-route returns `outcome: "pass"`, `converged`, 17 operations, 27 journal entries
-including 9 checker evaluations, and digest
-`sha256:a89273aadcb2aeb48e60832d658e6ae37ef8a09c5dcb14298e16bdd2b398c007`.
-
-### Post-commit History acknowledgement loss
-
-[`history-ack-loss-recovery-world-v3.json`](../../tests/dst/fixtures/history-ack-loss-recovery-world-v3.json)
-is the accepted side of the History ambiguity pair. Its adapter delegates the
-terminal append to production `JsonlHistoryStore`, observes durable acceptance,
-then raises as if the acknowledgement were lost. The writing Engine poisons;
-the World reads only the adapter's durable detached records at that boundary,
-drops the generation, and resumes through public `Engine.load`. Projection then
-completes without terminal redelivery or handler preparation.
-
-The checker treats the adapter's post-delegate callback as independent durable
-acceptance evidence and bounds canonical terminal/projection records by the
-authored external delivery. The retained route returns `outcome: "pass"`,
-`converged`, 15 operations, 25 journal entries including 9 checker evaluations,
-and digest
-`sha256:b69cd6760d3a1818f4cbfcc5f531d7ad3c970b0e383c5b5ba0abd62a0ff47c92`.
-
-### Joined identified-delivery commit refusal
-
-[`joined-delivery-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-delivery-commit-refusal-world-v3.json)
-qualifies the refused side of the real Absurd/PostgreSQL source-delivery
-acceptance boundary. Production prepares one identified
-`ExternalEventDelivered` and its `FiringBegun`, but the test connection refuses
-that transaction before PostgreSQL accepts it. Detached truth retains only
-construction records: no accepted identity, begun occurrence, produced token,
-or completed source firing.
-
-After revocation and abrupt drop, fresh public `load_engine` accepts and
-completes the same identity and payload in separate transactions. A further
-exact redelivery returns `PriorAcknowledgement` without another transaction,
-occurrence, token, or History record. The independent checker equates
-canonical acceptance/projection facts with their respective accepted or
-refused transaction attempts and rejects a canonical identity backed only by
-rollback. The retained route returns `outcome: "pass"`, `external_wait`, 10
-operations, 17 journal entries including 7 checker evaluations, and digest
-`sha256:362b508460976d44b5f043734b55874a9778aa62d59e5175df45976ccfaf3ff6`.
-
-### Joined identified-delivery acknowledgement loss
-
-[`joined-delivery-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-delivery-ack-loss-world-v3.json)
-proves the accepted side of that boundary. Production commits one identified
-external event and its begun source occurrence, then the test connection raises
-as if the acceptance commit acknowledgement were lost. Detached PostgreSQL
-truth shows exactly one identity and unfinished occurrence, with no produced
-token or completed source firing, while the writing Engine poisons.
-
-Fresh public `load_engine` reconstructs that accepted unfinished occurrence.
-Exact redelivery completes only it in a separate transaction; a subsequent
-redelivery returns `PriorAcknowledgement` and leaves the six-record frontier
-unchanged. The same independent checker requires acknowledgement loss to have
-one accepted acceptance transaction, requires the later completion transaction
-before projection facts, and rejects acknowledgement-loss evidence without
-canonical truth. The retained route returns `outcome: "pass"`, `external_wait`,
-9 operations, 16 journal entries including 7 checker evaluations, and digest
-`sha256:43c34a65646c2870b03dfaf2e6c0160c2f12f78c6138f90b1b43f99099c2bcc6`.
-
-### Joined stale-scope drop transaction pair
-
-[`joined-scoped-drop-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-scoped-drop-commit-refusal-world-v3.json)
-opens lifecycle generation 1, resets to generation 2, and submits an identified
-delivery against the stale exact generation. The test connection refuses the
-`ScopedDeliveryDropped` transaction before PostgreSQL acceptance. Detached
-truth retains the lifecycle fence but no disposition or accepted identity;
-fresh public load records the drop once, and a second exact redelivery returns
-the prior dropped acknowledgement without another transaction. The retained
-route has 13 operations, 22 journal entries including 9 checker evaluations,
-disposition `external_wait`, and artifact digest
-`sha256:630a6f1b0bad1a2e92c1761f03867a9f3ba4b22cadea4be0a55daaee72904345`.
-
-[`joined-scoped-drop-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-scoped-drop-ack-loss-world-v3.json)
-commits that same stale-generation disposition and loses its acknowledgement.
-Fresh public load reconstructs the accepted identity, and exact redelivery
-returns the prior `dropped` disposition without another History transaction.
-The retained route has 11 operations, 19 journal entries including 8 checker
-evaluations, disposition `external_wait`, and artifact digest
-`sha256:810aad82f71f205dd52f272c2d4080d1313a2e9a20f3e7c3e75fb785ce81cbe7`.
-Independent checkers compare accepted/refused transaction facts with detached
-lifecycle and delivery records; mutation checks reject both a phantom drop
-after rollback and acknowledgement loss without accepted authority.
-
-### Joined future-scope quarantine transaction pair
-
-[`joined-scoped-quarantine-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-scoped-quarantine-commit-refusal-world-v3.json)
-opens lifecycle generation 1 and submits an identified delivery against the
-future exact generation 2. The test connection refuses
-`ScopedDeliveryQuarantined` before PostgreSQL acceptance. Detached truth
-retains the current lifecycle but no disposition or accepted identity; fresh
-public load records the quarantine once, and exact redelivery returns the prior
-`quarantined` acknowledgement without another transaction. The retained route
-has 12 operations, 20 journal entries including 8 checker evaluations,
-disposition `external_wait`, and artifact digest
-`sha256:b55032380b61df27a99d0b256a2ec2a84f677a122a95f53950205b66d7ca4935`.
-
-[`joined-scoped-quarantine-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-scoped-quarantine-ack-loss-world-v3.json)
-commits that same future-generation disposition and loses its acknowledgement.
-Fresh public load reconstructs the accepted identity, and exact redelivery
-returns the prior `quarantined` disposition without another History
-transaction. The retained route has 10 operations, 17 journal entries
-including 7 checker evaluations, disposition `external_wait`, and artifact
-digest
-`sha256:8fd756a54297965afba4f9011d85674f578f21a96c58f3d7e910cd60558c2f1a`.
-Independent checkers compare accepted/refused transaction facts with detached
-lifecycle and delivery records; mutation checks reject both a phantom
-quarantine after rollback and acknowledgement loss without accepted authority.
-
-### Joined begin acknowledgement loss
-
-[`joined-begin-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-begin-ack-loss-world-v3.json)
-proves the accepted side of the real Absurd/PostgreSQL joined-begin boundary.
-Production commits `CandidateSelected`, the firing prefix,
-`ActivityRequested`, and one task in the same transaction; the test connection
-then raises as if that commit acknowledgement were lost. Detached PostgreSQL
-truth shows exactly one semantic begin and one pending task while the writing
-Engine poisons.
-
-Fresh public `load_engine` drives to the legitimate Worker wait without another
-handler `prepare`, semantic append, or task. The checker derives authority from
-accepted transaction attempts and detached PostgreSQL History/task custody; it
-rejects an acknowledgement-loss claim without that durable truth. The retained
-route returns `outcome: "pass"`, `external_wait`, 9 operations, 15 journal
-entries including 6 checker evaluations, and digest
-`sha256:e335a248d18103ea1e19e1843bb1666d760a19296cca35c7a5363ddde692466e`.
-
-### Joined terminal commit refusal
-
-[`joined-terminal-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-terminal-commit-refusal-world-v3.json)
-proves the refused side of the real Absurd/PostgreSQL terminal boundary. A real
-Worker completes one task in provider custody, then the test connection refuses
-the transaction containing `ActivityCompleted` before PostgreSQL accepts it.
-Detached truth shows one completed task, no canonical terminal or projection,
-and a poisoned writing Engine.
-
-After revocation and abrupt drop, fresh public `load_engine` recollects the same
-provider result, accepts one `ActivityCompleted`, and projects it exactly once.
-There is no second Worker completion, handler `prepare`, or task. The checker
-derives terminal authority from completed provider custody, recorded Worker
-completion, and accepted/refused PostgreSQL transactions; its mutation test
-rejects a canonical terminal authorized only by the refused transaction. The
-retained route returns `outcome: "pass"`, `converged`, 12 operations, 21
-journal entries including 9 checker evaluations, and digest
-`sha256:c61d9286f53a66cfa7484ff6bf440a35f377b8355b55bdf6fc4f8c9a017c631b`.
-
-### Joined terminal acknowledgement loss
-
-[`joined-terminal-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-terminal-ack-loss-world-v3.json)
-proves the accepted side of the real Absurd/PostgreSQL terminal boundary. A
-real Worker completes one task and production commits `ActivityCompleted`; the
-test connection then raises as if that terminal commit acknowledgement were
-lost. Detached provider truth shows one completed task and one canonical
-terminal while the writing Engine poisons.
-
-Fresh public `load_engine` projects the accepted terminal exactly once without
-another Worker completion, terminal delivery, or handler `prepare`. The checker
-derives terminal authority from accepted PostgreSQL transaction attempts,
-completed provider custody, and recorded Worker completion; it independently
-requires an accepted projection transaction for canonical projection. The
-retained route returns `outcome: "pass"`, `converged`, 12 operations, 21 journal
-entries including 9 checker evaluations, and digest
-`sha256:77698d04b4827861bf7f090606b37a576bdee4cb558d644147f9c34891b4f6b8`.
-
-### Joined failed-terminal commit refusal
-
-[`joined-failure-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-failure-commit-refusal-world-v3.json)
-qualifies the failed side of the real Absurd/PostgreSQL terminal boundary. A
-real Worker reports one non-retryable `ActivityFailure`, leaving failed provider
-custody. Production tries to commit `ActivityFailed`, but the test connection
-refuses that transaction. Detached PostgreSQL truth shows no canonical failure
-while the writing Engine poisons.
-
-Fresh public `load_engine` recollects that same provider failure and commits
-exactly one `ActivityFailed` followed by one `FiringFailed`. No second Worker
-failure, task, or handler `prepare` occurs, and the exact profile converts the
-production terminal raise into the `quarantined` disposition. The independent
-checker derives failure authority from failed provider custody, the recorded
-Worker failure, and accepted or refused PostgreSQL transaction attempts. Its
-mutation test rejects a canonical `ActivityFailed` backed only by the refused
-transaction. The retained route returns `outcome: "pass"`, `quarantined`, 12
-operations, 21 journal entries including 9 checker evaluations, and digest
-`sha256:50dabde303a773fe55c4863593997f55e9685bec1fc53ffb1c496fd0f27496c3`.
-
-### Joined failed-terminal acknowledgement loss
-
-[`joined-failure-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-failure-ack-loss-world-v3.json)
-proves the accepted side of that failed-terminal boundary. A real Worker
-reports one non-retryable `ActivityFailure`, production commits
-`ActivityFailed`, and the test connection then raises as if that transaction's
-acknowledgement were lost. Detached PostgreSQL truth shows one failed task and
-one canonical failure while the writing Engine poisons.
-
-Fresh public `load_engine` reconstructs the accepted failure and appends
-exactly one `FiringFailed` without recollecting provider custody, another Worker
-failure, task, or handler `prepare`. Public snapshot observation detaches the
-frozen `ActivityFailure` as its strict error/kind/details/retryable/retry-after
-value rather than exposing a live Python object. The independent checker
-requires accepted failed-terminal authority before canonical failure and
-rejects an acknowledgement-loss claim without it. The retained route returns
-`outcome: "pass"`, `quarantined`, 12 operations, 21 journal entries including 9
-checker evaluations, and digest
-`sha256:793402ed31fd80eb63a76c755ef31abdea120f9acb06cdb76cd7c74de6a1c9e1`.
-
-### Joined failed-firing projection transaction pair
-
-[`joined-failure-projection-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-failure-projection-commit-refusal-world-v3.json)
-starts after real Worker failure and accepted `ActivityFailed`, then refuses the
-separate transaction containing `FiringFailed`. Detached PostgreSQL truth
-retains failed provider custody and one canonical terminal failure but no
-failed-firing projection. Fresh public `load_engine` appends `FiringFailed`
-exactly once without another Worker failure, provider recollection, task, or
-handler `prepare`. The retained route has 12 operations, 21 journal entries
-including 9 checker evaluations, disposition `quarantined`, and artifact
-digest
-`sha256:6d73210128cfa3054e2845beda9de4070d9a4e3e31ae3ceb8d5b87af11b8f543`.
-
-[`joined-failure-projection-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-failure-projection-ack-loss-world-v3.json)
-commits `FiringFailed` and loses the transaction acknowledgement. Fresh public
-load reconstructs the already-quarantined state without another projection or
-provider operation. Its retained route has the same operation, checker, and
-journal counts and artifact digest
-`sha256:3324bfb058df3de2f1dda80391b210b5907b13fbd639c916ee13087b2b5a766b`.
-The pair's independent checkers derive authority from accepted/refused
-PostgreSQL transaction facts, failed Absurd custody, and recorded Worker
-failure; mutation checks reject both a phantom projection after refusal and an
-acknowledgement-loss claim without accepted projection authority.
-
-### Joined terminal and refused projection commit
-
-[`joined-projection-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-projection-commit-refusal-world-v3.json)
-qualifies the generic projection-recovery cut against the public Absurd Engine
-and Worker providers over disposable PostgreSQL. A real Worker claims and
-completes the pending task. Production first commits `ActivityCompleted`, then
-a connection-boundary fault refuses the separate `TokensProduced` and
-`FiringCompleted` transaction. The live Engine is poisoned and abruptly
-dropped; fresh public `load_engine` accepts that exact projection once without
-another Worker completion or handler `prepare`.
-
-The independent checker derives terminal authority from completed provider
-custody and recorded Worker completion, and projection authority from accepted
-or refused PostgreSQL transaction attempts. It rejects a canonical projection
-after the refused attempt. The retained route returns `outcome: "pass"`,
-`converged`, 12 operations, 21 journal entries including 9 checker evaluations,
-and digest
-`sha256:a4670deb5ec8841f29c8e6f716488c22cb7c91ffe3084867ae54704a8fe2ec6b`.
-
-### Joined projection acknowledgement loss
-
-[`joined-projection-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-projection-ack-loss-world-v3.json)
-proves the accepted side of the same real Absurd/PostgreSQL projection
-boundary. Production commits `ActivityCompleted`, `TokensProduced`, and
-`FiringCompleted`, then the test connection raises as if the projection
-transaction's acknowledgement were lost. Detached PostgreSQL truth shows the
-completed task and fully converged canonical History while the writing Engine
-poisons.
-
-Fresh public `load_engine` reconstructs that converged state and executes a
-no-change drive without another Worker completion, handler `prepare`, terminal,
-or projection. The checker requires accepted begin, terminal, and projection
-transactions before accepting the acknowledgement-loss fact. Its mutation
-test rejects an acknowledgement-loss claim without accepted projection
-authority. The retained route returns `outcome: "pass"`, `converged`, 12
-operations, 21 journal entries including 9 checker evaluations, and digest
-`sha256:39110a67203cfcaa35ae527bfd9dbbd4a9ed33322b5e4fbf3cd29d5c4e83083d`.
-
-### Joined handler-registration projection transaction pair
-
-[`joined-registration-projection-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-registration-projection-commit-refusal-world-v3.json)
-qualifies an effectful Activity projection which closes the initial
-`source/default` registration and opens `source/replacement`. Production
-prepares `TokensProduced`, `DeliveryRegistrationClosed`,
-`DeliveryRegistrationOpened`, and `FiringCompleted` in one PostgreSQL
-transaction. Refusal leaves the frozen `ActivityCompleted` and completed
-provider custody authoritative while detached History retains only the default
-registration. After abrupt drop, fresh public load retries the deterministic
-projection once and public snapshot exposes only the replacement registration.
-The retained route has 12 operations, 21 journal entries including 9 checker
-evaluations, disposition `external_wait`, and journal digest
-`sha256:7c0d1b65029dd0ac9808b912e154c1df516ac23248efead9b73ebc73a97f906b`.
-
-[`joined-registration-projection-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-registration-projection-ack-loss-world-v3.json)
-commits that same four-record projection batch and loses its acknowledgement.
-Fresh public load reconstructs the replacement registration without another
-projection, Worker completion, or handler preparation. Its retained route has
-the same operation, journal, and checker counts, disposition `external_wait`,
-and journal digest
-`sha256:4b67d89b5c0f1e15daee1d2968617a0805bdfc2eea374ab4ab0872f020b3b22e`.
-The shared independent checker derives expected registration authority from
-accepted/refused transaction and canonical History facts, then compares the
-detached public armed view. Mutation checks reject phantom effects after
-rollback, acknowledgement loss without acceptance, and stale armed state after
-load.
-
-### Joined runtime-policy source seal transaction pair
-
-[`joined-seal-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-seal-commit-refusal-world-v3.json)
-first uses a real Activity projection to arm `source/default` and
-`source/subscription`, then refuses the public `Engine.seal(source)`
-transaction containing both key-ordered `DeliveryRegistrationClosed` facts.
-Detached History exposes neither close. After abrupt drop, fresh public load
-exposes both keys still armed; one explicit normalized host retry commits both
-closes and terminates the instance. The retained route has 14 operations, 24
-journal entries including 10 checker evaluations, disposition `converged`,
-and journal digest
-`sha256:935344cd185b5ca7ca65b2447bd7151315a737bf526015bf84993ca5ce198e4a`.
-
-[`joined-seal-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-seal-ack-loss-world-v3.json)
-commits those two close facts and loses the transaction acknowledgement.
-Fresh public load reconstructs an empty armed view and `terminated` status
-without another seal attempt. The retained route has 12 operations, 21
-journal entries including 9 checker evaluations, disposition `converged`, and
-journal digest
-`sha256:8d03db3c9d21b30395d45815abf897b54647ba25bd22a368dff925cd926c7271`.
-The shared independent checker derives close-all authority only from detached
-accepted/refused PostgreSQL transaction facts and canonical registration
-History, then compares the public armed view. Mutation checks reject phantom
-closes after refusal, acknowledgement loss without acceptance, and an armed
-source after accepted reload.
-
-### Joined lifecycle reset commit refusal
-
-[`joined-reset-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-reset-commit-refusal-world-v3.json)
-qualifies the canonical side of the lifecycle fence before operational
-cancellation. One real Absurd Worker holds a generation-1 Activity when the
-test connection refuses the transaction containing `ScopeReset`. Detached
-PostgreSQL truth retains no reset or cancellation attempt, the task remains
-running, and the writing Engine poisons.
-
-After revocation and abrupt drop, fresh public `load_engine` reconstructs
-generation 1 and the same in-flight invocation without another handler
-`prepare`. The original Worker completion remains authoritative rather than
-stale; production records exactly one `ActivityCompleted` and projection with
-no reset or tombstone. The independent checker derives reset, terminal, and
-projection authority from refused/accepted transaction attempts and detached
-History/task custody. Its mutation test rejects a canonical fence backed only
-by the refused reset. The retained route returns `outcome: "pass"`,
-`quiescent`, 21 operations, 34 journal entries including 13 checker
-evaluations, and digest
-`sha256:d5144ac9c0e47c89b43da1d2cfbe5dc8195c2201c66e5b33e9120b1adee22cb8`.
-
-### Joined lifecycle reset acknowledgement loss
-
-[`joined-reset-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-reset-ack-loss-world-v3.json)
-proves the accepted side of the canonical reset boundary before operational
-cancellation starts. One real Absurd Worker holds a generation-1 Activity when
-production commits `ScopeReset`; the test connection then raises as if that
-transaction's acknowledgement were lost. Detached PostgreSQL truth shows
-generation 2, the still-running task, no cancellation attempt, and a poisoned
-writing Engine.
-
-The World revokes and abruptly drops only that Engine generation. Fresh public
-`load_engine` reconstructs the accepted fence and repairs exactly one
-cancellation tombstone against the original idempotency key without another
-handler `prepare`, semantic reset, or task. The old Worker's completion is
-refused as stale, so no `ActivityCompleted` or business projection enters
-History. The independent checker derives reset/cancellation authority from
-accepted lifecycle transactions plus detached History/task custody and rejects
-acknowledgement loss without an accepted reset. The retained route returns
-`outcome: "pass"`, `quiescent`, 19 operations, 31 journal entries including 12
-checker evaluations, and digest
-`sha256:1b0a892b46e044a3ea56aaf3c8bb915bd2d4d8db65c07897a1bd68fbff0f85fc`.
-
-### Joined lifecycle cancellation commit refusal
-
-[`joined-cancellation-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-cancellation-commit-refusal-world-v3.json)
-qualifies the lifecycle cancellation-repair cut against the same public Absurd
-Engine and Worker providers. Production first commits `ScopeReset`, then the
-test connection refuses the separate transaction which would cancel the real
-running task. Detached PostgreSQL truth retains generation 2 and the running
-task while the live Engine poisons.
-
-The World revokes and drops only that Engine generation; the real external
-Worker remains alive. Fresh public `load_engine` replays the canonical reset,
-commits one tombstone against the same idempotency key, and leaves History at
-the reset frontier without another handler `prepare`. The old Worker's late
-completion is refused as stale at the provider boundary, so no
-`ActivityCompleted` or business projection enters History. The independent
-checker derives authority from authored lifecycle/Worker facts, accepted or
-refused transaction attempts, and detached History/task custody. The retained
-route returns `outcome: "pass"`, `quiescent`, 19 operations, 31 journal entries
-including 12 checker evaluations, and digest
-`sha256:7b1b2a26aba24e96a973043e73796cc469473b274e9ac0ba71f0f681ae799b82`.
-
-### Joined lifecycle cancellation acknowledgement loss
-
-[`joined-cancellation-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-cancellation-ack-loss-world-v3.json)
-proves the accepted side of that real Absurd/PostgreSQL cancellation boundary.
-Production commits `ScopeReset`, turns the real running task into a durable
-cancellation tombstone in the following transaction, and then loses that
-transaction's acknowledgement. Detached PostgreSQL truth shows generation 2,
-exactly one cancelled task, and no semantic terminal or projection while the
-writing Engine poisons.
-
-The World revokes and drops only the Engine generation while preserving the
-external Worker. Fresh public `load_engine` recognizes the existing tombstone
-without another `cancel_task`, handler `prepare`, semantic append, or task.
-The old Worker's completion remains fenced as stale. The independent checker
-requires one accepted reset and one accepted cancellation transaction, then
-compares those facts with detached History and task custody at every legal
-boundary. The retained route returns `outcome: "pass"`, `quiescent`, 19
-operations, 31 journal entries including 12 checker evaluations, and digest
-`sha256:8619595bcda8270d5204123bf3564dbec503f65ea3d74c578464e44ff1b8bb79`.
-
-### Joined lifecycle close transaction pair
-
-[`joined-close-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-close-commit-refusal-world-v3.json)
-refuses the transaction containing terminal `ScopeClosed` while one real
-Absurd Worker holds an Activity. Detached PostgreSQL truth retains the active
-scope and running task. Fresh public `load_engine` reconstructs that live
-authority, and the original Worker completes and projects exactly once. The
-retained route has 20 operations, 33 journal entries including 13 checker
-evaluations, disposition `quiescent`, and artifact digest
-`sha256:cd972f54c112b30d5f7d78506a33ecda806975389dc803efe29f5de26c4a1729`.
-
-[`joined-close-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-close-ack-loss-world-v3.json)
-commits `ScopeClosed` and loses its acknowledgement before operational
-cancellation starts. Fresh public load reconstructs the terminal scope,
-repairs exactly one cancellation tombstone, and rejects the old Worker's
-completion as stale without a semantic terminal or projection. The retained
-route has 18 operations, 30 journal entries including 12 checker evaluations,
-disposition `quiescent`, and artifact digest
-`sha256:ebb0c5fb6a4109c2e01eaf6325ae3d885b5132689cdd5687adb6e81cf212d6de`.
-
-Both profiles use only public Engine/Worker doors. Their independent checkers
-derive authority from detached PostgreSQL History, accepted/refused lifecycle
-transactions, and Absurd custody; terminal close remains distinct from reset
-because no successor lifecycle generation is opened.
-
-### Joined lifecycle open transaction pair
-
-[`joined-open-commit-refusal-world-v3.json`](../../tests/dst/fixtures/joined-open-commit-refusal-world-v3.json)
-refuses canonical `ScopeOpened` before PostgreSQL acceptance. Fresh public load
-observes no active scope, and retry opens `draft:1` exactly once. The retained
-route has 9 operations, 15 journal entries including 6 checker evaluations,
-disposition `external_wait`, and artifact digest
-`sha256:515023a8cbdb6bc378b203d118536c74eac65359bc8c28f136bdead182913ec4`.
-
-[`joined-open-ack-loss-world-v3.json`](../../tests/dst/fixtures/joined-open-ack-loss-world-v3.json)
-commits `ScopeOpened` and loses its acknowledgement before the exact scope
-handle returns. Fresh public load reconstructs `draft:1` from detached History
-without another open or generation 2. The retained route has 7 operations, 12
-journal entries including 5 checker evaluations, disposition `external_wait`,
-and artifact digest
-`sha256:db4f216651754d4bb02d9373be13d698326b03d672dbb16346afba33fb60d982`.
-
-The shared independent checker compares accepted/refused PostgreSQL transaction
-facts, canonical `ScopeOpened` records, and the detached public active-scope
-view. A poisoned writer reports that live view as unavailable rather than
-inventing internal state; fresh load must expose the canonical generation.
-
-## Compatibility boundary and completed evolution
-
-Version 3 supplies deterministic choice mechanics and provenance, not a
-generator. Thirty-three joined-provider profiles now prove paired token-bearing
-and source-registration initial creation, identified/stale/future-scope
-delivery, completed-terminal, failed-terminal, successful/failed projection,
-handler-registration projection effects, canonical-open, canonical-reset, and
-terminal-close and source-seal commit refusal/acknowledgement loss, plus real
-joined-begin commit refusal, pre-commit task-spawn failure, post-commit begin
-acknowledgement loss, and both refused and accepted-but-unacknowledged
-post-reset cancellation-tombstone recovery without widening the World
-contract. Together with the generic profiles this completes CV19.DS2's
-declared initial cut matrix; it does not claim exhaustive pairwise adapter
-faulting. Version 4
-subsequently adds profile-retained-data and hidden-pending-work bounds without
-changing version 3 replay, and runner v1 contains complete Worlds under a
-separate wall-clock process budget. Stateful generation, shrinking, broad
-independent models/checkers, semantic coverage, campaigns, and real-boundary
-qualification were subsequently delivered by
-[CV19.DS3–DS4](../project/roadmap/cv19-deterministic-simulation-testing/index.md).
-Those operations compose this strict contract; they do not widen version 3 or
-turn its non-exhaustive adapter matrix into an exhaustive claim.
-
-Nonzero LocalDispatch retry time crosses the explicit optional provider-clock
-contract accepted in the
-[LocalDispatch provider-clock decision](../project/decisions/records/2026-08-18T1417Z-local-dispatch-accepts-an-explicit-provider-clock.md).
-SQLite remains custody and serialization authority, and the default provider
-clock remains SQLite time. DST supplies provider milliseconds only through the
-public constructor, without substituting the Engine clock, mutating private
-rows, or sleeping.
+The shared World and local-profile checks are in
+[test_world.py](../../tests/dst/test_world.py). Replaying a retained failure
+returns `outcome: "pass"` only when its failure is reproduced exactly.
+
+<a id="compatibility-boundary-and-completed-evolution"></a>
+## 1e Compatibility boundary and completed evolution
+
+[CV19](../project/roadmap/cv19-deterministic-simulation-testing/index.md) owns
+the completed generator, shrinking, campaign, and qualification work. These
+compose the v3 contract. Resource accounting requires v4; wall-clock containment
+uses [runner v1](dst-process-runner-v1.md). The accepted
+[LocalDispatch provider-clock decision](../project/decisions/records/2026-08-18T1417Z-local-dispatch-accepts-an-explicit-provider-clock.md)
+keeps provider time separate from Engine time and preserves SQLite as custody
+and serialization authority. Its default clock remains SQLite time.

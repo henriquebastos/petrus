@@ -147,11 +147,10 @@ promotion guidance in
 [`deterministic-simulation-testing.md`](deterministic-simulation-testing.md).
 This is a conditional planning and evidence route inside the existing Ariad
 lifecycle, not a second lifecycle or a mandatory artifact for ordinary work.
-Consumers of the supported executable-World test kit must also follow its
-current versioned [`petrus.testing.dst/v4` contract](dst-world-v4.md); retained
-version 1 through 3 artifacts continue to follow
-[`dst-world-v1`](dst-world-v1.md), [`dst-world-v2`](dst-world-v2.md), and
-[`dst-world-v3`](dst-world-v3.md). Complete scenarios whose profile calls can
+Consumers of the supported executable-World test kit must also follow the
+[World reference](dst-world.md), including its version compatibility table.
+`BudgetV4` authors resource-accounted v4 artifacts; `Budget` still authors v3.
+Complete scenarios whose profile calls can
 block use the separate process-isolated
 [`petrus.testing.dst.runner/v1`](dst-process-runner-v1.md) watchdog rather than
 an in-process thread or signal timeout.

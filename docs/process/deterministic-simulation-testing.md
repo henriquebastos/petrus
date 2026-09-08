@@ -17,17 +17,20 @@ and `Dispatch` doors under a bounded, serializable schedule and checks their
 recorded semantics after every accepted event. It is not a second engine, an
 application runtime, or a provider emulator.
 
-The first internal implementation profile is named `engine-coordinator-v1`.
-The strict scenario and replay artifact which pin that profile are specified by
-[`dst-scenario-v1`](dst-scenario-v1.md) and tracked by
-[CV19.DS1.TS2](../project/roadmap/cv19-deterministic-simulation-testing/cv19-ds1-ts2-strict-scenario-replay-contract.md).
-The separately accepted supported kernel and its current artifact are specified
-by [`dst-world-v4`](dst-world-v4.md); versions 1 through 3 remain supported for
-strict decode and replay under [`dst-world-v1`](dst-world-v1.md),
-[`dst-world-v2`](dst-world-v2.md), and [`dst-world-v3`](dst-world-v3.md). This
-document remains the authority for the cross-profile correctness properties,
-cuts, bounds, and evidence limits. Nondeterministic wall-clock containment is
-specified separately by [`dst-process-runner-v1`](dst-process-runner-v1.md).
+Read the [World reference](dst-world.md) for the complete interpreter contract
+and the differences between supported artifact versions. The main reading path
+is:
+
+```text
+Correctness and operating practice     deterministic-simulation-testing.md
+World authoring, contracts, and replay dst-world.md
+Wall-clock containment                dst-process-runner-v1.md
+```
+
+The linked World version notes preserve compatibility and locate fixtures.
+[Scenario v1](dst-scenario-v1.md) documents the earlier internal
+`engine-coordinator-v1` envelope and its retained narrow replay route. It is
+separate from the supported World test kit.
 
 ## Driver route for correctness-sensitive work
 
@@ -120,11 +123,9 @@ The existing hosted simulation profile remains bounded and implementation-free:
   interpretations, or capabilities to `implementation-free-v1`.
 - `petrus.testing.dst/v4` is the current supported cross-project **test-kit**
   API with a distinct `petrus-dst-world` artifact. Its compatibility contract
-  is [`dst-world-v4`](dst-world-v4.md); strict version 1 through 3 decode/replay
-  remain supported by [`dst-world-v1`](dst-world-v1.md),
-  [`dst-world-v2`](dst-world-v2.md), and [`dst-world-v3`](dst-world-v3.md). None
-  is a hosted-simulation product API or re-exported from the Petrus package
-  root.
+  is the [World reference](dst-world.md), including its version table.
+  `Budget` still authors v3 artifacts; `BudgetV4` adds resource accounting.
+  World APIs belong to the defining module, separate from hosted simulation.
 - A supported test-kit API is not implied by an internal replay fixture. Every
   future profile still requires an exact identity/digest, and any new supported
   surface requires its own compatibility decision.

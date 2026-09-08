@@ -26,14 +26,11 @@ interpretation, or widened profile ceiling requires an explicit compatibility
 decision and a version or profile change. A new application profile may be
 registered under the same scenario profile when it preserves this envelope.
 
-DS2's supported generic cross-project World/profile protocol does not preserve
-this envelope: it adds normalized application commands, opaque runtime
-generations, scheduled follow-up proposals, checker manifests, and explicit
-abrupt-drop semantics. It therefore cannot be represented as another version 1
-application profile. The current `engine-coordinator-v1` proof remains
-replayable unchanged. The accepted generic contract is specified separately by
-[`dst-world-v1`](dst-world-v1.md), with its own artifact format and pinned
-test-kit API compatibility.
+The supported [World test kit](dst-world.md) uses a different envelope with
+normalized commands, opaque generations, follow-up proposals, checker manifests,
+and explicit abrupt drop. This earlier format remains an internal compatibility
+contract. Its implemented `projection-recovery-v1` profile accepts only the
+subset listed below; the wider envelope records the original DS1 design.
 
 The artifact is data only. JSON values may contain null, booleans, strict
 numbers, strings, arrays, and string-keyed objects. It cannot contain a Python
@@ -44,29 +41,15 @@ prevents that code from silently changing beneath a retained fixture.
 
 ## Authoring is executable; replay is data
 
-This artifact is the expanded replay and failure-retention format, not the
-primary human authoring language. DS2 scenarios are ordinary pytest programs
-over a test-owned `World` composition root and an imperative `Timeline`
-facade. Authors may use Python control flow, helpers, local values, and pytest
-assertions to tell a complex story. Every operation that can change simulated
-execution must still cross the Timeline, which records its normalized event,
-fault activation, logical ordering, bound consumption, disposition, and
-observation into this strict-data shape.
+The expanded schedule is replay authority. The implemented replay route reads
+strict data and reconstructs fresh runtime objects from registered application
+code. It does not execute an originating pytest scenario, callback, or PRNG.
 
-The Timeline may provide debugger-like, bounded `run_until` checkpoints. The
-authoring predicate or callback is never serialized: the journal expands the
-individual drive/events that actually occurred and records the named
-checkpoint observation. Replay consumes those expanded choices directly and
-does not execute the originating pytest scenario, callback, or PRNG.
-
-The World owns deterministic time, identities, ordering, scripted external
-truth, and construction of the real production runtime. A simulated process
-crash discards every runtime-generation object and rebuilds through production
-load/reconcile doors; only strict initial configuration, modeled external
-facts, and the normalized journal may survive or reconstruct the test world.
-Application projects may wrap the generic Timeline in domain verbs, but those
-verbs must lower to Petrus-owned normalized events rather than importing
-application policy into Petrus.
+The original DS1 plan described a general Timeline authoring facade that would
+lower to this envelope. DS2 delivered that authoring model through the separate
+[World format](dst-world.md#one-interpreter-three-inputs). The field definitions
+below preserve this internal envelope; they do not imply that its narrow replay
+profile implements the World command vocabulary.
 
 ## Top-level shape
 
@@ -112,10 +95,12 @@ The object always names these exact non-boolean integers:
 
 Their maxima are those in the
 [profile bounds](deterministic-simulation-testing.md#profile-bounds). The
-loader validates static admission constraints. A replay profile enforces the
-dynamic limits it can reach; DS2's general harness must enforce every limit at
-every event and report `bounded_exhaustion` or `harness_failure` exactly as the
-correctness owner specifies.
+loader validates static admission constraints. The narrow replay profile
+enforces the dynamic limits its implemented events can reach. General World
+execution uses the separate [World budgets](dst-world.md#deterministic-scheduling-and-bounds);
+wall-clock containment uses the [process runner](dst-process-runner-v1.md).
+The internal envelope does not establish enforcement of unimplemented events
+or process containment.
 
 ### Portable tokens and markings
 
@@ -218,6 +203,6 @@ Activity, and passing `S1-replay-agreement`, `S3-stable-invocation`, and
 `S4-terminal-before-projection` checks. The command uses no wall-clock sleep,
 network, provider authority, credentials, or object serialized in the fixture.
 
-This command is the DS1 contract proof, not the finished DST harness. DS2 owns
-general event execution, fault adapters, scheduler behavior, and all-profile
-bound enforcement; DS3 owns generation, shrinking, and regression promotion.
+This command exercises the retained DS1 profile. The completed
+[CV19 record](../project/roadmap/cv19-deterministic-simulation-testing/index.md)
+owns the later World, generated-testing, and qualification evidence.

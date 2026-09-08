@@ -13,6 +13,7 @@ to it, and understanding how its design developed.
 | What does a domain term mean? | [Glossary](project/glossary/index.md) |
 | What must an implementation or external tool preserve? | [Specification index](../spec/README.md) |
 | How do I test failures and replay? | [Deterministic simulation testing](process/deterministic-simulation-testing.md) |
+| How do I author a DST workload and understand the versioned formats? | [World reference](process/dst-world.md) |
 
 ## 1b Contributing
 

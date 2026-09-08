@@ -1,176 +1,51 @@
-# DST executable World version 1
+# 1 DST World version 1 compatibility
 
-**Status:** Supported legacy cross-project test-kit contract. Version 4 is the
-current artifact-authoring contract; version 1 decode and replay remain
-supported unchanged. This is not a Petrus runtime product API and is not
-re-exported from the `petrus` package root.
+This file records the version 1 differences. Start with the complete
+[World reference](dst-world.md) for authoring and the shared interpreter rules.
+The versioned artifact and replay contracts remain supported.
 
-This document specifies the `petrus.testing.dst/v1` defining-module contract
-and its `petrus-dst-world` version 1 expanded replay artifact. The accepted
-[test-kit decision](../project/decisions/records/2026-08-17T2249Z-ship-a-supported-cross-project-dst-test-kit.md)
-owns the compatibility promise; the broader correctness obligations remain in
-the [DST owner](deterministic-simulation-testing.md). New scenarios which
-account for profile-owned retained state use the
-[`petrus.testing.dst/v4` contract](dst-world-v4.md).
+<a id="compatibility-identities"></a>
 
-The test kit is an executor around application-owned runtime generations. It
-does not implement Petri-net semantics, readiness semantics, provider truth,
-or an application oracle. Petrus's proof profile uses only public `Engine`
-construction, advance, snapshot, record, load, and close doors. An application
-profile may instead own a complete host graph without exposing it to the
-kernel.
+## 1a Compatibility identities
 
-## Compatibility identities
+API `petrus.testing.dst/v1`; artifact `petrus-dst-world` version 1;
+replay result `petrus-dst-world-replay-result` version 1. Exact profile and
+checker name/version/digest pins remain independent.
 
-Four pins evolve independently and fail closed:
+<a id="one-interpreter-three-inputs"></a>
 
-| Concern | Version 1 identity |
-| --- | --- |
-| Python test-kit API | `petrus.testing.dst/v1` |
-| Expanded artifact | `petrus-dst-world`, version `1` |
-| Scenario profile | exact name, positive version, and `sha256` implementation digest |
-| Checker | exact name, positive version, and `sha256` implementation digest |
+## 1b One interpreter, three inputs
 
-Changing a supported method's meaning, required profile door, value shape, or
-interpreter policy requires a new API compatibility identity. Adding or
-changing an artifact field or operation requires a new artifact version.
-Changing application command, observation, fault, construction, or checking
-semantics requires a new profile or checker identity/digest. Replay resolves
-all three component identity fields exactly through `ScenarioRegistry`.
+See [one interpreter, three inputs](dst-world.md#one-interpreter-three-inputs) for the shared rules.
 
-This contract is separate from:
+<a id="profile-contract"></a>
 
-- public hosted simulation's `implementation-free-v1` result;
-- internal [`petrus-dst-scenario` version 1](dst-scenario-v1.md); and
-- the internal `engine-coordinator-v1` replay profile.
+## 1c Profile contract
 
-None of those contracts is widened, renamed, or accepted as an alias.
+See [profile contract](dst-world.md#profile-contract) for the shared rules.
 
-## One interpreter, three inputs
+<a id="deterministic-scheduling-and-bounds"></a>
 
-There is one normalized execution path:
+## 1d Deterministic scheduling and bounds
 
-```diagram
-┌──────────────────┐
-│ Authored Timeline│──┐
-└──────────────────┘  │
-┌──────────────────┐  │   ┌──────────────────┐   ┌─────────────────────┐
-│ Generated commands│─┼──▶│ World interpreter│──▶│ Application profile │
-└──────────────────┘  │   └────────┬─────────┘   └─────────────────────┘
-┌──────────────────┐  │            │
-│ Artifact replay  │──┘            ▼
-└──────────────────┘       ┌──────────────────┐
-                           │ Journal/checkers │
-                           └──────────────────┘
-```
+See [deterministic scheduling and bounds](dst-world.md#deterministic-scheduling-and-bounds) for the shared rules.
 
-`Timeline` is an imperative authoring facade. Python control flow, helpers,
-assertions, and `run_until` predicates remain ordinary test code. They are not
-serialized. Every state-affecting operation still crosses `World`; the
-artifact retains the normalized command, queue choice, logical instant,
-observation, checker result, lifecycle operation, and final disposition that
-actually occurred. Replay executes those expanded operations through the same
-interpreter without importing the originating scenario or consulting a seed.
+<a id="runtime-generations-and-fairness"></a>
 
-## Profile contract
+## 1e Runtime generations and fairness
 
-A `ScenarioProfile[Generation]` owns one opaque generation and these doors:
+See [runtime generations and fairness](dst-world.md#runtime-generations-and-fairness) for the shared rules.
 
-| Door | Obligation |
-| --- | --- |
-| `validate(command)` | Fail loud on an unknown name, payload, or profile identity before application. Return the exact normalized `Command`. |
-| `validate_fault(fault)` | Fail loud on an unsupported fault name, target, occurrence, disposition, or payload before activation. Return the exact normalized `Fault`. |
-| `create(context)` | Construct a fresh generation and return `GenerationStart` with only currently eligible detached follow-up proposals. |
-| `load(context)` | Reconstruct a fresh generation from retained configuration, durable stores, and modeled external truth. Return eligible detached follow-ups. |
-| `apply(generation, command, context)` | Perform one application-defined atomic operation and return strict detached `ApplyResult` data plus eligible follow-up proposals. |
-| `observe(generation, request, context)` | Validate the named request and return detached strict JSON. Never return a live generation or mutable runtime handle. |
-| `drop(generation)` | Abruptly dispose volatile resources without semantic settlement. |
-| `close(generation)` | Gracefully release the final live generation; application hosts may perform their documented graceful settlement here. |
+<a id="checker-cadence"></a>
 
-`GenerationStart.scheduled` is an exact tuple of `ScheduledCommand` values.
-`ApplyResult.scheduled` is an exact list of those values. A profile may propose
-work but cannot enqueue or execute it. `ScenarioContext` exposes only the
-current logical instant, deterministic namespace-scoped stable IDs, and faults
-consumed at a named application cut. It has no scheduling, submission, replay,
-or live-runtime door, and recursive interpreter entry fails loud.
+## 1f Checker cadence
 
-`Command`, `Fault`, scheduled work, apply results, observations, checker
-details, journals, and artifacts accept strict JSON only. They reject Python
-extensions, non-string object keys, duplicate artifact keys, non-finite
-numbers, unknown model fields, and implicit Pydantic coercion.
+See [checker cadence](dst-world.md#checker-cadence) for the shared rules.
 
-## Deterministic scheduling and bounds
+<a id="artifact-and-replay-contract"></a>
 
-The World starts at logical instant `0`. It orders queued commands by
-`(logical instant, insertion order)`. Profile-proposed work and authored
-commands receive their queue order only from the World. Commands cannot be
-scheduled in the past or beyond the logical-instant ceiling. A command at a
-future instant advances time directly; simulated execution never sleeps.
+## 1g Artifact and replay contract
 
-`Budget` explicitly bounds:
-
-- normalized actions, including observations and predicate polls;
-- simultaneously queued commands;
-- logical-time advances and the maximum logical instant;
-- fresh reloads;
-- `run_until` predicate polls; and
-- canonical artifact bytes.
-
-Exhaustion sets `Disposition.BUDGET_EXHAUSTED`, records the exact bound and
-limit, and raises `BudgetExhausted`. No queue or artifact is silently
-truncated. Version 1 does not provide a wall-clock watchdog around application
-profile calls; profiles admitted to this deterministic executor must return
-synchronously, while the repository test runner owns process-level timeout
-operation.
-
-`run_until(name, predicate)` repeatedly records the named detached
-observation and executes the next profile-declared command. It succeeds when
-the Python predicate accepts that observation. If no work remains, it raises
-`RunUntilFailed` classified as `external_wait` with the last observation,
-pending queue, budget, and recent journal.
-
-## Runtime generations and fairness
-
-Every Timeline is bound to one monotonically numbered generation. Crash
-handling is strictly ordered:
-
-1. capture detached checker observations at the cut;
-2. revoke the current generation and clear its queued volatile work;
-3. call the profile's non-settling `drop`; and
-4. permit reconstruction only through `load`.
-
-The stale Timeline refuses every later use. Graceful `World.close()` is
-distinct and invokes `close` only for a currently live generation. A profile
-whose create/install path fails after yielding a generation is closed by the
-World before the constructor propagates the failure.
-
-`begin_fair` is a journaled one-way boundary. It requires all activated faults
-to have been consumed. Afterward, the World refuses new authored commands,
-faults, process crashes, repeated fair entry, and an `external_wait` ending.
-Profile-declared queued work can only be drained in deterministic order, and
-no ending disposition can overtake queued work. Fairness never manufactures a
-provider response or human decision: a profile must disclose every eligible
-runtime/environment action as scheduled work before fair convergence is
-claimed.
-
-## Checker cadence
-
-Each `Checker` has an exact identity and one closed `ObservationRequest`.
-Checkers receive only detached observations. They run:
-
-- after generation creation;
-- after every accepted command;
-- after fault activation;
-- at an abrupt crash cut before non-semantic disposal;
-- after every successful fresh load; and
-- when the fair phase begins.
-
-They do not run inside an application operation or inspect the live generation.
-Every verdict is journaled. A failed result sets
-`Disposition.INVARIANT_FAILURE` and raises `InvariantViolation` at that atomic
-boundary.
-
-## Artifact and replay contract
 
 A version 1 artifact contains exactly:
 
@@ -196,7 +71,7 @@ artifact for those interpreter failures because it does not serialize the
 failed attempted operation. That limitation is frozen version 1 compatibility,
 not a limitation of the current test kit: the supported
 [version 2 evolution](dst-world-v2.md) introduced exact failed-attempt retention
-and replay, and version 4 remains the current authoring contract.
+and replay, and `BudgetV4` authors resource-accounted version 4 artifacts.
 
 The first retained proof is
 [`projection-crash-recovery-world-v1.json`](../../tests/dst/fixtures/projection-crash-recovery-world-v1.json).
