@@ -346,7 +346,7 @@ try:
 except ImportError as error:
     message = str(error)
     assert "optional 'postgres' extra" in message
-    assert "petrus[postgres]" in message
+    assert "petrus-runtime[postgres]" in message
 else:
     raise AssertionError('PostgreSQL deep import unexpectedly succeeded without psycopg')
 """
@@ -448,7 +448,7 @@ try:
 except ImportError as error:
     message = str(error)
     assert "optional 'absurd' extra" in message
-    assert 'petrus[absurd]' in message
+    assert 'petrus-runtime[absurd]' in message
 else:
     raise AssertionError('Absurd deep import unexpectedly succeeded without psycopg')
 """
@@ -506,7 +506,7 @@ try:
 except ImportError as error:
     message = str(error)
     assert "optional 'zeromq' extra" in message
-    assert 'petrus[zeromq]' in message
+    assert 'petrus-runtime[zeromq]' in message
 else:
     raise AssertionError('ZeroMQ deep import unexpectedly succeeded without pyzmq')
 """

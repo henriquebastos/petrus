@@ -1,11 +1,16 @@
 [project]
-name = "petrus"
-version = "0.0.0"
+name = "petrus-runtime"
+version = "0.1.0a1"
 description = "Petrus — an agentic Petri net runtime."
 readme = "README.md"
 requires-python = ">=3.14"
 license = "Apache-2.0"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "LICENSE-SCOPE.md", "THIRD_PARTY_NOTICES.md"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.14",
+]
 authors = [
     { name = "Henrique Bastos", email = "henrique@bastos.net" },
 ]
@@ -13,6 +18,12 @@ dependencies = [
     "cel-python>=0.1",
     "pydantic>=2.12,<3",
 ]
+
+[project.urls]
+Homepage = "https://github.com/henriquebastos/petrus"
+Documentation = "https://github.com/henriquebastos/petrus/blob/main/docs/runtime-guide.md"
+Repository = "https://github.com/henriquebastos/petrus"
+Issues = "https://github.com/henriquebastos/petrus/issues"
 
 [project.optional-dependencies]
 postgres = [
@@ -23,7 +34,7 @@ absurd = [
     # a deliberate act that re-verifies the vendored schema hash
     # (src/petrus/motus/dispatch/absurd_schema) and reruns the ES-009 matrix.
     "absurd-sdk==0.4.0",
-    "petrus[postgres]",
+    "petrus-runtime[postgres]",
 ]
 zeromq = [
     "pyzmq>=27,<28",
@@ -54,10 +65,10 @@ dev = [
     # sync, so the full profile's plain pytest run exercises the DS3 backend
     # and DS4 adapter suites while the extras stay each constraint's ONE
     # authority.
-    "petrus[postgres]",
-    "petrus[absurd]",
-    "petrus[zeromq]",
-    "petrus[github-app]",
+    "petrus-runtime[postgres]",
+    "petrus-runtime[absurd]",
+    "petrus-runtime[zeromq]",
+    "petrus-runtime[github-app]",
     "mutmut==3.7.0",
     "pytest >=8.3",
     "pytest-randomly>=4,<5",

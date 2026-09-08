@@ -63,7 +63,7 @@ try:
 except ImportError as _psycopg_missing:
     raise ImportError(
         "the Absurd Dispatch needs psycopg, which ships in the optional 'absurd' extra: "
-        "install petrus[absurd] (e.g. `uv add 'petrus[absurd]'` or `pip install 'petrus[absurd]'`)"
+        "install petrus-runtime[absurd] (e.g. `uv add 'petrus-runtime[absurd]'` or `pip install 'petrus-runtime[absurd]'`)"
     ) from _psycopg_missing
 
 # Internal imports

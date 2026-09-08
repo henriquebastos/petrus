@@ -820,8 +820,8 @@ wheels = [
 ]
 
 [[package]]
-name = "petrus"
-version = "0.0.0"
+name = "petrus-runtime"
+version = "0.1.0a1"
 source = { editable = "." }
 dependencies = [
     { name = "cel-python" },
@@ -856,7 +856,7 @@ dev = [
     { name = "hatchling" },
     { name = "hypothesis" },
     { name = "mutmut" },
-    { name = "petrus", extra = ["absurd", "github-app", "postgres", "zeromq"] },
+    { name = "petrus-runtime", extra = ["absurd", "github-app", "postgres", "zeromq"] },
     { name = "pytest" },
     { name = "pytest-randomly" },
     { name = "pytest-timeout" },
@@ -873,7 +873,7 @@ requires-dist = [
     { name = "cel-python", specifier = ">=0.1" },
     { name = "claude-agent-sdk", marker = "extra == 'agenticus-claude'", specifier = "==0.2.128" },
     { name = "cryptography", marker = "extra == 'github-app'", specifier = ">=49,<50" },
-    { name = "petrus", extras = ["postgres"], marker = "extra == 'absurd'" },
+    { name = "petrus-runtime", extras = ["postgres"], marker = "extra == 'absurd'" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3.2,<4" },
     { name = "pydantic", specifier = ">=2.12,<3" },
     { name = "pyzmq", marker = "extra == 'zeromq'", specifier = ">=27,<28" },
@@ -887,10 +887,10 @@ dev = [
     { name = "hatchling", specifier = "==1.31.0" },
     { name = "hypothesis", specifier = "==6.164.0" },
     { name = "mutmut", specifier = "==3.7.0" },
-    { name = "petrus", extras = ["absurd"] },
-    { name = "petrus", extras = ["github-app"] },
-    { name = "petrus", extras = ["postgres"] },
-    { name = "petrus", extras = ["zeromq"] },
+    { name = "petrus-runtime", extras = ["absurd"] },
+    { name = "petrus-runtime", extras = ["github-app"] },
+    { name = "petrus-runtime", extras = ["postgres"] },
+    { name = "petrus-runtime", extras = ["zeromq"] },
     { name = "pytest", specifier = ">=8.3" },
     { name = "pytest-randomly", specifier = ">=4,<5" },
     { name = "pytest-timeout", specifier = ">=2.4,<3" },

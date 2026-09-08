@@ -12,14 +12,25 @@ and reconciliation where repeating an effect would matter.
 
 ## 1a Status
 
-Petrus is pre-release software, with package version `0.0.0`. Install from this
-repository; there is no published package release documented here.
+Petrus is alpha software. The first PyPI release is being prepared as
+`petrus-runtime` version `0.1.0a1`. APIs may change throughout `0.x`.
+Python imports use `petrus`.
+
+After the first release is published, install it with:
+
+```sh
+pip install --pre petrus-runtime
+```
+
+Optional integrations use extras, for example
+`pip install --pre 'petrus-runtime[postgres]'`. For release setup and publishing,
+see the [release guide](https://github.com/henriquebastos/petrus/blob/main/docs/process/releasing.md).
 
 The runtime includes persistent History Stores, Python net authoring,
 Activity execution, observation, bounded simulation, and portable Net documents.
 Fabric, the cross-instance coordination prototype, is unfinished and subject
 to rewrite. Agent integration has a narrower support boundary than the core
-runtime; see the [Agenticus support matrix](docs/runtime-guide.md#2-agenticus-support-matrix).
+runtime; see the [Agenticus support matrix](https://github.com/henriquebastos/petrus/blob/main/docs/runtime-guide.md#2-agenticus-support-matrix).
 
 ## 1b Run a small net
 
@@ -78,12 +89,12 @@ and shutdown when Activities or external input are involved.
 
 | What you want to do | Start here |
 | --- | --- |
-| Understand the architecture and guarantees | [Specification overview](spec/OVERVIEW.md) |
-| Author nets, render graphs, configure Workers, or use lifecycle scopes | [Runtime guide](docs/runtime-guide.md) |
-| Exchange a Net document with an editor | [Portable Net document](spec/net-document-v1.md) |
-| Test deterministic schedules, faults, and replay | [Deterministic simulation testing](docs/process/deterministic-simulation-testing.md) |
-| Contribute or understand earlier decisions | [Documentation guide](docs/README.md) |
-| See current work and remaining limits | [Project briefing](docs/project/briefing.md) |
+| Understand the architecture and guarantees | [Specification overview](https://github.com/henriquebastos/petrus/blob/main/spec/OVERVIEW.md) |
+| Author nets, render graphs, configure Workers, or use lifecycle scopes | [Runtime guide](https://github.com/henriquebastos/petrus/blob/main/docs/runtime-guide.md) |
+| Exchange a Net document with an editor | [Portable Net document](https://github.com/henriquebastos/petrus/blob/main/spec/net-document-v1.md) |
+| Test deterministic schedules, faults, and replay | [Deterministic simulation testing](https://github.com/henriquebastos/petrus/blob/main/docs/process/deterministic-simulation-testing.md) |
+| Contribute or understand earlier decisions | [Documentation guide](https://github.com/henriquebastos/petrus/blob/main/docs/README.md) |
+| See current work and remaining limits | [Project briefing](https://github.com/henriquebastos/petrus/blob/main/docs/project/briefing.md) |
 
 Impetus, under `petrus.impetus`, owns net semantics and History. Motus, under
 `petrus.motus`, owns Activity execution. `petrus.engine.Engine` composes them
@@ -99,12 +110,12 @@ scripts/check full
 
 The full suite needs Docker, Node, Graphviz, `ps`, `flock`, and a system
 Python interpreter in addition to the Python dependencies. See the
-[development guide](docs/process/development-guide.md) for setup and test
+[development guide](https://github.com/henriquebastos/petrus/blob/main/docs/process/development-guide.md) for setup and test
 profiles. `scripts/check release` runs the routine suite twice; separately
 marked provider, guest, and installation acceptance tests are excluded.
 
 ## 1e License
 
 Petrus-authored content is licensed under Apache-2.0. See
-[LICENSE-SCOPE.md](LICENSE-SCOPE.md) and
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for third-party boundaries.
+[LICENSE-SCOPE.md](https://github.com/henriquebastos/petrus/blob/main/LICENSE-SCOPE.md) and
+[THIRD_PARTY_NOTICES.md](https://github.com/henriquebastos/petrus/blob/main/THIRD_PARTY_NOTICES.md) for third-party boundaries.

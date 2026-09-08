@@ -3,7 +3,8 @@
 Petrus is a pre-release Python runtime for Petri-net processes. The
 [README](../../README.md) provides a runnable introduction; the
 [specification overview](../../spec/OVERVIEW.md) explains the architecture.
-Package metadata reports `0.0.0`.
+The first PyPI alpha is being prepared as `petrus-runtime` version `0.1.0a1`.
+The [release guide](../process/releasing.md) owns publishing and the `0.x` policy.
 
 ## 1a Current direction
 

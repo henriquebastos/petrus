@@ -444,7 +444,7 @@ def _runtime_identity() -> RuntimeIdentity:
         python=sys.version.split()[0],
         dependencies=[
             DependencyIdentity(name="hypothesis", version=importlib.metadata.version("hypothesis")),
-            DependencyIdentity(name="petrus", version=importlib.metadata.version("petrus")),
+            DependencyIdentity(name="petrus-runtime", version=importlib.metadata.version("petrus-runtime")),
         ],
     )
 

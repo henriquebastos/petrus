@@ -22,7 +22,7 @@ try:
 except ImportError as _psycopg_missing:
     raise ImportError(
         "PostgresAuthorityFence needs psycopg, which ships in the optional 'postgres' extra: "
-        "install petrus[postgres] (e.g. `uv add 'petrus[postgres]'` or `pip install 'petrus[postgres]'`)"
+        "install petrus-runtime[postgres] (e.g. `uv add 'petrus-runtime[postgres]'` or `pip install 'petrus-runtime[postgres]'`)"
     ) from _psycopg_missing
 
 

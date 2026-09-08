@@ -1,8 +1,13 @@
-name: Release validation
+name: Release validation and publishing
 on:
   workflow_dispatch:
+  release:
+    types: [published]
 permissions:
   contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
   release:
     runs-on: ubuntu-24.04
@@ -20,6 +25,9 @@ jobs:
           node-version: '24'
       - run: sudo apt-get update && sudo apt-get install -y graphviz
       - run: uv sync --frozen
+      - name: Check release version and channel
+        if: github.event_name == 'release'
+        run: uv run --frozen python scripts/check-release.py
       - name: Run scheduled DST campaign
         env:
           CAMPAIGN_ID: release-${{ github.sha }}
@@ -29,3 +37,43 @@ jobs:
       - name: Record campaign evidence
         run: python3 -c 'from pathlib import Path; print(Path("/tmp/petrus-dst-campaign.json").read_text())'
       - run: scripts/check release
+      - name: Build distributions and check metadata
+        run: |
+          uv run --frozen python -m build
+          uv run --frozen twine check --strict dist/*
+      - name: Run README example from the installed wheel
+        run: |
+          uv venv --python 3.14 "$RUNNER_TEMP/petrus-smoke"
+          uv pip install --python "$RUNNER_TEMP/petrus-smoke/bin/python" dist/*.whl
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          example = Path("README.md").read_text().split("```python\n", 1)[1].split("```", 1)[0]
+          (Path(os.environ["RUNNER_TEMP"]) / "petrus-demo.py").write_text(example)
+          PY
+          result=$("$RUNNER_TEMP/petrus-smoke/bin/python" -I "$RUNNER_TEMP/petrus-demo.py")
+          printf '%s\n' "$result"
+          test "$result" = "['Hello, Petrus!']"
+      - name: Retain qualified distributions
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: distributions
+          path: dist/
+          if-no-files-found: error
+  publish:
+    if: github.event_name == 'release'
+    needs: release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment:
+      name: pypi
+      url: https://pypi.org/p/petrus-runtime
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: distributions
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33

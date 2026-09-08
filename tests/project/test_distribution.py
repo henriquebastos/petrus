@@ -13,7 +13,16 @@ from tests import REPO_ROOT
 FORBIDDEN_PARTS = {".git", ".pytest_cache", ".ruff_cache", "__pycache__"}
 FORBIDDEN_NAMES = {".coverage", "credentials.json", "secrets.json"}
 FORBIDDEN_SUFFIXES = {".db", ".key", ".pyc", ".sqlite", ".sqlite3"}
-SDIST_TOP_LEVEL = {".gitignore", "LICENSE", "PKG-INFO", "README.md", "pyproject.toml", "src"}
+SDIST_TOP_LEVEL = {
+    ".gitignore",
+    "LICENSE",
+    "LICENSE-SCOPE.md",
+    "THIRD_PARTY_NOTICES.md",
+    "PKG-INFO",
+    "README.md",
+    "pyproject.toml",
+    "src",
+}
 
 
 def _members(archive: Path) -> tuple[str, ...]:

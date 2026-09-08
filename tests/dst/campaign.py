@@ -307,7 +307,7 @@ def run_campaign(
         "repository": repository_identity(),
         "runtime": {
             "hypothesis": importlib.metadata.version("hypothesis"),
-            "petrus": importlib.metadata.version("petrus"),
+            "petrus": importlib.metadata.version("petrus-runtime"),
             "python": sys.version.split()[0],
         },
         "tier": tier,

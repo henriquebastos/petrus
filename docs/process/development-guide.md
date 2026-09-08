@@ -354,7 +354,11 @@ Ariad ships with opinionated defaults. Override them here when this project or N
 
 ## Commit and Release Rules
 
-Commit on the default branch after each validated, coherent change. Ask before pushing to a remote. No versioning or release scheme exists yet — define it when the first runnable artifact appears.
+Commit on the default branch after each validated, coherent change. Ask before
+pushing to a remote. Follow the [release guide](releasing.md) for the `0.x`
+version policy and GitHub-release-triggered PyPI publishing. The Navigator
+requested a pre-1.0 maturity policy; it overrides Ariad's default mapping from
+completed Values to major releases.
 
 ## Local Exceptions
 

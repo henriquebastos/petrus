@@ -40,7 +40,7 @@ try:
     from zmq.auth.thread import ThreadAuthenticator
 except ModuleNotFoundError as error:  # pragma: no cover - exercised in a blocked-import subprocess
     raise ImportError(
-        "ZeroMQ Dispatch Transport requires the optional 'zeromq' extra; install petrus[zeromq]"
+        "ZeroMQ Dispatch Transport requires the optional 'zeromq' extra; install petrus-runtime[zeromq]"
     ) from error
 
 _VERSION = 2
