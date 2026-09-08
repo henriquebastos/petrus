@@ -56,3 +56,19 @@ controlled delayed schedule also passes 100 repetitions.
 
 The large-output and other process-timing observations above remain carried.
 This correction does not establish their root cause or change their contracts.
+
+## 1b ZeroMQ terminal-reply setup correction, 2026-09-08
+
+The next hosted release run passed the async Worker test and failed
+`test_lost_terminal_reply_is_redelivered_exactly_until_acknowledged` during
+its initial claim. That test applied a 50 ms request timeout to setup as well
+as to the terminal reply it deliberately delays. An injected 100 ms claim
+delay reproduced the same `ConnectionError` before completion was attempted.
+
+Setup now uses the normal request timeout. After a successful claim, the test
+sets 50 ms for completion, retaining the 200 ms injected terminal-reply delay,
+one-second terminal retry budget, and exact durable-result assertion. All 30
+transport tests pass. Ten controlled runs with the slower claim passed and
+each submitted the same terminal report at least twice. Static checks passed;
+production behavior is unchanged. The large-output and other unqualified
+timing observations remain carried.

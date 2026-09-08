@@ -761,10 +761,12 @@ def test_lost_terminal_reply_is_redelivered_exactly_until_acknowledged(tmp_path:
         return DelayedProvider(LocalWorkerDispatch(path, queues=queues, worker_id=worker_id), delays)
 
     running = RunningServer(ZeroMQDispatchServer._from_factory(endpoint, factory))
-    client = ZeroMQWorkerDispatch(endpoint, request_timeout=0.05, terminal_timeout=1)
+    client = ZeroMQWorkerDispatch(endpoint, terminal_timeout=1)
     try:
         attempt = client.claim()
         assert attempt is not None
+        # Only completion needs the short deadline that forces reply loss.
+        client.request_timeout = 0.05
         client.complete(attempt, {"durable": True})
         assert dispatch.collect() == ((1, {"durable": True}),)
     finally:
