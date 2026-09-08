@@ -3,11 +3,11 @@ code: ES-062
 title: Consolidation and coherence baseline
 status: Active
 status_reason: >-
-  Five parallel repository surveys (architecture, vision alignment, domain
-  language, DST centrality, documentation inventory) are captured below.
-  Workstreams are being dispositioned one at a time with the Navigator.
+  WS3 reader-facing documentation consolidation is complete. Earlier survey
+  evidence and WS2 terminology rulings remain below. Runtime-format
+  consolidation and unresolved design workstreams retain their own scope.
 opened: 2026-08-31
-updated: 2026-08-31
+updated: 2026-09-08
 related:
   - CV20
   - CV19
@@ -17,11 +17,31 @@ related:
   - docs/process/deterministic-simulation-testing.md
   - docs/process/engineering-conventions.md
 source_context:
-  - /Users/henrique/me/open-source/impetus/docs/references/2026-07-09-matt-hb-vision-call-transcript.md
-  - /Users/henrique/me/open-source/impetus/docs/references/2026-07-09-vision-themes.md
+  - impetus/docs/references/2026-07-09-matt-hb-vision-call-transcript.md
+  - impetus/docs/references/2026-07-09-vision-themes.md
 ---
 
-# Consolidation and coherence baseline
+# 1 Consolidation and coherence baseline
+
+## 1a Current position, 2026-09-08
+
+The Navigator requested a full reader-facing coherence pass over the README,
+local Ariad guidance, and historical content. This continues WS3 through
+ordinary commits. Existing Git history, decisions, and experiment evidence
+remain intact. The installed Ariad package is preserved as a verified snapshot.
+
+WS1 is complete with the corrections recorded below. WS2 has accepted glossary
+rulings and still has pending vocabulary and code-name work. WS3 now covers
+reader navigation, stale overview repair, and separation of current guidance
+from review history. Runtime-format retirement, experiment pruning, and the
+WS4–WS6 design work are not part of this documentation pass.
+
+The survey below describes 2026-08-31. Its file counts, API names, and initial
+claims are historical; the later dispositions correct findings that did not
+survive verification. In particular, the bytecode files were untracked, the
+compatibility module was used, and the flagged roadmap date was a template.
+Use the current [briefing](../../briefing.md) and
+[documentation guide](../../../README.md) for orientation.
 
 ## Inquiry
 
@@ -251,8 +271,8 @@ Ruling backlog, one per session, Navigator-paced:
    the DST `Timeline` authoring facade, and the spec/net-document-v1.md
    prose sweep.
 5. Engine surface verbs — Action, Snapshot, DriveOutcome, AcceptDelivery…;
-   the Engine deep entry in CONTEXT.md still describes pre-split
-   `Engine.deliver()`.
+   the old CONTEXT.md entry has been retired. Review the current Engine
+   glossary and specification for the remaining post-split action vocabulary.
 6. Overloaded words needing Avoid/qualification rulings: delivery,
    execution, lineage, view, snapshot, profile, attempt, command.
    ~~territory~~ — ruled 2026-09-03, Navigator-accepted: **Execution
@@ -265,6 +285,32 @@ Ruling backlog, one per session, Navigator-paced:
    excluded as incidental substrate vocabulary and vendor runtime lane
    names (same rule as claude/codex/amp). "A2" has no recorded expansion
    anywhere in the repo; capture it if it means something. Gondolin's
-   entry leans on "execution territory", still undefined — see ruling 6.
-8. "Library, not framework" — a design constraint living in the old
-   glossary; likely belongs in docs/product/principles.md.
+   entry uses "execution territory", defined by ruling 6 on 2026-09-03.
+8. "Library, not framework" — already owned by the host-lifecycle principle
+   in `docs/product/principles.md`; no additional definition is needed.
+
+
+## 1b WS3 reader-facing coherence pass, 2026-09-08
+
+The documentation pass is complete. The README has a runnable first example;
+the documentation guide separates usage, contribution, and historical evidence.
+Advanced examples and Agenticus support limits now have one runtime guide.
+The briefing and roadmap point to the completed direct-marking timeline story
+and its actual remaining application-bound work.
+
+The engineering guide is a short entry point into all 89 preserved review
+cases. Their text and provisional status are unchanged. The local Ariad router
+uses the installed package and its Memory Closure protocol. AGENTS.md now
+correctly describes the installed method and retained experiments. The method
+package, decision corpus, runtime contracts, code, tests, and experiment
+artifacts are unchanged. Prose was edited for contributors who do not know the
+project's session history; headings and links provide the reading path.
+
+[Verification and review](../../../process/worklog/entries/2026-09-08T1508Z-codex-reader-coherence.md)
+records executed examples, automated checks, preservation checks, and limits.
+
+WS3's possible DST-format retirement and experiment pruning are deferred.
+They require compatibility and evidence-retention decisions, not a prose
+cleanup. WS2's remaining terminology rulings and code renames, plus WS4–WS6,
+remain open under this exploration. The current reader pass does not mark
+those workstreams complete or accept tentative domain language.

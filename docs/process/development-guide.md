@@ -1,5 +1,10 @@
 # Local Development Guide
 
+For a first visit, use the [documentation guide](../README.md) to distinguish
+runtime usage, contribution rules, and historical evidence. This file owns
+the local contribution process; implementation practice lives in the
+[engineering guide](engineering-conventions.md).
+
 This is the project-specific operating contract for agentic development.
 
 Ariad is the canonical method. This file is the local instance of that method for this repository. It explains how the Driver and Navigator should work here, which commands matter, what validation means, and which project-specific rules override generic guidance.

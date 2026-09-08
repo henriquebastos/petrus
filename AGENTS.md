@@ -10,7 +10,10 @@ Ariad is the canonical method. This repository contains a local Ariad instance, 
 
 This repository's `docs/process/development-guide.md` is the local operating contract. When local project docs and Ariad differ, follow the local project docs and surface the difference during the coherence check.
 
-Canonical Ariad documentation is not vendored into this project. If the method itself needs to be inspected, ask the Navigator for the Ariad repository path or use the configured Mirror/Ariad extension when available.
+The installed Ariad method is available in `.agents/skills/using-ariad/`.
+Read its `SKILL.md` and follow the references relevant to the task. The
+package is a versioned snapshot; update it as a complete verified package,
+and keep project-specific guidance in `docs/ariad/` and `docs/process/`.
 
 The agent is the **Driver**. The human is the **Navigator**.
 
@@ -30,8 +33,9 @@ Before meaningful work, read the files that exist in this project:
 - `docs/process/worklog/index.md`
 - `docs/product/principles.md`
 
-Reference captures and exploratory notebooks are intentionally absent from the
-public source tree. Retained decisions and roadmap records must stand alone.
+Exploratory Stories and their experiments live under
+`docs/project/exploration/`. The exploration index explains identifier
+continuity. Decisions and roadmap records must stand alone.
 
 Index files explain where records live. Read the index first, then read only the relevant records, items, entries, or roadmap files for the current work.
 

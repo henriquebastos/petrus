@@ -11,6 +11,14 @@ alternatives, experiments, evidence, and disposition in one self-contained
 directory. A candidate becomes implementation work only after the evidence
 supports a bounded change.
 
+## Reading a story
+
+Read the current disposition before the experiment log. `Completed` records
+an inquiry's conclusion; it does not by itself mean that its proposed feature
+was implemented or is supported. Follow a promoted candidate to its owning
+roadmap item for delivery and acceptance evidence. Paused inquiries retain
+their open questions for a later decision.
+
 ## Identifier continuity
 
 Exploratory Story codes form one repository-global, monotonic namespace. A code

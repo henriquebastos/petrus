@@ -1,10 +1,16 @@
-# Worklog
+# 1 Worklog
 
-Operational progress for the project.
+Worklog entries preserve dated milestones and the checks performed at the
+time. For current direction, read the [briefing](../../project/briefing.md).
+For current behavior, follow the relevant specification or usage guide.
+A historical passing run does not establish the status of today's checkout.
 
-The Worklog uses a conflict-resistant file layout. Do not append milestones to this index. Create one file per meaningful milestone under `entries/`.
+Use one file per meaningful milestone under `entries/`, with a UTC timestamp
+and author in its name. Keep this index as a guide; discover entries by their
+filenames or by searching their metadata. Routine session narration belongs
+in neither the worklog nor a duplicate summary file.
 
-## Structure
+## 1a Structure
 
 ```text
 docs/process/worklog/
@@ -22,7 +28,7 @@ entries/2026-06-17T1545Z-henrique-read-project.md
 entries/2026-06-17T1612Z-agent-validation-guide.md
 ```
 
-## How to Use
+## 1b How to use
 
 - Create a new entry file for each meaningful completed milestone.
 - Do not maintain a complete list of entries in this index.
@@ -30,7 +36,7 @@ entries/2026-06-17T1612Z-agent-validation-guide.md
 - Search entry frontmatter or body text for related stories, decisions, or verification evidence.
 - Record meaningful milestones, not every edit.
 
-## Entry Template
+## 1c Entry template
 
 Copy this template into a new file in `entries/`.
 

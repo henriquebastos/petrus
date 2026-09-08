@@ -1,12 +1,15 @@
-# Decisions
+# 1 Decisions
 
-Decision records preserve choices and unresolved questions that should shape future agent sessions.
+Decision records explain accepted choices and the alternatives considered.
+Read a record's date, status, and review notes before applying it to current
+work. Follow supersession links when a later decision replaces an earlier one.
+The [specification](../../../spec/README.md) and [glossary](../glossary/index.md)
+provide the current behavior and terminology.
 
-**Completed Decisions** are decided records. **Open Discussions** are unresolved decision records. This template stores both as one file per record under `records/` and uses `status` to show the lifecycle.
+Store one record per question or decision under `records/`. Keep this index
+as a reading and authoring guide; status belongs in each record's metadata.
 
-This is a conflict-resistant structure. Do not keep open discussions in a separate directory and do not append every decision to this index.
-
-## Structure
+## 1a Structure
 
 ```text
 docs/project/decisions/
@@ -17,7 +20,7 @@ docs/project/decisions/
 
 A record may start as an open question and later become a decided record. Update that record when the decision is made.
 
-## Status Values
+## 1b Status values
 
 Use these values in frontmatter:
 
@@ -30,7 +33,7 @@ Dropped     no longer relevant or intentionally abandoned
 
 State belongs in the record metadata, not in the directory path. Do not move records between status directories to represent lifecycle state.
 
-## How to Use
+## 1c How to use
 
 - Create a record when forgetting the question or decision would cause rework, repeated debate, or product/process drift.
 - Use `status: Open` for unresolved decision records.
@@ -39,7 +42,7 @@ State belongs in the record metadata, not in the directory path. Do not move rec
 - Find recent records by listing `records/` by filename.
 - Find unresolved records by searching for `status: Open`.
 
-## Record Template
+## 1d Record template
 
 Copy this template into a new file in `records/`.
 

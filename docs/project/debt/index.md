@@ -1,14 +1,16 @@
-# Technical Debt Ledger
+# 1 Technical debt
 
-The Technical Debt Ledger records structural cost the project is consciously carrying.
+Debt items describe costs or limitations the project is carrying, why they
+remain, and what should trigger another look. Search for `status: Carried` or
+`status: Paying` to find unresolved items. A `Paid` item records how a cost
+was resolved; its earlier description is historical evidence.
 
-Do not record every imperfection. Record debt that may affect future delivery, safety, maintainability, validation, operation, or product coherence.
+Store one item under `items/` for a limitation that should outlive the current
+work. Keep smaller findings in the owning story or review. Each item needs a
+carrying reason, revisit trigger, and closure condition. The filename stem is
+its stable identifier unless the project has assigned another explicit ID.
 
-This is a conflict-resistant ledger structure. Do not maintain a central debt table in this index. Create one debt item file under `items/` for each debt item that should outlive one story's review notes.
-
-The **Technical Debt Ledger** is the project memory surface. A **debt item** is one record inside that ledger.
-
-## Structure
+## 1a Structure
 
 ```text
 docs/project/debt/
@@ -19,7 +21,7 @@ docs/project/debt/
 
 Use the filename stem as the stable reference when no shorter project-specific debt ID exists. If the project uses short IDs such as `D-001`, store the ID in frontmatter, but avoid central counters unless the team has a coordination rule for assigning them.
 
-## Status Values
+## 1b Status values
 
 Use these values in frontmatter:
 
@@ -32,7 +34,7 @@ Dropped   no longer relevant or replaced by another item
 
 State belongs in the item metadata, not in the directory path. Do not move debt items between status directories to represent lifecycle state.
 
-## How to Use
+## 1c How to use
 
 - Create an item when debt should survive beyond the current story's review checkpoint.
 - Keep small local imperfections in the story review or follow-up list instead of creating debt noise.
@@ -40,7 +42,7 @@ State belongs in the item metadata, not in the directory path. Do not move debt 
 - Do not maintain a complete list of debt items in this ledger index.
 - Find current debt by searching for `status: Carried` or `status: Paying`.
 
-## Item Template
+## 1d Item template
 
 Copy this template into a new file in `items/`.
 
