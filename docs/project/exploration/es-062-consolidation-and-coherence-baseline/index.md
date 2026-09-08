@@ -36,7 +36,7 @@ Navigator's cognitive load.
 ## Method
 
 Five independent read-only surveys ran in parallel on 2026-08-31 against the
-working tree at `4e5c250`: package architecture, vision provenance and
+working tree at `7c5d5b9`: package architecture, vision provenance and
 alignment, declared-vs-actual domain language, DST centrality, and
 documentation inventory. Findings below cite exact paths; nothing here is
 speculative.
@@ -81,7 +81,7 @@ Checker, ChoiceStreams, Fault, Budget, ProcessRunner…), none for the Net
 document family (Net document, PortableView, ExecutionLineage, fork), and
 none for the new Engine surface verbs (`AcceptDelivery`, `Snapshot`,
 `DriveOutcome`…). The `Engine` entry still describes `Engine.deliver()`
-although `4e5c250` split delivery into phases. Coined names lacking any
+although `7c5d5b9` split delivery into phases. Coined names lacking any
 definition: Gondolin (docstring only), orb (one CONTEXT.md use), pi/A2
 (code + ADRs only); Absurd has an ADR but no glossary entry. Overloaded
 words needing rulings: delivery, execution, lineage, instance, process,

@@ -26,7 +26,7 @@ related:
   - docs/product/principles.md
   - docs/project/decisions/records/2026-08-13T1740Z-progressive-disclosure-preserves-runtime-power.md
 source_context:
-  - Petrus commit ddce00e180be37d0be5138b3987d891a18f968d3
+  - Petrus commit 9c2100c4a9ba65066e731f947e3d5d6165fa34c9
   - Hamsterdan commit a14c77825d9616fe0e3f9102cd3476a597fc7da7
 research_sources:
   - https://doi.org/10.1007/3-540-06859-7_145

@@ -13,12 +13,12 @@ notice for the schema at that revision.
 
 `.agents/skills/using-ariad/` is copied unmodified from
 [Ariad](https://github.com/henriquebastos/ariad), revision
-`7521d53983039bd808051d34bdcc56faec3277da`, source path
+`a928741da8148ec0dbb55c921c6ad896dfe02f34`, source path
 `skills/using-ariad`, to destination `.agents/skills/using-ariad`. The package
-version is `0.2.1`; its method digest is
-`9257e4a6b9542dc5536af2bd17e7d60a9784711faaaa926591278f4be7f8371f`, and
+version is `0.3.0`; its method digest is
+`c118e38da423a3b07de392e3000b864613e384540b6d5180cfac180426a5b323`, and
 its package digest is
-`82abd3545b6d456649bc33fddb19671939ab512dd0249050a25fe7600df25572`.
+`7302f17bec822017dfb00302d5ec0613652e859a8de17899ef81abbca28a873e`.
 It is licensed under the MIT License reproduced in the package's `LICENSE.txt`.
 
 Package-manager-resolved dependencies retain their respective licenses. They

@@ -13,8 +13,8 @@ validation path. All fourteen mechanical completion conditions passed
 **the current authoring surface is too low-level; the canonical Petri model
 itself lowered the coarse behavior without distortion.**
 
-Baseline: Petrus `main` at `998c39dc59f9cf254f577151e202441d03f4347f`;
-`git diff 309de466..HEAD -- src/ spec/ tests/` is empty, so every defining
+Baseline: Petrus `main` at `76e0cc449d621f6fb5a1ef3d8114a4efab487344`;
+`git diff c6c9bfde..HEAD -- src/ spec/ tests/` is empty, so every defining
 API cited by the brief was unchanged `[E]`. Hamsterdan grounding remained the
 pinned revision `a14c77825d9616fe0e3f9102cd3476a597fc7da7` (links only, never
 imported) `[D]`.
