@@ -1092,7 +1092,7 @@ def test_provider_failure_checkpoints_auth_and_returns_native_continuation(
 @pytest.mark.parametrize(
     ("prompt", "timeout", "output_limit", "code"),
     (
-        ("timeout", 0.1, 1_000_000, "command-timeout"),
+        ("timeout", 2, 1_000_000, "command-timeout"),
         ("command-signal", 2, 1_000_000, "command-signal"),
         ("output-overflow", 2, 512, "output-overflow"),
         ("malformed-jsonl", 2, 1_000_000, "malformed-jsonl"),

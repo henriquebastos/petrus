@@ -72,3 +72,21 @@ transport tests pass. Ten controlled runs with the slower claim passed and
 each submitted the same terminal report at least twice. Static checks passed;
 production behavior is unchanged. The large-output and other unqualified
 timing observations remain carried.
+
+## 1c Native helper test budgets, 2026-09-08
+
+A hosted run failed two Pi subscription-auth cases with
+`helper-exit-inconsistent` and the Codex timeout case with unverified cleanup.
+The Pi cases inherited a 50 ms shutdown grace from a rig normally used with
+fake clients. The Codex case set a 100 ms command timeout that also capped the
+Python process responsible for scrubbing its private home.
+
+Controlled delays reproduced both failures: 150 ms before Node exit and
+200 ms inside the scrub process. The 17-case selection failed 13 cases before
+the test correction and passed all 17 afterward. The Pi auth test now gives
+its actual Node client the normal two-second shutdown grace. The Codex case
+uses the rig's two-second command budget against a command that sleeps for
+five seconds; cleanup retains its one-second grace. Error classification,
+credential release, absence of published results, and verified cleanup remain
+required. Production code is unchanged. The other timing observations above
+remain carried.

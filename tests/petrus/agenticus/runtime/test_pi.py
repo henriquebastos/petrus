@@ -1048,7 +1048,7 @@ export async function createAgentSession(options){
         sdk_entrypoint=str(sdk),
         helper=Path(pi.__file__).with_name("pi_helper.mjs"),
         private_root=private_root,
-        config=rig.adapter._config,
+        config=replace(rig.adapter._config, cancellation_grace=2),
         invocation=invocation,
         prior=None,
         api_key=None,
