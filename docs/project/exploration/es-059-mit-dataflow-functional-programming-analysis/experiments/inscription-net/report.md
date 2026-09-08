@@ -8,7 +8,7 @@ this one answers. Byte parity with v1 was explicitly **not** a goal here:
 topology, paths, state representation, and History bytes all differ by design.
 Behaviour parity is the claim, and it is executed.
 
-Baseline: Petrus `main` at `0fae587`. Nothing under `src/petrus`, `spec/`,
+Baseline: Petrus `main` at `08779c7`. Nothing under `src/petrus`, `spec/`,
 `tests/`, or the three sibling experiment directories was modified; `git status`
 shows only this new directory `[E]`.
 

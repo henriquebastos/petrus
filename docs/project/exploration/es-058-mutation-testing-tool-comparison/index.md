@@ -16,7 +16,7 @@ related:
   - docs/process/development-guide.md
   - scripts/check
 source_context:
-  - Petrus commit 445fdb1e26b2ef694195120f5c6a58759fb81e55
+  - Petrus commit 15344ae0d105c792ebcd0477d6e4f647f0b4c729
 research_sources:
   - https://cosmic-ray.readthedocs.io/en/latest/
   - https://pypi.org/project/cosmic-ray/

@@ -59,7 +59,7 @@ Navigator's benchmark feature-net. Their closure did not release those gates.
 ## 1c Survey provenance and corrections
 
 Five read-only surveys on 2026-08-31 inspected architecture, vision provenance,
-domain language, DST coverage, and documentation at `b7265ff`. The original
+domain language, DST coverage, and documentation at `fd83308`. The original
 reports remain in Git history. Their findings were leads to verify, not a
 license to remove code or rewrite contracts.
 

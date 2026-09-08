@@ -38,7 +38,7 @@ runtime qualification needs it. Existing Petrus ownership remains authoritative:
 ## 1b Historical baseline
 
 The comparison inspected [Trinity v0.8.5 at `499cac0`](https://github.com/Abilityai/trinity/tree/499cac04a1bd3c4a9cca074a198387e03140eb56)
-and Petrus at `ac07ff04de53064f18500cfcbbb93efb74e5b9fb` on 2026-08-15.
+and Petrus at `9f0191ea7c8c96555f1b4aa5221af159cccf44a2` on 2026-08-15.
 It used code, tests, schemas, deployment files, and architecture records.
 `[D]` below means inspected source, `[I]` an inference, and `[P]` a proposed
 Petrus application. The comparison did not deploy Trinity or qualify its
