@@ -73,6 +73,13 @@ each submitted the same terminal report at least twice. Static checks passed;
 production behavior is unchanged. The large-output and other unqualified
 timing observations remain carried.
 
+The async lost-heartbeat test exposed the same setup problem. A 100 ms claim
+delay also reproduced it in the synchronous variant. Both tests now use the
+normal request budget for claims and recovery, and 50 ms for the deliberately
+lost heartbeat and failure replies. The process-death completion test likewise
+applies its 100 ms timeout after the initial claim. Tests that deliberately
+lose the claim reply retain their short claim deadline.
+
 ## 1c Native helper test budgets, 2026-09-08
 
 A hosted run failed two Pi subscription-auth cases with
@@ -90,3 +97,21 @@ five seconds; cleanup retains its one-second grace. Error classification,
 credential release, absence of published results, and verified cleanup remain
 required. Production code is unchanged. The other timing observations above
 remain carried.
+
+The remaining direct Node clients now use the same two-second grace. Delaying
+the stderr reader's exit by 150 ms reproduced unverified cleanup in all three
+wrong-auth-frame cases; all three pass with the normal grace. Protocol
+rejections and cleanup assertions remain intact.
+
+## 1d Amp cancellation ordering, 2026-09-08
+
+The cancellation test could settle between its first and second cancellation
+calls. After settlement, `TOO_LATE` is the correct response. A 50 ms delay
+between calls reproduced the failure of the expected `ALREADY_REQUESTED`
+assertion.
+
+The fake SDK now waits on a test-owned event during finalization. The test
+checks duplicate cancellation while finalization is held, releases the event
+in `finally`, then checks `TOO_LATE` after settlement. The delayed schedule
+passes. The existing requirement for unverified remote provider cleanup is
+unchanged, as is the production cancellation state machine.

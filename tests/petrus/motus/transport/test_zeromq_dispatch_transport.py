@@ -697,10 +697,11 @@ def test_async_lost_heartbeat_and_failure_replies_are_not_replayed(tmp_path: Pat
     running = RunningServer(ZeroMQDispatchServer._from_factory(endpoint, factory))
 
     async def exercise():
-        access = await AsyncZeroMQWorkerAccess.create(endpoint, request_timeout=0.05)
+        access = await AsyncZeroMQWorkerAccess.create(endpoint)
         try:
             attempt = await access.claim(0)
             assert attempt is not None
+            access.request_timeout = 0.05
             with pytest.raises(OperationUncertain, match="heartbeat.*not acknowledged"):
                 await access.heartbeat(0, attempt, details={"persisted": True})
             await asyncio.sleep(0.2)
@@ -823,7 +824,7 @@ def test_uncertain_completion_redelivers_exactly_across_dispatch_process_death(t
     dispatch = LocalDispatch(path, instance="instance")
     dispatch.dispatch(1, invocation())
     first = _start_delayed_completion_server_process(path, endpoint, committed)
-    client = ZeroMQWorkerDispatch(endpoint, request_timeout=0.1, terminal_timeout=3)
+    client = ZeroMQWorkerDispatch(endpoint, terminal_timeout=3)
     replacement: list[subprocess.Popen[str]] = []
     killer_errors: list[BaseException] = []
     try:
@@ -845,6 +846,7 @@ def test_uncertain_completion_redelivers_exactly_across_dispatch_process_death(t
 
         killer = threading.Thread(target=replace_server)
         killer.start()
+        client.request_timeout = 0.1
         client.complete(attempt, {"survived": "process death"})
         killer.join(5)
         assert not killer.is_alive() and not killer_errors
@@ -877,10 +879,12 @@ def test_lost_heartbeat_and_failure_replies_are_not_replayed(tmp_path: Path) -> 
         readiness.close()
     dispatch.dispatch(1, invocation(attempts=2))
     dispatch.dispatch(2, invocation(attempts=1))
-    client = ZeroMQWorkerDispatch(endpoint, request_timeout=0.05)
+    client = ZeroMQWorkerDispatch(endpoint)
+    setup_timeout = client.request_timeout
     try:
         first = client.claim()
         assert first is not None
+        client.request_timeout = 0.05
         with pytest.raises(ConnectionError, match="heartbeat.*not acknowledged"):
             client.heartbeat(first, details={"persisted": True})
         with sqlite3.connect(path) as connection:
@@ -892,6 +896,7 @@ def test_lost_heartbeat_and_failure_replies_are_not_replayed(tmp_path: Path) -> 
         with pytest.raises(ConnectionError, match="fail.*not acknowledged"):
             client.fail(first, "retry")
         time.sleep(0.25)
+        client.request_timeout = setup_timeout
         replacement = client.claim()
         assert replacement is not None and replacement.epoch == "2"
         client.complete(replacement, "recovered")
@@ -899,6 +904,7 @@ def test_lost_heartbeat_and_failure_replies_are_not_replayed(tmp_path: Path) -> 
         final = client.claim()
         assert final is not None
         delays["fail"] = 0.2
+        client.request_timeout = 0.05
         with pytest.raises(ConnectionError, match="fail.*not acknowledged"):
             client.fail(final, "final")
         assert dispatch.collect() == ((1, "recovered"), (2, ActivityFailure("final", retryable=True)))

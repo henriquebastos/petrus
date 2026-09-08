@@ -477,6 +477,7 @@ def test_cancellation_is_idempotent_but_remote_provider_cleanup_stays_unverified
 ) -> None:
     entered = threading.Event()
     stopped = threading.Event()
+    finish_cleanup = threading.Event()
 
     async def execute(prompt: str, options):
         yield event(type="system", subtype="init", session_id=THREAD_ID)
@@ -484,6 +485,7 @@ def test_cancellation_is_idempotent_but_remote_provider_cleanup_stays_unverified
         try:
             await __import__("asyncio").Event().wait()
         finally:
+            assert finish_cleanup.wait(2)
             stopped.set()
 
     continuations = Continuations()
@@ -498,11 +500,15 @@ def test_cancellation_is_idempotent_but_remote_provider_cleanup_stays_unverified
     operation = adapter.start(invocation())
     assert entered.wait(2)
 
-    assert operation.cancel("stop") is CancellationDisposition.REQUESTED
-    assert operation.cancel("stop") is CancellationDisposition.ALREADY_REQUESTED
+    try:
+        assert operation.cancel("stop") is CancellationDisposition.REQUESTED
+        assert operation.cancel("stop") is CancellationDisposition.ALREADY_REQUESTED
+    finally:
+        finish_cleanup.set()
     result = operation.wait(2)
     assert stopped.wait(2)
     assert result.outcome is TurnOutcome.CANCELLED and result.accepted_appends == 0
+    assert operation.cancel("late") is CancellationDisposition.TOO_LATE
     cleanup = operation.close()
     assert cleanup.disposition is RuntimeCleanupDisposition.UNVERIFIED
     assert cleanup.code == "provider-state-uncertain"
