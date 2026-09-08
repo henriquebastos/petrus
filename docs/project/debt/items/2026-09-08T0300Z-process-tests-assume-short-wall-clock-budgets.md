@@ -38,3 +38,21 @@ in `tests/petrus/motus/worker/test_async_worker.py`, because an expected
 its root cause has not been established. Reproduce the context-closing schedule
 before treating it as another wall-clock failure. The release script stopped
 before its serial suite.
+
+## 1a Async Worker test correction, 2026-09-08
+
+The async-context failure came from the test's schedule. Its outer coroutine
+released the first heartbeat before the Activity had necessarily queued the
+second. In that order, both heartbeats could complete before context closure,
+so expecting a rejection was incorrect. Delaying the Activity's second-heartbeat
+setup reproduced the hosted `DID NOT RAISE RuntimeError` failure.
+
+The test now releases the provider only after the second heartbeat is queued,
+immediately before the Activity returns. Context closure starts on the same
+task before either heartbeat can resume. The existing assertions still require
+one accepted heartbeat, one rejected heartbeat, one completion, and no detached
+errors. Production code is unchanged. All 29 async Worker tests pass; the
+controlled delayed schedule also passes 100 repetitions.
+
+The large-output and other process-timing observations above remain carried.
+This correction does not establish their root cause or change their contracts.

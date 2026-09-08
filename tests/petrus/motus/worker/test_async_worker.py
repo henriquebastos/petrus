@@ -665,14 +665,15 @@ def test_context_close_orders_queued_heartbeats_before_terminal_without_detached
         heartbeat_tasks.append(second)
         await second_started.wait()
         worker.stop()
+        # Both heartbeats are now ordered. Returning starts context closure on
+        # this task before the released provider result can wake either task.
+        release_heartbeat.set()
         return "done"
 
     async def exercise():
         loop = asyncio.get_running_loop()
         loop.set_exception_handler(lambda _loop, context: loop_errors.append(context))
         running = asyncio.create_task(worker.run(poll_interval=0))
-        assert await asyncio.wait_for(asyncio.to_thread(heartbeat_entered.wait, 2), 3)
-        release_heartbeat.set()
         await asyncio.wait_for(running, 2)
         assert await heartbeat_tasks[0] == {"accepted": "first"}
         with pytest.raises(RuntimeError, match="context is closed"):
