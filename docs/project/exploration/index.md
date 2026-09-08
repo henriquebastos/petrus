@@ -19,6 +19,12 @@ was implemented or is supported. Follow a promoted candidate to its owning
 roadmap item for delivery and acceptance evidence. Paused inquiries retain
 their open questions for a later decision.
 
+After Memory Closure, an index should state the conclusion or pause, the
+evidence needed to assess it, and the owner of any next work. Keep experiment
+reports and reproducible artifacts beside the story; link to current contracts
+instead of restating them. A source comparison remains a dated comparison,
+even when its recommendations inform later work.
+
 ## Identifier continuity
 
 Exploratory Story codes form one repository-global, monotonic namespace. A code

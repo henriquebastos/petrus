@@ -3,9 +3,9 @@ code: ES-062
 title: Consolidation and coherence baseline
 status: Active
 status_reason: >-
-  WS3 reader-facing documentation consolidation is complete. Earlier survey
-  evidence and WS2 terminology rulings remain below. Runtime-format
-  consolidation and unresolved design workstreams retain their own scope.
+  WS3 reader guidance, DST documentation consolidation, and exploration Memory
+  Closure are complete. WS2 vocabulary/code renames and WS4-WS6 design reviews
+  remain open. Runtime formats and experiment evidence remain supported/retained.
 opened: 2026-08-31
 updated: 2026-09-08
 related:
@@ -25,341 +25,179 @@ source_context:
 
 ## 1a Current position, 2026-09-08
 
-The Navigator requested a full reader-facing coherence pass over the README,
-local Ariad guidance, and historical content. This continues WS3 through
-ordinary commits. Existing Git history, decisions, and experiment evidence
-remain intact. The installed Ariad package is preserved as a verified snapshot.
+The reader-facing documentation and Memory Closure pass is complete. Readers
+can start at the [README](../../../../README.md), follow the
+[documentation guide](../../../README.md), and reach one
+[World reference](../../../process/dst-world.md) for DST authoring and replay.
+Exploration indexes state their conclusion or pause and link to current owners.
+The [worklog guide](../../../process/worklog/index.md) preserves dated evidence
+and limits future entries to meaningful milestones.
 
-WS1 is complete with the corrections recorded below. WS2 has accepted glossary
-rulings and still has pending vocabulary and code-name work. WS3 now covers
-reader navigation, stale overview repair, and separation of current guidance
-from review history. Runtime-format retirement, experiment pruning, and the
-WS4–WS6 design work are not part of this documentation pass.
+ES-062 remains Active because terminology and design reviews below remain open.
+Runtime code, tests, fixtures,
+experiment artifacts, decision records, and the installed Ariad package were
+preserved. It accepted no new runtime contract, format retirement, exploration
+promotion, or product support claim.
 
-The survey below describes 2026-08-31. Its file counts, API names, and initial
-claims are historical; the later dispositions correct findings that did not
-survive verification. In particular, the bytecode files were untracked, the
-compatibility module was used, and the flagged roadmap date was a template.
-Use the current [briefing](../../briefing.md) and
-[documentation guide](../../../README.md) for orientation.
+## 1b Workstreams and next movement
 
-## Inquiry
+| Workstream | State and next movement |
+| --- | --- |
+| WS1: factual repairs | Done. Corrected overview and Ariad claims after checking the survey. The flagged bytecode was untracked; the compatibility module is used; the roadmap date was a template. |
+| WS2: domain language | Glossary adopted and the rulings below accepted. Remaining Engine/overloaded-word decisions and code renames need their own bounded work. |
+| WS3: documentation | Reader guidance, DST contract consolidation, and exploration closure complete. Format retirement or pruning executed experiments requires separate evidence and compatibility decisions. |
+| WS4: DST coverage and contribution rules | Review Agenticus/Fabric/processes coverage, CV20's relevant correctness obligations, and the supported test-kit package boundary. No implementation accepted here. |
+| WS5: architecture | Review the compatibility facade, private Fabric imports, and ownership of root simulation modules against current callers. No deletion inferred from a survey. |
+| WS6: Python review | Review against the Navigator's Python conventions when commissioned. No broad refactor is part of this pass. |
 
-After two intense months (ES-050 through ES-061, CV8–CV19 closed, CV20
-active), does the repository still cohere? Specifically: is the code aligned
-with the founding vision, is the declared domain language current, does the
-documentation still tell the truth, and does everything fit the DST driver
-that emerged mid-project? This story is the consolidation surface: it holds
-the evidence and dispositions each workstream one at a time, protecting the
-Navigator's cognitive load.
+The next direction decision is which unresolved workstream to take. Paused
+ES-052 still needs reactivation before Experiment 1; ES-060 still needs the
+Navigator's benchmark feature-net. Their closure did not release those gates.
 
-## Method
+## 1c Survey provenance and corrections
 
-Five independent read-only surveys ran in parallel on 2026-08-31 against the
-working tree at `b7265ff`: package architecture, vision provenance and
-alignment, declared-vs-actual domain language, DST centrality, and
-documentation inventory. Findings below cite exact paths; nothing here is
-speculative.
+Five read-only surveys on 2026-08-31 inspected architecture, vision provenance,
+domain language, DST coverage, and documentation at `b7265ff`. The original
+reports remain in Git history. Their findings were leads to verify, not a
+license to remove code or rewrite contracts.
 
-## Findings
+The founding Matt Scott conversation and vision decomposition were retained in
+`impetus/docs/references/`, outside this repository. Petrus's own
+[principles](../../../product/principles.md), [briefing](../../briefing.md), and
+specification carry the product direction needed by contributors.
 
-### F1 — Vision: aligned, but the founding documents live in another repo
+WS1 corrected false claims about an implemented `unpack` handler and empty
+Ariad/worklog records. Three initial findings were wrong: `.pyc` files had
+never been tracked; `motus/_execution/model.py` is imported by compatibility
+tests; and `updated: YYYY-MM-DD` was inside a template. The then-current
+`tests/project` run passed 29 tests.
 
-The first dream description is the Matt Scott call transcript at
-`impetus/docs/references/2026-07-09-matt-hb-vision-call-transcript.md`
-(sibling repo), with the Navigator's decomposition in
-`2026-07-09-vision-themes.md` ("agents are wrongly built as imperative loops;
-model coordination as a pure Petri net; the harness is the net"). Petrus
-carries no copy; its only pointer is `spec/README.md:53`. The repo's own
-vision (briefing, principles, roadmap) is consistent with that dream, and
-CV20 Approachable Petrus is the natural next step of it. Verdict: direction
-aligned; provenance not portable with this repo.
+The initial DST pruning suggestion also overstated redundancy. The September
+review counted 1 World v1, 2 World v2, 45 World v3, 3 World v4, and 1 internal
+Scenario v1 fixture. `Budget` still authors v3. The consolidation therefore
+preserved all formats and fixture bytes and replaced chronological contract
+reading with one current reference plus compatibility notes.
 
-### F2 — Architecture: layered and mostly clean, with bounded drift
+## 1d WS2 glossary adoption and accepted rulings
 
-Layering is acyclic at package level: `impetus → engine → agenticus`, with
-`motus.activity` as a shared leaf. Sizes: agenticus 46 files (~15k LOC,
-largest), impetus 25 (~9k, `instance/__init__.py` alone is 2,376 lines),
-tests/dst ~23.5k LOC. Concrete drift:
+The project adopted the glossary directory on 2026-08-31 and removed
+`CONTEXT.md` under the
+[owning decision](../../decisions/records/2026-08-31T1922Z-glossary-directory-replaces-context-md.md).
+The migration created 127 term files, checked coverage, and moved remaining
+contract details into their specifications before deleting the monolith.
+Those details covered token-queue removal, Sensor re-offer, Engine driving,
+inhibitor handling, and the open token-type ledger question.
 
-- `src/petrus/motus/_execution/model.py` is a self-declared compatibility
-  module no code imports — dead.
-- `src/petrus/processes/{postgres,spawn,call}.py` import private names
-  (`_text`, `_json_object`, `_freeze_json`) from `petrus.fabric.model`.
-- `tests/project/test_package_boundaries.py` carries
-  `TEMPORARY_COORDINATION_EXPORTS` and `REMOVED_ROOT_EXPORTS` — an in-flight
-  facade removal never finished.
-- Root modules `simulation.py`/`simulation_http.py` sit above impetus+engine
-  but outside any package.
-- One upward edge: `agenticus/runtime/agent_net_runner.py:38` imports
-  `Engine`.
-
-### F3 — Domain language: 108 declared terms, zero for the newest domains
-
-`CONTEXT.md` (783 lines) defines 108 terms but none for DST (World, Scenario,
-Checker, ChoiceStreams, Fault, Budget, ProcessRunner…), none for the Net
-document family (Net document, PortableView, ExecutionLineage, fork), and
-none for the new Engine surface verbs (`AcceptDelivery`, `Snapshot`,
-`DriveOutcome`…). The `Engine` entry still describes `Engine.deliver()`
-although `b7265ff` split delivery into phases. Coined names lacking any
-definition: Gondolin (docstring only), orb (one CONTEXT.md use), pi/A2
-(code + ADRs only); Absurd has an ADR but no glossary entry. Overloaded
-words needing rulings: delivery, execution, lineage, instance, process,
-profile, view, snapshot, selection, attempt; plus History vs event history
-(the ADR ratified "event history", CONTEXT.md says bare "History").
-
-### F4 — DST: code aligned, process driver drifting
-
-`src/petrus/testing/dst.py` (2,656 lines) plus `tests/dst/` (53 fixtures,
-real Postgres/Absurd/ZeroMQ worlds) is real and load-bearing — HEAD's engine
-change re-expanded 8 fixtures. But DST covers only the Impetus/Engine/Motus
-spine: agenticus (~20k lines, the largest package), fabric, and processes
-have zero simulation coverage, and CV20 plans contain no DST reference
-despite DST being the declared design driver. The cross-project test-kit
-promise (2026-08-17 decision) is packaged but unguarded —
-`test_package_boundaries.py` never mentions `petrus.testing`. Doc lineage:
-v4 is current but is a delta; v3 (905 lines) holds the substantive spec body
-and is not prunable; v1/v2 are kept alive only by 5 legacy fixtures;
-`dst-scenario-v1.md` is a parallel superseded format kept by one fixture —
-the strongest pruning candidate.
-
-### F5 — Documentation: large, mostly closed history, with false claims
-
-286 markdown files. 129 decisions (117 Decided, 12 Superseded, 0 Open), 70
-worklog entries, 12 explorations (10 Completed, ES-052 and ES-060 Paused),
-36 roadmap files of which only CV20 is live. Bulk: ES-059 alone is 2.9M of
-the 3.4M exploration tree, including 52 committed `.pyc` files.
-`engineering-conventions.md` (1,214 lines) restates ~90 conventions, several
-now enforced mechanically by `rules/` + `sgconfig.yml`. Statements that are
-now false: `spec/OVERVIEW.md` says "65 decision records" (129) and asserts a
-stdlib `unpack` handler exists (only `passthrough` does —
-`src/petrus/impetus/binding/__init__.py:364`); `docs/ariad/index.md:12` says
-the worklog "currently has no entries" (70) and that reference captures are
-absent (ES-059's experiment tree exists). `roadmap/index.md` frontmatter is
-an unfilled template (`updated: YYYY-MM-DD`).
-
-## Candidate workstreams
-
-Each is sized to be dispositioned in one focused session. Order is the
-Navigator's call; suggested sequence reflects risk and leverage.
-
-1. **WS1 Truth repairs + mechanical cleanup** (no design decisions): fix the
-   false claims in `spec/OVERVIEW.md` and `docs/ariad/index.md`; delete
-   committed `.pyc` under ES-059; remove the dead
-   `motus/_execution/model.py`; fill `roadmap/index.md` frontmatter.
-2. **WS2 Glossary and domain-language ruling**: adopt the glossary-capable
-   Ariad (`feat/domain-modeling-integration`, unmerged on GitHub as of
-   2026-08-31); migrate CONTEXT.md terms; add the missing DST/Net-document/
-   Engine vocabulary; rule on the overloaded words (F3).
-3. **WS3 Documentation shrink**: archive concluded explorations' bulk,
-   consolidate dst-world v1–v3 into v4 after re-expanding 5 legacy fixtures,
-   retire `dst-scenario-v1`, condense `engineering-conventions.md` to what
-   the mechanical gate does not already enforce.
-4. **WS4 DST driver alignment**: decide whether agenticus/fabric/processes
-   come under DST worlds and make CV20 stories carry DST obligations; guard
-   the test-kit boundary.
-5. **WS5 Architecture debt**: finish the facade removal, fix the fabric
-   private-name leakage, place the root simulation modules.
-6. **WS6 Python style review**: audit the codebase against the Navigator's
-   python-* style skills (call sites, composition, naming, typed data,
-   errors, comments, testing).
-
-## Disposition
-
-Open. Dispositions are appended per workstream as each is decided.
-
-### WS1 — Truth repairs (done 2026-08-31)
-
-Applied after re-verifying each survey claim against the working tree:
-
-- `spec/OVERVIEW.md` no longer states a decision-record count (was "65",
-  actual 129 and growing) and now says `unpack` is Decided but not yet
-  implemented, matching `spec/handler-contract.md:48` and the code (only
-  `passthrough` exists).
-- `docs/ariad/index.md` now points at the real exploration and worklog
-  surfaces instead of claiming the worklog has no entries.
-- Untracked `__pycache__` noise under `docs/project/exploration/` deleted
-  from disk; nothing was ever committed, so F5's "52 committed `.pyc`"
-  claim was wrong — the repository history is clean.
-
-Two survey findings did not survive verification and were re-dispositioned:
-
-- `motus/_execution/model.py` is not dead —
-  `tests/petrus/motus/test_execution_contract.py:64` imports it as a pinned
-  compatibility surface. Retiring it is a decision, moved to WS5.
-- `roadmap/index.md` has no unfilled frontmatter; the flagged
-  `updated: YYYY-MM-DD` is the item template inside a code block. No change.
-
-`tests/project` (29 tests, includes the conventions gate) passes.
-
-### WS2 — Glossary (in progress, opened 2026-08-31)
-
-Ariad updated by whole-package replacement: `using-ariad` 0.2.1 → 0.2.2 from
-`https://github.com/henriquebastos/ariad`; manifest hashes verified.
-`docs/project/glossary/` created from
-the packaged template (one term per kebab-case file, one-or-two-sentence
-definitions, optional `Avoid`/`Related`; behavior and invariants stay in
-their focused owners). The Petrus router now lists the glossary surface.
-
-Bulk migration done 2026-08-31: 127 term files created from CONTEXT.md's
-accepted language, definitions distilled to the glossary format.
-Compatibility-era names became `Avoid` lines instead of files (Impetus
-Kernel, Petri-net core → petrinet-kernel; net instance → petrinet-instance;
-schema reference → net-uri).
-
-CONTEXT.md deleted 2026-08-31 (decision
-`2026-08-31T1922Z-glossary-directory-replaces-context-md`). A coverage audit
-confirmed all but six pieces of its surplus contract detail were already in
-`spec/` or decision records; the six were re-homed first: token-queue
-front-most-equal-occurrence removal and Sensor retain-and-re-offer →
-`spec/net-schema.md`; Engine `DriveOutcome` host posture and the
-`DrivingPolicy` re-ask contract → `spec/firing-semantics.md` §Scheduling;
-derived-handler inhibitor exemption → `spec/handler-contract.md`; token type
-ledger boundary → `**OPEN:**` marker in `spec/net-schema.md`. Spec citation
-tags `[CONTEXT.md]` renamed to `[glossary]`; live references in README,
-briefing, development guide, engineering conventions, the Ariad router, and
-`engine/_coordination.py` retargeted. Historical mentions in older decision
-records and worklog entries left as written.
-
-Aligned to Ariad main 0.3.0 on 2026-08-31 after running its read-only
-`upgrading-ariad` audit (clean: no destructive or ambiguous classes beyond
-the deliberate package replacement). `using-ariad` replaced wholesale
-0.2.2 → 0.3.0, manifest verified; `docs/project/glossary/index.md` updated
-to the 0.3.0 template; all 127 term files converted to the 0.3.0 entry form
-(`Avoid`/`Related` as bullets) with `Detail:` links to each term's owning
-spec file per the dissolve coverage audit. Boundary bullets (`Use when` /
-`Do not use for` / `Example`) are added opportunistically as terms are
-touched, not fabricated in bulk. The audit also flagged the legacy
-monolithic `briefing.md` / `development-guide.md` / `principles.md` as an
-optional modular-docs migration — deferred to WS3.
+Ariad was upgraded as complete verified packages, first to 0.2.2 and then 0.3.0.
+Project-specific guidance stays outside that installed snapshot. The
+[glossary](../../glossary/index.md) owns current definitions; the list below
+preserves accepted rulings and unresolved follow-up.
 
 Ruling backlog, one per session, Navigator-paced:
 
-1. ~~History vs event history~~ — ruled 2026-08-31: capitalized **History**
+1. ~~History vs event history~~:  ruled 2026-08-31: capitalized History
    is canonical; "event history" stays as an acceptable descriptive long
    form. Recorded in the glossary and as a review outcome on the 2026-07-06
    record.
-2. ~~Candidate Selection~~ — ruled 2026-08-31: the Navigator renamed the
-   pair to **Transition Selection** (policy level; implementation:
-   Transition Selector) and **Token Selection** (arc level, formerly bare
+2. ~~Candidate Selection~~:  ruled 2026-08-31: the Navigator renamed the
+   pair to Transition Selection (policy level; implementation:
+   Transition Selector) and Token Selection (arc level, formerly bare
    "Selection"). Glossary terms added with mirror boundaries, spec prose
    swept, review outcome recorded on the 2026-07-22 record. Follow-up:
    code identifiers (`Scheduler`, the `petrus.impetus.selection`
    `SelectionPolicy` family) are pending rename.
-3. ~~DST vocabulary~~ — ruled 2026-08-31, definitions Navigator-accepted:
+3. ~~DST vocabulary~~:  ruled 2026-08-31, definitions Navigator-accepted:
    eleven terms (Deterministic Simulation
    Testing, World, Workload, Checker, Fault, Durability boundary, Choice
    streams, Budget, Campaign, Scripted scenario, Process Runner). Navigator
-   review reshaped the batch: **Workload** replaces "Scenario profile" (the
+   review reshaped the batch: Workload replaces "Scenario profile" (the
    FoundationDB/TigerBeetle term; `ScenarioProfile` class pending rename),
-   **Durability boundary** replaces "Durable cut" ("cut" remains the shipped
+   Durability boundary replaces "Durable cut" ("cut" remains the shipped
    artifact/code spelling), and the two drivers over one World are named
-   apart — **Scripted scenario** (author-chosen schedule: prove known cases,
-   debug, pin found bugs) vs **Campaign** (seed-driven exploration: hunt
+   apart:  Scripted scenario (author-chosen schedule: prove known cases,
+   debug, pin found bugs) vs Campaign (seed-driven exploration: hunt
    unknown cases). The boundary-faults-only rationale (mid-step crash
    instants collapse observationally into boundary outcomes) is now recorded
    in the owner doc §Durable and irreversible cuts. Timeline, JournalEntry,
    Observation, Disposition, and ScenarioRegistry stay out as implementation
    vocabulary.
-4. ~~Net document family~~ — ruled 2026-08-31, Navigator-accepted after a
-   naming session: **Net document** (envelope; "Net Schema" rejected as
-   overloading the schema sense), **Layout** (was portable view; "viewport"
-   rejected as meaning the visible window), **Net identity** (was definition
-   identity), **Timeline** (was execution lineage; forks into parallel
+4. ~~Net document family~~:  ruled 2026-08-31, Navigator-accepted after a
+   naming session: Net document (envelope; "Net Schema" rejected as
+   overloading the schema sense), Layout (was portable view; "viewport"
+   rejected as meaning the visible window), Net identity (was definition
+   identity), Timeline (was execution lineage; forks into parallel
    timelines; boundaries versus History and spawn/Thread lineage). Pending
    renames now include `PortableViewV1`, `ExecutionLineage`/`LineageEntry`,
    the DST `Timeline` authoring facade, and the spec/net-document-v1.md
    prose sweep.
-5. Engine surface verbs — Action, Snapshot, DriveOutcome, AcceptDelivery…;
+5. Engine surface verbs:  Action, Snapshot, DriveOutcome, AcceptDelivery…;
    the old CONTEXT.md entry has been retired. Review the current Engine
    glossary and specification for the remaining post-split action vocabulary.
 6. Overloaded words needing Avoid/qualification rulings: delivery,
    execution, lineage, view, snapshot, profile, attempt, command.
-   ~~territory~~ — ruled 2026-09-03, Navigator-accepted: **Execution
-   territory** glossary entry anchored in the Motus execution contract
+   ~~territory~~:  ruled 2026-09-03, Navigator-accepted: Execution
+   territory glossary entry anchored in the Motus execution contract
    (`src/petrus/motus/execution/__init__.py`) and the
    episode-owns-independent-execution-territory decision; bare
    "territory" blessed as the short form in Motus context.
-7. ~~Undefined coined names~~ — ruled 2026-08-31: **Gondolin** and
-   **Absurd** got glossary entries; **orb** and **pi/A2** were deliberately
+7. ~~Undefined coined names~~:  ruled 2026-08-31: Gondolin and
+   Absurd got glossary entries; orb and pi/A2 were deliberately
    excluded as incidental substrate vocabulary and vendor runtime lane
    names (same rule as claude/codex/amp). "A2" has no recorded expansion
    anywhere in the repo; capture it if it means something. Gondolin's
    entry uses "execution territory", defined by ruling 6 on 2026-09-03.
-8. "Library, not framework" — already owned by the host-lifecycle principle
+8. "Library, not framework":  already owned by the host-lifecycle principle
    in `docs/product/principles.md`; no additional definition is needed.
 
+## 1e WS3 reader pass and Memory Closure
 
-## 1b WS3 reader-facing coherence pass, 2026-09-08
+The first reader pass produced a runnable README, one runtime guide, current
+briefing/roadmap pointers, a short engineering guide linked to all 89 preserved
+review cases, and an Ariad router using the installed Memory Closure protocol.
+Its [worklog evidence](../../../process/worklog/entries/2026-09-08T1508Z-codex-reader-coherence.md)
+records the examples and checks executed then.
 
-The documentation pass is complete. The README has a runnable first example;
-the documentation guide separates usage, contribution, and historical evidence.
-Advanced examples and Agenticus support limits now have one runtime guide.
-The briefing and roadmap point to the completed direct-marking timeline story
-and its actual remaining application-bound work.
+The Navigator then authorized DST consolidation and exploration closure, with
+a critic for each task. The resulting ownership is:
 
-The engineering guide is a short entry point into all 89 preserved review
-cases. Their text and provisional status are unchanged. The local Ariad router
-uses the installed package and its Memory Closure protocol. AGENTS.md now
-correctly describes the installed method and retained experiments. The method
-package, decision corpus, runtime contracts, code, tests, and experiment
-artifacts are unchanged. Prose was edited for contributors who do not know the
-project's session history; headings and links provide the reading path.
-
-[Verification and review](../../../process/worklog/entries/2026-09-08T1508Z-codex-reader-coherence.md)
-records executed examples, automated checks, preservation checks, and limits.
-
-WS3's possible DST-format retirement and experiment pruning are deferred.
-They require compatibility and evidence-retention decisions, not a prose
-cleanup. WS2's remaining terminology rulings and code renames, plus WS4–WS6,
-remain open under this exploration. The current reader pass does not mark
-those workstreams complete or accept tentative domain language.
-
-
-## 1c Memory Closure and DST document review, 2026-09-08
-
-The Navigator asked which explorations should receive Memory Closure, why the
-DST contracts span several files, and whether the worklog should be reduced.
-The following is a proposed follow-up, not an accepted deletion or compatibility
-change. All 13 retained exploration dispositions were surveyed.
-
-| Closure target | Proposed treatment |
+| Task | Result |
 | --- | --- |
-| ES-059, dataflow and authoring | First priority: keep experiment verdicts and evidence; make ES-060 and CV20.DS2 own the remaining notation work, and remove repeated planning from the reading path. |
-| ES-052, plugin composition | Second priority: reconcile the 603-line analysis and 976-line execution brief into a concise paused-state entry, one experiment plan, and linked source evidence. Preserve the unexecuted experiment and promotion gate. |
-| ES-053, ES-054, ES-055, ES-057, completed comparisons | Keep each conclusion, source revisions, useful findings, and revisit conditions. Promote only accepted reusable meaning; comparisons do not authorize new roadmap work. |
-| ES-056 and ES-061, promoted candidates | Keep the promotion rationale and evidence; point to CV20 and the current Net-document specification for ongoing scope and contracts. |
-| ES-050, ES-051, ES-058 | Light closure check: these already have concise outcomes and implementation or tooling owners. |
-| ES-060 and ES-062 | Preserve paused/active state and explicit next decisions. Memory Closure does not make unfinished work complete. |
+| DST documentation | One complete World reference; compact version notes preserving old anchors; a v3 fixture index; separate runner and internal Scenario contracts. No fixture regeneration or compatibility change. |
+| ES-059 and ES-061 | Experiment verdicts, costs, promotion rationale, and supersession retained. Current authoring and Net-document work points to ES-060, CV20.DS2, CV20.DS3, and the specification. |
+| ES-052 and ES-060 | One paused-state entry and one ES-052 experiment plan. Source assumptions, all 16 first-experiment probes, falsifiers, later gates, and open questions retained. ES-060's benchmark decision remains pending. |
+| ES-053 through ES-058 | Completed comparisons retain source provenance, useful findings, rejected approaches, and revisit conditions. ES-056 points to CV20 for delivery. Recommendations do not become accepted work through editing. |
+| ES-050, ES-051, worklog, and ES-062 | Light closure makes earlier evidence and current owners explicit. Dated worklog entries remain intact; ES-062 keeps only verified outcomes and unresolved work. |
 
-DST has three distinct concerns: correctness and operating practice, the
-replayable World interpreter, and a separate process watchdog for calls that
-never return. World v1 establishes the generic interpreter; v2 adds exact
-failed-operation retention; v3 adds seeded provenance; v4 adds profile-resource
-accounting. Process Runner v1 has an independent protocol version. Scenario v1
-is the earlier internal replay envelope, implemented under `tests/dst/replay.py`.
+Humanizer and unslop guided the prose; small diagrams show the World inputs,
+authoring/source-map relationship, and observed/manual/simulated branching.
+The diagrams explain existing contracts or explicitly labeled experiments.
 
-The inspected fixture inventory has 1 World v1, 2 World v2, 45 World v3, and
-3 World v4 artifacts, plus 1 internal Scenario v1 artifact. Loader code and
-tests explicitly preserve these formats. The legacy Budget path can still
-author v3 artifacts. Retiring documentation cannot silently retire these
-contracts or regenerate fixtures as if earlier evidence used a newer format.
+## 1f Verification, review, and limits
 
-The documentation is fragmented by development chronology. World v4 depends on
-v1-v3 for its full meaning, while 783 of World v3's 905 lines are a retained-proof
-catalog. Proposed direction: one complete current World reference, concise
-version-compatibility material, a separate watchdog reference, and evidence
-links to the owning fixtures/tests and historical records. Current correctness
-practice remains in `deterministic-simulation-testing.md`. Preserve contract
-coverage and old links during consolidation before removing any redundant file.
+`scripts/check quick` passed lint, formatting, typing, and structural checks.
+The focused command passed 99 tests with no skips:
 
-The worklog currently has 72 entries and 4,821 lines; 46 entries concern DST or
-CV19. Retain dated milestones and their unique validation evidence. The existing
-CV19 closing entry already supplies a summary. Reduce duplicated current-guidance
-and proof narration first; do not rewrite old test counts or late-stage outcomes
-into earlier entries. Future entries should record meaningful milestones rather
-than every validation slice. No additional retrospective summary is needed.
+```sh
+uv run --frozen pytest -q tests/project tests/dst/test_world.py \
+  tests/dst/test_replay.py tests/dst/test_process_runner.py --forbid-skips
+```
 
-This review used document dispositions, fixture-format inventory, and the
-loader/replay tests as read-only evidence. No runtime tests were rerun for this
-recommendation. Execution of the consolidation remains a separate next step.
+Independent critic review accepted all five tasks after corrections to the
+Scenario-v1 enforcement wording, inherited experiment/source pointers, dated
+production observations, and prose. The final document scan checked 459
+Markdown files and 666 local links with no broken targets or anchors; all 261
+frontmatter documents parsed. Byte comparisons preserved 381 method,
+specification, decision, worklog, and supporting exploration files, including
+all 72 worklog entries. Only Markdown documentation changed.
+
+The new reference's resource-recovery command returned `pass` / `converged`,
+14 operations, and 39 journal entries. It exposed a stale digest duplicated in
+the old v4 prose; exact digests now remain in the fixtures. `git diff --check` passed.
+
+Historical research and experiment suites were not rerun; this pass changes
+documentation only. The complete release gate was not rerun or represented as passing.
+
+The documentation review reduced duplication without changing runtime behavior.
+No new technical-debt item is needed for this pass; unresolved terminology,
+compatibility retirement, architecture, and coverage reviews remain in the
+workstreams above.

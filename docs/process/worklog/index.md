@@ -28,13 +28,24 @@ entries/2026-06-17T1545Z-henrique-read-project.md
 entries/2026-06-17T1612Z-agent-validation-guide.md
 ```
 
-## 1b How to use
+## 1b Decide what needs an entry
 
-- Create a new entry file for each meaningful completed milestone.
-- Do not maintain a complete list of entries in this index.
-- Find recent work by listing `entries/` by filename.
-- Search entry frontmatter or body text for related stories, decisions, or verification evidence.
-- Record meaningful milestones, not every edit.
+Use an entry when a completed milestone has an operational result worth finding
+by date: a release, migration, qualification run, or consequential recovery.
+Record the result, why it mattered, executed evidence, and remaining limits.
+Routine edits and repeated validation belong in the owning story and its
+commit. An exploration that already records its conclusion and checks needs
+no duplicate worklog summary.
+
+Find entries by filename or search their metadata for a related story. For the
+DST delivery outcome, the existing [CV19 closing entry](entries/2026-08-19T0557Z-amp-cv19-production-boundaries-and-close.md)
+collects the final evidence; individual entries retain earlier milestones.
+
+Keep historical dates, test counts, failed attempts, and qualifications as
+recorded. Correct a factual error with a dated note and a link to its evidence.
+Update the current specification or story when behavior changes; a later pass
+does not turn an earlier failure into a pass. Before shortening an old entry,
+confirm that another linked owner preserves any unique decision or evidence.
 
 ## 1c Entry template
 
