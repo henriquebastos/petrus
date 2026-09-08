@@ -314,3 +314,52 @@ They require compatibility and evidence-retention decisions, not a prose
 cleanup. WS2's remaining terminology rulings and code renames, plus WS4–WS6,
 remain open under this exploration. The current reader pass does not mark
 those workstreams complete or accept tentative domain language.
+
+
+## 1c Memory Closure and DST document review, 2026-09-08
+
+The Navigator asked which explorations should receive Memory Closure, why the
+DST contracts span several files, and whether the worklog should be reduced.
+The following is a proposed follow-up, not an accepted deletion or compatibility
+change. All 13 retained exploration dispositions were surveyed.
+
+| Closure target | Proposed treatment |
+| --- | --- |
+| ES-059, dataflow and authoring | First priority: keep experiment verdicts and evidence; make ES-060 and CV20.DS2 own the remaining notation work, and remove repeated planning from the reading path. |
+| ES-052, plugin composition | Second priority: reconcile the 603-line analysis and 976-line execution brief into a concise paused-state entry, one experiment plan, and linked source evidence. Preserve the unexecuted experiment and promotion gate. |
+| ES-053, ES-054, ES-055, ES-057, completed comparisons | Keep each conclusion, source revisions, useful findings, and revisit conditions. Promote only accepted reusable meaning; comparisons do not authorize new roadmap work. |
+| ES-056 and ES-061, promoted candidates | Keep the promotion rationale and evidence; point to CV20 and the current Net-document specification for ongoing scope and contracts. |
+| ES-050, ES-051, ES-058 | Light closure check: these already have concise outcomes and implementation or tooling owners. |
+| ES-060 and ES-062 | Preserve paused/active state and explicit next decisions. Memory Closure does not make unfinished work complete. |
+
+DST has three distinct concerns: correctness and operating practice, the
+replayable World interpreter, and a separate process watchdog for calls that
+never return. World v1 establishes the generic interpreter; v2 adds exact
+failed-operation retention; v3 adds seeded provenance; v4 adds profile-resource
+accounting. Process Runner v1 has an independent protocol version. Scenario v1
+is the earlier internal replay envelope, implemented under `tests/dst/replay.py`.
+
+The inspected fixture inventory has 1 World v1, 2 World v2, 45 World v3, and
+3 World v4 artifacts, plus 1 internal Scenario v1 artifact. Loader code and
+tests explicitly preserve these formats. The legacy Budget path can still
+author v3 artifacts. Retiring documentation cannot silently retire these
+contracts or regenerate fixtures as if earlier evidence used a newer format.
+
+The documentation is fragmented by development chronology. World v4 depends on
+v1-v3 for its full meaning, while 783 of World v3's 905 lines are a retained-proof
+catalog. Proposed direction: one complete current World reference, concise
+version-compatibility material, a separate watchdog reference, and evidence
+links to the owning fixtures/tests and historical records. Current correctness
+practice remains in `deterministic-simulation-testing.md`. Preserve contract
+coverage and old links during consolidation before removing any redundant file.
+
+The worklog currently has 72 entries and 4,821 lines; 46 entries concern DST or
+CV19. Retain dated milestones and their unique validation evidence. The existing
+CV19 closing entry already supplies a summary. Reduce duplicated current-guidance
+and proof narration first; do not rewrite old test counts or late-stage outcomes
+into earlier entries. Future entries should record meaningful milestones rather
+than every validation slice. No additional retrospective summary is needed.
+
+This review used document dispositions, fixture-format inventory, and the
+loader/replay tests as read-only evidence. No runtime tests were rerun for this
+recommendation. Execution of the consolidation remains a separate next step.
