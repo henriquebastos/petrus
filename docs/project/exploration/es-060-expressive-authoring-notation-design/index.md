@@ -32,6 +32,12 @@ promoted_at:
 
 # Expressive net-authoring notation for Petrus
 
+## 1 Current pause and next decision
+
+No design round has run. The Navigator must choose one benchmark feature-net
+before the first round. This closure preserves that dependency and does not
+start the notation experiments. CV20.DS2 can use accepted results when they exist.
+
 ## Inquiry
 
 What Python notation for authoring Petrus feature-nets produces the
@@ -89,9 +95,9 @@ Petrus should not adopt.
    does: execute / simulate / explain as interpretations of one authored
    net. **Transfers in adapted form.**
 5. **Provenance and worldviews.** `why?` answers with a justification chain;
-   assumptions can be retracted and swapped. Petrus already owns this
-   substrate: History. `why?` is a History query wearing Scheme syntax.
-   **Already Petrus-native; needs surfacing, not inventing.**
+   assumptions can be retracted and swapped. This suggests History-backed
+   explanation for Petrus, while the propagator justification system remains
+   a different mechanism.
 
 Supporting background on the propagator/Petri-net relationship (from the same
 session): both are bipartite graphs of passive state holders and active
@@ -102,22 +108,12 @@ are interchangeable). Adopting a propagator runtime would be a semantics
 change, and is a rejected detour for this story. The prize is the linguistic
 layer that happened to sit on top of one.
 
-## Inputs from ES-059 (do not re-run)
+## Inputs from ES-059
 
-- Typed functional vertical slice: promising; all fourteen completion
-  conditions passed; established the invariants listed in the Inquiry.
-- Algebraic decision table (single transition): promising; byte-identical
-  canonical IR and History under a richer source. This is the leading
-  decision spelling.
-- One-guarded-transition-per-rung net: mixed; durable branch visibility paid
-  for with unprovable exclusivity obligations and topology growth.
-- Inscription net (impure = transition, pure = inscription/structure):
-  promising with priced costs; seven-combinator kernel, compiler-generated
-  exclusive guards with cover proof, pinned findings on fused-effect blast
-  radius and the data/structure boundary.
-
-Rounds below reuse these verdicts as settled evidence instead of
-relitigating them.
+[ES-059](../es-059-mit-dataflow-functional-programming-analysis/index.md#1d-executed-experiments)
+owns the four completed verdicts and their limits. Reuse them. The algebraic
+case table leads the decision-notation comparison; inscription costs and guard
+exclusivity remain constraints on any new spelling.
 
 ## Method
 
