@@ -9,6 +9,15 @@ related:
 
 # First-class lifecycle scopes
 
+## 1 Closure, 2026-09-08
+
+The candidate promoted to [CV8.DS6](../../roadmap/cv8-activity-execution/cv8-ds6-first-class-lifecycle-scopes.md)
+and the [History-first decision](../../decisions/records/2026-08-11T0101Z-history-first-lifecycle-scopes.md).
+The evidence section below describes the pre-implementation investigation,
+including gaps later addressed by Delivery. Current lifecycle semantics belong
+in [History](../../../../spec/event-history.md#lifecycle-scopes). Revisit the
+candidate only if new evidence challenges those accepted boundaries.
+
 ## Inquiry
 
 What is the smallest provider-neutral production contract that can close or
@@ -23,7 +32,7 @@ occurrences whose future accepted execution must end together. Same-generation
 operation ownership, provider-effect reconciliation, and domain compensation
 remain separate application responsibilities.
 
-## Evidence
+## 2 Historical evidence before production delivery
 
 1. `[R]` The approved Hamsterdan synthesis fixes durable scope identity as
    `(name, generation)`, makes append order the race authority, requires exact
@@ -37,11 +46,11 @@ remain separate application responsibilities.
 3. `[X]` The disposable model did not integrate Engine, HistoryStore,
    Dispatch, or generic ingress. It cannot establish production behavior and
    its branch or runtime must not be copied.
-4. `[E]` Current production inspection shows token queues retain value and
+4. `[E]` The pre-delivery production inspection shows token queues retain value and
    entry instant but not durable occurrence identity or lifecycle provenance.
    `ActivityRequested` is the canonical outbox, while the provider-neutral
    Dispatch contract has only `dispatch` and `collect`.
-5. `[E]` Current Local and Absurd custody already fence claims and terminal
+5. `[E]` The inspected Local and Absurd custody already fence claims and terminal
    reports. Local can add an explicit cancelled terminal and epoch fence;
    pinned Absurd exposes durable task cancellation/tombstones that Petrus can
    integrate without claiming hard interruption or exactly-once effects.

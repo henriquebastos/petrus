@@ -30,6 +30,13 @@ promoted_at:
 
 # Mutmut and Cosmic Ray comparison for Petrus
 
+## 1 Closure, 2026-09-08
+
+The completed comparison and upgrade evidence below describe 2026-08-25.
+The [development guide](../../../process/development-guide.md) owns current
+mutation commands, scope, and interpretation. The recorded Cosmic Ray revisit
+conditions remain open triggers; Memory Closure starts no new tool probe.
+
 ## Inquiry
 
 Should Petrus replace its curated Mutmut mutation diagnostic with Cosmic Ray,

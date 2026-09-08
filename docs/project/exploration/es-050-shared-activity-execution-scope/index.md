@@ -10,6 +10,15 @@ related:
 
 # Shared Activity execution scope
 
+## 1 Closure, 2026-09-08
+
+The candidate was delivered under the linked Instance-identity decision.
+The findings and application size estimates below describe the August 2026
+investigation. Current Worker usage lives in the [runtime guide](../../../runtime-guide.md);
+the [decision](../../decisions/records/2026-08-10T1200Z-instance-identity-scopes-shared-activity-resolution.md)
+owns the accepted scope and resolver behavior. Revisit broader binding or
+scheduling proposals only when a concrete host needs more than this contract.
+
 ## Inquiry
 
 What is the smallest provider-neutral execution-scope, instance-scheduling,
@@ -108,8 +117,8 @@ An explicit `None` resolution falls back to the unchanged default mapping;
 missing scope fails closed whenever a resolver is configured. This is an
 additive composition seam, not a durable service locator.
 
-The synchronous Worker may also expose a bounded `run_available` pump as a
-separate scheduling primitive. Petrus will not add a multi-Instance scheduler,
+The delivered synchronous Worker also exposes a bounded `run_available` pump
+for host-owned scheduling. Petrus will not add a multi-Instance scheduler,
 runnable index, webhook custody, per-Instance thread, PostgreSQL requirement,
 or Activity-module container in this story.
 
