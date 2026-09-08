@@ -1,82 +1,46 @@
-# Roadmap
+# 1 Roadmap
 
-Roadmap items carry their own status and preserve durable technical direction.
-CV10.DS4 completed one hermetic single-host retained-territory custody and
-reconciliation route. CV10.DS1–DS4 now cover one Episode-owned Gondolin
-lifecycle, Local Activity and Worker borrowing, terminal replay, and exact
-retained lease reclaim or retirement. Activity never owns territory lifecycle,
-and no live provider or multi-host support is claimed.
+Each item owns its status, scope, and acceptance evidence. Start with the
+[project briefing](../briefing.md) for an overview. Read the linked item before
+using an older milestone as evidence of current support.
 
-## Retained Values
+## 1a Current work
 
-- CV1–CV4 and CV6: language-neutral foundations, Python kernel, runtime
-  topology, Ariad/runtime integration, and first-version runtime convergence.
-- CV5/Fabric: unfinished prototype call/spawn demonstrations retained as
-  evidence only. Fabric is subject to rewrite and is not a completed or
-  supported capability.
-- CV8: production local Activity execution, optional ZeroMQ transport, async
-  Activities, async-native Worker custody, and one provider-neutral logical
-  execution with bounded durable retries, deadlines, and terminal-failure
-  projection/recovery. Shared Workers preserve authorizing Instance scope and
-  may resolve host-composed scoped implementations without changing the simple
-  default or Inline paths. First-class lifecycle scopes canonically close or
-  atomically reset exact work generations, then install recoverable operational
-  cancellation fences while preserving unscoped behavior.
-- CV10: composable execution. CV10.DS1–DS4 qualified one hermetic,
-  Episode-owned Gondolin lifecycle, host-local Activity execution, Local
-  Worker terminal replay, and private single-host retained lease
-  reconciliation. Live-provider and network/multi-host work remains blocked or
-  unbounded.
-- CV11–CV15: semantic observation, durable captures, long-History navigation,
-  canonical Net inspection, and bounded simulation.
-- CV16: Agenticus infrastructure and one supported scripted Pi A2 Local host
-  lifecycle. Live-provider profiles remain qualification-only or unsupported.
-- CV17–CV18: hosted bounded simulation and portable canonical Net definitions.
-- [CV19 — Deterministic simulation testing](cv19-deterministic-simulation-testing/index.md):
-  DS1 froze correctness and strict replay contracts. DS2's supported
-  executable World retains exact failures, seeded provenance,
-  public-Engine crash/cut replays, versioned profile-resource bounds, and real
-  Absurd/PostgreSQL token-bearing and source-registration initial creation,
-  identified, stale-scope, and future-scope delivery, begin,
-  completed/failed terminal, successful/failed projection with handler
-  registration effects, and lifecycle open/reset/close/cancellation plus
-  runtime-policy source-seal refusal/acknowledgement-loss qualification,
-  including exact ingress
-  redelivery, provider-terminal recollection, and converged-state
-  reconstruction.
-  Petrus owns the reusable substrate; applications such as Hamsterdan own their
-  domain models and provider fault worlds. DS3 is Done: its cross-layer
-  public-Engine profile generates and exactly replays delivery, timer,
-  Activity/retry, lifecycle, crash/load, Dispatch-refusal, and
-  projection-refusal schedules under all eight applicable safety families,
-  then separately qualifies fair convergence, minimized failure replay and
-  promotion, and semantic coverage. DS4 supplies bounded ordinary/scheduled
-  campaigns, exact safe failure retention/promotion, and a separate
-  claim-limited operation over real PostgreSQL, Worker SIGKILL, and ZeroMQ
-  process evidence. CV19 is Done; its explicit unmodeled boundaries remain
-  limits, not unfinished accepted scope.
+| Work | Owning record |
+| --- | --- |
+| Developer experience and the remaining live-understanding work | [CV20: Approachable Petrus](cv20-approachable-petrus/index.md) |
+| Execution work beyond the qualified hermetic, single-host routes | [CV10: Composable execution](cv10-composable-execution/index.md) |
+| Documentation coherence, terminology, and architecture review | [ES-062](../exploration/es-062-consolidation-and-coherence-baseline/index.md), an exploration rather than a delivery commitment |
 
-## Active Values
+CV20's direct-marking timeline foundation is complete. The remaining DS3 work
+is application-bound targeted simulation and live correlation, as recorded in
+[Live understanding](cv20-approachable-petrus/cv20-ds3-live-understanding.md).
 
-- [CV20 — Approachable Petrus](cv20-approachable-petrus/index.md) is Active.
-  CV20.DS3's portable definition/view foundation and paired Hamsterdan V5 Arx
-  arrangement are Done; DS3 remains Active for optional strict lineage. The
-  other four Delivery Stories remain Planned. ES-056 supplied the promoted
-  Value and ES-061 supplies DS3's accepted semantics.
+## 1b Delivered work and historical evidence
 
-Application-specific and site-operation plans remain outside this source tree.
+[CV19](cv19-deterministic-simulation-testing/index.md) records completion of
+the deterministic-simulation test kit and its explicit qualification limits.
+[CV16](cv16-agenticus-composable-agent-infrastructure/index.md) records
+Agenticus infrastructure and the supported scripted local-host route.
 
-## Structure and states
+Earlier records cover the language-neutral foundations, Python kernel,
+History Stores, Activity execution, observation, simulation, and portable Net
+definitions. Search item metadata for their disposition. CV5/Fabric remains
+unfinished prototype evidence and is subject to rewrite. Application-specific
+and site-operation plans are maintained outside this source tree.
+
+## 1c Structure and states
 
 Use the simplest Ariad hierarchy that fits: Value (`CV<N>`), Delivery Story
 (`DS<N>`), User Story (`US<N>`), Technical Story (`TS<N>`), Task, or
 Maintenance. Item status is one of `Planned`, `Active`, `Blocked`, `Validated`,
 `Done`, `Deferred`, or `Dropped` and belongs in the item's own metadata.
 
-Find work by searching item metadata. `Active` means an actual current working
-session; `Blocked` and `Planned` remain visible even when no session is active.
+Find work by searching item metadata, then read `status_reason` and the
+recorded next action. `Blocked` and `Planned` work remains discoverable
+alongside `Active` work.
 
-## Item template
+## 1d Item template
 
 ```markdown
 ---

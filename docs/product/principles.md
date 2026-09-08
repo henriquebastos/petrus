@@ -1,91 +1,105 @@
-# Product Principles
+# 1 Product principles
 
-What Petrus preserves when trade-offs appear. Petrus is the project over the
-settled Impetus, Motus, and Arx components and the one `petrus` Python
-distribution and namespace. Impetus and Motus retain their conceptual
-ownership through `petrus.impetus` and `petrus.motus` subpackages. These
-principles are grounded in the decision corpus; supersede deliberately, don't
-erode.
+These principles guide Petrus design choices. Impetus owns net semantics and
+History; Motus owns Activity execution; Arx owns human-facing editing and
+inspection. Consequential changes to these constraints belong in the
+[decision records](../project/decisions/index.md).
 
-## Principles
+## 1a The net instance owns durable state
 
-### The net is the durable thing, not the agent
+A net instance's History and marking are authoritative. Agents participate
+through handlers and Activities; their private state cannot override History.
+The runtime must remain useful for deterministic code and human work without
+any agents. Use agents for judgment and code for deterministic operations.
 
-Everyone else centers the agent and its state. In Impetus the durable truth is the net instance — event History + marking — and agents live within it as handler flavors. Any feature that makes an agent's private state authoritative over History is moving backwards.
+## 1b Make execution explainable from History
 
-### One history, no hidden loops
+Every firing belongs to one per-instance, append-only History. Context,
+snapshots, and summaries are rebuildable views of recorded facts. A component's
+execution loop must not hide state needed to reconstruct the process. Derived
+context can be reprocessed and forked while canonical History remains linear.
 
-Every firing — passthrough or side-effecting — belongs to one per-instance, append-only event history. If a behavior cannot be explained from the history, the design is wrong, not just the code. Context is a view over history: rebuildable, reprocessable, forkable. No component may own a loop whose state can't be reconstructed from the log.
+Corrections append new events. Canonical History remains uncompacted;
+projections and summaries may be replaced. Operational retention and archival
+are separate from semantic compaction. Future inspection, process mining,
+and forking depend on preserving the original facts.
 
-### Append-only and uncompacted, forever
+## 1c Record external facts and their disposition
 
-Corrections are new events. Compaction never touches the canonical log — projections, snapshots, and summaries are derived, disposable, rebuildable. Retention/archival is an operational concern, distinct from semantic compaction. Future tools (process mining, forking, meta-workflows) depend on records we refuse to destroy today.
+Record external events even when no transition consumes them. Preserve
+observed Activity results so replay does not repeat effects to discover their
+outcomes. Terminalize interrupted work explicitly, and record the disposition
+of proven-closed ingress and late terminal reports.
 
-### Record facts, even inconvenient ones
+At a source boundary, capture source content durably with provenance before
+interpreting it. Treat raw content as untrusted data. Infrastructure-owned
+cursors track progress; idempotence makes overlapping delivery safe. Keep
+coverage gaps explicit until the missing evidence arrives. A successful fetch
+or a declared time span alone does not prove completeness. Source archives may
+live outside canonical History and feed independent interpretation Nets.
 
-External events are recorded as history facts whether or not any transition consumes them — production taught us that silently dropped webhooks become ledger compensation later. Side effects are observed facts in history, never recomputed during replay. Interrupted work is terminalized explicitly; proven-closed ingress and late terminals are dispositioned durably rather than silently lost or retargeted. Nothing dangles.
+## 1d Keep handlers and Activities composable
 
-### Capture before meaning
+Transitions bind to implementations through named symbols. Filters and guards
+are pure; they may use inline CEL or named reusable code. Handlers bridge
+Petri-net bindings to Petri-agnostic Activities, which perform external effects.
+Ingress adapters receive external data, and source transitions project their
+identified deliveries into tokens.
 
-At a source boundary, preserve what the source said durably and with provenance before interpretation assigns meaning. Raw source content is untrusted data, not instructions. Infrastructure-owned cursors define processing progress; at-least-once overlap is made safe through idempotence. Coverage gaps remain explicit and repair closes only when missing evidence actually arrives—not when a request succeeds or a time span merely claims completeness. Source archives may remain territory outside an Instance's canonical History; downstream interpretation Nets consume them independently and replayably.
+Named implementations keep ordinary code available when the authoring syntax
+cannot express a domain operation. The host supplies implementations without
+putting execution infrastructure into the net's semantic model.
 
-### Handlers are code; the seam is sacred
+## 1e Start with permissive flow
 
-Transitions decouple from side-effect implementations through named symbols and bindings — a seam already proven on a durable execution substrate and retained by Petrus for any substrate. Filters and guards are pure (inline CEL for the trivial, a named symbol of ordinary reusable code for the rest). Server-side handlers bridge Petri semantics to Petri-agnostic activities; activities contain the imperative side effects workers execute. Ingress adapters touch external transports and source transitions locally project their identified deliveries. The outside world affects the net only after becoming recorded tokens. We never force users to bypass our design to get real work done — the named-symbol escape hatch means there is no DSL ceiling.
+Untyped places accept any token. Arcs without a color after place-color
+resolution also accept any token, and the default passthrough handler routes
+flow. A place can declare a token domain; flattening applies that color to
+otherwise-untyped incident arcs. Explicit arc colors can narrow heterogeneous
+places. Types, filters, weights, and guards constrain flow when needed.
+Instantiation-time validation enforces correctness.
 
-### Anything is allowed, then shape down
+## 1f Make the common path approachable
 
-Defaults are permissive: untyped places hold any token, arcs left untyped after place-color resolution admit anything, and flow just flows through the default passthrough handler. A place may declare its ordinary token domain once; flattening compiles that color onto otherwise-untyped incident arcs. Explicit arc colors still narrow heterogeneous places. Types, filters, weights, and guards shape flow but are never declaration duties. Correctness is enforced by the instantiation-time validation run, not a static type ceremony. Impetus is not a pure-Petri-net environment; it is Petri-net infrastructure for a runtime, and it does not presume what people will do with it.
+One readable flow file should be enough to compile, inspect, validate, and
+reach first motion. Clients, credentials, persistence, placement, and agent
+machinery compose around the flow. Convenience must preserve the canonical
+Net, History, Activity, and authority model. Generated topology stays
+inspectable, and authors can use lower-level APIs without losing validation
+or replay. This is a design goal; the roadmap records what remains to deliver.
 
-### Progressive disclosure, not semantic reduction
+## 1g Preserve local operation and explicit authority
 
-The common path should make one readable flow file enough to compile, inspect,
-validate, and put a process into first motion. Application clients, agent
-machinery, credentials, persistence, and placement compose behind or beside
-that flow instead of overwhelming it. Convenience is a frontend over the same
-canonical Net, History, Activity, and authority model—not a second runtime or
-an implicit call-stack workflow. Every generated topology remains inspectable,
-and advanced authors may descend deliberately to the lower-level Petrus APIs
-without losing validation or replay. Lower cognitive cost before lowering
-capability.
+A single machine runs the same semantics, History, and Worker model used by a
+distributed host. Distribution routes execution without changing that model
+or making local operation depend on remote infrastructure.
 
-### Useful with zero agents
-
-The runtime must remain fully valuable running only deterministic code and humans. Nothing in the core may assume a transition is agentic. Agents are for judgment; deterministic work is code.
-
-### Local-first, distribution-ready
-
-One machine runs the full model — same semantics, same history, same workers. Distribution scales the same model by routing execution across a grid; it never switches to a different model. No required infrastructure that makes local operation second-class.
-
-### Authority is local; coordination is addressed
-
-Every net instance owns its canonical history, marking, and writer authority.
+Each instance owns its marking, writer authority, and canonical History.
 Independent instances communicate through authenticated, identified source
-delivery and activity effects—not shared memory, direct marking mutation, or a
-global semantic history. Routing, discovery, inboxes, and receipts are protocol
-state around the sacred ingress/activity seams. Process identity survives its
-current worker, runner, provider session, and execution location.
+delivery and Activity effects. Routing, discovery, inboxes, and receipts are
+protocol state; they cannot mutate another instance's marking or create a
+global semantic History. Process identity survives its current Worker, runner,
+provider session, and execution location. Fabric's unfinished prototype does
+not establish a general support claim for this design.
 
-### Compose, don't own
+## 1h Let applications own their lifecycle
 
-Impetus and Motus compose into a runtime, never a framework that owns the host's lifecycle. Arx connects to that runtime without becoming its lifecycle owner or canonical state. All three Petrus components retain distinct conceptual responsibilities even when an application integrates them. Where durability guarantees are needed, the store — not the process — is the unit of ownership we reach for first.
+Impetus and Motus compose into a library runtime. Applications own the hosting
+lifecycle; Arx connects without becoming the canonical state or lifecycle
+owner. Each component retains its responsibilities when integrated. Durable
+ownership is enforced at the store where the chosen profile supports it.
 
-### Arx follows current Petrus
+## 1i Arx follows current Petrus contracts
 
-Arx exists to lower the human cognitive cost of designing, understanding,
-simulating, observing, debugging, and adapting current Petrus systems. Current
-Petrus contracts and component ownership govern its models. Arx may join semantic, operational, provider, and application views into
-one navigable experience, but it preserves their provenance and never turns
-presentation into authority. Build one demonstrated cognitive improvement at a
-time without shrinking the companion vision permanently to visualization or
-live watching.
+Arx helps people design, inspect, simulate, observe, debug, and adapt Petrus
+systems. It can join semantic, operational, provider, and application views
+while preserving their provenance. Presentation never grants execution or
+History authority. Develop demonstrated improvements incrementally while
+retaining the broader editor and debugger purpose.
 
-## Questions to Answer
+## 1j Open design boundary
 
-Still genuinely open:
-
-- **Writer enforcement across future profiles**: PostgreSQL and SQLite Engine
-  constructions now prove store/filesystem-backed fencing for their supported
-  profiles, while in-memory and JSONL retain narrower single-owner assumptions.
-  A future multi-host History Store must earn its own store-level fence rather
-  than reopening whether the library form can enforce ownership at all.
+PostgreSQL and SQLite Engine profiles have store or filesystem writer fencing.
+In-memory and JSONL profiles retain narrower single-owner assumptions. Any
+future multi-host History Store must establish its own store-level fencing
+and failure guarantees.

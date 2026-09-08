@@ -13,7 +13,7 @@ changing production code, also re-read:
 - [`CV16 — Agenticus composable agent infrastructure`](../../roadmap/cv16-agenticus-composable-agent-infrastructure/index.md);
 - [`Installations own authority; Agenticus owns reusable machinery`](../../decisions/records/2026-08-03T0430Z-installations-own-authority-agenticus-owns-machinery.md);
 - [`Petrus is a library, not a lifecycle-owning framework`](../../../product/principles.md); and
-- the current Agenticus support matrix in [`README.md`](../../../../README.md#agenticus-support-matrix).
+- the current [Agenticus support matrix](../../../runtime-guide.md#2-agenticus-support-matrix).
 
 This is **Exploration Documentation**, not an accepted roadmap plan. Names,
 interfaces, stages, and candidate stories below are working shapes. Promotion
