@@ -1,19 +1,15 @@
-# Timeline
+# 1 Timeline
 
-The Net document's optional forkable sequence of steps: one flat,
-parent-linked entry list in which observed and simulated entries
-carry the same generic History-record fact with explicit provenance,
-and manual interventions are explicit hypotheses in that same
-sequence. Each step yields a marking; a branch forks a parallel
-timeline, and changing captured evidence saves as a new document,
-never overwriting the observed source.
+The Net document's optional parent-linked sequence of steps, each carrying a
+complete marking and observed, simulated, or manual provenance. Branches can
+continue from an observed state or a manually authored hypothesis.
 
-- Do not use for: [History](history.md) — the one canonical timeline
-  of what actually happened in an Instance; a document Timeline may
-  embed observed History facts and fork what-ifs. Also not process
-  spawn lineage or a Thread's lineage.
-- Avoid: execution lineage (former name; the `ExecutionLineage`
-  class and the DST `Timeline` authoring facade are pending
-  rename/disambiguation).
+- Use when: navigating or branching states in a Net document.
+- Do not use for: [History](history.md), the canonical linear record of one
+  Instance, or process/Thread ancestry. History metadata in a Timeline is
+  supporting evidence; navigation reads each entry's complete marking.
+- Avoid: execution lineage, the former name. `ExecutionLineage` remains the
+  Python class and `lineage` the serialized field. The separate DST `Timeline`
+  class is an authoring facade, not a Net document Timeline.
 - Related: [Net document](net-document.md), [History](history.md)
-- Detail: [spec/net-document-v1.md](../../../spec/net-document-v1.md)
+- Detail: [Net document specification](../../../spec/net-document-v1.md#1d-timeline)

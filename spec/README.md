@@ -18,7 +18,7 @@ line against the implementation.
 - [OVERVIEW.md](OVERVIEW.md): narrative design overview; read this first.
 - [net-schema.md](net-schema.md): structure of a net definition: nodes, places, transitions, arcs, tokens, markings, addressing.
 - [net-definition-v3.md](net-definition-v3.md): canonical flat, Pydantic-backed cross-system Net-definition file and compiler contract.
-- [net-document-v1.md](net-document-v1.md): the one portable Petrus file format: required definition plus optional view and direct-marking lineage.
+- [net-document-v1.md](net-document-v1.md): the one portable Petrus file format: required definition plus optional Layout and Timeline of complete markings.
 - [firing-semantics.md](firing-semantics.md): enabledness, the firing pipeline, scheduling, timers, replay.
 - [event-history.md](event-history.md): the per-instance append-only event history and its record model.
 - [handler-contract.md](handler-contract.md): how declared symbols bind to guards and handlers, and what handlers promise.

@@ -1,15 +1,28 @@
-# Petrus Net document version 1
+# 1 Petrus Net document version 1
 
 This specification and the `net-document-v1-*.json` fixtures define the only
 portable Petrus file format. A document always carries one Net definition. It
-may also carry authored layout and a marking lineage, so the same shape covers
+may also carry a Layout and a Timeline, so the same shape covers
 a static design, a production observation, a simulation, and a manually
 forked hypothesis.
 
 `petrus.impetus.net_document` owns strict parsing, deterministic serialization,
-projection from a runtime `Net`, and definition identity.
+projection from a runtime `Net`, and Net identity.
 
-## Envelope
+The [glossary](../docs/project/glossary/net-document.md) owns the accepted
+names. The protocol and current Python API retain these spellings:
+
+| Concept | JSON field or value | Python API |
+| --- | --- | --- |
+| [Layout](../docs/project/glossary/layout.md) | `view` | `PortableViewV1` |
+| [Timeline](../docs/project/glossary/timeline.md) | `lineage` | `ExecutionLineage`, `LineageEntry` |
+| [Net identity](../docs/project/glossary/net-identity.md) | Digest of canonical `definition` bytes | `definition_identity(document)` |
+
+Use the exact serialized keys when reading or writing a document. The names
+in prose do not change the v1 format or its compatibility rules.
+
+<a id="envelope"></a>
+## 1a Envelope
 
 ```json
 {
@@ -32,41 +45,43 @@ projection from a runtime `Net`, and definition identity.
 `format`, `version`, and `definition` are required. `view` and `lineage` are
 optional and must be omitted, not set to `null`, when absent. A
 definition-only document is therefore a complete valid file. Layout and
-execution facts are components of that same file, not alternate file formats.
+Timeline are optional components of that same file.
 
 The embedded definition is exactly one canonical Net-definition v3 envelope.
 It remains the semantic authority for places, transitions, arcs, colors, and
 completion. It contains no implementation bindings, provider credentials, or
 runtime authority.
 
-## Definition identity
+<a id="definition-identity"></a>
+## 1b Net identity
 
-The lowercase SHA-256 definition identity is computed from:
+The lowercase SHA-256 Net identity is computed from:
 
 ```text
 serialize_net_definition(document.definition)
 ```
 
-View and lineage data do not enter that digest. Arranging nodes, selecting a
-different lineage head, or adding a hypothesis therefore leaves the Net's
-structural identity unchanged.
+Layout and Timeline data do not enter that digest. Arranging nodes, selecting
+a different Timeline head, or adding a hypothesis leaves Net identity unchanged.
 
-## View
+<a id="view"></a>
+## 1c Layout
 
-View version 1 contains authored node positions only:
+The `view` component has version 1 and contains authored node positions only:
 
 - `node` is the canonical dotted `NetPath` of a place or transition in the
   embedded definition;
 - `x` and `y` are finite JSON numbers and may be fractional; and
 - `nodes` contains unique paths sorted by Unicode scalar value.
 
-A view may be partial or empty. A consumer may place missing nodes without
+A Layout may be partial or empty. A consumer may place missing nodes without
 moving the authored positions. Camera state, current selection, panels,
-waypoints, and other editor-local state are not portable view facts.
+waypoints, and other editor-local state remain editor-local and are absent from Layout.
 
-## Marking lineage
+<a id="marking-lineage"></a>
+## 1d Timeline
 
-Lineage is one uniform navigation sequence. Every entry has the same required
+The `lineage` component stores the Timeline. Every entry has the same required
 shape, whether its state was observed in production, produced by simulation,
 or entered manually:
 
@@ -184,22 +199,24 @@ The marking uses sparse form:
 `metadata` is always present and is a strict JSON object. It can retain useful
 context such as an Instance id, a canonical `history_record`, a group of
 `history_records`, simulation scenario and outcome, an observation snapshot,
-or a manual note. Petrus does not interpret metadata to compute lineage
+or a manual note. Petrus does not interpret metadata to compute Timeline
 markings or ancestry. History in metadata is supporting debug evidence, not a
 second state authority.
 
-## Runtime materialization
+<a id="runtime-materialization"></a>
+## 1e Runtime materialization
 
 The live observation and hosted simulation HTTP protocols remain runtime
 transports rather than additional portable file formats. A live Engine
 materializes its current definition and canonical History prefix as one Net
 document whose entries have `observed` provenance and complete markings. A
 hosted simulation returns the same document format with `simulated` entries.
-Consumers may add or move view positions and append manual branches. They may
+Consumers may add or move Layout positions and append manual branches. They may
 append simulated branches only from markings returned by Petrus, without
 translating to another file shape.
 
-## Canonical laws
+<a id="canonical-laws"></a>
+## 1f Canonical laws
 
 Let `P` project a runtime Net and optional positions, `S` serialize, and `R`
 parse. For every projectable Net `N`, admitted position map `V`, and admitted
@@ -219,8 +236,8 @@ omits absent `view` and `lineage` components.
 Parsing refuses malformed UTF-8, duplicate members at any depth, non-finite
 numbers, Unicode surrogate values, unknown fields, coercible wrong types,
 unsupported discriminators, null optional components, malformed or
-noncanonical definitions, foreign view or marking paths, invalid colors,
-unsorted or duplicate paths, empty sparse place entries, empty lineage,
+noncanonical definitions, foreign Layout or marking paths, invalid colors,
+unsorted or duplicate paths, empty sparse place entries, an empty Timeline,
 non-dense ids, invalid parents, and an unknown head.
 
 `NetDocumentV1.model_json_schema()` describes structural shape. JSON Schema

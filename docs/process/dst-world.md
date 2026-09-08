@@ -7,6 +7,13 @@ The workload owns application semantics and the runtime objects it constructs.
 The test kit is supported across projects through its defining module and is
 not re-exported from the `petrus` package root.
 
+The glossary calls the application adapter a
+[Workload](../project/glossary/workload.md); the Python protocol remains
+`ScenarioProfile`, and artifact identities still use `profile`. The Python
+`Timeline` class helps an author drive one World generation. It is separate
+from the [Timeline](../project/glossary/timeline.md) stored in a Net document.
+The code names used below are the shipped API spellings.
+
 Read [correctness and operating practice](deterministic-simulation-testing.md)
 for Petrus's properties, fault boundaries, campaigns, and qualification limits.
 Use the separate [process runner](dst-process-runner-v1.md) when a profile call
@@ -126,7 +133,7 @@ pending queue, budget, and recent journal.
 <a id="runtime-generations-and-fairness"></a>
 ## 1e Runtime generations and fairness
 
-Every Timeline is bound to one monotonically numbered generation. Crash
+Every `Timeline` is bound to one monotonically numbered generation. Crash
 handling is strictly ordered:
 
 1. capture detached checker observations at the cut;
@@ -134,7 +141,7 @@ handling is strictly ordered:
 3. call the profile's non-settling `drop`; and
 4. permit reconstruction only through `load`.
 
-The stale Timeline refuses every later use. Graceful `World.close()` is
+The stale `Timeline` refuses every later use. Graceful `World.close()` is
 distinct and invokes `close` only for a currently live generation. A profile
 whose create/install path fails after yielding a generation is closed by the
 World before the constructor propagates the failure.

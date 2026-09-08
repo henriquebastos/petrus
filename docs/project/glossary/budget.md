@@ -5,4 +5,4 @@ profile-defined retained and pending resources. Exhausting the
 budget bounds the run; it is never a correctness verdict.
 
 - Related: [World](world.md)
-- Detail: [dst-world-v4.md](../../process/dst-world-v4.md)
+- Detail: [World reference](../../process/dst-world.md#deterministic-scheduling-and-bounds)

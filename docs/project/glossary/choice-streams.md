@@ -5,4 +5,4 @@ scenario input; seeds are discovery metadata only, never replay
 authority.
 
 - Related: [World](world.md), [Campaign](campaign.md)
-- Detail: [dst-world-v4.md](../../process/dst-world-v4.md)
+- Detail: [World reference](../../process/dst-world.md#seeded-authorities)

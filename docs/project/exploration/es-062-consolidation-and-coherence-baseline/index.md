@@ -36,7 +36,9 @@ and limits future entries to meaningful milestones.
 ES-062 remains Active because terminology and design reviews below remain open.
 Runtime code, tests, fixtures,
 experiment artifacts, decision records, and the installed Ariad package were
-preserved. It accepted no new runtime contract, format retirement, exploration
+preserved during the WS3 pass. The subsequent WS2 pass below reconciles current
+specification prose and a dated decision note with already accepted meaning.
+Neither pass accepted a new runtime contract, format retirement, exploration
 promotion, or product support claim.
 
 ## 1b Workstreams and next movement
@@ -128,8 +130,8 @@ Ruling backlog, one per session, Navigator-paced:
    identity), Timeline (was execution lineage; forks into parallel
    timelines; boundaries versus History and spawn/Thread lineage). Pending
    renames now include `PortableViewV1`, `ExecutionLineage`/`LineageEntry`,
-   the DST `Timeline` authoring facade, and the spec/net-document-v1.md
-   prose sweep.
+   and the DST `Timeline` authoring facade. The specification prose sweep
+   completed on 2026-09-08; the serialized fields and Python names remain intact.
 5. Engine surface verbs:  Action, Snapshot, DriveOutcome, AcceptDelivery…;
    the old CONTEXT.md entry has been retired. Review the current Engine
    glossary and specification for the remaining post-split action vocabulary.
@@ -201,3 +203,45 @@ The documentation review reduced duplication without changing runtime behavior.
 No new technical-debt item is needed for this pass; unresolved terminology,
 compatibility retirement, architecture, and coverage reviews remain in the
 workstreams above.
+
+## 1g WS2 accepted-language coherence, 2026-09-08
+
+The continuation applied the accepted Layout, Timeline, and Net identity names
+to the Net document specification and its observation/simulation references.
+A mapping table preserves the exact `view`/`lineage` keys and current Python
+API names, and the old specification anchors still resolve.
+
+The Timeline glossary and the August 27 decision still described the earlier
+History-record/source-anchor candidate. The accepted CV20.DS3.TS2 plan and
+Experience Report explicitly replace it with complete markings. The glossary
+now reflects that accepted result, and a
+[dated decision correction](../../decisions/records/2026-08-27T0206Z-portable-net-document-unifies-definition-view-and-lineage.md#1-coherence-correction-2026-09-08)
+records supersession while preserving the original passage. This is a repair
+of stale wording, not a new terminology ruling.
+
+The World reference now distinguishes Workload from the shipped
+`ScenarioProfile` name and its `Timeline` authoring class from a Net document
+Timeline. Four DST glossary links now point to the complete World reference.
+Public API renames remain pending and require a compatibility-aware change.
+
+Verification passed 78 tests with no skips:
+
+```sh
+uv run --frozen pytest -q tests/project \
+  tests/petrus/impetus/test_net_document.py \
+  tests/petrus/impetus/test_net_document_lineage.py --forbid-skips
+```
+
+The critic accepted the terminology, authority chain, and preserved contract.
+The specification's fenced examples are byte-for-byte unchanged. Code, fixture,
+and installed-method files did not change. `scripts/check quick` passed, and
+the scan of 459 Markdown files found all 677 local links and anchors valid.
+The release gate and historical application experiments were not
+rerun for this documentation correction.
+
+Two DST glossary phrases remain for a separate definition review: World says
+every run produces an artifact although construction and harness failures can
+prevent one; Budget describes steps and faults while the actual deterministic
+limits are more specific. Their current detailed rules remain in the World
+reference. The remaining Engine vocabulary, API renames, and WS4-WS6 work
+remain open.

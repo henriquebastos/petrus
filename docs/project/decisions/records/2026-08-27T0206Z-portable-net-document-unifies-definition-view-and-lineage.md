@@ -14,6 +14,11 @@ related:
 
 # Portable Net document unifies definition, view, and eventual lineage
 
+The original decision below includes a source-anchor and record-fact design
+that was replaced before release. The [dated correction](#1-coherence-correction-2026-09-08)
+links the accepted direct-marking result; the original rationale remains as
+historical context.
+
 ## Question
 
 Should Arx arrangement, simulation, and captured production evidence use
@@ -103,3 +108,25 @@ names. Shipped spellings (`PortableViewV1`, `ExecutionLineage`,
 `LineageEntry`, spec prose) are pending rename; the DST `Timeline` authoring
 facade needs disambiguation.
 
+## 1 Coherence correction, 2026-09-08
+
+The Navigator's accepted refinement in
+[CV20.DS3.TS2's plan](../../roadmap/cv20-approachable-petrus/cv20-ds3-live-understanding/cv20-ds3-ts2-forkable-lineage/plan.md)
+replaced source anchors, record facts, checkpoints, and replay-derived navigation
+with complete markings before release. The
+[accepted Experience Report](../../roadmap/cv20-approachable-petrus/cv20-ds3-live-understanding/cv20-ds3-ts2-forkable-lineage/experience-report.md)
+records its implementation and verification. This note repairs the record's
+missing supersession; it makes no new design or terminology decision.
+
+Each Timeline entry requires `id`, `parent`, `provenance`, a complete sparse
+`marking`, and a strict-JSON `metadata` object. Navigation reads the marking
+directly. History records may appear inside metadata as supporting evidence;
+they are not required and do not determine state or ancestry. The earlier
+requirements for retained source bytes and source-position correspondence
+therefore no longer apply.
+
+The 2026-08-31 names remain accepted: Net document, Layout, Net identity, and
+Timeline. The current [specification](../../../../spec/net-document-v1.md)
+uses those names while retaining the `view` and `lineage` JSON keys and existing
+Python class names. Runtime History remains linear; hypothetical branches
+belong to the document.

@@ -7,4 +7,4 @@ replay authority.
 
 - Related: [Workload](workload.md),
   [Checker](checker.md), [Budget](budget.md)
-- Detail: [dst-world-v4.md](../../process/dst-world-v4.md)
+- Detail: [World reference](../../process/dst-world.md)

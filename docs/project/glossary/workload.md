@@ -9,4 +9,4 @@ role FoundationDB and TigerBeetle call a workload.
 - Avoid: scenario profile (former name; the `ScenarioProfile` class is
   pending rename).
 - Related: [World](world.md)
-- Detail: [dst-world-v4.md](../../process/dst-world-v4.md)
+- Detail: [World reference](../../process/dst-world.md#profile-contract)

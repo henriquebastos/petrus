@@ -23,7 +23,7 @@ order is insignificant; JSON types and array order are exact.
 `initial_marking`, and `max_actions`. The marking uses the protocol-v1 sorted
 place/token shape and each token has exactly `color` and strict-JSON `data`.
 The response is one [Petrus Net document](net-document-v1.md). It carries the
-profile's exact definition and one `simulated` lineage entry per canonical
+profile's exact definition and one `simulated` Timeline entry per canonical
 History record. Every entry carries its complete marking directly and keeps
 the corresponding History record in non-authoritative metadata. The first
 entry's metadata also carries profile, scenario, and outcome context. There is

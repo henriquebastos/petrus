@@ -75,7 +75,7 @@ Closing the server never closes its Engine.
 
 `GET /v1/snapshot` returns the snapshot. `GET /v1/history?after=<int>&limit=<int>`
 returns one History page. `GET /v1/document` atomically materializes the same
-Engine as one Net document: one `observed` lineage entry per canonical History
+Engine as one Net document: one `observed` Timeline entry per canonical History
 record, a complete marking on every entry, the record in non-authoritative
 `metadata.history_record`, and the final current observation in the head
 entry's metadata. The document route takes no query.
