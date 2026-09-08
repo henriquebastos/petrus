@@ -253,6 +253,6 @@ candidate before release because direct complete markings remove the extra
 consumer logic. Those experiments remain historical evidence under this
 Exploration and in Git history; they are not current protocol authority.
 
-The normative result is [the Net document specification](../../../spec/net-document-v1.md),
+The normative result is [the Net document specification](../../../../spec/net-document-v1.md),
 and Delivery continues under
 [CV20.DS3 — Live understanding](../../roadmap/cv20-approachable-petrus/cv20-ds3-live-understanding.md).
